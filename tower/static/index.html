@@ -1,1 +1,1161 @@
-<html><body>loading...</body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIS-OS Control Tower</title>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --surface2: #21262d; --border: #30363d;
+    --accent: #58a6ff; --accent2: #3fb950; --warn: #d29922; --danger: #f85149;
+    --purple: #bc8cff; --text: #e6edf3; --muted: #8b949e;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* TOP BAR */
+  #topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 20px; background: var(--surface); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 16px; }
+  .logo { font-size: 15px; font-weight: 700; color: var(--accent); letter-spacing: -0.3px; }
+  .logo span { color: var(--muted); font-weight: 400; }
+  #status-pills { display: flex; gap: 10px; }
+  .status-pill {
+    display: flex; align-items: center; gap: 5px;
+    background: var(--surface2); border: 1px solid var(--border);
+    padding: 3px 8px; border-radius: 12px; font-size: 11px; color: var(--muted);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dot.green { background: var(--accent2); }
+  .dot.yellow { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+  .dot.red { background: var(--danger); }
+  .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 12px; color: var(--muted); }
+  #refresh-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;
+  }
+  #refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+  #last-refresh { color: var(--muted); font-size: 12px; }
+  #clock { color: var(--muted); font-size: 12px; }
+
+  /* LAYOUT */
+  .app { display: grid; grid-template-columns: 210px 1fr; min-height: calc(100vh - 44px); }
+
+  /* SIDEBAR */
+  #sidebar {
+    background: var(--surface); border-right: 1px solid var(--border);
+    padding: 12px 0; display: flex; flex-direction: column; gap: 2px;
+    position: sticky; top: 44px; height: calc(100vh - 44px); overflow-y: auto;
+  }
+  .sidebar-section {
+    padding: 10px 14px 4px; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--muted); font-weight: 600;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 8px; padding: 6px 14px;
+    color: var(--muted); cursor: pointer; border-left: 2px solid transparent;
+    user-select: none;
+  }
+  .nav-item:hover, .nav-item.active {
+    color: var(--text); background: var(--surface2); border-left-color: var(--accent);
+  }
+  .nav-item .icon { font-size: 13px; width: 16px; text-align: center; }
+  .nav-badge {
+    margin-left: auto; background: var(--accent); color: #000;
+    font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px;
+  }
+  .nav-badge.warn { background: var(--warn); color: #000; }
+  .nav-badge.danger { background: var(--danger); color: #fff; }
+  .nav-badge.muted { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+  .nav-badge.green { background: var(--accent2); color: #000; }
+
+  /* MAIN */
+  #main { overflow-y: auto; }
+  .main-content { padding: 16px 20px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* SECTION HEADERS */
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .section-title { font-size: 12px; font-weight: 600; color: var(--text); }
+  .section-action { font-size: 11px; color: var(--accent); cursor: pointer; }
+  .section-action:hover { text-decoration: underline; }
+
+  /* FOCUS STRIP */
+  #focus-strip {
+    background: linear-gradient(135deg, rgba(88,166,255,0.08), rgba(63,185,80,0.05));
+    border: 1px solid rgba(88,166,255,0.25); border-radius: 8px;
+    padding: 12px 16px; display: flex; align-items: center; gap: 16px;
+  }
+  .focus-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--accent); font-weight: 700; flex-shrink: 0;
+  }
+  .focus-item { flex: 1; }
+  .focus-title { font-size: 13px; font-weight: 600; }
+  .focus-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .interrupt-impact-text {
+    font-size: 11px; color: var(--warn); flex-shrink: 0; display: none;
+  }
+  .focus-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .focus-btn {
+    font-size: 11px; padding: 4px 10px; border-radius: 5px; cursor: pointer;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  }
+  .focus-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .focus-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+
+  /* BLOCKED BANNER */
+  #blocked-banner {
+    background: rgba(248,81,73,0.07); border: 1px solid rgba(248,81,73,0.3);
+    border-radius: 8px; padding: 10px 14px;
+  }
+  .blocked-title { font-size: 12px; font-weight: 600; color: var(--danger); margin-bottom: 8px; }
+  .blocked-items { display: flex; flex-direction: column; gap: 6px; }
+  .blocked-item {
+    display: flex; align-items: center; gap: 12px; font-size: 11px;
+    background: rgba(248,81,73,0.05); border-radius: 4px; padding: 6px 8px;
+  }
+  .blocked-who { font-weight: 600; color: var(--danger); flex-shrink: 0; }
+  .blocked-reason { flex: 1; color: var(--text); }
+  .blocked-age { font-size: 10px; color: var(--muted); flex-shrink: 0; }
+
+  /* STANDUP STRIP */
+  #standup-strip {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  }
+  .standup-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 14px; border-bottom: 1px solid var(--border); background: var(--surface2);
+  }
+  .standup-title { font-size: 12px; font-weight: 600; }
+  #standup-copy {
+    font-size: 11px; padding: 3px 10px; border-radius: 5px; cursor: pointer;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  }
+  #standup-copy:hover { border-color: var(--accent); color: var(--accent); }
+  .standup-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+  .standup-col { padding: 10px 14px; border-right: 1px solid var(--border); }
+  .standup-col:last-child { border-right: none; }
+  .standup-col-title {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--muted); font-weight: 600; margin-bottom: 8px;
+  }
+  .standup-item {
+    font-size: 11px; color: var(--text); margin-bottom: 5px;
+    padding-left: 10px; position: relative;
+  }
+  .standup-item::before { content: '·'; position: absolute; left: 0; color: var(--muted); }
+  .standup-item.blocker { color: var(--danger); }
+  .standup-item.blocker::before { content: '🚫'; font-size: 9px; left: -1px; }
+  .standup-empty { font-size: 11px; color: var(--muted); font-style: italic; }
+
+  /* PROJECTS */
+  #projects-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+  .project-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px; cursor: pointer; transition: border-color 0.15s;
+  }
+  .project-card:hover { border-color: var(--accent); }
+  .project-card.active-card { border-color: var(--accent); }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+  .card-name { font-weight: 600; font-size: 13px; }
+  .card-priority { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; }
+  .priority-high { background: rgba(248,81,73,0.15); color: var(--danger); }
+  .priority-med { background: rgba(210,153,34,0.15); color: var(--warn); }
+  .card-status { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+  .sprint-bar { margin-bottom: 8px; }
+  .sprint-bar-label { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-bottom: 3px; }
+  .bar-track { background: var(--surface2); border-radius: 3px; height: 4px; }
+  .bar-fill { background: var(--accent2); border-radius: 3px; height: 4px; }
+  .card-meta { display: flex; flex-wrap: wrap; gap: 4px; }
+  .meta-chip {
+    font-size: 10px; padding: 2px 6px; border-radius: 4px;
+    background: var(--surface2); color: var(--muted); border: 1px solid var(--border);
+  }
+  .meta-chip.accent { color: var(--accent); border-color: rgba(88,166,255,0.3); background: rgba(88,166,255,0.08); }
+  .meta-chip.warn { color: var(--warn); border-color: rgba(210,153,34,0.3); background: rgba(210,153,34,0.08); }
+  .meta-chip.danger { color: var(--danger); border-color: rgba(248,81,73,0.3); background: rgba(248,81,73,0.08); }
+
+  /* PANEL GRID */
+  .panel-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 12px; }
+  .panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  }
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 12px; border-bottom: 1px solid var(--border); background: var(--surface2);
+  }
+  .panel-title { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .panel-count { font-size: 10px; color: var(--muted); }
+  .panel-body { padding: 8px; max-height: 260px; overflow-y: auto; }
+  .panel-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .panel-tab {
+    padding: 6px 12px; font-size: 11px; color: var(--muted); cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  .panel-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .panel-tab:hover { color: var(--text); }
+
+  /* ADO ROWS */
+  .ado-row {
+    display: flex; align-items: flex-start; gap: 8px; padding: 6px 4px;
+    border-bottom: 1px solid var(--border); cursor: pointer;
+  }
+  .ado-row:hover { background: var(--surface2); border-radius: 4px; }
+  .ado-row:last-child { border-bottom: none; }
+  .ado-state { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+  .state-active { background: var(--accent); }
+  .state-review { background: var(--warn); }
+  .state-blocked { background: var(--danger); }
+  .state-done { background: var(--accent2); }
+  .ado-body { flex: 1; min-width: 0; }
+  .ado-text { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ado-meta { font-size: 10px; color: var(--muted); margin-top: 1px; }
+  .review-age { font-size: 10px; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; margin-top: 2px; }
+  .age-ok { background: rgba(63,185,80,0.15); color: var(--accent2); }
+  .age-warn { background: rgba(210,153,34,0.2); color: var(--warn); }
+  .age-old { background: rgba(248,81,73,0.15); color: var(--danger); }
+
+  /* LIST ITEMS */
+  .list-item {
+    display: flex; align-items: flex-start; gap: 8px; padding: 7px 4px;
+    border-bottom: 1px solid var(--border); cursor: pointer;
+  }
+  .list-item:last-child { border-bottom: none; }
+  .list-item:hover { background: var(--surface2); border-radius: 4px; }
+  .item-icon { font-size: 12px; margin-top: 1px; flex-shrink: 0; }
+  .item-title { font-size: 11px; color: var(--text); line-height: 1.4; }
+  .item-meta { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .item-tag {
+    font-size: 10px; padding: 1px 5px; border-radius: 3px;
+    background: var(--surface2); color: var(--muted); border: 1px solid var(--border); flex-shrink: 0;
+  }
+
+  /* TEAM ROW */
+  #team-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .team-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px;
+  }
+  .team-name { font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+  .team-role { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+  .team-stats { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .team-stat { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; }
+  .stat-blue { background: rgba(88,166,255,0.15); color: var(--accent); }
+  .stat-warn { background: rgba(210,153,34,0.15); color: var(--warn); }
+  .stat-red { background: rgba(248,81,73,0.15); color: var(--danger); }
+  .stat-green { background: rgba(63,185,80,0.15); color: var(--accent2); }
+  .team-wip { font-size: 11px; color: var(--muted); }
+  .team-wip strong { color: var(--text); }
+
+  /* DECISIONS + SYNC PANELS */
+  .decision-row {
+    display: flex; align-items: flex-start; gap: 10px; padding: 7px 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .decision-row:last-child { border-bottom: none; }
+  .decision-date { font-size: 10px; color: var(--muted); flex-shrink: 0; width: 52px; margin-top: 2px; }
+  .decision-text { font-size: 11px; line-height: 1.4; }
+  .decision-tag { font-size: 10px; color: var(--warn); margin-top: 2px; }
+  .sync-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 4px; border-bottom: 1px solid var(--border); font-size: 11px;
+  }
+  .sync-row:last-child { border-bottom: none; }
+  .sync-status { font-size: 10px; padding: 1px 6px; border-radius: 10px; }
+  .sync-ok { background: rgba(63,185,80,0.15); color: var(--accent2); }
+  .sync-pending { background: rgba(210,153,34,0.15); color: var(--warn); }
+
+  /* CHEAT SHEET */
+  #cheatsheet {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  }
+  #cheatsheet-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 14px; border-bottom: 1px solid var(--border);
+    background: var(--surface2); cursor: pointer;
+  }
+  #cheatsheet-header:hover { opacity: 0.85; }
+  #cheatsheet-toggle { font-size: 11px; color: var(--muted); }
+  .cheatsheet-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .cs-section { padding: 12px 14px; border-right: 1px solid var(--border); }
+  .cs-section:last-child { border-right: none; }
+  .cs-title { font-size: 11px; font-weight: 600; color: var(--text); margin-bottom: 10px; }
+  .cs-item { display: flex; flex-direction: column; gap: 2px; margin-bottom: 7px; }
+  .cs-key {
+    font-family: 'SF Mono', 'Consolas', monospace; font-size: 11px;
+    color: var(--accent); background: var(--surface2); padding: 2px 6px;
+    border-radius: 3px; display: inline-block; width: fit-content; border: 1px solid var(--border);
+  }
+  .cs-desc { font-size: 11px; color: var(--muted); }
+
+  /* INTERRUPTS SECTION */
+  #interrupts-section { display: none; }
+  .interrupts-triage { display: flex; gap: 10px; margin-bottom: 14px; }
+  .triage-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 14px; flex: 1; text-align: center;
+  }
+  .triage-card .triage-num { font-size: 22px; font-weight: 700; line-height: 1; margin-bottom: 3px; }
+  .triage-card .triage-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .triage-num.danger { color: var(--danger); }
+  .triage-num.warn { color: var(--warn); }
+  .triage-num.accent { color: var(--accent); }
+  .triage-num.green { color: var(--accent2); }
+
+  /* INTERRUPT CAPTURE FORM */
+  #interrupt-capture-form {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px; margin-bottom: 14px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  }
+  .capture-label { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+  #interrupt-title-input {
+    flex: 1; min-width: 200px; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); padding: 5px 10px; border-radius: 5px; font-size: 12px; outline: none;
+  }
+  #interrupt-title-input:focus { border-color: var(--accent); }
+  #interrupt-title-input::placeholder { color: var(--muted); }
+  .capture-select {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    padding: 5px 8px; border-radius: 5px; font-size: 11px; outline: none; cursor: pointer;
+  }
+  .capture-date {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    padding: 5px 8px; border-radius: 5px; font-size: 11px; outline: none;
+  }
+  .capture-submit {
+    background: var(--accent); color: #000; border: none; padding: 5px 14px;
+    border-radius: 5px; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .capture-submit:hover { opacity: 0.85; }
+
+  /* INTERRUPT TABS + FILTERS */
+  .interrupts-controls {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px; flex-wrap: wrap; gap: 8px;
+  }
+  .interrupt-tabs { display: flex; gap: 4px; }
+  .interrupt-tab {
+    padding: 4px 12px; font-size: 11px; border-radius: 5px; cursor: pointer;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+  }
+  .interrupt-tab.active { background: rgba(88,166,255,0.1); border-color: var(--accent); color: var(--accent); }
+  .interrupt-tab:hover { color: var(--text); }
+  .filter-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filter-chip {
+    font-size: 10px; padding: 2px 8px; border-radius: 10px; cursor: pointer;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+  }
+  .filter-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .filter-chip.active { background: rgba(88,166,255,0.1); border-color: var(--accent); color: var(--accent); }
+
+  /* INTERRUPTS LIST */
+  #interrupts-list {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  }
+  .interrupt-row {
+    display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+    border-bottom: 1px solid var(--border); cursor: pointer;
+  }
+  .interrupt-row:last-child { border-bottom: none; }
+  .interrupt-row:hover { background: var(--surface2); }
+  .priority-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .p-urgent { background: var(--danger); box-shadow: 0 0 5px var(--danger); }
+  .p-high { background: var(--warn); }
+  .p-normal { background: var(--accent); }
+  .p-low { background: var(--muted); }
+  .interrupt-info { flex: 1; min-width: 0; }
+  .interrupt-title { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .interrupt-meta { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .interrupt-source {
+    font-size: 10px; padding: 2px 6px; border-radius: 3px; flex-shrink: 0;
+    background: var(--surface2); color: var(--muted); border: 1px solid var(--border);
+  }
+  .src-support { background: rgba(188,140,255,0.12); color: var(--purple); border-color: rgba(188,140,255,0.3); }
+  .src-email { background: rgba(88,166,255,0.1); color: var(--accent); border-color: rgba(88,166,255,0.3); }
+  .src-teams { background: rgba(63,185,80,0.1); color: var(--accent2); border-color: rgba(63,185,80,0.3); }
+  .interrupt-age { font-size: 10px; color: var(--muted); flex-shrink: 0; }
+
+  /* DRILL-DOWN PANEL */
+  #drilldown-panel {
+    display: none; position: fixed; right: 0; top: 44px;
+    width: 700px; height: calc(100vh - 44px); background: var(--surface);
+    border-left: 1px solid var(--border); z-index: 200; overflow-y: auto;
+    box-shadow: -4px 0 20px rgba(0,0,0,0.4);
+  }
+  .dd-header {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 14px 16px; border-bottom: 1px solid var(--border); background: var(--surface2);
+    position: relative;
+  }
+  .dd-title-block { flex: 1; }
+  .dd-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .dd-meta-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .dd-source {
+    font-size: 11px; padding: 2px 7px; border-radius: 3px;
+    background: rgba(188,140,255,0.12); color: var(--purple); border: 1px solid rgba(188,140,255,0.3);
+  }
+  .dd-status {
+    font-size: 11px; padding: 2px 7px; border-radius: 3px;
+    background: rgba(88,166,255,0.1); color: var(--accent); border: 1px solid rgba(88,166,255,0.3);
+  }
+  .dd-age { font-size: 11px; color: var(--muted); }
+  #drilldown-close {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    width: 24px; height: 24px; border-radius: 4px; cursor: pointer; font-size: 14px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  #drilldown-close:hover { color: var(--text); border-color: var(--text); }
+  .dd-actions {
+    display: flex; gap: 8px; padding: 10px 16px;
+    border-bottom: 1px solid var(--border); background: var(--surface);
+  }
+  .btn {
+    font-size: 11px; padding: 5px 12px; border-radius: 5px; cursor: pointer;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+  .btn.primary:hover { opacity: 0.85; }
+  .btn.success { background: rgba(63,185,80,0.15); color: var(--accent2); border-color: rgba(63,185,80,0.3); }
+  .dd-body { display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
+  .dd-left { padding: 16px; border-right: 1px solid var(--border); }
+  .dd-right { padding: 16px; }
+  .section-label {
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;
+  }
+
+  /* TAGS ROW */
+  .tags-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .tag {
+    font-size: 11px; padding: 2px 8px; border-radius: 10px; cursor: pointer;
+    background: var(--surface2); color: var(--muted); border: 1px solid var(--border);
+  }
+  .tag:hover { border-color: var(--accent); color: var(--accent); }
+  .tag-add { color: var(--accent); border-style: dashed; }
+
+  /* ACTIVITY FEED */
+  .comment-feed { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; min-height: 80px; }
+  .comment-item { font-size: 11px; }
+  .comment-who { font-weight: 600; color: var(--text); }
+  .comment-when { color: var(--muted); font-size: 10px; margin-left: 6px; }
+  .comment-text { color: var(--text); line-height: 1.5; margin-top: 3px; }
+  .comment-empty { color: var(--muted); font-style: italic; font-size: 11px; }
+
+  /* COMMENT FORM */
+  .add-comment-form { display: flex; flex-direction: column; gap: 8px; }
+  .comment-input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-size: 12px; padding: 8px 10px; border-radius: 5px;
+    resize: none; min-height: 60px; font-family: inherit; outline: none;
+  }
+  .comment-input:focus { border-color: var(--accent); }
+  .comment-input::placeholder { color: var(--muted); }
+  .comment-actions { display: flex; gap: 6px; }
+
+  /* EMAIL DRAFT */
+  .email-template-row { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .template-btn {
+    font-size: 11px; padding: 4px 10px; border-radius: 5px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface2); color: var(--muted);
+  }
+  .template-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .template-btn.active { background: rgba(88,166,255,0.1); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .tone-row { display: flex; gap: 6px; margin-bottom: 12px; }
+  .tone-btn {
+    font-size: 10px; padding: 3px 9px; border-radius: 5px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface2); color: var(--muted);
+  }
+  .tone-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .tone-btn.active { background: rgba(88,166,255,0.1); border-color: var(--accent); color: var(--accent); }
+  .generate-draft-btn {
+    width: 100%; padding: 7px; border-radius: 5px; cursor: pointer; margin-bottom: 12px;
+    background: rgba(88,166,255,0.1); border: 1px solid rgba(88,166,255,0.3);
+    color: var(--accent); font-size: 12px; font-weight: 600;
+  }
+  .generate-draft-btn:hover { background: rgba(88,166,255,0.18); }
+  .email-preview {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 12px; margin-bottom: 10px;
+  }
+  .email-field { display: flex; gap: 8px; margin-bottom: 8px; font-size: 11px; }
+  .email-field-label { color: var(--muted); width: 36px; flex-shrink: 0; padding-top: 1px; }
+  .email-field-value { color: var(--text); flex: 1; }
+  .email-subject { font-weight: 600; font-size: 12px; color: var(--text); }
+  .email-divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+  .email-body-text { font-size: 12px; color: var(--muted); line-height: 1.6; font-style: italic; }
+  .email-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .email-btn { font-size: 11px; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
+  .email-btn-copy { background: var(--accent); color: #000; border: none; font-weight: 600; }
+  .email-btn-outlook { background: rgba(0,120,212,0.15); border: 1px solid rgba(0,120,212,0.3); color: #2196f3; }
+  .regenerate-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+  .regen-btn {
+    font-size: 11px; padding: 3px 8px; border-radius: 4px; cursor: pointer;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  }
+  .regen-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* UTILITY */
+  .new-badge {
+    font-size: 9px; background: rgba(63,185,80,0.15); color: var(--accent2);
+    border: 1px solid rgba(63,185,80,0.3); padding: 1px 5px; border-radius: 8px;
+    font-weight: 700; margin-left: 6px;
+  }
+  .panel-action { font-size: 11px; color: var(--accent); cursor: pointer; }
+  .panel-action:hover { text-decoration: underline; }
+  .empty-state { padding: 20px; text-align: center; font-size: 11px; color: var(--muted); font-style: italic; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="topbar-left">
+    <div class="logo">AIS-OS <span>Control Tower</span></div>
+    <div id="status-pills">
+      <div class="status-pill"><div class="dot green"></div> ADO</div>
+      <div class="status-pill"><div class="dot green"></div> Hermes</div>
+      <div class="status-pill"><div class="dot yellow"></div> 3 pending</div>
+      <div class="status-pill"><div class="dot red"></div> 1 blocked</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span id="last-refresh">↻ just now</span>
+    <button id="refresh-btn">↻ Refresh</button>
+    <span id="clock">Loading...</span>
+  </div>
+</div>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sidebar-section">My Work</div>
+    <div class="nav-item active" data-nav-view="dashboard"><span class="icon">⊞</span> Dashboard</div>
+    <div class="nav-item" data-nav-view="focus"><span class="icon">🎯</span> Focus Mode</div>
+    <div class="nav-item" data-nav-view="standup"><span class="icon">☕</span> Standup Prep</div>
+
+    <div class="sidebar-section" style="margin-top:6px">Interrupts</div>
+    <div class="nav-item" data-nav-view="interrupts"><span class="icon">⚡</span> All Interrupts <span class="nav-badge danger" id="badge-interrupts"></span></div>
+    <div class="nav-item" data-nav-view="overdue"><span class="icon">🔴</span> Overdue <span class="nav-badge danger" id="badge-overdue"></span></div>
+    <div class="nav-item" data-nav-view="due-today"><span class="icon">📅</span> Due Today <span class="nav-badge warn" id="badge-due-today"></span></div>
+
+    <div class="sidebar-section" style="margin-top:6px">Projects</div>
+    <div class="nav-item" data-nav-view="magiq-media"><span class="icon">🎬</span> magiq-media <span class="nav-badge" id="badge-mm-ado"></span></div>
+    <div class="nav-item" data-nav-view="magiq-auth"><span class="icon">🔐</span> magiq-auth <span class="nav-badge muted" id="badge-ma-ado">draft</span></div>
+
+    <div class="sidebar-section" style="margin-top:6px">Inbox</div>
+    <div class="nav-item" data-nav-view="inbox"><span class="icon">📥</span> ADO Pending <span class="nav-badge warn" id="badge-ado-pending"></span></div>
+    <div class="nav-item" data-nav-view="blocked"><span class="icon">🚫</span> Blocked <span class="nav-badge danger" id="badge-blocked"></span></div>
+    <div class="nav-item" data-nav-view="adhoc"><span class="icon">📝</span> Adhoc Notes</div>
+    <div class="nav-item" data-nav-view="hermes-sync"><span class="icon">🔄</span> Hermes Sync</div>
+
+    <div class="sidebar-section" style="margin-top:6px">Team</div>
+    <div class="nav-item" data-nav-view="team"><span class="icon">👥</span> Workload</div>
+    <div class="nav-item" data-nav-view="review-queue"><span class="icon">👁</span> Review Queue</div>
+
+    <div class="sidebar-section" style="margin-top:6px">History</div>
+    <div class="nav-item" data-nav-view="decisions"><span class="icon">⚖️</span> Decisions</div>
+    <div class="nav-item" data-nav-view="sprint"><span class="icon">📊</span> Sprint Board</div>
+
+    <div class="sidebar-section" style="margin-top:6px">Reference</div>
+    <div class="nav-item" data-nav-view="cheatsheet"><span class="icon">📖</span> Cheat Sheet</div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+    <div class="main-content">
+
+      <!-- ① FOCUS STRIP -->
+      <div id="focus-strip">
+        <div class="focus-label">Now</div>
+        <div class="focus-item">
+          <div class="focus-title">—</div>
+          <div class="focus-meta">Loading focus item...</div>
+        </div>
+        <div class="interrupt-impact-text">⚡ 2 interrupts blocking this</div>
+        <div class="focus-actions">
+          <button class="focus-btn">Skip</button>
+          <button class="focus-btn">Mark done</button>
+          <button class="focus-btn primary">→ Open in ADO</button>
+        </div>
+      </div>
+
+      <!-- ② BLOCKED BANNER (hidden by default) -->
+      <div id="blocked-banner" style="display:none">
+        <div class="blocked-title">🚫 Blocked Items — needs your attention</div>
+        <div class="blocked-items"></div>
+      </div>
+
+      <!-- ③ STANDUP STRIP -->
+      <div id="standup-strip">
+        <div class="standup-header">
+          <div class="standup-title">☕ Standup Prep</div>
+          <button id="standup-copy">📋 Copy</button>
+        </div>
+        <div class="standup-grid">
+          <div class="standup-col">
+            <div class="standup-col-title">Yesterday</div>
+            <div id="standup-yesterday">
+              <div class="standup-empty">No data yet — refresh to load</div>
+            </div>
+          </div>
+          <div class="standup-col">
+            <div class="standup-col-title">Today</div>
+            <div id="standup-today">
+              <div class="standup-empty">No data yet — refresh to load</div>
+            </div>
+          </div>
+          <div class="standup-col">
+            <div class="standup-col-title">Blockers</div>
+            <div id="standup-blockers">
+              <div class="standup-empty">None captured</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ④ PROJECTS -->
+      <div>
+        <div class="section-header">
+          <div class="section-title">Projects</div>
+          <div class="section-action">+ scaffold new</div>
+        </div>
+        <div id="projects-row">
+          <div class="project-card active-card">
+            <div class="card-top">
+              <div class="card-name">magiq-media</div>
+              <div class="card-priority priority-high">HIGH</div>
+            </div>
+            <div class="card-status">Active delivery — API layer, auth, user security</div>
+            <div class="sprint-bar">
+              <div class="sprint-bar-label">
+                <span>Sprint progress</span>
+                <span style="color:var(--accent2)">— · — days left</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" style="width:0%"></div></div>
+            </div>
+            <div class="card-meta">
+              <div class="meta-chip accent">— items</div>
+              <div class="meta-chip warn">— in review</div>
+              <div class="meta-chip danger">— blocked</div>
+              <div class="meta-chip">— pending flush</div>
+            </div>
+          </div>
+          <div class="project-card">
+            <div class="card-top">
+              <div class="card-name">magiq-auth</div>
+              <div class="card-priority priority-high">HIGH</div>
+            </div>
+            <div class="card-status">Draft — spec not started</div>
+            <div class="sprint-bar">
+              <div class="sprint-bar-label"><span>No sprint active</span></div>
+              <div class="bar-track"><div class="bar-fill" style="width:0%"></div></div>
+            </div>
+            <div class="card-meta">
+              <div class="meta-chip">No ADO board</div>
+              <div class="meta-chip">0 captures pending</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ⑤ PANEL GRID: ADO / Hermes / Adhoc -->
+      <div class="panel-grid">
+
+        <!-- ADO PANEL -->
+        <div class="panel" id="ado-panel">
+          <div class="panel-header">
+            <div class="panel-title">📊 ADO Sprint</div>
+            <div class="panel-action">/devops</div>
+          </div>
+          <div class="panel-tabs">
+            <div class="panel-tab active">My Items</div>
+            <div class="panel-tab">In Review</div>
+            <div class="panel-tab">Team</div>
+          </div>
+          <div class="panel-body" id="ado-panel-body">
+            <div class="empty-state">Refresh to load ADO data</div>
+          </div>
+        </div>
+
+        <!-- HERMES PANEL -->
+        <div class="panel" id="hermes-panel">
+          <div class="panel-header">
+            <div class="panel-title">📥 Hermes Inbox <span class="panel-count" id="hermes-count"></span></div>
+            <div class="panel-action">flush all</div>
+          </div>
+          <div class="panel-body" id="hermes-panel-body">
+            <div class="empty-state">Refresh to load Hermes captures</div>
+          </div>
+        </div>
+
+        <!-- ADHOC PANEL -->
+        <div class="panel" id="adhoc-panel">
+          <div class="panel-header">
+            <div class="panel-title">📝 Adhoc Notes</div>
+            <div class="panel-count" id="adhoc-count"></div>
+          </div>
+          <div class="panel-body" id="adhoc-panel-body">
+            <div class="empty-state">No adhoc notes</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ⑥ TEAM WORKLOAD -->
+      <div>
+        <div class="section-header">
+          <div class="section-title">👥 Team Workload <span class="new-badge">NEW</span></div>
+          <div class="section-action">/devops all</div>
+        </div>
+        <div id="team-row">
+          <div class="team-card">
+            <div class="team-name">Chase Ramone</div>
+            <div class="team-role">Team Lead + Developer</div>
+            <div class="team-stats">
+              <div class="team-stat stat-blue">— active</div>
+              <div class="team-stat stat-warn">— in review</div>
+              <div class="team-stat stat-red">— blocked</div>
+            </div>
+            <div class="team-wip">WIP: <strong>Loading...</strong></div>
+          </div>
+          <div class="team-card">
+            <div class="team-name">Estelle Wu</div>
+            <div class="team-role">API Layer</div>
+            <div class="team-stats">
+              <div class="team-stat stat-blue">— active</div>
+              <div class="team-stat stat-warn">— in review</div>
+              <div class="team-stat stat-green">— blocked</div>
+            </div>
+            <div class="team-wip">WIP: <strong>—</strong></div>
+          </div>
+          <div class="team-card">
+            <div class="team-name">Akshay Gaikwad</div>
+            <div class="team-role">UI / Integrations</div>
+            <div class="team-stats">
+              <div class="team-stat stat-blue">— active</div>
+              <div class="team-stat stat-warn">— in review</div>
+              <div class="team-stat stat-red">— blocked</div>
+            </div>
+            <div class="team-wip">WIP: <strong>—</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ⑦ DECISIONS + SYNC STATUS -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">⚖️ Recent Decisions</div>
+            <div class="panel-action" style="font-size:11px">view all</div>
+          </div>
+          <div class="panel-body" id="decisions-body">
+            <div class="empty-state">No recent decisions</div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">🔄 Sync Status</div>
+            <div class="panel-action" style="font-size:11px">sync now</div>
+          </div>
+          <div class="panel-body" id="sync-body">
+            <div class="sync-row">
+              <span>Hermes → ADO</span>
+              <span class="sync-status sync-ok">OK</span>
+            </div>
+            <div class="sync-row">
+              <span>ADO fetch</span>
+              <span class="sync-status sync-pending">Pending</span>
+            </div>
+            <div class="sync-row">
+              <span>Last full sync</span>
+              <span style="font-size:11px; color:var(--muted)">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ⑧ CHEAT SHEET -->
+      <div id="cheatsheet">
+        <div id="cheatsheet-header">
+          <div class="section-title">📖 Cheat Sheet</div>
+          <div id="cheatsheet-toggle">▼ click to collapse</div>
+        </div>
+        <div id="cheatsheet-body">
+          <div class="cheatsheet-grid">
+            <!-- Column 1: Hermes Triggers -->
+            <div class="cs-section">
+              <div class="cs-title">Hermes Triggers</div>
+              <div class="cs-item">
+                <div class="cs-key">"note that..."</div>
+                <div class="cs-desc">Capture ADO work item</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">"idea for [project]"</div>
+                <div class="cs-desc">Project idea</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">"risk for [project]"</div>
+                <div class="cs-desc">Risk capture</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">"decided on [project]"</div>
+                <div class="cs-desc">Decision capture</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">"remember this"</div>
+                <div class="cs-desc">Adhoc note (auto-routes)</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">"morning digest"</div>
+                <div class="cs-desc">Daily summary</div>
+              </div>
+            </div>
+            <!-- Column 2: Claude Code Commands -->
+            <div class="cs-section">
+              <div class="cs-title">Claude Code Commands</div>
+              <div class="cs-item">
+                <div class="cs-key">/devops</div>
+                <div class="cs-desc">Live ADO sprint status</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">/devops all</div>
+                <div class="cs-desc">Team view by assignee</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">flush pending notes</div>
+                <div class="cs-desc">Push captures → ADO</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">sync project [slug]</div>
+                <div class="cs-desc">Apply Hermes captures</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">scaffold project [slug]</div>
+                <div class="cs-desc">Create project folder</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">review project [slug]</div>
+                <div class="cs-desc">Status summary</div>
+              </div>
+            </div>
+            <!-- Column 3: AIS-OS Workflows -->
+            <div class="cs-section">
+              <div class="cs-title">AIS-OS Workflows</div>
+              <div class="cs-item">
+                <div class="cs-key">Capture → Flush</div>
+                <div class="cs-desc">Hermes note → "flush pending" → ADO</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">Capture → Sync</div>
+                <div class="cs-desc">Project captures → "sync project"</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">Morning routine</div>
+                <div class="cs-desc">Hermes digest + /devops</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">New project</div>
+                <div class="cs-desc">"new project" in Hermes → scaffold</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">Log decision</div>
+                <div class="cs-desc">/decision → decisions/log.md</div>
+              </div>
+            </div>
+            <!-- Column 4: Keyboard Shortcuts -->
+            <div class="cs-section">
+              <div class="cs-title">Keyboard Shortcuts</div>
+              <div class="cs-item">
+                <div class="cs-key">Ctrl+R</div>
+                <div class="cs-desc">Force refresh all panels</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">Ctrl+K</div>
+                <div class="cs-desc">Focus quick-capture bar</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">Esc</div>
+                <div class="cs-desc">Close drill-down</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">F</div>
+                <div class="cs-desc">Toggle Focus Mode</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">S</div>
+                <div class="cs-desc">Standup prep view</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">I</div>
+                <div class="cs-desc">Jump to Interrupts</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ⑨ INTERRUPTS SECTION (hidden by default) -->
+      <div id="interrupts-section">
+        <div class="section-header">
+          <div class="section-title">⚡ Interrupts</div>
+          <div class="section-action">view all</div>
+        </div>
+
+        <!-- Triage counts -->
+        <div class="interrupts-triage">
+          <div class="triage-card">
+            <div class="triage-num danger" id="triage-overdue">0</div>
+            <div class="triage-label">Overdue</div>
+          </div>
+          <div class="triage-card">
+            <div class="triage-num warn" id="triage-today">0</div>
+            <div class="triage-label">Due Today</div>
+          </div>
+          <div class="triage-card">
+            <div class="triage-num accent" id="triage-open">0</div>
+            <div class="triage-label">Open</div>
+          </div>
+          <div class="triage-card">
+            <div class="triage-num green" id="triage-done">0</div>
+            <div class="triage-label">Done Today</div>
+          </div>
+        </div>
+
+        <!-- Quick capture form -->
+        <form id="interrupt-capture-form">
+          <div class="capture-label">+ New</div>
+          <input type="text" id="interrupt-title-input" placeholder="Quick capture interrupt title..." />
+          <select class="capture-select" id="interrupt-source-select">
+            <option value="">Source</option>
+            <option value="support">Support</option>
+            <option value="email">Email</option>
+            <option value="teams">Teams</option>
+            <option value="slack">Slack</option>
+            <option value="adhoc">Adhoc</option>
+          </select>
+          <input type="date" class="capture-date" id="interrupt-due-input" />
+          <button type="submit" class="capture-submit">Capture</button>
+        </form>
+
+        <!-- Tabs + filters -->
+        <div class="interrupts-controls">
+          <div class="interrupt-tabs">
+            <div class="interrupt-tab active" data-tab="open">Open</div>
+            <div class="interrupt-tab" data-tab="in-progress">In Progress</div>
+            <div class="interrupt-tab" data-tab="done">Done</div>
+            <div class="interrupt-tab" data-tab="all">All</div>
+          </div>
+          <div class="filter-chips">
+            <div class="filter-chip active">All sources</div>
+            <div class="filter-chip">Support</div>
+            <div class="filter-chip">Email</div>
+            <div class="filter-chip">Teams</div>
+            <div class="filter-chip">Adhoc</div>
+          </div>
+        </div>
+
+        <!-- Interrupts list -->
+        <div id="interrupts-list">
+          <div class="empty-state">No interrupts to show</div>
+        </div>
+      </div>
+
+    </div><!-- /main-content -->
+  </div><!-- /main -->
+
+</div><!-- /app -->
+
+<!-- ⑩ DRILL-DOWN PANEL (hidden by default) -->
+<div id="drilldown-panel">
+
+  <!-- Header -->
+  <div class="dd-header">
+    <div class="priority-dot p-urgent"></div>
+    <div class="dd-title-block">
+      <div class="dd-title">—</div>
+      <div class="dd-meta-row">
+        <span class="dd-source">—</span>
+        <span class="dd-status">Open</span>
+        <span class="dd-age">—</span>
+      </div>
+    </div>
+    <button id="drilldown-close">✕</button>
+  </div>
+
+  <!-- Action buttons -->
+  <div class="dd-actions">
+    <button class="btn">✏️ Edit</button>
+    <button class="btn success">✅ Mark Done</button>
+    <button class="btn">→ ADO</button>
+  </div>
+
+  <!-- Body: left (comments/tags) + right (email draft) -->
+  <div class="dd-body">
+
+    <!-- LEFT COLUMN -->
+    <div class="dd-left">
+
+      <!-- Tags -->
+      <div class="section-label">Tags</div>
+      <div class="tags-row">
+        <span class="tag">support</span>
+        <span class="tag">client</span>
+        <span class="tag tag-add">+ add tag</span>
+      </div>
+
+      <!-- Activity feed -->
+      <div class="section-label">Activity</div>
+      <div class="comment-feed">
+        <div class="comment-empty">No activity yet</div>
+      </div>
+
+      <!-- Add comment -->
+      <div class="add-comment-form">
+        <textarea class="comment-input" placeholder="Add a note or update..."></textarea>
+        <div class="comment-actions">
+          <button class="btn primary" style="font-size:11px; padding:4px 12px;">Save</button>
+          <button class="btn" style="font-size:11px; padding:4px 10px;">Cancel</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN: Email draft -->
+    <div class="dd-right">
+      <div class="section-label" style="margin-bottom:10px;">📧 Generate Email Draft</div>
+
+      <!-- Template selector -->
+      <div class="email-template-row">
+        <div class="template-btn active" data-template="complete">✅ Job complete</div>
+        <div class="template-btn" data-template="waiting">⏳ Waiting on you</div>
+        <div class="template-btn" data-template="needs-info">💬 Need more info</div>
+        <div class="template-btn" data-template="update">🔄 Status update</div>
+      </div>
+
+      <!-- Tone selector -->
+      <div class="section-label">Tone</div>
+      <div class="tone-row">
+        <div class="tone-btn active" data-tone="formal">Formal</div>
+        <div class="tone-btn" data-tone="friendly">Friendly</div>
+        <div class="tone-btn" data-tone="brief">Brief</div>
+      </div>
+
+      <!-- Generate button -->
+      <button class="generate-draft-btn">✨ Generate Draft</button>
+
+      <!-- Email preview -->
+      <div class="email-preview">
+        <div class="email-field">
+          <div class="email-field-label">To</div>
+          <div class="email-field-value">—</div>
+        </div>
+        <div class="email-field">
+          <div class="email-field-label">Subject</div>
+          <div class="email-field-value email-subject">—</div>
+        </div>
+        <hr class="email-divider">
+        <div class="email-body-text">Generate a draft to preview the email here.</div>
+      </div>
+
+      <!-- Actions -->
+      <div class="email-actions">
+        <button class="email-btn email-btn-copy">Copy text</button>
+        <button class="email-btn email-btn-outlook">Open in Outlook</button>
+      </div>
+
+      <div class="regenerate-row">
+        <button class="regen-btn">↻ Regenerate</button>
+        <span>Uses comments + tags as context</span>
+      </div>
+
+    </div>
+  </div>
+</div><!-- /drilldown-panel -->
+
+<script>
+  // Clock
+  function updateClock() {
+    const now = new Date();
+    const opts = { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' };
+    document.getElementById('clock').textContent = now.toLocaleString('en-AU', opts);
+  }
+  updateClock();
+  setInterval(updateClock, 30000);
+
+  // Cheat sheet toggle
+  document.getElementById('cheatsheet-header').addEventListener('click', function() {
+    const body = document.getElementById('cheatsheet-body');
+    const toggle = document.getElementById('cheatsheet-toggle');
+    const collapsed = body.style.display === 'none';
+    body.style.display = collapsed ? '' : 'none';
+    toggle.textContent = collapsed ? '▼ click to collapse' : '▶ click to expand';
+  });
+
+  // Drilldown close
+  document.getElementById('drilldown-close').addEventListener('click', function() {
+    document.getElementById('drilldown-panel').style.display = 'none';
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      document.getElementById('drilldown-panel').style.display = 'none';
+    }
+  });
+
+  // Nav item active state
+  document.querySelectorAll('.nav-item[data-nav-view]').forEach(function(item) {
+    item.addEventListener('click', function() {
+      document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+      item.classList.add('active');
+    });
+  });
+
+  // Template buttons (single select)
+  document.querySelectorAll('.template-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      btn.closest('.email-template-row').querySelectorAll('.template-btn').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+    });
+  });
+
+  // Tone buttons (single select)
+  document.querySelectorAll('.tone-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      btn.closest('.tone-row').querySelectorAll('.tone-btn').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+    });
+  });
+
+  // Panel tabs (single select within panel)
+  document.querySelectorAll('.panel-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      tab.closest('.panel-tabs').querySelectorAll('.panel-tab').forEach(function(t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+    });
+  });
+
+  // Interrupt tabs
+  document.querySelectorAll('.interrupt-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.interrupt-tab').forEach(function(t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+    });
+  });
+
+  // Filter chips
+  document.querySelectorAll('.filter-chip').forEach(function(chip) {
+    chip.addEventListener('click', function() {
+      chip.classList.toggle('active');
+    });
+  });
+</script>
+</body>
+</html>
