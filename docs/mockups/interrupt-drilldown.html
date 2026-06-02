@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIS-OS — Interrupt Drill-Down Mockup</title>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --surface2: #21262d; --border: #30363d;
+    --accent: #58a6ff; --accent2: #3fb950; --warn: #d29922; --danger: #f85149;
+    --purple: #bc8cff; --text: #e6edf3; --muted: #8b949e;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); padding: 24px; max-width: 860px; margin: 0 auto; }
+
+  h1 { font-size: 15px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+  .subtitle { font-size: 12px; color: var(--muted); margin-bottom: 24px; }
+
+  /* DRILL-DOWN PANEL */
+  .drilldown {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+  }
+
+  /* HEADER */
+  .dd-header {
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    background: var(--surface2); display: flex; align-items: flex-start; gap: 12px;
+  }
+  .priority-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+  .p-urgent { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+  .dd-title-block { flex: 1; }
+  .dd-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .dd-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .source-tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+  .src-support { background: rgba(188,140,255,0.12); color: var(--purple); border: 1px solid rgba(188,140,255,0.25); }
+  .due-chip { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+  .due-overdue { background: rgba(248,81,73,0.15); color: var(--danger); border: 1px solid rgba(248,81,73,0.3); }
+  .status-chip { font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+  .status-inprogress { background: rgba(210,153,34,0.1); color: var(--warn); border: 1px solid rgba(210,153,34,0.2); }
+  .age-text { font-size: 11px; color: var(--muted); }
+  .dd-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .btn { font-size: 11px; padding: 5px 12px; border-radius: 5px; cursor: pointer; border: 1px solid var(--border); background: var(--surface2); color: var(--text); }
+  .btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+  .btn.success { background: rgba(63,185,80,0.12); color: var(--accent2); border-color: rgba(63,185,80,0.3); }
+  .btn.danger { background: rgba(248,81,73,0.1); color: var(--danger); border-color: rgba(248,81,73,0.25); }
+
+  /* BODY */
+  .dd-body { display: grid; grid-template-columns: 1fr 300px; }
+
+  /* LEFT: TAGS + COMMENTS */
+  .dd-left { padding: 16px 18px; border-right: 1px solid var(--border); }
+
+  .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--muted); font-weight: 600; margin-bottom: 8px; }
+
+  /* TAGS */
+  .tags-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+  .tag {
+    font-size: 11px; padding: 3px 10px; border-radius: 12px; cursor: pointer;
+    border: 1px solid var(--border); color: var(--muted); background: var(--surface2);
+    display: flex; align-items: center; gap: 4px;
+  }
+  .tag.active { font-weight: 600; }
+  .tag-blocked { background: rgba(248,81,73,0.1); color: var(--danger); border-color: rgba(248,81,73,0.3); }
+  .tag-waiting { background: rgba(210,153,34,0.1); color: var(--warn); border-color: rgba(210,153,34,0.25); }
+  .tag-review { background: rgba(88,166,255,0.1); color: var(--accent); border-color: rgba(88,166,255,0.2); }
+  .tag-feedback { background: rgba(188,140,255,0.1); color: var(--purple); border-color: rgba(188,140,255,0.25); }
+  .tag-complete { background: rgba(63,185,80,0.1); color: var(--accent2); border-color: rgba(63,185,80,0.25); }
+  .tag-add { color: var(--muted); border-style: dashed; }
+
+  /* COMMENTS */
+  .comment-feed { display: flex; flex-direction: column; gap: 0; margin-bottom: 12px; }
+  .comment-item {
+    display: flex; gap: 10px; padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .comment-item:last-child { border-bottom: none; }
+  .comment-avatar {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; background: var(--surface2); border: 1px solid var(--border);
+  }
+  .comment-body { flex: 1; }
+  .comment-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .comment-author { font-size: 11px; font-weight: 600; }
+  .comment-time { font-size: 10px; color: var(--muted); }
+  .comment-text { font-size: 12px; color: var(--text); line-height: 1.5; }
+
+  /* System events (status changes, tag changes) */
+  .event-item {
+    display: flex; align-items: center; gap: 8px; padding: 7px 0;
+    border-bottom: 1px solid var(--border); color: var(--muted); font-size: 11px;
+  }
+  .event-item:last-child { border-bottom: none; }
+  .event-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); flex-shrink: 0; margin-left: 11px; }
+
+  /* ADD COMMENT */
+  .add-comment { display: flex; gap: 8px; align-items: flex-start; padding-top: 4px; }
+  .comment-input {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 10px; color: var(--text); font-size: 12px;
+    resize: none; min-height: 60px; font-family: inherit;
+    outline: none;
+  }
+  .comment-input:focus { border-color: var(--accent); }
+  .comment-input::placeholder { color: var(--muted); }
+  .comment-actions { display: flex; flex-direction: column; gap: 6px; }
+
+  /* RIGHT: EMAIL DRAFT */
+  .dd-right { padding: 16px; }
+
+  .email-gen-section { }
+  .email-template-row { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .template-btn {
+    font-size: 11px; padding: 4px 10px; border-radius: 5px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface2); color: var(--muted);
+  }
+  .template-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .template-btn.active { background: rgba(88,166,255,0.1); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+  .email-preview {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 12px; margin-bottom: 10px;
+  }
+  .email-field { display: flex; gap: 8px; margin-bottom: 8px; font-size: 11px; }
+  .email-field-label { color: var(--muted); width: 36px; flex-shrink: 0; padding-top: 1px; }
+  .email-field-value { color: var(--text); flex: 1; }
+  .email-subject { font-weight: 600; font-size: 12px; color: var(--text); }
+  .email-divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+  .email-body-text { font-size: 12px; color: var(--text); line-height: 1.6; white-space: pre-wrap; }
+
+  .email-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .email-btn { font-size: 11px; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
+  .email-btn-copy { background: var(--accent); color: #000; border: none; font-weight: 600; }
+  .email-btn-edit { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+  .email-btn-outlook { background: rgba(0,120,212,0.15); border: 1px solid rgba(0,120,212,0.3); color: #2196f3; }
+
+  .regenerate-row { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 11px; color: var(--muted); }
+  .regen-btn { font-size: 11px; padding: 3px 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; color: var(--muted); cursor: pointer; }
+
+  .mockup-note {
+    position: fixed; bottom: 16px; right: 16px; background: var(--accent);
+    color: #000; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 20px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Interrupt Drill-Down — Comments + Tags + Email Draft</h1>
+<p class="subtitle">Click any interrupt row to expand this panel. Showing "complete" email draft template selected.</p>
+
+<div class="drilldown">
+
+  <!-- HEADER -->
+  <div class="dd-header">
+    <div class="priority-dot p-urgent"></div>
+    <div class="dd-title-block">
+      <div class="dd-title">Fix document export failing for NATA client</div>
+      <div class="dd-meta">
+        <span class="source-tag src-support">Support</span>
+        <span class="due-chip due-overdue">⚠ Overdue · was Jun 0</span>
+        <span class="status-chip status-inprogress">In Progress</span>
+        <span class="age-text">Captured 3 days ago</span>
+      </div>
+    </div>
+    <div class="dd-actions">
+      <button class="btn">Edit</button>
+      <button class="btn success">✓ Mark Done</button>
+      <button class="btn primary">→ ADO</button>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div class="dd-body">
+
+    <!-- LEFT: TAGS + ACTIVITY -->
+    <div class="dd-left">
+
+      <!-- TAGS -->
+      <div class="section-label">Tags</div>
+      <div class="tags-row">
+        <div class="tag tag-blocked active">🚫 Blocked</div>
+        <div class="tag tag-waiting active">⏳ Waiting for feedback</div>
+        <div class="tag tag-review">👁 Requested review</div>
+        <div class="tag tag-feedback">💬 Needs more info</div>
+        <div class="tag tag-complete">✅ Complete</div>
+        <div class="tag tag-add">+ add tag</div>
+      </div>
+
+      <!-- ACTIVITY / COMMENTS -->
+      <div class="section-label">Activity</div>
+      <div class="comment-feed">
+
+        <!-- System event -->
+        <div class="event-item">
+          <div class="event-dot"></div>
+          <span>Captured from <strong style="color:var(--text)">Support</strong></span>
+          <span style="margin-left:auto">May 29 · 8:22am</span>
+        </div>
+
+        <!-- Comment -->
+        <div class="comment-item">
+          <div class="comment-avatar">CR</div>
+          <div class="comment-body">
+            <div class="comment-header">
+              <span class="comment-author">Chase</span>
+              <span class="comment-time">May 29 · 9:15am</span>
+            </div>
+            <div class="comment-text">Investigated — root cause is a null reference in the PDF renderer when document has no metadata fields set. Fix is in DocumentExportService.cs line 214. Need to test with NATA's specific record type config before deploying.</div>
+          </div>
+        </div>
+
+        <!-- System event: tag added -->
+        <div class="event-item">
+          <div class="event-dot"></div>
+          <span>Added tag <strong style="color:var(--danger)">Blocked</strong> — waiting on NATA test environment access</span>
+          <span style="margin-left:auto">May 29 · 9:18am</span>
+        </div>
+
+        <!-- Comment -->
+        <div class="comment-item">
+          <div class="comment-avatar">CR</div>
+          <div class="comment-body">
+            <div class="comment-header">
+              <span class="comment-author">Chase</span>
+              <span class="comment-time">May 30 · 2:44pm</span>
+            </div>
+            <div class="comment-text">Got test env access. Fix confirmed working in staging. Deploying to NATA prod tomorrow morning. Notifying support contact: j.harris@nata.gov.au</div>
+          </div>
+        </div>
+
+        <!-- System event -->
+        <div class="event-item">
+          <div class="event-dot"></div>
+          <span>Tag <strong style="color:var(--danger)">Blocked</strong> removed · added <strong style="color:var(--warn)">Waiting for feedback</strong></span>
+          <span style="margin-left:auto">May 30 · 2:45pm</span>
+        </div>
+
+        <!-- Comment -->
+        <div class="comment-item">
+          <div class="comment-avatar">CR</div>
+          <div class="comment-body">
+            <div class="comment-header">
+              <span class="comment-author">Chase</span>
+              <span class="comment-time">Jun 1 · 8:30am</span>
+            </div>
+            <div class="comment-text">Deployed. Waiting for NATA to confirm export is working on their end.</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ADD COMMENT -->
+      <div class="add-comment">
+        <div class="comment-avatar" style="margin-top:2px">CR</div>
+        <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+          <textarea class="comment-input" placeholder="Add a comment or update..."></textarea>
+          <div style="display:flex; gap:6px;">
+            <button class="btn primary" style="font-size:11px; padding:4px 12px;">Save</button>
+            <button class="btn" style="font-size:11px; padding:4px 10px;">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: EMAIL DRAFT -->
+    <div class="dd-right">
+      <div class="section-label" style="margin-bottom:10px;">📧 Generate Email Draft</div>
+
+      <!-- TEMPLATE SELECTOR -->
+      <div class="email-template-row">
+        <div class="template-btn active">✅ Job complete</div>
+        <div class="template-btn">⏳ Waiting on you</div>
+        <div class="template-btn">💬 Need more info</div>
+        <div class="template-btn">🔄 Status update</div>
+      </div>
+
+      <!-- EMAIL PREVIEW -->
+      <div class="email-preview">
+        <div class="email-field">
+          <div class="email-field-label" style="color:var(--muted); font-size:10px">To</div>
+          <div class="email-field-value" style="font-size:11px">j.harris@nata.gov.au</div>
+        </div>
+        <div class="email-field">
+          <div class="email-field-label" style="color:var(--muted); font-size:10px">Subject</div>
+          <div class="email-field-value email-subject" style="font-size:11px">RE: Document export issue — resolved</div>
+        </div>
+        <div class="email-divider"></div>
+        <div class="email-body-text">Hi,
+
+I'm pleased to let you know the document export issue has been resolved and deployed to your environment.
+
+<strong>Issue:</strong> Exports failing when documents had no metadata fields set.
+
+<strong>Fix:</strong> Deployed Jun 1 — the export service now handles records with empty metadata correctly.
+
+<strong>Next steps:</strong> Please test a document export on your end and let me know if everything is working as expected. If you encounter any further issues, don't hesitate to get in touch.
+
+Regards,
+Chase Ramone
+Magiq Software</div>
+      </div>
+
+      <!-- ACTIONS -->
+      <div class="email-actions">
+        <button class="email-btn email-btn-copy">Copy text</button>
+        <button class="email-btn email-btn-edit">Edit draft</button>
+        <button class="email-btn email-btn-outlook">Open in Outlook</button>
+      </div>
+
+      <div class="regenerate-row">
+        <button class="regen-btn">↻ Regenerate</button>
+        <span>Uses comments + tags as context</span>
+      </div>
+
+      <!-- TONE SELECTOR -->
+      <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border);">
+        <div class="section-label" style="margin-bottom:8px;">Tone</div>
+        <div style="display:flex; gap:6px;">
+          <div class="template-btn active" style="font-size:10px">Formal</div>
+          <div class="template-btn" style="font-size:10px">Friendly</div>
+          <div class="template-btn" style="font-size:10px">Brief</div>
+        </div>
+      </div>
+
+      <!-- RECIPIENT NOTE -->
+      <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border); font-size:11px; color:var(--muted); line-height:1.6;">
+        <strong style="color:var(--text)">Recipient</strong> inferred from latest comment.<br>
+        <span style="color:var(--accent); cursor:pointer">Change recipient →</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="mockup-note">MOCKUP — not live</div>
+</body>
+</html>

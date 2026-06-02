@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIS-OS Control Tower — Layout Mockup</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #21262d;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent2: #3fb950;
+    --warn: #d29922;
+    --danger: #f85149;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --tag-bg: #1f2937;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* TOP BAR */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 20px; background: var(--surface); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .logo { font-size: 15px; font-weight: 700; color: var(--accent); letter-spacing: -0.3px; }
+  .logo span { color: var(--muted); font-weight: 400; }
+  .status-dots { display: flex; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot.green { background: var(--accent2); }
+  .dot.yellow { background: var(--warn); }
+  .dot.red { background: var(--danger); }
+  .dot-label { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+  .topbar-right { display: flex; align-items: center; gap: 16px; font-size: 12px; color: var(--muted); }
+  .refresh-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;
+  }
+
+  /* LAYOUT */
+  .app { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 44px); }
+
+  /* SIDEBAR */
+  .sidebar {
+    background: var(--surface); border-right: 1px solid var(--border);
+    padding: 16px 0; display: flex; flex-direction: column; gap: 4px;
+  }
+  .sidebar-section { padding: 8px 16px 4px; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--muted); font-weight: 600; }
+  .nav-item {
+    display: flex; align-items: center; gap: 8px; padding: 6px 16px;
+    color: var(--muted); cursor: pointer; border-left: 2px solid transparent;
+    transition: all 0.1s;
+  }
+  .nav-item:hover, .nav-item.active {
+    color: var(--text); background: var(--surface2); border-left-color: var(--accent);
+  }
+  .nav-item .icon { font-size: 14px; width: 18px; text-align: center; }
+  .nav-badge {
+    margin-left: auto; background: var(--accent); color: #000;
+    font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px;
+  }
+  .nav-badge.warn { background: var(--warn); }
+  .nav-badge.muted { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+
+  /* MAIN */
+  .main { overflow-y: auto; }
+  .main-content { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+
+  /* SECTION HEADER */
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .section-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .section-action { font-size: 11px; color: var(--accent); cursor: pointer; }
+
+  /* PROJECT CARDS */
+  .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .project-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px; cursor: pointer; transition: border-color 0.15s;
+  }
+  .project-card:hover { border-color: var(--accent); }
+  .project-card.active-card { border-color: var(--accent); }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+  .card-name { font-weight: 600; font-size: 13px; }
+  .card-priority { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; }
+  .priority-high { background: rgba(248,81,73,0.15); color: var(--danger); }
+  .priority-med { background: rgba(210,153,34,0.15); color: var(--warn); }
+  .card-status { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+  .card-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+  .meta-chip {
+    font-size: 10px; padding: 2px 7px; border-radius: 4px;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+  }
+  .meta-chip.accent { border-color: var(--accent); color: var(--accent); }
+
+  /* MAIN GRID */
+  .panel-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden;
+  }
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface2);
+  }
+  .panel-title { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .panel-count { font-size: 10px; color: var(--muted); }
+  .panel-body { padding: 10px; max-height: 280px; overflow-y: auto; }
+
+  /* LIST ITEMS */
+  .list-item {
+    display: flex; align-items: flex-start; gap: 8px; padding: 7px 4px;
+    border-bottom: 1px solid var(--border); cursor: pointer;
+  }
+  .list-item:last-child { border-bottom: none; }
+  .list-item:hover { background: var(--surface2); border-radius: 4px; }
+  .item-icon { font-size: 12px; margin-top: 1px; flex-shrink: 0; }
+  .item-title { font-size: 12px; color: var(--text); line-height: 1.4; }
+  .item-meta { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .item-tag {
+    font-size: 10px; padding: 1px 5px; border-radius: 3px;
+    background: var(--surface2); color: var(--muted); border: 1px solid var(--border);
+    flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ADO PANEL */
+  .ado-row { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-bottom: 1px solid var(--border); }
+  .ado-row:last-child { border-bottom: none; }
+  .ado-state { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .state-active { background: var(--accent); }
+  .state-review { background: var(--warn); }
+  .state-done { background: var(--accent2); }
+  .ado-text { font-size: 11px; flex: 1; }
+  .ado-module { font-size: 10px; color: var(--muted); }
+
+  /* CHEAT SHEET */
+  .cheatsheet { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .cheatsheet-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface2);
+    cursor: pointer;
+  }
+  .cheatsheet-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; }
+  .cs-section { padding: 14px; border-right: 1px solid var(--border); }
+  .cs-section:last-child { border-right: none; }
+  .cs-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--muted); font-weight: 600; margin-bottom: 10px; }
+  .cs-item { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+  .cs-key { font-family: 'SF Mono', 'Consolas', monospace; font-size: 11px;
+    color: var(--accent); background: var(--surface2); padding: 2px 6px;
+    border-radius: 3px; display: inline-block; width: fit-content; }
+  .cs-desc { font-size: 11px; color: var(--muted); }
+
+  /* DRILL DOWN PANEL */
+  .drilldown-hint {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px; display: flex; align-items: center; gap: 10px;
+    color: var(--muted); font-size: 12px;
+  }
+
+  /* DECISIONS */
+  .decision-row {
+    display: flex; gap: 12px; padding: 8px 4px; border-bottom: 1px solid var(--border);
+    align-items: flex-start;
+  }
+  .decision-row:last-child { border-bottom: none; }
+  .decision-date { font-size: 10px; color: var(--muted); flex-shrink: 0; width: 60px; margin-top: 2px; }
+  .decision-text { font-size: 12px; }
+  .decision-tag { font-size: 10px; color: var(--warn); }
+
+  .divider { border: none; border-top: 1px solid var(--border); }
+  .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); font-weight: 600; }
+
+  /* MOCKUP LABEL */
+  .mockup-note {
+    position: fixed; bottom: 16px; right: 16px; background: var(--accent);
+    color: #000; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 20px;
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo">AIS-OS <span>Control Tower</span></div>
+    <div class="status-dots">
+      <div class="dot-label"><div class="dot green"></div> Hermes</div>
+      <div class="dot-label"><div class="dot green"></div> ADO</div>
+      <div class="dot-label"><div class="dot yellow"></div> 3 pending</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span>Refreshed 12s ago</span>
+    <button class="refresh-btn">↻ Refresh</button>
+    <span>Sun 1 Jun · 8:44pm</span>
+  </div>
+</div>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-section">Overview</div>
+    <div class="nav-item active"><span class="icon">⊞</span> Dashboard</div>
+    <div class="nav-item"><span class="icon">📋</span> Cheat Sheet</div>
+
+    <div class="sidebar-section" style="margin-top:8px">Projects</div>
+    <div class="nav-item"><span class="icon">🎬</span> magiq-media <span class="nav-badge">34</span></div>
+    <div class="nav-item"><span class="icon">🔐</span> magiq-auth <span class="nav-badge muted">draft</span></div>
+
+    <div class="sidebar-section" style="margin-top:8px">Inbox</div>
+    <div class="nav-item"><span class="icon">📥</span> ADO Pending <span class="nav-badge warn">3</span></div>
+    <div class="nav-item"><span class="icon">📝</span> Adhoc Notes</div>
+    <div class="nav-item"><span class="icon">🔄</span> Hermes Sync</div>
+
+    <div class="sidebar-section" style="margin-top:8px">History</div>
+    <div class="nav-item"><span class="icon">⚖️</span> Decisions</div>
+    <div class="nav-item"><span class="icon">📊</span> ADO Sprint</div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="main-content">
+
+      <!-- PROJECTS -->
+      <div>
+        <div class="section-header">
+          <div class="section-title">Projects</div>
+          <div class="section-action">+ scaffold new</div>
+        </div>
+        <div class="project-grid">
+          <div class="project-card active-card">
+            <div class="card-top">
+              <div class="card-name">magiq-media</div>
+              <div class="card-priority priority-high">HIGH</div>
+            </div>
+            <div class="card-status">Active delivery — API layer, auth, user security</div>
+            <div class="card-meta">
+              <div class="meta-chip accent">103 ADO items</div>
+              <div class="meta-chip">34 in review</div>
+              <div class="meta-chip">3 pending flush</div>
+            </div>
+          </div>
+          <div class="project-card">
+            <div class="card-top">
+              <div class="card-name">magiq-auth</div>
+              <div class="card-priority priority-high">HIGH</div>
+            </div>
+            <div class="card-status">Draft — spec not started</div>
+            <div class="card-meta">
+              <div class="meta-chip">No ADO board</div>
+              <div class="meta-chip">0 captures pending</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIN PANEL GRID -->
+      <div class="panel-grid">
+
+        <!-- ADO SPRINT -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">📊 ADO Sprint <span class="panel-count">103 items</span></div>
+            <div class="section-action" style="font-size:11px">/devops</div>
+          </div>
+          <div class="panel-body">
+            <div class="ado-row"><div class="ado-state state-review"></div><div><div class="ado-text">Add TenantId to Registration commands</div><div class="ado-module">Registration · Story · Code Review</div></div></div>
+            <div class="ado-row"><div class="ado-state state-review"></div><div><div class="ado-text">Add TenantId to Metadata commands</div><div class="ado-module">Metadata · Story · Code Review</div></div></div>
+            <div class="ado-row"><div class="ado-state state-active"></div><div><div class="ado-text">Lambda projector host wiring</div><div class="ado-module">General · Feature · In Progress</div></div></div>
+            <div class="ado-row"><div class="ado-state state-active"></div><div><div class="ado-text">Query handler — AssetManagement</div><div class="ado-module">AssetManagement · Story · Active</div></div></div>
+            <div class="ado-row"><div class="ado-state state-review"></div><div><div class="ado-text">IExecutionContext implementation</div><div class="ado-module">General · Story · Code Review</div></div></div>
+            <div style="padding:8px 4px; font-size:11px; color:var(--muted)">+98 more · click to view all</div>
+          </div>
+        </div>
+
+        <!-- HERMES INBOX -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">📥 Hermes Inbox <span class="panel-count">3 pending</span></div>
+            <div class="section-action" style="font-size:11px">flush all</div>
+          </div>
+          <div class="panel-body">
+            <div class="list-item">
+              <div class="item-icon">📌</div>
+              <div style="flex:1">
+                <div class="item-title">Add bulk asset upload endpoint</div>
+                <div class="item-meta">magiq-media · AssetManagement · Story</div>
+              </div>
+              <div class="item-tag">pending</div>
+            </div>
+            <div class="list-item">
+              <div class="item-icon">📌</div>
+              <div style="flex:1">
+                <div class="item-title">Tenant switching UI flow spec</div>
+                <div class="item-meta">magiq-auth · General · Story</div>
+              </div>
+              <div class="item-tag">pending</div>
+            </div>
+            <div class="list-item">
+              <div class="item-icon">💡</div>
+              <div style="flex:1">
+                <div class="item-title">Consider OpenSearch for auth audit log</div>
+                <div class="item-meta">magiq-auth · idea</div>
+              </div>
+              <div class="item-tag">idea</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ADHOC NOTES -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">📝 Adhoc Notes</div>
+            <div class="panel-count">2 notes</div>
+          </div>
+          <div class="panel-body">
+            <div class="list-item">
+              <div style="flex:1">
+                <div class="item-title">ChangeRequests module review — check if comment threads actually needed before removing</div>
+                <div class="item-meta">Jun 1 · 11:02am</div>
+              </div>
+            </div>
+            <div class="list-item">
+              <div style="flex:1">
+                <div class="item-title">FolderActiveItemCountIndex naming is correct — do not rename</div>
+                <div class="item-meta">Jun 1 · 12:22pm</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- DECISIONS + DRILL DOWN HINT -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">⚖️ Recent Decisions</div>
+            <div class="section-action" style="font-size:11px">view all</div>
+          </div>
+          <div class="panel-body">
+            <div class="decision-row">
+              <div class="decision-date">Jun 1</div>
+              <div><div class="decision-text">ChangeRequest-ReviewSession integration — auto-create on reviewer assignment</div><div class="decision-tag">magiq-media</div></div>
+            </div>
+            <div class="decision-row">
+              <div class="decision-date">May 30</div>
+              <div><div class="decision-text">FolderActiveItemCountIndex retained as-is — naming is semantically accurate</div><div class="decision-tag">magiq-media</div></div>
+            </div>
+            <div class="decision-row">
+              <div class="decision-date">May 28</div>
+              <div><div class="decision-text">Hermes integration wired via Docker MCP</div><div class="decision-tag">aios</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div class="drilldown-hint">
+            <span style="font-size:18px">👆</span>
+            <span>Click any project card or panel item to drill into details. Drill-down opens as a full-width panel below.</span>
+          </div>
+          <div class="panel" style="flex:1">
+            <div class="panel-header">
+              <div class="panel-title">🔄 Hermes Sync Status</div>
+            </div>
+            <div class="panel-body">
+              <div class="list-item">
+                <div class="item-icon">✅</div>
+                <div style="flex:1"><div class="item-title">magiq-media — last synced Jun 1, 10:30am</div></div>
+              </div>
+              <div class="list-item">
+                <div class="item-icon">⏳</div>
+                <div style="flex:1"><div class="item-title">magiq-auth — 0 pending captures</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHEAT SHEET -->
+      <div class="cheatsheet">
+        <div class="cheatsheet-header">
+          <div class="section-title">📖 Cheat Sheet</div>
+          <div style="font-size:11px; color:var(--muted)">▼ expanded · click to collapse</div>
+        </div>
+        <div class="cheatsheet-grid">
+          <div class="cs-section">
+            <div class="cs-title">Hermes Triggers</div>
+            <div class="cs-item"><div class="cs-key">"note that..."</div><div class="cs-desc">Capture ADO work item</div></div>
+            <div class="cs-item"><div class="cs-key">"idea for [project]"</div><div class="cs-desc">Project idea capture</div></div>
+            <div class="cs-item"><div class="cs-key">"risk for [project]"</div><div class="cs-desc">Risk capture</div></div>
+            <div class="cs-item"><div class="cs-key">"decided on [project]"</div><div class="cs-desc">Decision capture</div></div>
+            <div class="cs-item"><div class="cs-key">"remember this"</div><div class="cs-desc">Adhoc note (auto-routes)</div></div>
+            <div class="cs-item"><div class="cs-key">"morning digest"</div><div class="cs-desc">Daily summary</div></div>
+          </div>
+          <div class="cs-section">
+            <div class="cs-title">Claude Code Commands</div>
+            <div class="cs-item"><div class="cs-key">/devops</div><div class="cs-desc">Live ADO sprint status</div></div>
+            <div class="cs-item"><div class="cs-key">/devops all</div><div class="cs-desc">Team view by assignee</div></div>
+            <div class="cs-item"><div class="cs-key">flush pending notes</div><div class="cs-desc">Push ADO captures → ADO</div></div>
+            <div class="cs-item"><div class="cs-key">sync project [slug]</div><div class="cs-desc">Apply Hermes captures</div></div>
+            <div class="cs-item"><div class="cs-key">scaffold project [slug]</div><div class="cs-desc">Create project folder</div></div>
+            <div class="cs-item"><div class="cs-key">review project [slug]</div><div class="cs-desc">Project status summary</div></div>
+          </div>
+          <div class="cs-section">
+            <div class="cs-title">AIS-OS Workflows</div>
+            <div class="cs-item"><div class="cs-key">Capture → Flush</div><div class="cs-desc">Hermes note → "flush pending" → ADO</div></div>
+            <div class="cs-item"><div class="cs-key">Capture → Sync</div><div class="cs-desc">Project idea/risk → "sync project"</div></div>
+            <div class="cs-item"><div class="cs-key">Morning routine</div><div class="cs-desc">Hermes digest + /devops</div></div>
+            <div class="cs-item"><div class="cs-key">New project</div><div class="cs-desc">"new project" in Hermes → "scaffold"</div></div>
+            <div class="cs-item"><div class="cs-key">Decision</div><div class="cs-desc">/decision → decisions/log.md</div></div>
+          </div>
+          <div class="cs-section">
+            <div class="cs-title">Keyboard Shortcuts</div>
+            <div class="cs-item"><div class="cs-key">Ctrl+R</div><div class="cs-desc">Force refresh all panels</div></div>
+            <div class="cs-item"><div class="cs-key">Ctrl+K</div><div class="cs-desc">Quick search</div></div>
+            <div class="cs-item"><div class="cs-key">Esc</div><div class="cs-desc">Close drill-down panel</div></div>
+            <div class="cs-item"><div class="cs-key">1–9</div><div class="cs-desc">Jump to sidebar section</div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mockup-note">MOCKUP — not live data</div>
+
+</body>
+</html>
