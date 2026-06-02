@@ -737,6 +737,28 @@
               <div class="panel-body" id="project-detail-captures"></div>
             </div>
           </div>
+          <!-- Spec viewer -->
+          <div id="project-spec-section" style="margin-top:12px; display:none">
+            <div style="display:grid; grid-template-columns:260px 1fr; gap:12px; min-height:400px">
+              <!-- File tree -->
+              <div class="panel">
+                <div class="panel-header">
+                  <div class="panel-title">📁 Spec Files</div>
+                  <div style="font-size:10px;color:var(--muted)" id="spec-file-count"></div>
+                </div>
+                <div class="panel-body" id="spec-file-tree" style="max-height:600px;overflow-y:auto;padding:6px 8px"></div>
+              </div>
+              <!-- File content -->
+              <div class="panel">
+                <div class="panel-header">
+                  <div class="panel-title" id="spec-file-title">Select a file</div>
+                </div>
+                <div class="panel-body" id="spec-file-content" style="max-height:600px;overflow-y:auto">
+                  <div style="padding:20px;font-size:12px;color:var(--muted)">Click a file in the tree to view its content.</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1523,7 +1545,142 @@
       capturesEl.innerHTML = sections.length ? sections.join('') : '<div style="padding:10px;font-size:11px;color:var(--muted)">No captures yet.</div>';
     }
 
+    // Track current project for spec viewer
+    _specCurrentSlug = slug;
+    // Reset spec section if switching projects
+    const specSection = document.getElementById('project-spec-section');
+    if (specSection && specSection.style.display !== 'none') {
+      loadSpecTree(slug);
+    }
+    // Show/wire spec toggle button
+    const headerEl = document.getElementById('project-detail-header');
+    if (headerEl && !document.getElementById('spec-toggle-btn')) {
+      const btn = document.createElement('button');
+      btn.id = 'spec-toggle-btn';
+      btn.className = 'action-btn';
+      btn.textContent = '📄 View Spec';
+      btn.style.cssText = 'font-size:11px;padding:4px 12px;margin-left:auto';
+      btn.onclick = toggleSpecViewer;
+      headerEl.appendChild(btn);
+    }
+    const toggleBtn = document.getElementById('spec-toggle-btn');
+    if (toggleBtn) toggleBtn.textContent = '📄 View Spec';
+
     row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // ── Spec Viewer ────────────────────────────────────────────────────────────
+  let _specCurrentSlug = null;
+
+  async function toggleSpecViewer() {
+    const section = document.getElementById('project-spec-section');
+    if (!section) return;
+    const isVisible = section.style.display !== 'none';
+    if (isVisible) {
+      section.style.display = 'none';
+      const btn = document.getElementById('spec-toggle-btn');
+      if (btn) btn.textContent = '📄 View Spec';
+      return;
+    }
+    section.style.display = '';
+    const btn = document.getElementById('spec-toggle-btn');
+    if (btn) btn.textContent = '📄 Hide Spec';
+    if (_specCurrentSlug) await loadSpecTree(_specCurrentSlug);
+  }
+
+  async function loadSpecTree(slug) {
+    _specCurrentSlug = slug;
+    const treeEl = document.getElementById('spec-file-tree');
+    const countEl = document.getElementById('spec-file-count');
+    if (!treeEl) return;
+
+    treeEl.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--muted)">Loading...</div>';
+
+    const r = await fetch(`/api/projects/${slug}/spec`);
+    const data = await r.json();
+
+    if (data.error || !data.files.length) {
+      treeEl.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--muted)">No spec files found.</div>';
+      return;
+    }
+
+    if (countEl) countEl.textContent = `${data.files.length} files`;
+
+    // Group files by directory
+    const grouped = {};
+    data.files.forEach(f => {
+      const parts = f.path.split('/');
+      const dir = parts.length > 1 ? parts.slice(0, -1).join('/') : '';
+      if (!grouped[dir]) grouped[dir] = [];
+      grouped[dir].push(f);
+    });
+
+    treeEl.innerHTML = Object.entries(grouped).sort().map(([dir, files]) => `
+      <div style="margin-bottom:6px">
+        ${dir ? `<div style="font-size:10px;color:var(--muted);padding:4px 2px;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${dir}">📂 ${dir}</div>` : ''}
+        ${files.map(f => `
+          <div class="spec-file-item" onclick="loadSpecFile('${slug}', '${f.path.replace(/'/g, "\\'")}')"
+            style="padding:4px 6px 4px ${dir ? '14px' : '6px'};font-size:11px;color:var(--muted);cursor:pointer;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+            title="${f.path}">
+            📄 ${f.name}
+          </div>
+        `).join('')}
+      </div>
+    `).join('');
+
+    if (!document.getElementById('spec-tree-style')) {
+      const s = document.createElement('style');
+      s.id = 'spec-tree-style';
+      s.textContent = '.spec-file-item:hover { background: var(--surface2); color: var(--text) !important; } .spec-file-item.active { background: rgba(88,166,255,0.1); color: var(--accent) !important; }';
+      document.head.appendChild(s);
+    }
+  }
+
+  async function loadSpecFile(slug, path) {
+    const contentEl = document.getElementById('spec-file-content');
+    const titleEl = document.getElementById('spec-file-title');
+    if (!contentEl) return;
+
+    document.querySelectorAll('.spec-file-item').forEach(el => el.classList.remove('active'));
+    const active = [...document.querySelectorAll('.spec-file-item')].find(el => el.title === path);
+    if (active) active.classList.add('active');
+
+    if (titleEl) titleEl.textContent = path.split('/').pop();
+    contentEl.innerHTML = '<div style="padding:12px;font-size:11px;color:var(--muted)">Loading...</div>';
+
+    const r = await fetch(`/api/projects/${slug}/spec/file?path=${encodeURIComponent(path)}`);
+    const data = await r.json();
+
+    if (data.error) {
+      contentEl.innerHTML = `<div style="padding:12px;color:var(--danger);font-size:11px">${data.error}</div>`;
+      return;
+    }
+
+    contentEl.innerHTML = _renderMarkdown(data.content);
+  }
+
+  function _renderMarkdown(md) {
+    return '<div style="padding:12px;font-size:12px;line-height:1.7;color:var(--text)">' +
+      md
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/^#### (.+)$/gm, '<h4 style="font-size:12px;color:var(--text);margin:12px 0 4px">$1</h4>')
+        .replace(/^### (.+)$/gm, '<h3 style="font-size:13px;color:var(--accent);margin:14px 0 6px;border-bottom:1px solid var(--border);padding-bottom:4px">$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2 style="font-size:14px;font-weight:700;color:var(--text);margin:16px 0 8px">$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1 style="font-size:15px;font-weight:700;color:var(--accent);margin:0 0 12px">$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/`([^`]+)`/g, '<code style="font-family:monospace;font-size:11px;background:var(--surface2);padding:1px 4px;border-radius:3px;color:var(--accent)">$1</code>')
+        .replace(/```[\w]*\n?([\s\S]*?)```/g, '<pre style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:10px;font-size:11px;overflow-x:auto;margin:8px 0"><code>$1</code></pre>')
+        .replace(/^\|(.+)\|$/gm, (_, row) => {
+          if (row.includes('---')) return '';
+          const cells = row.split('|').map(c => `<td style="padding:4px 10px;border:1px solid var(--border)">${c.trim()}</td>`).join('');
+          return `<tr>${cells}</tr>`;
+        })
+        .replace(/^- (.+)$/gm, '<li style="margin:2px 0;padding-left:4px">$1</li>')
+        .replace(/(<li[^>]*>.*<\/li>\n?)+/g, s => `<ul style="padding-left:18px;margin:6px 0">${s}</ul>`)
+        .replace(/^---$/gm, '<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">')
+        .replace(/\n\n(?!<)/g, '</p><p style="margin:8px 0">')
+        .replace(/^(?!<)/, '<p style="margin:0">')
+      + '</p></div>';
   }
 
   // ── ADO panel ────────────────────────────────────────────────────────────

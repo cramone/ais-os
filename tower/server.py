@@ -1,3 +1,4 @@
+import os
 import threading
 import webbrowser
 from contextlib import asynccontextmanager
@@ -196,6 +197,40 @@ def push_ado(interrupt_id: str) -> dict[str, Any]:
         return result
     except Exception as e:
         raise HTTPException(500, str(e))
+
+
+# --- Spec viewer ---
+
+@app.get("/api/projects/{slug}/spec")
+def project_spec_tree(slug: str) -> dict:
+    """Return the spec directory file tree for a project."""
+    spec_dir = config.PROJECTS_DIR / slug / "spec"
+    if not spec_dir.exists():
+        return {"files": [], "error": "no spec directory"}
+
+    files = []
+    for root, dirs, filenames in os.walk(spec_dir):
+        dirs.sort()
+        for fname in sorted(filenames):
+            if fname.endswith(('.md', '.json', '.txt')):
+                full = os.path.join(root, fname)
+                rel = os.path.relpath(full, spec_dir).replace('\\', '/')
+                files.append({"path": rel, "name": fname})
+
+    return {"files": files}
+
+
+@app.get("/api/projects/{slug}/spec/file")
+def project_spec_file(slug: str, path: str) -> dict:
+    """Return the content of a single spec file."""
+    spec_dir = config.PROJECTS_DIR / slug / "spec"
+    target = (spec_dir / path).resolve()
+    if not str(target).startswith(str(spec_dir.resolve())):
+        raise HTTPException(400, "Invalid path")
+    if not target.exists():
+        raise HTTPException(404, "File not found")
+    content = target.read_text(encoding="utf-8", errors="replace")
+    return {"path": path, "content": content}
 
 
 # --- Static (must be last) ---
