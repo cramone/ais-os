@@ -1473,12 +1473,121 @@
       return new Date(i.dueDate).toDateString() === new Date().toDateString();
     });
     const done = items.filter(i => i.status === 'done');
+
     const _set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     _set('triage-overdue', overdue.length);
     _set('triage-today', dueToday.length);
     _set('triage-open', open.length);
     _set('triage-done', done.length);
-    // Full list render implemented in Task 10
+
+    _renderItemList('interrupts-list', open, i => `
+      <div class="interrupt-row" onclick="openInterruptDrilldown('${i.id}')">
+        <div class="priority-dot p-${i.priority || 'normal'}"></div>
+        <div class="interrupt-body">
+          <div class="interrupt-title">${i.title}</div>
+          <div class="interrupt-meta">
+            <span class="source-tag src-${(i.source || '').toLowerCase()}">${i.source || ''}</span>
+            ${(i.tags || []).map(t => `<span class="tag tag-${t} active">${_tagLabel(t)}</span>`).join('')}
+            <span class="interrupt-age">${_ago(new Date(i.capturedAt))}</span>
+          </div>
+        </div>
+        ${i.dueDate
+          ? `<div class="due-chip ${_dueClass(i.dueDate)}">${_dueLabel(i.dueDate)}</div>`
+          : '<div class="due-none">No due date</div>'}
+        <div class="status-tag status-${i.status}">${i.status}</div>
+        <button class="action-btn" onclick="event.stopPropagation();pushInterruptToADO('${i.id}')">-&gt; ADO</button>
+        <button class="action-btn done" onclick="event.stopPropagation();markInterruptDone('${i.id}')">Done</button>
+      </div>
+    `);
+  }
+
+  function _tagLabel(t) {
+    const map = {
+      'blocked': 'Blocked',
+      'waiting-for-feedback': 'Waiting',
+      'requested-review': 'Review',
+      'needs-more-info': 'Needs info',
+      'complete': 'Complete'
+    };
+    return map[t] || t;
+  }
+
+  function _dueClass(dueDate) {
+    const d = new Date(dueDate);
+    const now = new Date();
+    if (d < now) return 'due-today';
+    const diff = (d - now) / 86400000;
+    if (diff <= 1) return 'due-today';
+    if (diff <= 3) return 'due-soon';
+    return '';
+  }
+
+  function _dueLabel(dueDate) {
+    const d = new Date(dueDate);
+    const now = new Date();
+    if (d < now) return `Overdue`;
+    if (d.toDateString() === now.toDateString()) return 'Due today';
+    return `Due ${d.toLocaleDateString('en-AU', {day: 'numeric', month: 'short'})}`;
+  }
+
+  function wireInterruptCaptureForm() {
+    const form = document.getElementById('interrupt-capture-form');
+    if (!form) return;
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const titleEl = document.getElementById('interrupt-title-input');
+      const sourceEl = form.querySelector('select[name="source"]') || form.querySelector('select');
+      const dueDateEl = form.querySelector('input[type="date"], input[name="dueDate"]');
+      const body = {
+        title: titleEl ? titleEl.value.trim() : '',
+        source: sourceEl ? sourceEl.value : 'Internal',
+        dueDate: dueDateEl && dueDateEl.value ? dueDateEl.value : null,
+        priority: 'normal',
+      };
+      if (!body.title) return;
+      await fetch('/api/interrupts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (titleEl) titleEl.value = '';
+      await fetchAll();
+    });
+  }
+
+  async function markInterruptDone(id) {
+    await fetch(`/api/interrupts/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'done' })
+    });
+    await fetchAll();
+  }
+
+  async function pushInterruptToADO(id) {
+    const r = await fetch(`/api/interrupts/${id}/push-ado`, { method: 'POST' });
+    if (r.ok) {
+      await fetchAll();
+    } else {
+      const e = await r.json().catch(() => ({}));
+      alert(`ADO push failed: ${e.detail || 'unknown error'}`);
+    }
+  }
+
+  function openInterruptDrilldown(id) {
+    const panel = document.getElementById('drilldown-panel');
+    if (!panel) return;
+    const item = (state.interrupts || []).find(i => i.id === id);
+    if (!item) return;
+    panel.style.display = '';
+    const titleEl = panel.querySelector('.dd-title');
+    if (titleEl) titleEl.textContent = item.title;
+    const statusEl = panel.querySelector('.dd-status');
+    if (statusEl) statusEl.textContent = item.status;
+    const sourceEl = panel.querySelector('.dd-source');
+    if (sourceEl) sourceEl.textContent = item.source || '';
+    const ageEl = panel.querySelector('.dd-age');
+    if (ageEl) ageEl.textContent = item.capturedAt ? _ago(new Date(item.capturedAt)) : '';
   }
 
   // ── Badge updates ────────────────────────────────────────────────────────
@@ -1525,6 +1634,7 @@
   });
 
   // Kick off
+  wireInterruptCaptureForm();
   fetchAll();
 
   // Cheat sheet toggle
