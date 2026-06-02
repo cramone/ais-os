@@ -9,3 +9,6 @@ audits/
 .obsidian/
 nul
 *.pyc
+.pytest_cache/
+.env
+.env.local
