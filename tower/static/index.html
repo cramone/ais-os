@@ -1082,14 +1082,450 @@
 </div><!-- /drilldown-panel -->
 
 <script>
-  // Clock
-  function updateClock() {
-    const now = new Date();
-    const opts = { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' };
-    document.getElementById('clock').textContent = now.toLocaleString('en-AU', opts);
+  // ── State ──────────────────────────────────────────────────────────────
+  const state = {
+    projects: [], ado: {items:[]}, hermesInbox: [], adhoc: [],
+    decisions: [], hermesSync: {}, interrupts: [], health: {}
+  };
+  let lastRefreshed = null;
+
+  // ── Fetch helpers ───────────────────────────────────────────────────────
+  async function fetchAll() {
+    const endpoints = {
+      projects:    '/api/projects',
+      ado:         '/api/ado/sprint',
+      hermesInbox: '/api/hermes/inbox',
+      adhoc:       '/api/hermes/adhoc',
+      decisions:   '/api/decisions',
+      hermesSync:  '/api/hermes/sync',
+      interrupts:  '/api/interrupts',
+      health:      '/api/health',
+    };
+    const results = await Promise.allSettled(
+      Object.entries(endpoints).map(([key, url]) =>
+        fetch(url).then(r => r.ok ? r.json() : Promise.reject(r.status))
+          .then(data => ({ key, data }))
+      )
+    );
+    results.forEach(r => {
+      if (r.status === 'fulfilled') state[r.value.key] = r.value.data;
+    });
+    lastRefreshed = new Date();
+    renderAll();
   }
-  updateClock();
-  setInterval(updateClock, 30000);
+
+  // ── Render orchestrator ──────────────────────────────────────────────────
+  function renderAll() {
+    renderClock();
+    renderStatusPills();
+    renderFocusStrip();
+    renderBlockedBanner();
+    renderStandupStrip();
+    renderProjects();
+    renderADOPanel();
+    renderHermesPanel();
+    renderAdhocPanel();
+    renderTeamRow();
+    renderDecisionsPanel();
+    renderSyncPanel();
+    renderInterruptsSection();
+    updateBadges();
+    const el = document.getElementById('last-refresh');
+    if (el) el.textContent = lastRefreshed ? `${_ago(lastRefreshed)}` : '';
+  }
+
+  // ── Clock + time helpers ─────────────────────────────────────────────────
+  function renderClock() {
+    const el = document.getElementById('clock');
+    if (!el) return;
+    const d = new Date();
+    el.textContent =
+      d.toLocaleDateString('en-AU', {weekday:'short', day:'numeric', month:'short'}) +
+      ' · ' + d.toLocaleTimeString('en-AU', {hour:'2-digit', minute:'2-digit'});
+  }
+
+  function _ago(date) {
+    const s = Math.floor((Date.now() - date) / 1000);
+    if (s < 60) return `${s}s ago`;
+    return `${Math.floor(s/60)}m ago`;
+  }
+
+  function _formatTs(ts) {
+    if (!ts) return '';
+    try {
+      return new Date(ts).toLocaleString('en-AU', {dateStyle:'short', timeStyle:'short'});
+    } catch { return ts; }
+  }
+
+  // ── Status pills ─────────────────────────────────────────────────────────
+  function renderStatusPills() {
+    const el = document.getElementById('status-pills');
+    if (!el) return;
+    const h = state.health;
+    const pending = (state.hermesInbox || []).filter(i => i.status === 'pending').length;
+    const blocked = (state.ado.items || []).filter(i => i.state === 'Blocked').length;
+    const overdue = (state.interrupts || []).filter(i => {
+      return i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'done';
+    }).length;
+    const pills = [
+      { label: 'Hermes', ok: h.sources?.hermes_pending !== false },
+      { label: 'ADO', ok: !state.ado.error },
+      pending > 0 ? { label: `${pending} pending flush`, warn: true } : null,
+      blocked > 0 ? { label: `${blocked} blocked`, danger: true } : null,
+      overdue > 0 ? { label: `${overdue} overdue`, danger: true } : null,
+    ].filter(Boolean);
+    el.innerHTML = pills.map(p => {
+      const cls = p.danger ? 'danger' : p.warn ? 'warn' : p.ok ? 'green' : 'red';
+      return `<div class="status-pill"><div class="dot ${cls}"></div>${p.label}</div>`;
+    }).join('');
+  }
+
+  // ── Focus strip ──────────────────────────────────────────────────────────
+  function renderFocusStrip() {
+    const el = document.getElementById('focus-strip');
+    if (!el) return;
+    const items = state.ado.items || [];
+    const myActive = items.filter(i =>
+      (i.assignee || '').includes('Chase') &&
+      ['Active', 'In Progress'].includes(i.state)
+    );
+    if (!myActive.length) { el.style.display = 'none'; return; }
+    el.style.display = '';
+    const item = myActive[0];
+    const titleEl = el.querySelector('.focus-title');
+    const metaEl = el.querySelector('.focus-meta');
+    if (titleEl) titleEl.textContent = item.title;
+    if (metaEl) metaEl.textContent = `${item.module || ''} · ${item.type || ''} · ${item.state}`;
+    const overdue = (state.interrupts || []).filter(i =>
+      i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'done'
+    ).length;
+    const dueToday = (state.interrupts || []).filter(i => {
+      if (!i.dueDate || i.status === 'done') return false;
+      return new Date(i.dueDate).toDateString() === new Date().toDateString();
+    }).length;
+    const impactEl = el.querySelector('.interrupt-impact-text');
+    if (impactEl) {
+      const total = overdue + dueToday;
+      impactEl.style.display = total > 0 ? '' : 'none';
+      if (total > 0) impactEl.textContent =
+        `⚡ ${total} interrupt${total > 1 ? 's' : ''} competing with sprint focus`;
+    }
+  }
+
+  // ── Blocked banner ───────────────────────────────────────────────────────
+  function renderBlockedBanner() {
+    const el = document.getElementById('blocked-banner');
+    if (!el) return;
+    const blocked = (state.ado.items || []).filter(i => i.state === 'Blocked');
+    if (!blocked.length) { el.style.display = 'none'; return; }
+    el.style.display = '';
+    const container = el.querySelector('.blocked-items');
+    if (container) {
+      container.innerHTML = blocked.map(i => `
+        <div class="blocked-item">
+          <div class="blocked-who">${(i.assignee || '').split(' ')[0]}</div>
+          <div class="blocked-reason">${i.title}</div>
+          <div class="blocked-age">${i.daysInState || 0}d</div>
+        </div>
+      `).join('');
+    }
+  }
+
+  // ── Standup strip ────────────────────────────────────────────────────────
+  function renderStandupStrip() {
+    const items = state.ado.items || [];
+    const yesterday = items.filter(i =>
+      ['Done', 'Closed'].includes(i.state) && (i.daysInState || 0) <= 1
+    ).slice(0, 3);
+    const today = items.filter(i =>
+      (i.assignee || '').includes('Chase') &&
+      ['Active', 'In Progress', 'Code Review'].includes(i.state)
+    ).slice(0, 3);
+    const blockers = [
+      ...items.filter(i => i.state === 'Blocked').map(i => i.title),
+      ...(state.interrupts || []).filter(i =>
+        i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'done'
+      ).map(i => `Overdue interrupt: ${i.title}`)
+    ];
+    const fmt = (arr, cls = '') => arr.length
+      ? arr.map(t => `<div class="standup-item ${cls}">${t.title || t}</div>`).join('')
+      : '<div class="standup-item" style="color:var(--muted)">None</div>';
+    const yEl = document.getElementById('standup-yesterday');
+    const tEl = document.getElementById('standup-today');
+    const bEl = document.getElementById('standup-blockers');
+    if (yEl) yEl.innerHTML = fmt(yesterday);
+    if (tEl) tEl.innerHTML = fmt(today);
+    if (bEl) bEl.innerHTML = fmt(blockers, 'blocker');
+    const copyBtn = document.getElementById('standup-copy');
+    if (copyBtn) {
+      copyBtn.onclick = () => {
+        const text = [
+          'Yesterday:\n' + (yesterday.length ? yesterday.map(i => `• ${i.title}`).join('\n') : '• None'),
+          'Today:\n' + (today.length ? today.map(i => `• ${i.title}`).join('\n') : '• None'),
+          'Blockers:\n' + (blockers.length ? blockers.map(b => `• ${b}`).join('\n') : '• None'),
+        ].join('\n\n');
+        navigator.clipboard.writeText(text).catch(() => {});
+      };
+    }
+  }
+
+  // ── Projects ─────────────────────────────────────────────────────────────
+  function renderProjects() {
+    const el = document.getElementById('projects-row');
+    if (!el) return;
+    if (!state.projects.length) {
+      el.innerHTML = '<p style="color:var(--muted)">No projects found.</p>';
+      return;
+    }
+    el.innerHTML = state.projects.map(p => `
+      <div class="project-card" onclick="openProjectDrilldown('${p.slug}')">
+        <div class="card-top">
+          <div class="card-name">${p.slug}</div>
+          ${p.priority ? `<div class="card-priority priority-high">${p.priority.toUpperCase()}</div>` : ''}
+        </div>
+        <div class="card-status">${p.status}</div>
+        <div class="sprint-bar">
+          <div class="sprint-bar-label">
+            <span>Sprint progress</span>
+            <span style="color:var(--accent2)">—</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:0%"></div></div>
+        </div>
+        <div class="card-meta">
+          ${_adoCountChips(p.slug)}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function _adoCountChips(slug) {
+    const items = (state.ado.items || []).filter(i =>
+      (i.project || '').toLowerCase().includes(slug.toLowerCase())
+    );
+    if (!items.length) return '<div class="meta-chip">No ADO data</div>';
+    const review = items.filter(i => i.state === 'Code Review').length;
+    const blocked = items.filter(i => i.state === 'Blocked').length;
+    return [
+      `<div class="meta-chip accent">${items.length} items</div>`,
+      review ? `<div class="meta-chip warn">${review} in review</div>` : '',
+      blocked ? `<div class="meta-chip danger">${blocked} blocked</div>` : '',
+    ].filter(Boolean).join('');
+  }
+
+  function openProjectDrilldown(slug) {
+    const panel = document.getElementById('drilldown-panel');
+    if (!panel) return;
+    const project = state.projects.find(p => p.slug === slug);
+    if (!project) return;
+    panel.style.display = '';
+    const titleEl = panel.querySelector('.dd-title');
+    if (titleEl) titleEl.textContent = slug;
+    const statusEl = panel.querySelector('.dd-status');
+    if (statusEl) statusEl.textContent = project.status;
+    panel.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  // ── ADO panel ────────────────────────────────────────────────────────────
+  function renderADOPanel() {
+    const items = state.ado.items || [];
+    const myItems = items.filter(i => (i.assignee || '').includes('Chase'));
+    _renderItemList('ado-panel-body', myItems.slice(0, 8), i => `
+      <div class="ado-row">
+        <div class="ado-state ${_adoStateClass(i.state)}"></div>
+        <div class="ado-body">
+          <div class="ado-text">${i.title}</div>
+          <div class="ado-meta">${i.module || ''} · ${i.type || ''} · ${i.state}</div>
+        </div>
+        ${i.state === 'Code Review' && i.daysInState
+          ? `<div class="review-age ${_ageClass(i.daysInState)}">${i.daysInState}d</div>`
+          : ''}
+      </div>
+    `);
+    if (!myItems.length && state.ado.raw_text) {
+      const body = document.getElementById('ado-panel-body');
+      if (body) body.innerHTML = `<pre style="font-size:10px;color:var(--muted);padding:8px;white-space:pre-wrap">${state.ado.raw_text.slice(0, 500)}</pre>`;
+    }
+  }
+
+  function _adoStateClass(s) {
+    if (['Active', 'In Progress'].includes(s)) return 'state-active';
+    if (s === 'Code Review') return 'state-review';
+    if (s === 'Blocked') return 'state-blocked';
+    if (['Done', 'Closed'].includes(s)) return 'state-done';
+    return 'state-active';
+  }
+
+  function _ageClass(days) {
+    if (days <= 2) return 'age-ok';
+    if (days <= 5) return 'age-warn';
+    return 'age-old';
+  }
+
+  // ── Hermes + Adhoc panels ────────────────────────────────────────────────
+  function renderHermesPanel() {
+    _renderItemList('hermes-panel-body', state.hermesInbox || [], i => `
+      <div class="list-item">
+        <div class="item-icon">📌</div>
+        <div style="flex:1">
+          <div class="item-title">${i.title}</div>
+          <div class="item-meta">${i.project || ''} · ${i.module || ''} · ${i.type || ''}</div>
+        </div>
+        <div class="item-tag">${i.status}</div>
+      </div>
+    `);
+  }
+
+  function renderAdhocPanel() {
+    _renderItemList('adhoc-panel-body', (state.adhoc || []).slice(0, 5), i => `
+      <div class="list-item">
+        <div style="flex:1">
+          <div class="item-title">${i.title}</div>
+          <div class="item-meta">${_formatTs(i.timestamp)}</div>
+        </div>
+      </div>
+    `);
+  }
+
+  function _renderItemList(containerId, items, renderFn) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    el.innerHTML = items.length
+      ? items.map(renderFn).join('')
+      : '<div style="padding:10px;font-size:11px;color:var(--muted)">No items</div>';
+  }
+
+  // ── Team row ─────────────────────────────────────────────────────────────
+  function renderTeamRow() {
+    const el = document.getElementById('team-row');
+    if (!el) return;
+    const items = state.ado.items || [];
+    const members = [
+      { name: 'Chase Ramone', role: 'Team Lead + Developer', match: 'Chase' },
+      { name: 'Estelle Wu', role: 'API Layer', match: 'Estelle' },
+      { name: 'Akshay Gaikwad', role: 'UI / Integrations', match: 'Akshay' },
+    ];
+    el.innerHTML = members.map(m => {
+      const mine = items.filter(i => (i.assignee || '').includes(m.match));
+      const active = mine.filter(i => ['Active', 'In Progress'].includes(i.state)).length;
+      const review = mine.filter(i => i.state === 'Code Review').length;
+      const blocked = mine.filter(i => i.state === 'Blocked').length;
+      const wip = mine.find(i => ['Active', 'In Progress'].includes(i.state));
+      return `
+        <div class="team-card">
+          <div class="team-name">${m.name}</div>
+          <div class="team-role">${m.role}</div>
+          <div class="team-stats">
+            <div class="team-stat stat-blue">${active} active</div>
+            <div class="team-stat stat-warn">${review} in review</div>
+            <div class="team-stat ${blocked ? 'stat-red' : 'stat-green'}">${blocked} blocked</div>
+          </div>
+          <div class="team-wip">WIP: <strong>${wip ? wip.title : '—'}</strong></div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Decisions + Sync panels ──────────────────────────────────────────────
+  function renderDecisionsPanel() {
+    _renderItemList('decisions-body', (state.decisions || []).slice(0, 5), d => `
+      <div class="decision-row">
+        <div class="decision-date">${d.date}</div>
+        <div>
+          <div class="decision-text">${d.text}</div>
+          ${d.project ? `<div class="decision-tag">${d.project}</div>` : ''}
+        </div>
+      </div>
+    `);
+  }
+
+  function renderSyncPanel() {
+    const sync = state.hermesSync || {};
+    const pending = (state.hermesInbox || []).filter(i => i.status === 'pending').length;
+    const items = [
+      ...Object.entries(sync).map(([slug, data]) => ({
+        icon: '✅',
+        text: `${slug} — synced`,
+        meta: `${Object.values(data).filter(v => v && v.length).length} capture files`
+      })),
+      pending > 0 ? {
+        icon: '📥',
+        text: `${pending} ADO items pending flush`,
+        meta: 'Say "flush pending notes" to push to ADO'
+      } : null
+    ].filter(Boolean);
+    _renderItemList('sync-body', items, i => `
+      <div class="list-item">
+        <div class="item-icon">${i.icon}</div>
+        <div style="flex:1">
+          <div class="item-title">${i.text}</div>
+          <div class="item-meta">${i.meta}</div>
+        </div>
+      </div>
+    `);
+  }
+
+  // ── Interrupts section ───────────────────────────────────────────────────
+  function renderInterruptsSection() {
+    const items = state.interrupts || [];
+    const open = items.filter(i => i.status !== 'done');
+    const overdue = open.filter(i => i.dueDate && new Date(i.dueDate) < new Date());
+    const dueToday = open.filter(i => {
+      if (!i.dueDate) return false;
+      return new Date(i.dueDate).toDateString() === new Date().toDateString();
+    });
+    const done = items.filter(i => i.status === 'done');
+    const _set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    _set('triage-overdue', overdue.length);
+    _set('triage-today', dueToday.length);
+    _set('triage-open', open.length);
+    _set('triage-done', done.length);
+    // Full list render implemented in Task 10
+  }
+
+  // ── Badge updates ────────────────────────────────────────────────────────
+  function updateBadges() {
+    const _set = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.textContent = val || '';
+        el.style.display = val ? '' : 'none';
+      }
+    };
+    _set('badge-interrupts', (state.interrupts || []).filter(i => i.status !== 'done').length);
+    _set('badge-ado-pending', (state.hermesInbox || []).filter(i => i.status === 'pending').length);
+    _set('badge-blocked', (state.ado.items || []).filter(i => i.state === 'Blocked').length);
+    const overdue = (state.interrupts || []).filter(i =>
+      i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'done').length;
+    _set('badge-overdue', overdue);
+    _set('badge-due-today', (state.interrupts || []).filter(i => {
+      if (!i.dueDate || i.status === 'done') return false;
+      return new Date(i.dueDate).toDateString() === new Date().toDateString();
+    }).length);
+  }
+
+  // ── Auto-refresh ─────────────────────────────────────────────────────────
+  setInterval(fetchAll, 30000);
+  setInterval(renderClock, 10000);
+
+  const refreshBtn = document.getElementById('refresh-btn');
+  if (refreshBtn) refreshBtn.addEventListener('click', fetchAll);
+
+  // ── Sidebar nav ──────────────────────────────────────────────────────────
+  function switchView(view) {
+    const interruptsSection = document.getElementById('interrupts-section');
+    if (interruptsSection) {
+      interruptsSection.style.display = view === 'interrupts' ? '' : 'none';
+    }
+    document.querySelectorAll('[data-nav-view]').forEach(el => {
+      el.classList.toggle('active', el.dataset.navView === view);
+    });
+  }
+
+  document.querySelectorAll('[data-nav-view]').forEach(el => {
+    el.addEventListener('click', () => switchView(el.dataset.navView));
+  });
+
+  // Kick off
+  fetchAll();
 
   // Cheat sheet toggle
   document.getElementById('cheatsheet-header').addEventListener('click', function() {
@@ -1101,21 +1537,15 @@
   });
 
   // Drilldown close
-  document.getElementById('drilldown-close').addEventListener('click', function() {
+  const drilldownCloseBtn = document.getElementById('drilldown-close');
+  if (drilldownCloseBtn) drilldownCloseBtn.addEventListener('click', function() {
     document.getElementById('drilldown-panel').style.display = 'none';
   });
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
-      document.getElementById('drilldown-panel').style.display = 'none';
+      const p = document.getElementById('drilldown-panel');
+      if (p) p.style.display = 'none';
     }
-  });
-
-  // Nav item active state
-  document.querySelectorAll('.nav-item[data-nav-view]').forEach(function(item) {
-    item.addEventListener('click', function() {
-      document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
-      item.classList.add('active');
-    });
   });
 
   // Template buttons (single select)
