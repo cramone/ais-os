@@ -511,6 +511,53 @@
   .panel-action { font-size: 11px; color: var(--accent); cursor: pointer; }
   .panel-action:hover { text-decoration: underline; }
   .empty-state { padding: 20px; text-align: center; font-size: 11px; color: var(--muted); font-style: italic; }
+
+  /* Source tags (interrupt rows) */
+  .source-tag { font-size: 10px; padding: 1px 6px; border-radius: 3px; font-weight: 500; }
+  .src-finance { background: rgba(63,185,80,0.1); color: var(--accent2); border: 1px solid rgba(63,185,80,0.2); }
+  .src-product { background: rgba(88,166,255,0.1); color: var(--accent); border: 1px solid rgba(88,166,255,0.2); }
+  .src-executive { background: rgba(248,81,73,0.1); color: var(--danger); border: 1px solid rgba(248,81,73,0.2); }
+  .src-internal { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+
+  /* Due chips */
+  .due-chip { font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 500; }
+  .due-today { background: rgba(248,81,73,0.15); color: var(--danger); border: 1px solid rgba(248,81,73,0.3); }
+  .due-soon { background: rgba(210,153,34,0.12); color: var(--warn); border: 1px solid rgba(210,153,34,0.25); }
+  .due-none { font-size: 10px; padding: 2px 7px; border-radius: 4px; background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+
+  /* Status tags */
+  .status-tag { font-size: 10px; padding: 2px 7px; border-radius: 4px; }
+  .status-new { background: rgba(88,166,255,0.1); color: var(--accent); border: 1px solid rgba(88,166,255,0.2); }
+  .status-in-progress { background: rgba(210,153,34,0.1); color: var(--warn); border: 1px solid rgba(210,153,34,0.2); }
+  .status-deferred { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+  .status-done { background: rgba(63,185,80,0.1); color: var(--accent2); border: 1px solid rgba(63,185,80,0.2); }
+
+  /* Action buttons on interrupt rows */
+  .action-btn {
+    font-size: 10px; padding: 3px 8px; border-radius: 4px; cursor: pointer;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+    white-space: nowrap;
+  }
+  .action-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .action-btn.done { color: var(--accent2); border-color: rgba(63,185,80,0.3); }
+
+  /* Comment/event styles (drill-down activity) */
+  .comment-avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; background: var(--surface2); border: 1px solid var(--border); }
+  .comment-body { flex: 1; }
+  .comment-header { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .comment-author { font-size: 11px; font-weight: 600; }
+  .comment-time { font-size: 10px; color: var(--muted); }
+  .comment-text { font-size: 12px; line-height: 1.5; }
+  .event-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 11px; }
+  .event-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); flex-shrink: 0; margin-left: 11px; }
+
+  /* Tag active states */
+  .tag.active { font-weight: 600; }
+  .tag-blocked.active { background: rgba(248,81,73,0.1); color: var(--danger); border-color: rgba(248,81,73,0.3); }
+  .tag-waiting-for-feedback.active { background: rgba(210,153,34,0.1); color: var(--warn); border-color: rgba(210,153,34,0.25); }
+  .tag-requested-review.active { background: rgba(88,166,255,0.1); color: var(--accent); border-color: rgba(88,166,255,0.2); }
+  .tag-needs-more-info.active { background: rgba(188,140,255,0.1); color: var(--purple); border-color: rgba(188,140,255,0.25); }
+  .tag-complete.active { background: rgba(63,185,80,0.1); color: var(--accent2); border-color: rgba(63,185,80,0.25); }
 </style>
 </head>
 <body>
@@ -1854,28 +1901,111 @@
 
   // Kick off
   wireInterruptCaptureForm();
+  initCheatsheet();
   fetchAll();
 
-  // Cheat sheet toggle
-  document.getElementById('cheatsheet-header').addEventListener('click', function() {
+  // Cheat sheet toggle with localStorage persistence
+  function initCheatsheet() {
+    const header = document.getElementById('cheatsheet-header');
     const body = document.getElementById('cheatsheet-body');
     const toggle = document.getElementById('cheatsheet-toggle');
-    const collapsed = body.style.display === 'none';
-    body.style.display = collapsed ? '' : 'none';
-    toggle.textContent = collapsed ? '▼ click to collapse' : '▶ click to expand';
-  });
+    if (!header || !body) return;
+
+    function setCollapsed(collapsed) {
+      body.style.display = collapsed ? 'none' : '';
+      if (toggle) toggle.textContent = collapsed ? '▶' : '▼';
+      localStorage.setItem('cheatsheet-collapsed', collapsed ? 'true' : 'false');
+    }
+
+    header.addEventListener('click', () => {
+      const isCollapsed = body.style.display === 'none';
+      setCollapsed(!isCollapsed);
+    });
+
+    // Restore persisted state
+    const stored = localStorage.getItem('cheatsheet-collapsed');
+    if (stored === 'true') setCollapsed(true);
+  }
 
   // Drilldown close
   const drilldownCloseBtn = document.getElementById('drilldown-close');
   if (drilldownCloseBtn) drilldownCloseBtn.addEventListener('click', function() {
     document.getElementById('drilldown-panel').style.display = 'none';
   });
-  document.addEventListener('keydown', function(e) {
+
+  document.addEventListener('keydown', e => {
+    // Don't fire shortcuts when typing in inputs/textareas
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+
+    // Esc — close drill-down
     if (e.key === 'Escape') {
-      const p = document.getElementById('drilldown-panel');
-      if (p) p.style.display = 'none';
+      const panel = document.getElementById('drilldown-panel');
+      if (panel && panel.style.display !== 'none') {
+        panel.style.display = 'none';
+        e.preventDefault();
+      }
+      return;
+    }
+
+    // Ctrl+R — force refresh
+    if (e.ctrlKey && e.key === 'r') {
+      e.preventDefault();
+      fetchAll();
+      return;
+    }
+
+    // Ctrl+K — focus quick-capture input
+    if (e.ctrlKey && e.key === 'k') {
+      e.preventDefault();
+      const input = document.getElementById('interrupt-title-input');
+      if (input) {
+        switchView('interrupts');
+        const section = document.getElementById('interrupts-section');
+        if (section) section.style.display = '';
+        input.focus();
+      }
+      return;
+    }
+
+    // F — toggle focus mode
+    if (e.key === 'f' || e.key === 'F') {
+      e.preventDefault();
+      toggleFocusMode();
+      return;
+    }
+
+    // S — scroll to standup
+    if (e.key === 's' || e.key === 'S') {
+      e.preventDefault();
+      document.getElementById('standup-strip')?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+
+    // I — jump to interrupts
+    if (e.key === 'i' || e.key === 'I') {
+      e.preventDefault();
+      switchView('interrupts');
+      const section = document.getElementById('interrupts-section');
+      if (section) section.style.display = '';
+      section?.scrollIntoView({ behavior: 'smooth' });
+      return;
     }
   });
+
+  function toggleFocusMode() {
+    const main = document.getElementById('main');
+    if (!main) return;
+    const isFocus = main.classList.toggle('focus-mode');
+    if (!document.getElementById('focus-mode-style')) {
+      const style = document.createElement('style');
+      style.id = 'focus-mode-style';
+      style.textContent = `
+        .focus-mode > *:not(#focus-strip):not(#ado-panel) { display: none !important; }
+        .focus-mode #ado-panel { grid-column: 1 / -1; }
+      `;
+      document.head.appendChild(style);
+    }
+  }
 
   // Template buttons (single select)
   document.querySelectorAll('.template-btn').forEach(function(btn) {
