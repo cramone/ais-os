@@ -20,7 +20,7 @@ def tmp_aios(tmp_path):
     decisions = tmp_path / "decisions"
     decisions.mkdir()
     (decisions / "log.md").write_text(
-        "## 2026-06-01 — Some decision\n*Project: magiq-media*\n\n## 2026-05-30 — Another decision\n*Project: aios*\n"
+        "## 2026-06-01 - Some decision\n*Project: magiq-media*\n\n## 2026-05-30 - Another decision\n*Project: aios*\n"
     )
     return tmp_path
 
@@ -35,7 +35,7 @@ def tmp_hermes(tmp_path):
          "priority": "Medium", "capturedAt": "2026-06-01T08:00:00Z"}
     ]))
     (hermes / "adhoc-notes.md").write_text(
-        "# Adhoc Notes\n\n## 2026-06-01T08:00:00Z — Test note\n\nRemember this thing.\n\n---\n"
+        "# Adhoc Notes\n\n## 2026-06-01T08:00:00Z - Test note\n\nRemember this thing.\n\n---\n"
     )
     projects = hermes / "projects" / "magiq-media"
     projects.mkdir(parents=True)
