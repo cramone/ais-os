@@ -12,4 +12,7 @@ INTERRUPTS_FILE = TOWER_DIR / "data" / "interrupts.json"
 ADO_PENDING = HERMES_DATA / "ado-pending.json"
 ADHOC_NOTES = HERMES_DATA / "adhoc-notes.md"
 HERMES_PROJECTS = HERMES_DATA / "projects"
-PORT = int(os.getenv("TOWER_PORT", "8765"))
+try:
+    PORT = int(os.getenv("TOWER_PORT", "8765"))
+except (ValueError, TypeError):
+    PORT = 8765
