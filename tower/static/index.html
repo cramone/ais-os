@@ -620,6 +620,13 @@
   <div id="main">
     <div class="main-content">
 
+      <!-- VIEW HEADER BREADCRUMB -->
+      <div id="view-header" style="display:none; padding:0 0 4px 0; font-size:11px; color:var(--muted); display:flex; align-items:center; gap:8px;">
+        <span onclick="switchView('dashboard')" style="cursor:pointer; color:var(--accent)">Dashboard</span>
+        <span>›</span>
+        <span id="view-title"></span>
+      </div>
+
       <!-- ① FOCUS STRIP -->
       <div id="focus-strip">
         <div class="focus-label">Now</div>
@@ -670,7 +677,7 @@
       </div>
 
       <!-- ④ PROJECTS -->
-      <div>
+      <div id="projects-section">
         <div class="section-header">
           <div class="section-title">Projects</div>
           <div class="section-action">+ scaffold new</div>
@@ -715,7 +722,7 @@
       </div>
 
       <!-- ⑤ PANEL GRID: ADO / Hermes / Adhoc -->
-      <div class="panel-grid">
+      <div class="panel-grid" id="panel-grid">
 
         <!-- ADO PANEL -->
         <div class="panel" id="ado-panel">
@@ -758,7 +765,7 @@
       </div>
 
       <!-- ⑥ TEAM WORKLOAD -->
-      <div>
+      <div id="team-section">
         <div class="section-header">
           <div class="section-title">👥 Team Workload <span class="new-badge">NEW</span></div>
           <div class="section-action">/devops all</div>
@@ -798,7 +805,7 @@
       </div>
 
       <!-- ⑦ DECISIONS + SYNC STATUS -->
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+      <div id="bottom-row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
         <div class="panel">
           <div class="panel-header">
             <div class="panel-title">⚖️ Recent Decisions</div>
@@ -1016,6 +1023,61 @@
         </div>
       </div>
 
+      <!-- FULLWIDTH PANELS (shown by view switching) -->
+
+      <!-- ADO Fullwidth Panel -->
+      <div id="ado-panel-fullwidth" style="display:none">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">📊 ADO Sprint</div>
+          </div>
+          <div class="panel-body" id="ado-fullwidth-body" style="max-height:none"></div>
+        </div>
+      </div>
+
+      <!-- Hermes Fullwidth Panel -->
+      <div id="hermes-panel-fullwidth" style="display:none">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">📥 Hermes Inbox</div>
+            <button class="btn primary" style="font-size:11px;padding:4px 10px" onclick="alert('Say: flush pending notes in Claude Code')">flush all</button>
+          </div>
+          <div class="panel-body" id="hermes-fullwidth-body" style="max-height:none"></div>
+        </div>
+      </div>
+
+      <!-- Adhoc Fullwidth Panel -->
+      <div id="adhoc-panel-fullwidth" style="display:none">
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">📝 Adhoc Notes</div></div>
+          <div class="panel-body" id="adhoc-fullwidth-body" style="max-height:none"></div>
+        </div>
+      </div>
+
+      <!-- Sync Fullwidth Panel -->
+      <div id="sync-panel-fullwidth" style="display:none">
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">🔄 Hermes Sync Status</div></div>
+          <div class="panel-body" id="sync-fullwidth-body" style="max-height:none"></div>
+        </div>
+      </div>
+
+      <!-- Blocked Fullwidth Panel -->
+      <div id="blocked-panel-fullwidth" style="display:none">
+        <div class="panel" style="border-color:rgba(248,81,73,0.3)">
+          <div class="panel-header"><div class="panel-title">🚫 Blocked Items</div></div>
+          <div class="panel-body" id="blocked-fullwidth-body" style="max-height:none"></div>
+        </div>
+      </div>
+
+      <!-- Decisions Fullwidth Panel -->
+      <div id="decisions-panel-fullwidth" style="display:none">
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">⚖️ All Decisions</div></div>
+          <div class="panel-body" id="decisions-fullwidth-body" style="max-height:none"></div>
+        </div>
+      </div>
+
     </div><!-- /main-content -->
   </div><!-- /main -->
 
@@ -1179,6 +1241,8 @@
     updateBadges();
     const el = document.getElementById('last-refresh');
     if (el) el.textContent = lastRefreshed ? `${_ago(lastRefreshed)}` : '';
+    // Re-apply view so display states stay correct after render
+    if (typeof currentView !== 'undefined' && currentView !== 'dashboard') switchView(currentView);
   }
 
   // ── Clock + time helpers ─────────────────────────────────────────────────
@@ -1885,14 +1949,253 @@
   if (refreshBtn) refreshBtn.addEventListener('click', fetchAll);
 
   // ── Sidebar nav ──────────────────────────────────────────────────────────
+  let currentView = 'dashboard';
+
+  const VIEW_TITLES = {
+    dashboard: null, focus: 'Focus Mode', standup: 'Standup Prep',
+    interrupts: 'Interrupts', overdue: 'Overdue', 'due-today': 'Due Today',
+    'magiq-media': 'magiq-media', 'magiq-auth': 'magiq-auth',
+    inbox: 'Hermes Inbox', blocked: 'Blocked Items', adhoc: 'Adhoc Notes',
+    'hermes-sync': 'Hermes Sync', team: 'Team Workload',
+    'review-queue': 'Review Queue', decisions: 'Decisions',
+    sprint: 'Sprint Board', cheatsheet: 'Cheat Sheet',
+  };
+
+  const ALL_SWITCHABLE = [
+    'focus-strip', 'blocked-banner', 'standup-strip',
+    'projects-section', 'panel-grid', 'team-section', 'bottom-row', 'cheatsheet',
+    'interrupts-section', 'drilldown-panel',
+    'hermes-panel-fullwidth', 'adhoc-panel-fullwidth',
+    'sync-panel-fullwidth', 'ado-panel-fullwidth', 'decisions-panel-fullwidth',
+    'blocked-panel-fullwidth'
+  ];
+
   function switchView(view) {
-    const interruptsSection = document.getElementById('interrupts-section');
-    if (interruptsSection) {
-      interruptsSection.style.display = view === 'interrupts' ? '' : 'none';
-    }
+    currentView = view;
+
+    // Update nav active state
     document.querySelectorAll('[data-nav-view]').forEach(el => {
       el.classList.toggle('active', el.dataset.navView === view);
     });
+
+    // Update breadcrumb
+    const viewHeader = document.getElementById('view-header');
+    const viewTitle = document.getElementById('view-title');
+    if (viewHeader) viewHeader.style.display = view === 'dashboard' ? 'none' : 'flex';
+    if (viewTitle) viewTitle.textContent = VIEW_TITLES[view] || view;
+
+    // Hide all switchable sections
+    ALL_SWITCHABLE.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+
+    if (view === 'dashboard') {
+      ['focus-strip', 'standup-strip', 'projects-section', 'panel-grid', 'team-section', 'bottom-row', 'cheatsheet'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = '';
+      });
+      const bb = document.getElementById('blocked-banner');
+      if (bb && (state.ado.items || []).some(i => i.state === 'Blocked')) bb.style.display = '';
+      return;
+    }
+
+    if (view === 'interrupts') { _showInterruptsView('all'); return; }
+    if (view === 'overdue') { _showInterruptsView('overdue'); return; }
+    if (view === 'due-today') { _showInterruptsView('due-today'); return; }
+
+    if (view === 'magiq-media') {
+      const el = document.getElementById('projects-section');
+      if (el) el.style.display = '';
+      openProjectDrilldown('magiq-media');
+      const dp = document.getElementById('drilldown-panel');
+      if (dp) dp.style.display = '';
+      return;
+    }
+    if (view === 'magiq-auth') {
+      const el = document.getElementById('projects-section');
+      if (el) el.style.display = '';
+      openProjectDrilldown('magiq-auth');
+      const dp = document.getElementById('drilldown-panel');
+      if (dp) dp.style.display = '';
+      return;
+    }
+    if (view === 'review-queue') {
+      const el = document.getElementById('ado-panel-fullwidth');
+      if (el) { el.style.display = ''; _renderADOFullwidth('review'); }
+      return;
+    }
+    if (view === 'sprint') {
+      const el = document.getElementById('ado-panel-fullwidth');
+      if (el) { el.style.display = ''; _renderADOFullwidth('all'); }
+      return;
+    }
+    if (view === 'focus') {
+      const fs = document.getElementById('focus-strip');
+      if (fs) fs.style.display = '';
+      const el = document.getElementById('ado-panel-fullwidth');
+      if (el) { el.style.display = ''; _renderADOFullwidth('mine'); }
+      return;
+    }
+    if (view === 'inbox') {
+      const el = document.getElementById('hermes-panel-fullwidth');
+      if (el) { el.style.display = ''; _renderHermesFullwidth(); }
+      return;
+    }
+    if (view === 'adhoc') {
+      const el = document.getElementById('adhoc-panel-fullwidth');
+      if (el) { el.style.display = ''; _renderAdhocFullwidth(); }
+      return;
+    }
+    if (view === 'hermes-sync') {
+      const el = document.getElementById('sync-panel-fullwidth');
+      if (el) { el.style.display = ''; _renderSyncFullwidth(); }
+      return;
+    }
+    if (view === 'team') {
+      const el = document.getElementById('team-section');
+      if (el) el.style.display = '';
+      return;
+    }
+    if (view === 'blocked') {
+      const el = document.getElementById('blocked-panel-fullwidth');
+      if (el) { el.style.display = ''; _renderBlockedFullwidth(); }
+      return;
+    }
+    if (view === 'decisions') {
+      const el = document.getElementById('decisions-panel-fullwidth');
+      if (el) { el.style.display = ''; _renderDecisionsFullwidth(); }
+      return;
+    }
+    if (view === 'standup') {
+      const el = document.getElementById('standup-strip');
+      if (el) el.style.display = '';
+      return;
+    }
+    if (view === 'cheatsheet') {
+      const el = document.getElementById('cheatsheet');
+      if (el) {
+        el.style.display = '';
+        const body = document.getElementById('cheatsheet-body');
+        const toggle = document.getElementById('cheatsheet-toggle');
+        if (body) body.style.display = '';
+        if (toggle) toggle.textContent = '▼';
+      }
+      return;
+    }
+  }
+
+  function _showInterruptsView(filter) {
+    const el = document.getElementById('interrupts-section');
+    if (el) el.style.display = '';
+
+    const items = state.interrupts || [];
+    let filtered = items.filter(i => i.status !== 'done');
+    if (filter === 'overdue') {
+      filtered = filtered.filter(i => i.dueDate && new Date(i.dueDate) < new Date());
+    } else if (filter === 'due-today') {
+      filtered = filtered.filter(i => {
+        if (!i.dueDate) return false;
+        return new Date(i.dueDate).toDateString() === new Date().toDateString();
+      });
+    }
+    _renderItemList('interrupts-list', filtered, i => `
+      <div class="interrupt-row" onclick="openInterruptDrilldown('${i.id}')">
+        <div class="priority-dot p-${i.priority || 'normal'}"></div>
+        <div class="interrupt-body">
+          <div class="interrupt-title">${i.title}</div>
+          <div class="interrupt-meta">
+            <span class="source-tag src-${(i.source || '').toLowerCase()}">${i.source || ''}</span>
+            ${(i.tags || []).map(t => `<span class="tag tag-${t} active">${_tagLabel(t)}</span>`).join('')}
+            <span class="interrupt-age">${_ago(new Date(i.capturedAt))}</span>
+          </div>
+        </div>
+        ${i.dueDate ? `<div class="due-chip ${_dueClass(i.dueDate)}">${_dueLabel(i.dueDate)}</div>` : '<div class="due-none">No due date</div>'}
+        <div class="status-tag status-${i.status}">${i.status}</div>
+        <button class="action-btn" onclick="event.stopPropagation();pushInterruptToADO('${i.id}')">-&gt; ADO</button>
+        <button class="action-btn done" onclick="event.stopPropagation();markInterruptDone('${i.id}')">Done</button>
+      </div>
+    `);
+  }
+
+  function _renderADOFullwidth(tab) {
+    const items = state.ado.items || [];
+    let filtered = items;
+    if (tab === 'review') filtered = items.filter(i => i.state === 'Code Review');
+    else if (tab === 'mine') filtered = items.filter(i => (i.assignee || '').includes('Chase'));
+    _renderItemList('ado-fullwidth-body', filtered.slice(0, 50), i => `
+      <div class="ado-row">
+        <div class="ado-state ${_adoStateClass(i.state)}"></div>
+        <div class="ado-body">
+          <div class="ado-text">${i.title}</div>
+          <div class="ado-meta">${i.module || ''} · ${i.type || ''} · ${i.state} · ${i.assignee || ''}</div>
+        </div>
+        ${i.state === 'Code Review' && i.daysInState ? `<div class="review-age ${_ageClass(i.daysInState)}">${i.daysInState}d</div>` : ''}
+      </div>
+    `);
+  }
+
+  function _renderHermesFullwidth() {
+    _renderItemList('hermes-fullwidth-body', state.hermesInbox || [], i => `
+      <div class="list-item">
+        <div class="item-icon">📌</div>
+        <div style="flex:1">
+          <div class="item-title">${i.title}</div>
+          <div class="item-meta">${i.project || ''} · ${i.module || ''} · ${i.type || ''} · ${i.status}</div>
+        </div>
+      </div>
+    `);
+  }
+
+  function _renderAdhocFullwidth() {
+    _renderItemList('adhoc-fullwidth-body', state.adhoc || [], i => `
+      <div class="list-item">
+        <div style="flex:1">
+          <div class="item-title">${i.title}</div>
+          <div class="item-meta">${_formatTs(i.timestamp)}</div>
+          ${i.text ? `<div style="font-size:11px;color:var(--text);margin-top:4px;line-height:1.5">${i.text}</div>` : ''}
+        </div>
+      </div>
+    `);
+  }
+
+  function _renderSyncFullwidth() {
+    const sync = state.hermesSync || {};
+    const items = Object.entries(sync).map(([slug, data]) => ({
+      icon: '✅', text: slug,
+      meta: Object.entries(data).filter(([,v]) => v && v.length).map(([k]) => k).join(', ') || 'no pending captures'
+    }));
+    _renderItemList('sync-fullwidth-body', items, i => `
+      <div class="list-item">
+        <div class="item-icon">${i.icon}</div>
+        <div style="flex:1"><div class="item-title">${i.text}</div><div class="item-meta">${i.meta}</div></div>
+      </div>
+    `);
+  }
+
+  function _renderBlockedFullwidth() {
+    const blocked = (state.ado.items || []).filter(i => i.state === 'Blocked');
+    _renderItemList('blocked-fullwidth-body', blocked, i => `
+      <div class="ado-row">
+        <div class="ado-state state-blocked"></div>
+        <div class="ado-body">
+          <div class="ado-text">${i.title}</div>
+          <div class="ado-meta">${i.module || ''} · ${i.assignee || ''} · blocked ${i.daysInState || 0}d</div>
+        </div>
+      </div>
+    `);
+  }
+
+  function _renderDecisionsFullwidth() {
+    _renderItemList('decisions-fullwidth-body', state.decisions || [], d => `
+      <div class="decision-row">
+        <div class="decision-date">${d.date}</div>
+        <div>
+          <div class="decision-text">${d.text}</div>
+          ${d.project ? `<div class="decision-tag">${d.project}</div>` : ''}
+        </div>
+      </div>
+    `);
   }
 
   document.querySelectorAll('[data-nav-view]').forEach(el => {
@@ -1957,27 +2260,23 @@
     // Ctrl+K — focus quick-capture input
     if (e.ctrlKey && e.key === 'k') {
       e.preventDefault();
+      switchView('interrupts');
       const input = document.getElementById('interrupt-title-input');
-      if (input) {
-        switchView('interrupts');
-        const section = document.getElementById('interrupts-section');
-        if (section) section.style.display = '';
-        input.focus();
-      }
+      if (input) input.focus();
       return;
     }
 
-    // F — toggle focus mode
+    // F — focus mode view
     if (e.key === 'f' || e.key === 'F') {
       e.preventDefault();
-      toggleFocusMode();
+      switchView('focus');
       return;
     }
 
-    // S — scroll to standup
+    // S — standup view
     if (e.key === 's' || e.key === 'S') {
       e.preventDefault();
-      document.getElementById('standup-strip')?.scrollIntoView({ behavior: 'smooth' });
+      switchView('standup');
       return;
     }
 
@@ -1985,27 +2284,9 @@
     if (e.key === 'i' || e.key === 'I') {
       e.preventDefault();
       switchView('interrupts');
-      const section = document.getElementById('interrupts-section');
-      if (section) section.style.display = '';
-      section?.scrollIntoView({ behavior: 'smooth' });
       return;
     }
   });
-
-  function toggleFocusMode() {
-    const main = document.getElementById('main');
-    if (!main) return;
-    const isFocus = main.classList.toggle('focus-mode');
-    if (!document.getElementById('focus-mode-style')) {
-      const style = document.createElement('style');
-      style.id = 'focus-mode-style';
-      style.textContent = `
-        .focus-mode > *:not(#focus-strip):not(#ado-panel) { display: none !important; }
-        .focus-mode #ado-panel { grid-column: 1 / -1; }
-      `;
-      document.head.appendChild(style);
-    }
-  }
 
   // Template buttons (single select)
   document.querySelectorAll('.template-btn').forEach(function(btn) {
