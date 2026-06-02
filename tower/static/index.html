@@ -595,8 +595,7 @@
     <div class="nav-item" data-nav-view="due-today"><span class="icon">📅</span> Due Today <span class="nav-badge warn" id="badge-due-today"></span></div>
 
     <div class="sidebar-section" style="margin-top:6px">Projects</div>
-    <div class="nav-item" data-nav-view="magiq-media"><span class="icon">🎬</span> magiq-media <span class="nav-badge" id="badge-mm-ado"></span></div>
-    <div class="nav-item" data-nav-view="magiq-auth"><span class="icon">🔐</span> magiq-auth <span class="nav-badge muted" id="badge-ma-ado">draft</span></div>
+    <div id="project-nav-items"></div>
 
     <div class="sidebar-section" style="margin-top:6px">Inbox</div>
     <div class="nav-item" data-nav-view="inbox"><span class="icon">📥</span> ADO Pending <span class="nav-badge warn" id="badge-ado-pending"></span></div>
@@ -716,6 +715,26 @@
             <div class="card-meta">
               <div class="meta-chip">No ADO board</div>
               <div class="meta-chip">0 captures pending</div>
+            </div>
+          </div>
+        </div>
+        <!-- Project detail row — shown when a project card is clicked -->
+        <div id="project-detail-row" style="display:none; margin-top:14px; display:none">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
+            <!-- Left: overview + ADO stats -->
+            <div class="panel">
+              <div class="panel-header" id="project-detail-header">
+                <div class="panel-title" id="project-detail-title">—</div>
+                <div style="font-size:11px;color:var(--muted)" id="project-detail-status"></div>
+              </div>
+              <div class="panel-body" id="project-detail-overview"></div>
+            </div>
+            <!-- Right: Hermes captures + decisions -->
+            <div class="panel">
+              <div class="panel-header">
+                <div class="panel-title">📥 Captures &amp; Decisions</div>
+              </div>
+              <div class="panel-body" id="project-detail-captures"></div>
             </div>
           </div>
         </div>
@@ -1230,6 +1249,7 @@
     renderFocusStrip();
     renderBlockedBanner();
     renderStandupStrip();
+    renderProjectNavItems();
     renderProjects();
     renderADOPanel();
     renderHermesPanel();
@@ -1380,6 +1400,23 @@
     }
   }
 
+  // ── Project Nav Items (dynamic sidebar) ──────────────────────────────────
+  const PROJECT_ICONS = { 'magiq-media': '🎬', 'magiq-auth': '🔐', 'document-lifecycle-cleaner': '🧹' };
+
+  function renderProjectNavItems() {
+    const container = document.getElementById('project-nav-items');
+    if (!container) return;
+    const projects = state.projects || [];
+    container.innerHTML = projects.map(p => {
+      const icon = PROJECT_ICONS[p.slug] || '📁';
+      return `<div class="nav-item" data-nav-view="${p.slug}"
+        onclick="switchView('${p.slug}')"
+        style="cursor:pointer">
+        <span class="icon">${icon}</span> ${p.slug}
+      </div>`;
+    }).join('');
+  }
+
   // ── Projects ─────────────────────────────────────────────────────────────
   function renderProjects() {
     const el = document.getElementById('projects-row');
@@ -1389,7 +1426,7 @@
       return;
     }
     el.innerHTML = state.projects.map(p => `
-      <div class="project-card" onclick="openProjectDrilldown('${p.slug}')">
+      <div class="project-card" data-slug="${p.slug}" onclick="openProjectDetail('${p.slug}')">
         <div class="card-top">
           <div class="card-name">${p.slug}</div>
           ${p.priority ? `<div class="card-priority priority-high">${p.priority.toUpperCase()}</div>` : ''}
@@ -1423,17 +1460,70 @@
     ].filter(Boolean).join('');
   }
 
-  function openProjectDrilldown(slug) {
-    const panel = document.getElementById('drilldown-panel');
-    if (!panel) return;
+  function openProjectDrilldown(slug) { openProjectDetail(slug); }
+
+  function openProjectDetail(slug) {
+    const row = document.getElementById('project-detail-row');
+    if (!row) return;
     const project = state.projects.find(p => p.slug === slug);
     if (!project) return;
-    panel.style.display = '';
-    const titleEl = panel.querySelector('.dd-title');
+
+    row.style.display = '';
+
+    // Highlight active card
+    document.querySelectorAll('.project-card').forEach(c => {
+      c.classList.toggle('active-card', c.dataset.slug === slug);
+    });
+
+    // Header
+    const titleEl = document.getElementById('project-detail-title');
+    const statusEl = document.getElementById('project-detail-status');
     if (titleEl) titleEl.textContent = slug;
-    const statusEl = panel.querySelector('.dd-status');
-    if (statusEl) statusEl.textContent = project.status;
-    panel.scrollIntoView({ behavior: 'smooth' });
+    if (statusEl) statusEl.textContent = project.status + (project.priority ? ' · ' + project.priority : '');
+
+    // Left: ADO overview + MEMORY snippet
+    const adoItems = (state.ado.items || []).filter(i =>
+      (i.project || i.module || '').toLowerCase().includes(slug.replace(/-/g,'').substring(0,6))
+    );
+    const active = adoItems.filter(i => ['Active','In Progress'].includes(i.state)).length;
+    const review = adoItems.filter(i => i.state === 'Code Review').length;
+    const blocked = adoItems.filter(i => i.state === 'Blocked').length;
+    const pending = (state.hermesInbox || []).filter(i => i.project === slug && i.status === 'pending').length;
+
+    const overviewEl = document.getElementById('project-detail-overview');
+    if (overviewEl) {
+      overviewEl.innerHTML = `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+          <div class="meta-chip accent">${active} active</div>
+          <div class="meta-chip warn">${review} in review</div>
+          ${blocked ? `<div class="meta-chip danger">${blocked} blocked</div>` : ''}
+          ${pending ? `<div class="meta-chip">${pending} pending flush</div>` : ''}
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.6px">Memory snapshot</div>
+        <pre style="font-size:11px;color:var(--text);white-space:pre-wrap;line-height:1.6;max-height:240px;overflow-y:auto">${
+          (project.raw || '').slice(0, 800).replace(/</g,'&lt;')
+        }${project.raw && project.raw.length > 800 ? '\n…' : ''}</pre>`;
+    }
+
+    // Right: Hermes captures + project decisions
+    const captures = (state.hermesSync || {})[slug] || {};
+    const projectDecisions = (state.decisions || []).filter(d => d.project === slug);
+    const capturesEl = document.getElementById('project-detail-captures');
+    if (capturesEl) {
+      const sections = [];
+      if (captures.ideas) sections.push(`<div class="list-item"><div style="flex:1"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">💡 Ideas</div><div style="font-size:11px;white-space:pre-wrap">${captures.ideas}</div></div></div>`);
+      if (captures.risks) sections.push(`<div class="list-item"><div style="flex:1"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">⚠️ Risks</div><div style="font-size:11px;white-space:pre-wrap">${captures.risks}</div></div></div>`);
+      if (captures.decisions) sections.push(`<div class="list-item"><div style="flex:1"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">⚖️ Pending decisions</div><div style="font-size:11px;white-space:pre-wrap">${captures.decisions}</div></div></div>`);
+      if (captures.questions) sections.push(`<div class="list-item"><div style="flex:1"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">❓ Questions</div><div style="font-size:11px;white-space:pre-wrap">${captures.questions}</div></div></div>`);
+      if (projectDecisions.length) {
+        sections.push(`<div class="list-item" style="flex-direction:column;gap:4px"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">📋 Log decisions</div>${
+          projectDecisions.slice(0,5).map(d => `<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--border)"><span style="color:var(--muted);margin-right:8px">${d.date}</span>${d.text}</div>`).join('')
+        }</div>`);
+      }
+      capturesEl.innerHTML = sections.length ? sections.join('') : '<div style="padding:10px;font-size:11px;color:var(--muted)">No captures yet.</div>';
+    }
+
+    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   // ── ADO panel ────────────────────────────────────────────────────────────
@@ -2004,20 +2094,13 @@
     if (view === 'overdue') { _showInterruptsView('overdue'); return; }
     if (view === 'due-today') { _showInterruptsView('due-today'); return; }
 
-    if (view === 'magiq-media') {
+    // Any project slug — show projects panel + open that project's detail row
+    if (state.projects.some(p => p.slug === view)) {
       const el = document.getElementById('projects-section');
       if (el) el.style.display = '';
-      openProjectDrilldown('magiq-media');
       const dp = document.getElementById('drilldown-panel');
-      if (dp) dp.style.display = '';
-      return;
-    }
-    if (view === 'magiq-auth') {
-      const el = document.getElementById('projects-section');
-      if (el) el.style.display = '';
-      openProjectDrilldown('magiq-auth');
-      const dp = document.getElementById('drilldown-panel');
-      if (dp) dp.style.display = '';
+      if (dp) dp.style.display = 'none';
+      openProjectDetail(view);
       return;
     }
     if (view === 'review-queue') {
