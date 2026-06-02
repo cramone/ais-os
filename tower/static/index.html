@@ -1574,20 +1574,239 @@
     }
   }
 
+  const BUILTIN_TAGS = ['blocked', 'waiting-for-feedback', 'requested-review', 'needs-more-info', 'complete'];
+
   function openInterruptDrilldown(id) {
     const panel = document.getElementById('drilldown-panel');
     if (!panel) return;
     const item = (state.interrupts || []).find(i => i.id === id);
     if (!item) return;
+
     panel.style.display = '';
+    panel.dataset.interruptId = id;
+
+    // Header
     const titleEl = panel.querySelector('.dd-title');
-    if (titleEl) titleEl.textContent = item.title;
-    const statusEl = panel.querySelector('.dd-status');
-    if (statusEl) statusEl.textContent = item.status;
     const sourceEl = panel.querySelector('.dd-source');
-    if (sourceEl) sourceEl.textContent = item.source || '';
+    const statusEl = panel.querySelector('.dd-status');
     const ageEl = panel.querySelector('.dd-age');
-    if (ageEl) ageEl.textContent = item.capturedAt ? _ago(new Date(item.capturedAt)) : '';
+    if (titleEl) titleEl.textContent = item.title;
+    if (sourceEl) sourceEl.textContent = item.source;
+    if (statusEl) statusEl.textContent = item.status;
+    if (ageEl) ageEl.textContent = `Captured ${_ago(new Date(item.capturedAt))}`;
+
+    // Header action buttons
+    const markDoneBtn = panel.querySelector('.dd-mark-done');
+    if (markDoneBtn) markDoneBtn.onclick = () => markInterruptDone(id);
+    const adoBtn = panel.querySelector('.dd-push-ado');
+    if (adoBtn) adoBtn.onclick = () => pushInterruptToADO(id);
+
+    // Tags
+    _renderDrilldownTags(panel, item);
+
+    // Activity feed
+    _renderActivityFeed(panel, item);
+
+    // Email draft — reset to selector state
+    const previewEl = panel.querySelector('.email-preview');
+    const actionsEl = panel.querySelector('.email-actions');
+    if (previewEl) previewEl.style.display = 'none';
+    if (actionsEl) actionsEl.style.display = 'none';
+
+    // Wire email generation
+    _wireEmailDraftPanel(panel, id);
+
+    panel.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function _tagLabel(t) {
+    const map = {
+      'blocked': 'Blocked',
+      'waiting-for-feedback': 'Waiting',
+      'requested-review': 'Review',
+      'needs-more-info': 'Needs info',
+      'complete': 'Complete'
+    };
+    return map[t] || t;
+  }
+
+  function _renderDrilldownTags(panel, item) {
+    const container = panel.querySelector('.tags-row');
+    if (!container) return;
+    container.innerHTML = BUILTIN_TAGS.map(t => {
+      const active = (item.tags || []).includes(t);
+      return `<div class="tag tag-${t} ${active ? 'active' : ''}"
+        onclick="toggleInterruptTag('${item.id}', '${t}')">${_tagLabel(t)}</div>`;
+    }).join('') +
+      `<div class="tag" style="border-style:dashed;cursor:pointer"
+        onclick="promptCustomTag('${item.id}')">+ add</div>`;
+  }
+
+  async function toggleInterruptTag(id, tag) {
+    const item = (state.interrupts || []).find(i => i.id === id);
+    if (!item) return;
+    const hasTag = (item.tags || []).includes(tag);
+    const tags = hasTag
+      ? (item.tags || []).filter(t => t !== tag)
+      : [...(item.tags || []), tag];
+    const eventText = hasTag ? `Removed tag: ${tag}` : `Added tag: ${tag}`;
+
+    await fetch(`/api/interrupts/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tags })
+    });
+    await fetch(`/api/interrupts/${id}/activity`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'event', text: eventText })
+    });
+    await fetchAll();
+    openInterruptDrilldown(id);
+  }
+
+  async function promptCustomTag(id) {
+    const tag = prompt('Enter custom tag:');
+    if (!tag || !tag.trim()) return;
+    const item = (state.interrupts || []).find(i => i.id === id);
+    if (!item) return;
+    const normalised = tag.trim().toLowerCase().replace(/\s+/g, '-');
+    const tags = [...(item.tags || []), normalised];
+    await fetch(`/api/interrupts/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tags })
+    });
+    await fetchAll();
+    openInterruptDrilldown(id);
+  }
+
+  function _renderActivityFeed(panel, item) {
+    const feed = panel.querySelector('.comment-feed');
+    if (!feed) return;
+    const activity = item.activity || [];
+    feed.innerHTML = activity.length
+      ? activity.map(e => {
+          if (e.type === 'comment') {
+            const initials = (e.author || '?').slice(0, 2).toUpperCase();
+            return `
+              <div class="comment-item">
+                <div class="comment-avatar">${initials}</div>
+                <div class="comment-body">
+                  <div class="comment-header">
+                    <span class="comment-author">${e.author || ''}</span>
+                    <span class="comment-time">${_formatTs(e.timestamp)}</span>
+                  </div>
+                  <div class="comment-text">${e.text}</div>
+                </div>
+              </div>`;
+          }
+          return `
+            <div class="event-item">
+              <div class="event-dot"></div>
+              <span>${e.text}</span>
+              <span style="margin-left:auto;font-size:10px;color:var(--muted)">${_formatTs(e.timestamp)}</span>
+            </div>`;
+        }).join('')
+      : '<div style="padding:8px;font-size:11px;color:var(--muted)">No activity yet.</div>';
+
+    // Wire comment form
+    const form = panel.querySelector('.add-comment-form');
+    if (!form) return;
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const textarea = form.querySelector('textarea');
+      const text = textarea ? textarea.value.trim() : '';
+      if (!text) return;
+      await fetch(`/api/interrupts/${item.id}/activity`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'comment', author: 'Chase', text })
+      });
+      if (textarea) textarea.value = '';
+      await fetchAll();
+      openInterruptDrilldown(item.id);
+    };
+  }
+
+  function _wireEmailDraftPanel(panel, itemId) {
+    const templateBtns = panel.querySelectorAll('.template-btn');
+    const toneBtns = panel.querySelectorAll('.tone-btn');
+    let selectedTemplate = 'complete';
+    let selectedTone = 'formal';
+
+    templateBtns.forEach(btn => {
+      if (btn.dataset.template === selectedTemplate) btn.classList.add('active');
+      else btn.classList.remove('active');
+      btn.onclick = () => {
+        templateBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedTemplate = btn.dataset.template;
+      };
+    });
+
+    toneBtns.forEach(btn => {
+      if (btn.dataset.tone === selectedTone) btn.classList.add('active');
+      else btn.classList.remove('active');
+      btn.onclick = () => {
+        toneBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedTone = btn.dataset.tone;
+      };
+    });
+
+    async function generateDraft() {
+      const previewEl = panel.querySelector('.email-preview');
+      const actionsEl = panel.querySelector('.email-actions');
+      if (!previewEl) return;
+
+      previewEl.style.display = '';
+      previewEl.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:11px">Generating...</div>';
+
+      const r = await fetch(`/api/interrupts/${itemId}/email-draft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ template: selectedTemplate, tone: selectedTone })
+      });
+      const draft = await r.json();
+
+      if (draft.error) {
+        previewEl.innerHTML = `<div style="color:var(--danger);padding:10px;font-size:11px">Error: ${draft.error}</div>`;
+        return;
+      }
+
+      previewEl.innerHTML = `
+        <div class="email-field" style="display:flex;gap:8px;margin-bottom:6px;font-size:11px">
+          <div style="color:var(--muted);width:40px;flex-shrink:0">To</div>
+          <div style="color:var(--text)">${draft.to || '<not detected>'}</div>
+        </div>
+        <div class="email-field" style="display:flex;gap:8px;margin-bottom:8px;font-size:11px">
+          <div style="color:var(--muted);width:40px;flex-shrink:0">Subject</div>
+          <div style="color:var(--text);font-weight:600">${draft.subject || ''}</div>
+        </div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:8px 0">
+        <div style="font-size:12px;color:var(--text);line-height:1.6;white-space:pre-wrap">${draft.body || ''}</div>`;
+
+      if (actionsEl) {
+        actionsEl.style.display = '';
+        const copyBtn = actionsEl.querySelector('.email-btn-copy');
+        const outlookBtn = actionsEl.querySelector('.email-btn-outlook');
+        if (copyBtn) copyBtn.onclick = () =>
+          navigator.clipboard.writeText(draft.body || '').catch(() => {});
+        if (outlookBtn) outlookBtn.onclick = () => {
+          const mailto = `mailto:${encodeURIComponent(draft.to || '')}?subject=${encodeURIComponent(draft.subject || '')}&body=${encodeURIComponent(draft.body || '')}`;
+          window.location.href = mailto;
+        };
+      }
+
+      panel._lastDraft = draft;
+    }
+
+    const generateBtn = panel.querySelector('.generate-draft-btn');
+    if (generateBtn) generateBtn.onclick = generateDraft;
+
+    const regenBtn = panel.querySelector('.regen-btn');
+    if (regenBtn) regenBtn.onclick = generateDraft;
   }
 
   // ── Badge updates ────────────────────────────────────────────────────────
