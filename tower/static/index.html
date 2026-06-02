@@ -296,7 +296,7 @@
   .cs-desc { font-size: 11px; color: var(--muted); }
 
   /* INTERRUPTS SECTION */
-  #interrupts-section { display: none; }
+  /* interrupts-section visibility controlled via inline style by switchView() */
   .interrupts-triage { display: flex; gap: 10px; margin-bottom: 14px; }
   .triage-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
@@ -384,7 +384,7 @@
 
   /* DRILL-DOWN PANEL */
   #drilldown-panel {
-    display: none; position: fixed; right: 0; top: 44px;
+    position: fixed; right: 0; top: 44px;
     width: 700px; height: calc(100vh - 44px); background: var(--surface);
     border-left: 1px solid var(--border); z-index: 200; overflow-y: auto;
     box-shadow: -4px 0 20px rgba(0,0,0,0.4);
@@ -958,7 +958,7 @@
       </div>
 
       <!-- ⑨ INTERRUPTS SECTION (hidden by default) -->
-      <div id="interrupts-section">
+      <div id="interrupts-section" style="display:none">
         <div class="section-header">
           <div class="section-title">⚡ Interrupts</div>
           <div class="section-action">view all</div>
@@ -1084,7 +1084,7 @@
 </div><!-- /app -->
 
 <!-- ⑩ DRILL-DOWN PANEL (hidden by default) -->
-<div id="drilldown-panel">
+<div id="drilldown-panel" style="display:none">
 
   <!-- Header -->
   <div class="dd-header">
