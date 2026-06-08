@@ -3,9 +3,9 @@ import os
 import httpx
 from typing import Any
 
-ADO_ORG = os.getenv("ADO_ORG", "")
-ADO_PROJECT = os.getenv("ADO_PROJECT", "")
-ADO_PAT = os.getenv("ADO_PAT", "")
+ADO_ORG = os.getenv("AZURE_DEVOPS_ORG", "")
+ADO_PROJECT = os.getenv("AZURE_DEVOPS_PROJECT", "")
+ADO_PAT = os.getenv("AZURE_DEVOPS_PAT", "")
 
 
 def push_to_ado(interrupt: dict[str, Any]) -> dict[str, Any]:

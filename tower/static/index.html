@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AIS-OS Control Tower</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
   :root {
     --bg: #0d1117; --surface: #161b22; --surface2: #21262d; --border: #30363d;
@@ -38,8 +39,14 @@
   #refresh-btn {
     background: var(--surface2); border: 1px solid var(--border); color: var(--text);
     padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;
+    transition: border-color 0.15s, color 0.15s;
   }
-  #refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+  #refresh-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  #refresh-btn:disabled { cursor: default; opacity: 0.7; }
+  #refresh-btn.refreshing { border-color: var(--accent); color: var(--accent); }
+  #refresh-btn.done { border-color: var(--accent2); color: var(--accent2); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin-icon { display: inline-block; animation: spin 0.7s linear infinite; }
   #last-refresh { color: var(--muted); font-size: 12px; }
   #clock { color: var(--muted); font-size: 12px; }
 
@@ -110,6 +117,32 @@
   }
   .focus-btn:hover { border-color: var(--accent); color: var(--accent); }
   .focus-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+  /* CLAUDIA */
+  .claudia-quick {
+    font-size: 11px; padding: 4px 10px; border-radius: 5px; cursor: pointer;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  }
+  .claudia-quick:hover { border-color: var(--accent); color: var(--accent); }
+  #claudia-input:focus { border-color: var(--accent); }
+  #claudia-send-btn:hover { opacity: 0.85; }
+  #claudia-send-btn:disabled { opacity: 0.5; cursor: default; }
+
+  .focus-timer {
+    flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    border-left: 1px solid rgba(88,166,255,0.2); padding-left: 16px; min-width: 64px;
+  }
+  .focus-timer-display {
+    font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums;
+    letter-spacing: 0.05em; color: var(--text); transition: color 0.3s;
+  }
+  .focus-timer-display.running { color: var(--accent2); }
+  .focus-timer-display.done { color: var(--danger); }
+  .focus-timer-controls { display: flex; align-items: center; gap: 4px; }
+  .focus-timer-btn {
+    font-size: 11px; padding: 2px 6px; border-radius: 4px; cursor: pointer;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  }
+  .focus-timer-btn:hover { border-color: var(--accent); color: var(--accent); }
 
   /* BLOCKED BANNER */
   #blocked-banner {
@@ -135,11 +168,13 @@
     padding: 9px 14px; border-bottom: 1px solid var(--border); background: var(--surface2);
   }
   .standup-title { font-size: 12px; font-weight: 600; }
-  #standup-copy {
+  #standup-copy, #standup-generate {
     font-size: 11px; padding: 3px 10px; border-radius: 5px; cursor: pointer;
     background: var(--surface2); border: 1px solid var(--border); color: var(--text);
   }
   #standup-copy:hover { border-color: var(--accent); color: var(--accent); }
+  #standup-generate:hover { border-color: var(--accent2); color: var(--accent2); }
+  #standup-generate:disabled { opacity: 0.6; cursor: default; }
   .standup-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; }
   .standup-col { padding: 10px 14px; border-right: 1px solid var(--border); }
   .standup-col:last-child { border-right: none; }
@@ -184,7 +219,7 @@
   .meta-chip.danger { color: var(--danger); border-color: rgba(248,81,73,0.3); background: rgba(248,81,73,0.08); }
 
   /* PANEL GRID */
-  .panel-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 12px; }
+  .panel-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
   .panel {
     background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
   }
@@ -210,6 +245,13 @@
   }
   .ado-row:hover { background: var(--surface2); border-radius: 4px; }
   .ado-row:last-child { border-bottom: none; }
+  .ado-row-actions { display: none; gap: 4px; flex-shrink: 0; align-items: center; }
+  .ado-row:hover .ado-row-actions { display: flex; }
+  .ado-state-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 10px; white-space: nowrap;
+  }
+  .ado-state-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
   .ado-state { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
   .state-active { background: var(--accent); }
   .state-review { background: var(--warn); }
@@ -254,15 +296,67 @@
   .team-wip { font-size: 11px; color: var(--muted); }
   .team-wip strong { color: var(--text); }
 
+  /* MARKDOWN BODY */
+  .md-body { padding:12px;font-size:12px;line-height:1.7;color:var(--text) }
+  .md-body h1 { font-size:16px;font-weight:700;color:var(--accent);margin:0 0 12px }
+  .md-body h2 { font-size:14px;font-weight:700;color:var(--text);margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border) }
+  .md-body h3 { font-size:13px;color:var(--accent);margin:14px 0 6px }
+  .md-body h4 { font-size:12px;color:var(--text);margin:10px 0 4px }
+  .md-body p  { margin:8px 0 }
+  .md-body ul,.md-body ol { padding-left:20px;margin:6px 0 }
+  .md-body li { margin:2px 0 }
+  .md-body code { font-family:Menlo,Consolas,monospace;font-size:11px;background:var(--surface2);padding:1px 5px;border-radius:3px;color:var(--accent) }
+  .md-body pre { background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:10px;margin:8px 0;overflow-x:auto }
+  .md-body pre code { background:none;padding:0;color:var(--text) }
+  .md-body table { border-collapse:collapse;margin:8px 0;width:100% }
+  .md-body th,.md-body td { border:1px solid var(--border);padding:5px 10px;font-size:11px }
+  .md-body th { background:var(--surface2);font-weight:600 }
+  .md-body blockquote { border-left:3px solid var(--accent);margin:8px 0;padding:4px 12px;color:var(--muted) }
+  .md-body hr { border:none;border-top:1px solid var(--border);margin:12px 0 }
+  .md-body a { color:var(--accent);text-decoration:none }
+  .md-body a:hover { text-decoration:underline }
+  .md-body strong { color:var(--text) }
+
+  /* PROJECT DETAIL */
+  .section-expand-btn {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 12px;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .section-expand-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .todo-row:hover .todo-delete-btn { opacity: 1 !important; }
+  .todo-row:hover .todo-edit-btn { opacity: 1 !important; }
+
   /* DECISIONS + SYNC PANELS */
   .decision-row {
-    display: flex; align-items: flex-start; gap: 10px; padding: 7px 4px;
-    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px; padding: 5px 4px;
+    border-bottom: 1px solid var(--border); position: relative;
   }
   .decision-row:last-child { border-bottom: none; }
-  .decision-date { font-size: 10px; color: var(--muted); flex-shrink: 0; width: 52px; margin-top: 2px; }
+  .decision-date { font-size: 10px; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
   .decision-text { font-size: 11px; line-height: 1.4; }
-  .decision-tag { font-size: 10px; color: var(--warn); margin-top: 2px; }
+  .decision-tag { font-size: 10px; color: var(--warn); margin-left: 6px; }
+  .decision-edit {
+    font-size: 11px; line-height: 1.4; flex: 1; padding: 2px 4px; border-radius: 3px;
+    color: var(--text); background: transparent; border: 1px solid transparent;
+    outline: none; cursor: default;
+  }
+  .decision-edit:hover { background: var(--surface2); cursor: text; border-color: var(--border); }
+  .decision-edit:focus { background: var(--surface2); border-color: var(--accent); cursor: text; }
+  .decision-delete-btn {
+    opacity: 0; transition: opacity 0.15s; background: none; border: none;
+    color: var(--danger); cursor: pointer; font-size: 12px; padding: 0 4px; flex-shrink: 0;
+  }
+  .decision-row:hover .decision-delete-btn { opacity: 1; }
+  .decision-add-row {
+    display: flex; align-items: center; gap: 8px; padding: 6px 4px; margin-top: 4px;
+  }
+  .decision-add-input {
+    font-size: 11px; flex: 1; padding: 3px 6px; border-radius: 3px;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text); outline: none;
+  }
+  .decision-add-input:focus { border-color: var(--accent); }
+  .decision-add-input::placeholder { color: var(--muted); }
   .sync-row {
     display: flex; align-items: center; justify-content: space-between;
     padding: 6px 4px; border-bottom: 1px solid var(--border); font-size: 11px;
@@ -588,6 +682,7 @@
     <div class="nav-item active" data-nav-view="dashboard"><span class="icon">⊞</span> Dashboard</div>
     <div class="nav-item" data-nav-view="focus"><span class="icon">🎯</span> Focus Mode</div>
     <div class="nav-item" data-nav-view="standup"><span class="icon">☕</span> Standup Prep</div>
+    <div class="nav-item" data-nav-view="github-prs"><span class="icon"><svg height="12" width="12" viewBox="0 0 16 16" style="fill:currentColor;vertical-align:middle"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></span> GitHub PRs <span class="nav-badge" id="badge-github-prs"></span></div>
 
     <div class="sidebar-section" style="margin-top:6px">Interrupts</div>
     <div class="nav-item" data-nav-view="interrupts"><span class="icon">⚡</span> All Interrupts <span class="nav-badge danger" id="badge-interrupts"></span></div>
@@ -598,16 +693,14 @@
     <div id="project-nav-items"></div>
 
     <div class="sidebar-section" style="margin-top:6px">Inbox</div>
-    <div class="nav-item" data-nav-view="inbox"><span class="icon">📥</span> ADO Pending <span class="nav-badge warn" id="badge-ado-pending"></span></div>
     <div class="nav-item" data-nav-view="blocked"><span class="icon">🚫</span> Blocked <span class="nav-badge danger" id="badge-blocked"></span></div>
-    <div class="nav-item" data-nav-view="adhoc"><span class="icon">📝</span> Adhoc Notes</div>
-    <div class="nav-item" data-nav-view="hermes-sync"><span class="icon">🔄</span> Hermes Sync</div>
 
     <div class="sidebar-section" style="margin-top:6px">Team</div>
     <div class="nav-item" data-nav-view="team"><span class="icon">👥</span> Workload</div>
-    <div class="nav-item" data-nav-view="review-queue"><span class="icon">👁</span> Review Queue</div>
+    <div class="nav-item" data-nav-view="review-queue"><span class="icon">👁</span> Review Queue <span class="nav-badge warn" id="badge-review-queue"></span></div>
 
     <div class="sidebar-section" style="margin-top:6px">History</div>
+    <div class="nav-item" data-nav-view="claudia"><span class="icon">🤖</span> Ask Claudia</div>
     <div class="nav-item" data-nav-view="decisions"><span class="icon">⚖️</span> Decisions</div>
     <div class="nav-item" data-nav-view="sprint"><span class="icon">📊</span> Sprint Board</div>
 
@@ -639,6 +732,18 @@
           <button class="focus-btn">Mark done</button>
           <button class="focus-btn primary">→ Open in ADO</button>
         </div>
+        <div class="focus-timer" id="focus-timer">
+          <div class="focus-timer-display" id="focus-timer-display">25:00</div>
+          <div class="focus-timer-controls">
+            <button class="focus-timer-btn" id="focus-timer-toggle" onclick="timerToggle()">▶</button>
+            <button class="focus-timer-btn" id="focus-timer-reset" onclick="timerReset()" title="Reset">↺</button>
+            <select id="focus-timer-duration" onchange="timerSetDuration(this.value)" style="font-size:10px;background:transparent;border:none;color:var(--muted);cursor:pointer">
+              <option value="25">25m</option>
+              <option value="50">50m</option>
+              <option value="5">5m</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       <!-- ② BLOCKED BANNER (hidden by default) -->
@@ -651,7 +756,10 @@
       <div id="standup-strip">
         <div class="standup-header">
           <div class="standup-title">☕ Standup Prep</div>
-          <button id="standup-copy">📋 Copy</button>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button id="standup-generate" onclick="generateStandup()">✨ Generate</button>
+            <button id="standup-copy">📋 Copy</button>
+          </div>
         </div>
         <div class="standup-grid">
           <div class="standup-col">
@@ -719,44 +827,88 @@
           </div>
         </div>
         <!-- Project detail row — shown when a project card is clicked -->
-        <div id="project-detail-row" style="display:none; margin-top:14px; display:none">
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
-            <!-- Left: overview + ADO stats -->
-            <div class="panel">
-              <div class="panel-header" id="project-detail-header">
-                <div class="panel-title" id="project-detail-title">—</div>
-                <div style="font-size:11px;color:var(--muted)" id="project-detail-status"></div>
-              </div>
-              <div class="panel-body" id="project-detail-overview"></div>
-            </div>
-            <!-- Right: Hermes captures + decisions -->
+        <div id="project-detail-row" style="display:none">
+          <!-- Title row -->
+          <div style="margin-bottom:20px">
+            <div id="project-detail-title" style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:4px">—</div>
+            <div id="project-detail-description" style="font-size:13px;color:var(--muted);margin-bottom:8px"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap" id="project-detail-chips"></div>
+          </div>
+
+          <!-- Todos -->
+          <div id="project-todos-section" style="margin-bottom:16px">
             <div class="panel">
               <div class="panel-header">
-                <div class="panel-title">📥 Captures &amp; Decisions</div>
+                <div class="panel-title">✅ Todos <span style="font-size:10px;font-weight:400;color:var(--muted)" id="todos-count"></span></div>
+                <button onclick="toggleProjectSection('project-todos-section')" class="section-expand-btn" title="Expand / collapse">⤢</button>
               </div>
-              <div class="panel-body" id="project-detail-captures"></div>
+              <div style="padding:6px 8px;border-bottom:1px solid var(--border);display:flex;gap:6px">
+                <input id="todo-add-input" type="text" placeholder="Add todo…" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px;color:var(--text);outline:none" onkeydown="if(event.key==='Enter')addTodo()">
+                <button onclick="addTodo()" style="background:var(--accent);color:#000;border:none;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600">+</button>
+              </div>
+              <div class="panel-body expandable-body" id="todos-body" style="max-height:300px;overflow-y:auto;padding:8px"></div>
             </div>
           </div>
-          <!-- Spec viewer -->
-          <div id="project-spec-section" style="margin-top:12px; display:none">
-            <div style="display:grid; grid-template-columns:260px 1fr; gap:12px; min-height:400px">
-              <!-- File tree -->
+
+          <!-- Plans -->
+          <div id="project-plans-section" style="margin-bottom:16px">
+            <div style="display:grid;grid-template-columns:260px 1fr;gap:12px">
+              <div class="panel">
+                <div class="panel-header">
+                  <div class="panel-title">📋 Plans</div>
+                  <div style="font-size:10px;color:var(--muted)" id="plans-file-count"></div>
+                </div>
+                <div class="panel-body expandable-body" id="plans-file-tree" style="max-height:400px;overflow-y:auto;padding:6px 8px"></div>
+              </div>
+              <div class="panel">
+                <div class="panel-header">
+                  <div class="panel-title" id="plans-file-title">Select a plan</div>
+                  <button onclick="toggleProjectSection('project-plans-section')" class="section-expand-btn" title="Expand / collapse">⤢</button>
+                </div>
+                <div class="panel-body expandable-body" id="plans-file-content" style="max-height:400px;overflow-y:auto">
+                  <div style="padding:20px;font-size:12px;color:var(--muted)">Click a plan in the tree to view its content.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Spec -->
+          <div id="project-spec-section" style="margin-bottom:16px">
+            <div style="display:grid;grid-template-columns:260px 1fr;gap:12px">
               <div class="panel">
                 <div class="panel-header">
                   <div class="panel-title">📁 Spec Files</div>
                   <div style="font-size:10px;color:var(--muted)" id="spec-file-count"></div>
                 </div>
-                <div class="panel-body" id="spec-file-tree" style="max-height:600px;overflow-y:auto;padding:6px 8px"></div>
+                <div class="panel-body expandable-body" id="spec-file-tree" style="max-height:400px;overflow-y:auto;padding:6px 8px"></div>
               </div>
-              <!-- File content -->
               <div class="panel">
                 <div class="panel-header">
                   <div class="panel-title" id="spec-file-title">Select a file</div>
+                  <button onclick="toggleProjectSection('project-spec-section')" class="section-expand-btn" title="Expand / collapse">⤢</button>
                 </div>
-                <div class="panel-body" id="spec-file-content" style="max-height:600px;overflow-y:auto">
+                <div class="panel-body expandable-body" id="spec-file-content" style="max-height:400px;overflow-y:auto">
                   <div style="padding:20px;font-size:12px;color:var(--muted)">Click a file in the tree to view its content.</div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- Memory + Decisions -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="panel">
+              <div class="panel-header">
+                <div class="panel-title">🧠 Memory</div>
+                <button id="memory-edit-btn" onclick="toggleMemoryEdit()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px">✏️ Edit</button>
+              </div>
+              <div class="panel-body" id="project-detail-overview" style="max-height:400px;overflow-y:auto"></div>
+            </div>
+            <div class="panel">
+              <div class="panel-header">
+                <div class="panel-title">⚖️ Decisions</div>
+                <button onclick="addProjectDecision()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px">+ Add</button>
+              </div>
+              <div class="panel-body" id="project-detail-captures" style="max-height:400px;overflow-y:auto"></div>
             </div>
           </div>
         </div>
@@ -768,40 +920,33 @@
         <!-- ADO PANEL -->
         <div class="panel" id="ado-panel">
           <div class="panel-header">
-            <div class="panel-title">📊 ADO Sprint</div>
-            <div class="panel-action">/devops</div>
+            <div class="panel-title">📊 ADO Sprint <span id="ado-updated" style="font-size:10px;font-weight:400;color:var(--muted);margin-left:6px"></span></div>
+            <button class="ado-refresh-btn" onclick="fetchADO()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;cursor:pointer;font-size:11px">↻</button>
           </div>
-          <div class="panel-tabs">
-            <div class="panel-tab active">My Items</div>
-            <div class="panel-tab">In Review</div>
-            <div class="panel-tab">Team</div>
+          <div class="panel-tabs" id="ado-panel-tabs">
+            <div class="panel-tab active" data-ado-tab="mine">My Items</div>
+            <div class="panel-tab" data-ado-tab="review">In Review</div>
+            <div class="panel-tab" data-ado-tab="team">Team</div>
           </div>
           <div class="panel-body" id="ado-panel-body">
             <div class="empty-state">Refresh to load ADO data</div>
           </div>
         </div>
 
-        <!-- HERMES PANEL -->
-        <div class="panel" id="hermes-panel">
+        <!-- GITHUB PR PANEL -->
+        <div class="panel" id="github-panel">
           <div class="panel-header">
-            <div class="panel-title">📥 Hermes Inbox <span class="panel-count" id="hermes-count"></span></div>
-            <div class="panel-action">flush all</div>
+            <div class="panel-title">
+              <svg height="14" width="14" viewBox="0 0 16 16" style="fill:currentColor;flex-shrink:0"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+              GitHub PRs <span id="github-pr-count" style="font-size:10px;font-weight:400;color:var(--muted)"></span>
+            </div>
+            <button onclick="fetchGitHub()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;cursor:pointer;font-size:11px">↻</button>
           </div>
-          <div class="panel-body" id="hermes-panel-body">
-            <div class="empty-state">Refresh to load Hermes captures</div>
+          <div class="panel-body" id="github-panel-body">
+            <div class="empty-state">Refresh to load GitHub PRs</div>
           </div>
         </div>
 
-        <!-- ADHOC PANEL -->
-        <div class="panel" id="adhoc-panel">
-          <div class="panel-header">
-            <div class="panel-title">📝 Adhoc Notes</div>
-            <div class="panel-count" id="adhoc-count"></div>
-          </div>
-          <div class="panel-body" id="adhoc-panel-body">
-            <div class="empty-state">No adhoc notes</div>
-          </div>
-        </div>
 
       </div>
 
@@ -862,18 +1007,8 @@
             <div class="panel-action" style="font-size:11px">sync now</div>
           </div>
           <div class="panel-body" id="sync-body">
-            <div class="sync-row">
-              <span>Hermes → ADO</span>
-              <span class="sync-status sync-ok">OK</span>
-            </div>
-            <div class="sync-row">
-              <span>ADO fetch</span>
-              <span class="sync-status sync-pending">Pending</span>
-            </div>
-            <div class="sync-row">
-              <span>Last full sync</span>
-              <span style="font-size:11px; color:var(--muted)">—</span>
-            </div>
+            <div class="sync-row"><span>ADO fetch</span><span class="sync-status sync-pending">Not loaded</span></div>
+            <div class="sync-row"><span>Last sync</span><span style="font-size:11px;color:var(--muted)">—</span></div>
           </div>
         </div>
       </div>
@@ -918,52 +1053,52 @@
             <div class="cs-section">
               <div class="cs-title">Claude Code Commands</div>
               <div class="cs-item">
+                <div class="cs-key">/decision</div>
+                <div class="cs-desc">Log decision → decisions/log.md</div>
+              </div>
+              <div class="cs-item">
                 <div class="cs-key">/devops</div>
-                <div class="cs-desc">Live ADO sprint status</div>
+                <div class="cs-desc">Query ADO sprint (me only)</div>
               </div>
               <div class="cs-item">
-                <div class="cs-key">/devops all</div>
-                <div class="cs-desc">Team view by assignee</div>
+                <div class="cs-key">/audit</div>
+                <div class="cs-desc">Weekly gap analysis (Four Cs)</div>
               </div>
               <div class="cs-item">
-                <div class="cs-key">flush pending notes</div>
-                <div class="cs-desc">Push captures → ADO</div>
+                <div class="cs-key">/level-up</div>
+                <div class="cs-desc">Find + ship one automation</div>
               </div>
               <div class="cs-item">
-                <div class="cs-key">sync project [slug]</div>
-                <div class="cs-desc">Apply Hermes captures</div>
+                <div class="cs-key">/work-planner</div>
+                <div class="cs-desc">Break tasks into branches + PRs</div>
               </div>
               <div class="cs-item">
-                <div class="cs-key">scaffold project [slug]</div>
-                <div class="cs-desc">Create project folder</div>
-              </div>
-              <div class="cs-item">
-                <div class="cs-key">review project [slug]</div>
-                <div class="cs-desc">Status summary</div>
+                <div class="cs-key">/onboard</div>
+                <div class="cs-desc">Refresh AIOS from intake file</div>
               </div>
             </div>
             <!-- Column 3: AIS-OS Workflows -->
             <div class="cs-section">
               <div class="cs-title">AIS-OS Workflows</div>
               <div class="cs-item">
-                <div class="cs-key">Capture → Flush</div>
-                <div class="cs-desc">Hermes note → "flush pending" → ADO</div>
-              </div>
-              <div class="cs-item">
-                <div class="cs-key">Capture → Sync</div>
-                <div class="cs-desc">Project captures → "sync project"</div>
-              </div>
-              <div class="cs-item">
                 <div class="cs-key">Morning routine</div>
-                <div class="cs-desc">Hermes digest + /devops</div>
+                <div class="cs-desc">Open Tower → ↻ ADO → review sprint</div>
               </div>
               <div class="cs-item">
-                <div class="cs-key">New project</div>
-                <div class="cs-desc">"new project" in Hermes → scaffold</div>
+                <div class="cs-key">New feature</div>
+                <div class="cs-desc">/brainstorm → spec → /writing-plans → implement</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">Work planning</div>
+                <div class="cs-desc">Paste task list → /work-planner → branches</div>
               </div>
               <div class="cs-item">
                 <div class="cs-key">Log decision</div>
-                <div class="cs-desc">/decision → decisions/log.md</div>
+                <div class="cs-desc">/decision → appends to decisions/log.md</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">Weekly improvement</div>
+                <div class="cs-desc">/level-up → find leverage → ship automation</div>
               </div>
             </div>
             <!-- Column 4: Keyboard Shortcuts -->
@@ -971,7 +1106,7 @@
               <div class="cs-title">Keyboard Shortcuts</div>
               <div class="cs-item">
                 <div class="cs-key">Ctrl+R</div>
-                <div class="cs-desc">Force refresh all panels</div>
+                <div class="cs-desc">Refresh local data (not ADO)</div>
               </div>
               <div class="cs-item">
                 <div class="cs-key">Ctrl+K</div>
@@ -1070,44 +1205,84 @@
       <div id="ado-panel-fullwidth" style="display:none">
         <div class="panel">
           <div class="panel-header">
-            <div class="panel-title">📊 ADO Sprint</div>
+            <div class="panel-title">📊 ADO Sprint <span id="ado-updated-fw" style="font-size:10px;font-weight:400;color:var(--muted);margin-left:6px"></span></div>
+            <button class="ado-refresh-btn" onclick="fetchADO()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;cursor:pointer;font-size:11px">↻</button>
           </div>
           <div class="panel-body" id="ado-fullwidth-body" style="max-height:none"></div>
         </div>
       </div>
 
-      <!-- Hermes Fullwidth Panel -->
-      <div id="hermes-panel-fullwidth" style="display:none">
+      <!-- GitHub PRs Fullwidth View -->
+      <div id="github-prs-fullwidth" style="display:none">
         <div class="panel">
           <div class="panel-header">
-            <div class="panel-title">📥 Hermes Inbox</div>
-            <button class="btn primary" style="font-size:11px;padding:4px 10px" onclick="alert('Say: flush pending notes in Claude Code')">flush all</button>
+            <div class="panel-title">
+              <svg height="14" width="14" viewBox="0 0 16 16" style="fill:currentColor;flex-shrink:0"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+              GitHub PRs <span id="github-full-count" style="font-size:10px;font-weight:400;color:var(--muted)"></span>
+            </div>
+            <button onclick="fetchGitHub()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;cursor:pointer;font-size:11px">↻ Refresh</button>
           </div>
-          <div class="panel-body" id="hermes-fullwidth-body" style="max-height:none"></div>
+          <div class="panel-body" id="github-full-body" style="max-height:none;overflow-y:visible;padding:12px"></div>
         </div>
       </div>
 
-      <!-- Adhoc Fullwidth Panel -->
-      <div id="adhoc-panel-fullwidth" style="display:none">
-        <div class="panel">
-          <div class="panel-header"><div class="panel-title">📝 Adhoc Notes</div></div>
-          <div class="panel-body" id="adhoc-fullwidth-body" style="max-height:none"></div>
+      <!-- Focus Details: Interrupts + Blockers (shown in Focus Mode only) -->
+      <div id="focus-details-section" style="display:none;margin-top:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">⚡ Active Interrupts</div>
+              <span style="font-size:10px;color:var(--muted)" id="focus-interrupt-count"></span>
+            </div>
+            <div class="panel-body" id="focus-interrupts-body" style="max-height:320px;overflow-y:auto"></div>
+          </div>
+          <div class="panel" style="border-color:rgba(248,81,73,0.2)">
+            <div class="panel-header">
+              <div class="panel-title">🚫 Blockers</div>
+              <span style="font-size:10px;color:var(--muted)" id="focus-blockers-count"></span>
+            </div>
+            <div class="panel-body" id="focus-blockers-body" style="max-height:320px;overflow-y:auto"></div>
+          </div>
         </div>
       </div>
 
-      <!-- Sync Fullwidth Panel -->
-      <div id="sync-panel-fullwidth" style="display:none">
-        <div class="panel">
-          <div class="panel-header"><div class="panel-title">🔄 Hermes Sync Status</div></div>
-          <div class="panel-body" id="sync-fullwidth-body" style="max-height:none"></div>
-        </div>
-      </div>
 
       <!-- Blocked Fullwidth Panel -->
       <div id="blocked-panel-fullwidth" style="display:none">
         <div class="panel" style="border-color:rgba(248,81,73,0.3)">
           <div class="panel-header"><div class="panel-title">🚫 Blocked Items</div></div>
           <div class="panel-body" id="blocked-fullwidth-body" style="max-height:none"></div>
+        </div>
+      </div>
+
+      <!-- Claudia Panel -->
+      <div id="claudia-panel-fullwidth" style="display:none">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">🤖 Ask Claudia</div>
+            <span style="font-size:10px;color:var(--muted)">Hermes agent · skills active</span>
+          </div>
+          <div class="panel-body" style="padding:12px;display:flex;flex-direction:column;gap:12px">
+            <!-- Quick actions -->
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <button class="claudia-quick" onclick="claudiaQuick('note')">📝 Note</button>
+              <button class="claudia-quick" onclick="claudiaQuick('idea')">💡 Idea</button>
+              <button class="claudia-quick" onclick="claudiaQuick('risk')">⚠️ Risk</button>
+              <button class="claudia-quick" onclick="claudiaQuick('question')">❓ Question</button>
+              <button class="claudia-quick" onclick="claudiaQuick('todo')">✅ To-do</button>
+              <button class="claudia-quick" onclick="claudiaQuick('ado')">📋 ADO capture</button>
+            </div>
+            <!-- Input -->
+            <div style="display:flex;gap:8px;align-items:flex-end">
+              <textarea id="claudia-input" rows="3" placeholder="Send a message to Claudia… e.g. 'note that we decided to use cursor pagination for the media API'" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px;font-size:12px;font-family:inherit;resize:vertical;outline:none"></textarea>
+              <button id="claudia-send-btn" onclick="claudiaSend()" style="background:var(--accent);color:#000;border:none;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">Send ↵</button>
+            </div>
+            <!-- Response -->
+            <div id="claudia-response" style="display:none">
+              <div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px">Claudia responded</div>
+              <div id="claudia-response-body" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:12px;line-height:1.6;white-space:pre-wrap;max-height:400px;overflow-y:auto"></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1234,34 +1409,188 @@
 <script>
   // ── State ──────────────────────────────────────────────────────────────
   const state = {
-    projects: [], ado: {items:[]}, hermesInbox: [], adhoc: [],
-    decisions: [], hermesSync: {}, interrupts: [], health: {}
+    projects: [], ado: {items:[]}, hermesInbox: [], adhoc: [], hermesSync: {},
+    decisions: [], interrupts: [], health: {}
   };
   let lastRefreshed = null;
+  let adoLoading = false;
+  let lastAdoRefresh = null;
+  let adoPanelTab = 'mine';
 
   // ── Fetch helpers ───────────────────────────────────────────────────────
   async function fetchAll() {
-    const endpoints = {
-      projects:    '/api/projects',
-      ado:         '/api/ado/sprint',
-      hermesInbox: '/api/hermes/inbox',
-      adhoc:       '/api/hermes/adhoc',
-      decisions:   '/api/decisions',
-      hermesSync:  '/api/hermes/sync',
-      interrupts:  '/api/interrupts',
-      health:      '/api/health',
-    };
-    const results = await Promise.allSettled(
-      Object.entries(endpoints).map(([key, url]) =>
-        fetch(url).then(r => r.ok ? r.json() : Promise.reject(r.status))
-          .then(data => ({ key, data }))
-      )
-    );
-    results.forEach(r => {
-      if (r.status === 'fulfilled') state[r.value.key] = r.value.data;
+    const btn = document.getElementById('refresh-btn');
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add('refreshing');
+      btn.innerHTML = '<span class="spin-icon">↻</span> Refreshing…';
+    }
+    try {
+      const endpoints = {
+        projects:    '/api/projects',
+        decisions:   '/api/decisions',
+        interrupts:  '/api/interrupts',
+        health:      '/api/health',
+      };
+      const results = await Promise.allSettled(
+        Object.entries(endpoints).map(([key, url]) =>
+          fetch(url).then(r => r.ok ? r.json() : Promise.reject(r.status))
+            .then(data => ({ key, data }))
+        )
+      );
+      results.forEach(r => {
+        if (r.status === 'fulfilled') state[r.value.key] = r.value.data;
+      });
+      lastRefreshed = new Date();
+      renderAll();
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('refreshing');
+        btn.classList.add('done');
+        btn.innerHTML = '✓ Done';
+        setTimeout(() => {
+          btn.classList.remove('done');
+          btn.innerHTML = '↻ Refresh';
+        }, 1500);
+      }
+    }
+  }
+
+  // ── GitHub fetch (on-demand only) ───────────────────────────────────────
+  async function fetchGitHub() {
+    const body = document.getElementById('github-panel-body');
+    if (body) body.innerHTML = '<div class="empty-state">Loading…</div>';
+    try {
+      const [prs, reviewRequested] = await Promise.all([
+        fetch('/api/github/prs').then(r => r.ok ? r.json() : Promise.reject(r.status)),
+        fetch('/api/github/review-requested').then(r => r.ok ? r.json() : []),
+      ]);
+      state.githubPrs = prs;
+      state.githubReviewRequested = reviewRequested;
+      renderGitHubPRs();
+      if (currentView === 'github-prs' || currentView === 'review-queue') renderGitHubPRsFull();
+      updateBadges();
+    } catch (e) {
+      if (body) body.innerHTML = `<div class="empty-state">Failed to load (${e})</div>`;
+    }
+  }
+
+  function renderGitHubPRs() {
+    const prs = state.githubPrs || [];
+    const body = document.getElementById('github-panel-body');
+    const count = document.getElementById('github-pr-count');
+    if (!body) return;
+    if (count) count.textContent = prs.length ? `(${prs.length})` : '';
+    if (!prs.length) {
+      body.innerHTML = '<div class="empty-state">No open PRs</div>';
+      return;
+    }
+    body.innerHTML = prs.map(pr => {
+      const draft = pr.isDraft ? ' <span style="color:var(--muted);font-size:10px">[draft]</span>' : '';
+      const decision = pr.reviewDecision === 'APPROVED'
+        ? '<span style="color:var(--accent2);font-size:10px">✓ approved</span>'
+        : pr.reviewDecision === 'CHANGES_REQUESTED'
+        ? '<span style="color:#e06c75;font-size:10px">✗ changes requested</span>'
+        : '<span style="color:var(--muted);font-size:10px">awaiting review</span>';
+      const repo = pr.repo ? `<span style="color:var(--muted);font-size:10px">${pr.repo}</span>` : '';
+      return `<div class="item-row" style="padding:6px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <a href="${pr.url}" target="_blank" style="color:var(--text);text-decoration:none;font-size:12px;line-height:1.4" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">#${pr.number} ${pr.title}${draft}</a>
+          ${decision}
+        </div>
+        ${repo}
+      </div>`;
+    }).join('');
+  }
+
+  function _prRows(prs) {
+    if (!prs.length) return '<div class="empty-state" style="padding:8px 0">None</div>';
+    const byRepo = {};
+    prs.forEach(pr => {
+      const r = pr.repo || 'unknown';
+      if (!byRepo[r]) byRepo[r] = [];
+      byRepo[r].push(pr);
     });
-    lastRefreshed = new Date();
-    renderAll();
+    return Object.entries(byRepo).map(([repo, items]) => `
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">${repo}</div>
+        ${items.map(pr => {
+          const draft = pr.isDraft ? ' <span style="color:var(--muted);font-size:10px">[draft]</span>' : '';
+          const decision = pr.reviewDecision === 'APPROVED'
+            ? '<span style="color:var(--accent2);font-size:11px">✓ approved</span>'
+            : pr.reviewDecision === 'CHANGES_REQUESTED'
+            ? '<span style="color:#e06c75;font-size:11px">✗ changes requested</span>'
+            : '<span style="color:var(--muted);font-size:11px">awaiting review</span>';
+          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
+            <a href="${pr.url}" target="_blank" style="color:var(--text);text-decoration:none;font-size:13px" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">#${pr.number} ${pr.title}${draft}</a>
+            ${decision}
+          </div>`;
+        }).join('')}
+      </div>
+    `).join('');
+  }
+
+  function renderGitHubPRsFull() {
+    const prs = state.githubPrs || [];
+    const reviewRequested = state.githubReviewRequested || [];
+    const body = document.getElementById('github-full-body');
+    const count = document.getElementById('github-full-count');
+    if (!body) return;
+    const total = prs.length + reviewRequested.length;
+    if (count) count.textContent = total ? `(${total})` : '';
+    if (!total) {
+      body.innerHTML = '<div class="empty-state">No open PRs — or not loaded yet. Hit Refresh.</div>';
+      return;
+    }
+    body.innerHTML = `
+      <div style="margin-bottom:20px">
+        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)">My Open PRs <span style="font-size:10px;font-weight:400;color:var(--muted)">(${prs.length})</span></div>
+        ${_prRows(prs)}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)">Awaiting My Review <span style="font-size:10px;font-weight:400;color:var(--muted)">(${reviewRequested.length})</span></div>
+        ${_prRows(reviewRequested)}
+      </div>
+    `;
+  }
+
+  // ── ADO fetch (on-demand only) ───────────────────────────────────────────
+  async function fetchADO() {
+    if (adoLoading) return;
+    adoLoading = true;
+    _setAdoLoadingState(true);
+    try {
+      const data = await fetch('/api/ado/sprint').then(r => r.ok ? r.json() : Promise.reject(r.status));
+      state.ado = data;
+      lastAdoRefresh = new Date();
+    } catch (e) {
+      state.ado = { items: [], error: String(e) };
+    } finally {
+      adoLoading = false;
+      _setAdoLoadingState(false);
+      renderADOPanel();
+      renderTeamRow();
+      renderProjects();
+      renderFocusStrip();
+      renderBlockedBanner();
+      renderStandupStrip();
+      updateBadges();
+    }
+  }
+
+  function _setAdoLoadingState(loading) {
+    document.querySelectorAll('.ado-refresh-btn').forEach(btn => {
+      btn.textContent = loading ? '↻ …' : '↻';
+      btn.disabled = loading;
+    });
+    const updated = document.getElementById('ado-updated');
+    if (updated) updated.textContent = loading ? 'fetching…' : (lastAdoRefresh ? `updated ${_ago(lastAdoRefresh)}` : '');
+    if (loading) {
+      const body = document.getElementById('ado-panel-body');
+      if (body) body.innerHTML = '<div class="empty-state" style="padding:16px;font-size:11px">⟳ Fetching from ADO…</div>';
+    }
+    renderSyncStatus();
   }
 
   // ── Render orchestrator ──────────────────────────────────────────────────
@@ -1274,11 +1603,9 @@
     renderProjectNavItems();
     renderProjects();
     renderADOPanel();
-    renderHermesPanel();
-    renderAdhocPanel();
+    renderSyncStatus();
     renderTeamRow();
     renderDecisionsPanel();
-    renderSyncPanel();
     renderInterruptsSection();
     updateBadges();
     const el = document.getElementById('last-refresh');
@@ -1316,7 +1643,7 @@
     if (!el) return;
     const h = state.health;
     const pending = (state.hermesInbox || []).filter(i => i.status === 'pending').length;
-    const blocked = (state.ado.items || []).filter(i => i.state === 'Blocked').length;
+    const blocked = (state.ado.items || []).filter(i => _isBlocked(i)).length;
     const overdue = (state.interrupts || []).filter(i => {
       return i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'done';
     }).length;
@@ -1365,11 +1692,138 @@
     }
   }
 
+  // ── Focus details (interrupts + blockers) ────────────────────────────────
+  function renderFocusDetails() {
+    const interrupts = (state.interrupts || []).filter(i => i.status !== 'done');
+    const blockers   = (state.ado.items  || []).filter(i => _isBlocked(i));
+
+    // Interrupts panel
+    const intBody  = document.getElementById('focus-interrupts-body');
+    const intCount = document.getElementById('focus-interrupt-count');
+    if (intCount) intCount.textContent = interrupts.length ? `${interrupts.length} open` : '';
+    if (intBody) {
+      if (!interrupts.length) {
+        intBody.innerHTML = '<div style="padding:10px;font-size:11px;color:var(--muted)">No active interrupts.</div>';
+      } else {
+        const now = new Date();
+        intBody.innerHTML = interrupts.map(i => {
+          const overdue = i.dueDate && new Date(i.dueDate) < now;
+          const dueToday = i.dueDate && new Date(i.dueDate).toDateString() === now.toDateString();
+          const dueChip = overdue
+            ? `<span style="font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(248,81,73,0.15);color:var(--danger)">overdue</span>`
+            : dueToday
+            ? `<span style="font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(210,153,34,0.15);color:var(--warn)">due today</span>`
+            : '';
+          return `
+            <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border)">
+              <div class="priority-dot p-${i.priority || 'normal'}" style="margin-top:3px;flex-shrink:0"></div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i.title}</div>
+                <div style="font-size:10px;color:var(--muted);margin-top:2px;display:flex;gap:6px;align-items:center">
+                  <span>${i.source || ''}</span>
+                  ${dueChip}
+                </div>
+              </div>
+              <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:var(--surface2);color:var(--muted)">${i.status}</span>
+            </div>`;
+        }).join('');
+      }
+    }
+
+    // Blockers panel
+    const blkBody  = document.getElementById('focus-blockers-body');
+    const blkCount = document.getElementById('focus-blockers-count');
+    if (blkCount) blkCount.textContent = blockers.length ? `${blockers.length} blocked` : '';
+    if (blkBody) {
+      if (!blockers.length) {
+        blkBody.innerHTML = '<div style="padding:10px;font-size:11px;color:var(--muted)">No blocked items.</div>';
+      } else {
+        blkBody.innerHTML = blockers.map(i => `
+          <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border)">
+            <div class="ado-state state-blocked" style="margin-top:3px;flex-shrink:0"></div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12px;font-weight:600;color:var(--text)">${i.url
+                ? `<a href="${i.url}" target="_blank" style="color:inherit;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${i.title}</a>`
+                : i.title}</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:2px">
+                ${i.assignee || ''} · ${i.type || ''} · blocked ${i.daysInState || 0}d
+              </div>
+            </div>
+          </div>`).join('');
+      }
+    }
+  }
+
+  // ── Pomodoro timer ───────────────────────────────────────────────────────
+  const _timer = { duration: 25 * 60, remaining: 25 * 60, state: 'idle', _tick: null };
+
+  function _timerRender() {
+    const display = document.getElementById('focus-timer-display');
+    const toggle  = document.getElementById('focus-timer-toggle');
+    if (!display || !toggle) return;
+    const m = String(Math.floor(_timer.remaining / 60)).padStart(2, '0');
+    const s = String(_timer.remaining % 60).padStart(2, '0');
+    display.textContent = `${m}:${s}`;
+    display.className = 'focus-timer-display' + (_timer.state === 'running' ? ' running' : _timer.state === 'done' ? ' done' : '');
+    toggle.textContent = _timer.state === 'running' ? '⏸' : '▶';
+  }
+
+  function timerToggle() {
+    if (_timer.state === 'idle' || _timer.state === 'paused') {
+      if (Notification.permission === 'default') Notification.requestPermission();
+      _timer.state = 'running';
+      _timer._tick = setInterval(() => {
+        _timer.remaining--;
+        _timerRender();
+        if (_timer.remaining <= 0) _timerFinish();
+      }, 1000);
+    } else if (_timer.state === 'running') {
+      clearInterval(_timer._tick);
+      _timer.state = 'paused';
+    }
+    _timerRender();
+  }
+
+  function timerReset() {
+    clearInterval(_timer._tick);
+    _timer.state = 'idle';
+    _timer.remaining = _timer.duration;
+    _timerRender();
+  }
+
+  function timerSetDuration(minutes) {
+    _timer.duration = parseInt(minutes) * 60;
+    timerReset();
+  }
+
+  function _timerFinish() {
+    clearInterval(_timer._tick);
+    _timer.state = 'done';
+    _timerRender();
+    // Browser notification
+    if (Notification.permission === 'granted') {
+      new Notification('🎯 Focus session complete', {
+        body: 'Log any interruptions before starting your next session.',
+        icon: '/favicon.ico',
+      });
+    }
+    // Prompt interrupt capture — scroll to and focus the capture form
+    const captureInput = document.getElementById('interrupt-title');
+    if (captureInput) {
+      switchView('interrupts');
+      setTimeout(() => {
+        captureInput.focus();
+        captureInput.placeholder = 'What interrupted you? Capture it now…';
+        captureInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
+    }
+  }
+
   // ── Blocked banner ───────────────────────────────────────────────────────
   function renderBlockedBanner() {
     const el = document.getElementById('blocked-banner');
     if (!el) return;
-    const blocked = (state.ado.items || []).filter(i => i.state === 'Blocked');
+    const blocked = (state.ado.items || []).filter(i => _isBlocked(i));
     if (!blocked.length) { el.style.display = 'none'; return; }
     el.style.display = '';
     const container = el.querySelector('.blocked-items');
@@ -1395,7 +1849,7 @@
       ['Active', 'In Progress', 'Code Review'].includes(i.state)
     ).slice(0, 3);
     const blockers = [
-      ...items.filter(i => i.state === 'Blocked').map(i => i.title),
+      ...items.filter(i => _isBlocked(i)).map(i => i.title),
       ...(state.interrupts || []).filter(i =>
         i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'done'
       ).map(i => `Overdue interrupt: ${i.title}`)
@@ -1421,6 +1875,109 @@
       };
     }
   }
+
+  async function generateStandup() {
+    const btn = document.getElementById('standup-generate');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Generating…'; }
+    const cols = ['standup-yesterday', 'standup-today', 'standup-blockers'];
+    cols.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '<div class="standup-empty">Generating…</div>';
+    });
+    try {
+      const r = await fetch('/api/standup/generate', { method: 'POST' });
+      if (!r.ok) throw new Error(`${r.status}`);
+      const data = await r.json();
+      const fmt = (arr, cls = '') => arr && arr.length
+        ? arr.map(t => `<div class="standup-item ${cls}">${t}</div>`).join('')
+        : '<div class="standup-item" style="color:var(--muted)">None</div>';
+      const yEl = document.getElementById('standup-yesterday');
+      const tEl = document.getElementById('standup-today');
+      const bEl = document.getElementById('standup-blockers');
+      if (yEl) yEl.innerHTML = fmt(data.yesterday);
+      if (tEl) tEl.innerHTML = fmt(data.today);
+      if (bEl) bEl.innerHTML = fmt(data.blockers, 'blocker');
+      // Update copy button to use generated content
+      const copyBtn = document.getElementById('standup-copy');
+      if (copyBtn) {
+        copyBtn.onclick = () => {
+          const text = [
+            'Yesterday:\n' + (data.yesterday || []).map(b => `• ${b}`).join('\n'),
+            'Today:\n' + (data.today || []).map(b => `• ${b}`).join('\n'),
+            'Blockers:\n' + ((data.blockers || []).length ? data.blockers.map(b => `• ${b}`).join('\n') : '• None'),
+          ].join('\n\n');
+          navigator.clipboard.writeText(text).catch(() => {});
+          copyBtn.textContent = '✓ Copied';
+          setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 1500);
+        };
+      }
+    } catch (e) {
+      cols.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = `<div class="standup-empty" style="color:var(--danger)">Error: ${e}</div>`;
+      });
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '✨ Generate'; }
+    }
+  }
+
+  // ── Claudia ──────────────────────────────────────────────────────────────
+  const _CLAUDIA_PREFIXES = {
+    note:     'Remember this: ',
+    idea:     'Idea for project: ',
+    risk:     'Risk for project: ',
+    question: 'Question about project: ',
+    todo:     'Add a todo: ',
+    ado:      'Note that ',
+  };
+
+  function claudiaQuick(type) {
+    const input = document.getElementById('claudia-input');
+    if (!input) return;
+    input.value = _CLAUDIA_PREFIXES[type] || '';
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  }
+
+  async function claudiaSend() {
+    const input = document.getElementById('claudia-input');
+    const btn   = document.getElementById('claudia-send-btn');
+    const responseEl = document.getElementById('claudia-response');
+    const responseBody = document.getElementById('claudia-response-body');
+    if (!input || !input.value.trim()) return;
+    const message = input.value.trim();
+    btn.disabled = true;
+    btn.textContent = '⏳ Sending…';
+    if (responseEl) responseEl.style.display = 'none';
+    try {
+      const r = await fetch('/api/claudia/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      });
+      const data = await r.json();
+      if (responseEl) responseEl.style.display = '';
+      if (responseBody) {
+        responseBody.textContent = data.response || '(no response)';
+        responseBody.style.color = data.ok ? 'var(--text)' : 'var(--danger)';
+      }
+      if (data.ok) input.value = '';
+    } catch (e) {
+      if (responseEl) responseEl.style.display = '';
+      if (responseBody) { responseBody.textContent = `Error: ${e}`; responseBody.style.color = 'var(--danger)'; }
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Send ↵';
+    }
+  }
+
+  // Ctrl+Enter / Cmd+Enter to send
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      const active = document.activeElement;
+      if (active && active.id === 'claudia-input') claudiaSend();
+    }
+  });
 
   // ── Project Nav Items (dynamic sidebar) ──────────────────────────────────
   const PROJECT_ICONS = { 'magiq-media': '🎬', 'magiq-auth': '🔐', 'document-lifecycle-cleaner': '🧹' };
@@ -1448,21 +2005,14 @@
       return;
     }
     el.innerHTML = state.projects.map(p => `
-      <div class="project-card" data-slug="${p.slug}" onclick="openProjectDetail('${p.slug}')">
+      <div class="project-card" data-slug="${p.slug}" onclick="switchView('${p.slug}')">
         <div class="card-top">
           <div class="card-name">${p.slug}</div>
           ${p.priority ? `<div class="card-priority priority-high">${p.priority.toUpperCase()}</div>` : ''}
         </div>
-        <div class="card-status">${p.status}</div>
-        <div class="sprint-bar">
-          <div class="sprint-bar-label">
-            <span>Sprint progress</span>
-            <span style="color:var(--accent2)">—</span>
-          </div>
-          <div class="bar-track"><div class="bar-fill" style="width:0%"></div></div>
-        </div>
+        ${p.description ? `<div class="card-status" style="color:var(--text);margin-bottom:6px">${p.description}</div>` : ''}
         <div class="card-meta">
-          ${_adoCountChips(p.slug)}
+          <div class="meta-chip">${p.status}</div>
         </div>
       </div>
     `).join('');
@@ -1474,7 +2024,7 @@
     );
     if (!items.length) return '<div class="meta-chip">No ADO data</div>';
     const review = items.filter(i => i.state === 'Code Review').length;
-    const blocked = items.filter(i => i.state === 'Blocked').length;
+    const blocked = items.filter(i => _isBlocked(i)).length;
     return [
       `<div class="meta-chip accent">${items.length} items</div>`,
       review ? `<div class="meta-chip warn">${review} in review</div>` : '',
@@ -1485,6 +2035,11 @@
   function openProjectDrilldown(slug) { openProjectDetail(slug); }
 
   function openProjectDetail(slug) {
+    _currentProjectSlug = slug;
+    _memoryEditMode = false;
+    const editBtn = document.getElementById('memory-edit-btn');
+    if (editBtn) editBtn.textContent = '✏️ Edit';
+
     const row = document.getElementById('project-detail-row');
     if (!row) return;
     const project = state.projects.find(p => p.slug === slug);
@@ -1497,76 +2052,196 @@
       c.classList.toggle('active-card', c.dataset.slug === slug);
     });
 
-    // Header
+    // Title + description + chips
     const titleEl = document.getElementById('project-detail-title');
-    const statusEl = document.getElementById('project-detail-status');
+    const descEl = document.getElementById('project-detail-description');
+    const chipsEl = document.getElementById('project-detail-chips');
     if (titleEl) titleEl.textContent = slug;
-    if (statusEl) statusEl.textContent = project.status + (project.priority ? ' · ' + project.priority : '');
+    if (descEl) descEl.textContent = project.description || '';
+    if (chipsEl) {
+      const chips = [];
+      if (project.status) chips.push(`<div class="meta-chip">${project.status}</div>`);
+      if (project.priority) chips.push(`<div class="meta-chip accent">${project.priority}</div>`);
+      chipsEl.innerHTML = chips.join('');
+    }
 
-    // Left: ADO overview + MEMORY snippet
-    const adoItems = (state.ado.items || []).filter(i =>
-      (i.project || i.module || '').toLowerCase().includes(slug.replace(/-/g,'').substring(0,6))
-    );
-    const active = adoItems.filter(i => ['Active','In Progress'].includes(i.state)).length;
-    const review = adoItems.filter(i => i.state === 'Code Review').length;
-    const blocked = adoItems.filter(i => i.state === 'Blocked').length;
-    const pending = (state.hermesInbox || []).filter(i => i.project === slug && i.status === 'pending').length;
-
+    // Memory card
     const overviewEl = document.getElementById('project-detail-overview');
     if (overviewEl) {
-      overviewEl.innerHTML = `
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-          <div class="meta-chip accent">${active} active</div>
-          <div class="meta-chip warn">${review} in review</div>
-          ${blocked ? `<div class="meta-chip danger">${blocked} blocked</div>` : ''}
-          ${pending ? `<div class="meta-chip">${pending} pending flush</div>` : ''}
-        </div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.6px">Memory snapshot</div>
-        <pre style="font-size:11px;color:var(--text);white-space:pre-wrap;line-height:1.6;max-height:240px;overflow-y:auto">${
-          (project.raw || '').slice(0, 800).replace(/</g,'&lt;')
-        }${project.raw && project.raw.length > 800 ? '\n…' : ''}</pre>`;
+      overviewEl.innerHTML = `<pre style="font-size:11px;color:var(--text);white-space:pre-wrap;line-height:1.6">${
+        (project.raw || '').replace(/</g,'&lt;')
+      }</pre>`;
     }
 
-    // Right: Hermes captures + project decisions
-    const captures = (state.hermesSync || {})[slug] || {};
-    const projectDecisions = (state.decisions || []).filter(d => d.project === slug);
-    const capturesEl = document.getElementById('project-detail-captures');
-    if (capturesEl) {
-      const sections = [];
-      if (captures.ideas) sections.push(`<div class="list-item"><div style="flex:1"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">💡 Ideas</div><div style="font-size:11px;white-space:pre-wrap">${captures.ideas}</div></div></div>`);
-      if (captures.risks) sections.push(`<div class="list-item"><div style="flex:1"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">⚠️ Risks</div><div style="font-size:11px;white-space:pre-wrap">${captures.risks}</div></div></div>`);
-      if (captures.decisions) sections.push(`<div class="list-item"><div style="flex:1"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">⚖️ Pending decisions</div><div style="font-size:11px;white-space:pre-wrap">${captures.decisions}</div></div></div>`);
-      if (captures.questions) sections.push(`<div class="list-item"><div style="flex:1"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">❓ Questions</div><div style="font-size:11px;white-space:pre-wrap">${captures.questions}</div></div></div>`);
-      if (projectDecisions.length) {
-        sections.push(`<div class="list-item" style="flex-direction:column;gap:4px"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">📋 Log decisions</div>${
-          projectDecisions.slice(0,5).map(d => `<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--border)"><span style="color:var(--muted);margin-right:8px">${d.date}</span>${d.text}</div>`).join('')
-        }</div>`);
-      }
-      capturesEl.innerHTML = sections.length ? sections.join('') : '<div style="padding:10px;font-size:11px;color:var(--muted)">No captures yet.</div>';
-    }
+    // Decisions card — rendered via renderProjectDecisions()
+    renderProjectDecisions(slug);
 
-    // Track current project for spec viewer
+    // Track current project for spec/plans viewers
     _specCurrentSlug = slug;
-    // Reset spec section if switching projects
-    const specSection = document.getElementById('project-spec-section');
-    if (specSection && specSection.style.display !== 'none') {
-      loadSpecTree(slug);
-    }
-    // Show/wire spec toggle button
-    const headerEl = document.getElementById('project-detail-header');
-    if (headerEl && !document.getElementById('spec-toggle-btn')) {
-      const btn = document.createElement('button');
-      btn.id = 'spec-toggle-btn';
-      btn.className = 'action-btn';
-      btn.textContent = '📄 View Spec';
-      btn.style.cssText = 'font-size:11px;padding:4px 12px;margin-left:auto';
-      btn.onclick = toggleSpecViewer;
-      headerEl.appendChild(btn);
-    }
-    const toggleBtn = document.getElementById('spec-toggle-btn');
-    if (toggleBtn) toggleBtn.textContent = '📄 View Spec';
+    // Reset plans viewer state on project switch
+    const plansSection = document.getElementById('project-plans-section');
+    const plansContentEl = document.getElementById('plans-file-content');
+    const plansTitleEl = document.getElementById('plans-file-title');
+    // Reset + auto-load plans
+    if (plansContentEl) plansContentEl.innerHTML = '<div style="padding:20px;font-size:12px;color:var(--muted)">Click a plan to view its content.</div>';
+    if (plansTitleEl) plansTitleEl.textContent = 'Select a plan';
+    loadPlansTree(slug);
 
-    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    // Reset + auto-load spec
+    const specContentEl = document.getElementById('spec-file-content');
+    const specTitleEl = document.getElementById('spec-file-title');
+    if (specContentEl) specContentEl.innerHTML = '<div style="padding:20px;font-size:12px;color:var(--muted)">Click a file to view its content.</div>';
+    if (specTitleEl) specTitleEl.textContent = 'Select a file';
+    loadSpecTree(slug);
+
+    // Auto-load todos
+    loadTodos(slug);
+  }
+
+  // ── Project detail utilities ────────────────────────────────────────────────
+  let _currentProjectSlug = null;
+  let _memoryEditMode = false;
+
+  // Expand / collapse a project section (removes max-height on all expandable-body inside)
+  function toggleProjectSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+    const expanded = section.dataset.expanded === 'true';
+    section.dataset.expanded = expanded ? 'false' : 'true';
+    section.querySelectorAll('.expandable-body').forEach(el => {
+      el.style.maxHeight = expanded ? '' : 'none';
+      el.style.overflowY  = expanded ? 'auto' : 'visible';
+    });
+    section.querySelectorAll('.section-expand-btn').forEach(btn => {
+      btn.textContent = expanded ? '⤢' : '⤡';
+      btn.title = expanded ? 'Expand / collapse' : 'Collapse';
+    });
+  }
+
+  // Memory inline edit
+  function toggleMemoryEdit() {
+    const body = document.getElementById('project-detail-overview');
+    const btn  = document.getElementById('memory-edit-btn');
+    if (!body || !btn) return;
+    if (!_memoryEditMode) {
+      _memoryEditMode = true;
+      const raw = body.querySelector('pre')?.textContent || '';
+      body.innerHTML = `
+        <div style="padding:8px">
+          <textarea id="memory-textarea" style="width:100%;min-height:260px;background:var(--surface2);border:1px solid var(--accent);border-radius:4px;padding:8px;font-size:11px;font-family:inherit;color:var(--text);resize:vertical;box-sizing:border-box">${raw.replace(/</g,'&lt;')}</textarea>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <button onclick="saveMemory()" style="background:var(--accent);color:#000;border:none;border-radius:4px;padding:4px 12px;font-size:12px;cursor:pointer;font-weight:600">Save</button>
+            <button onclick="cancelMemoryEdit()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer">Cancel</button>
+          </div>
+        </div>`;
+      btn.textContent = '✕';
+    } else {
+      cancelMemoryEdit();
+    }
+  }
+
+  function cancelMemoryEdit() {
+    _memoryEditMode = false;
+    const btn = document.getElementById('memory-edit-btn');
+    if (btn) btn.textContent = '✏️ Edit';
+    if (_currentProjectSlug) {
+      const project = state.projects.find(p => p.slug === _currentProjectSlug);
+      const body = document.getElementById('project-detail-overview');
+      if (body && project) body.innerHTML = `<pre style="font-size:11px;color:var(--text);white-space:pre-wrap;line-height:1.6;padding:8px">${(project.raw||'').replace(/</g,'&lt;')}</pre>`;
+    }
+  }
+
+  async function saveMemory() {
+    const textarea = document.getElementById('memory-textarea');
+    if (!textarea || !_currentProjectSlug) return;
+    const content = textarea.value;
+    const r = await fetch(`/api/projects/${_currentProjectSlug}/memory`, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({content})
+    });
+    if (!r.ok) { alert('Save failed'); return; }
+    // Refresh project list to get updated raw
+    const updated = await fetch('/api/projects').then(r => r.json());
+    state.projects = updated;
+    _memoryEditMode = false;
+    const project = state.projects.find(p => p.slug === _currentProjectSlug);
+    const body = document.getElementById('project-detail-overview');
+    const btn  = document.getElementById('memory-edit-btn');
+    if (body && project) body.innerHTML = `<pre style="font-size:11px;color:var(--text);white-space:pre-wrap;line-height:1.6;padding:8px">${(project.raw||'').replace(/</g,'&lt;')}</pre>`;
+    if (btn) btn.textContent = '✏️ Edit';
+  }
+
+  // Add todo
+  async function addTodo() {
+    const input = document.getElementById('todo-add-input');
+    if (!input || !_currentProjectSlug) return;
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    await fetch(`/api/projects/${_currentProjectSlug}/todos`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({text})
+    });
+    await loadTodos(_currentProjectSlug);
+  }
+
+  // Project decisions render + CRUD
+  function renderProjectDecisions(slug) {
+    const el = document.getElementById('project-detail-captures');
+    if (!el) return;
+    const decisions = (state.decisions || []).filter(d => d.project === slug);
+    if (!decisions.length) {
+      el.innerHTML = '<div style="padding:10px;font-size:11px;color:var(--muted)">No decisions logged for this project yet.</div>';
+      return;
+    }
+    el.innerHTML = decisions.map((d, i) => `
+      <div class="decision-row" style="gap:6px" onmouseenter="this.querySelector('.proj-dec-actions').style.opacity='1'" onmouseleave="this.querySelector('.proj-dec-actions').style.opacity='0'">
+        <div style="flex:1">
+          <span class="decision-date">${d.date}</span>
+          <span class="decision-text" style="margin-left:6px" id="proj-dec-text-${i}">${d.text}</span>
+        </div>
+        <div class="proj-dec-actions" style="display:flex;gap:4px;opacity:0;transition:opacity 0.15s;flex-shrink:0">
+          <button onclick="editProjectDecision(${i},'${d.date.replace(/'/g,"\\'")}','${d.text.replace(/'/g,"\\'")}')" style="font-size:10px;padding:1px 6px;background:none;border:1px solid var(--border);border-radius:3px;color:var(--muted);cursor:pointer">✏️</button>
+          <button onclick="deleteProjectDecision('${d.date.replace(/'/g,"\\'")}','${d.text.replace(/'/g,"\\'")}')" style="font-size:10px;padding:1px 6px;background:none;border:1px solid var(--border);border-radius:3px;color:var(--muted);cursor:pointer">✕</button>
+        </div>
+      </div>`).join('');
+  }
+
+  async function addProjectDecision() {
+    if (!_currentProjectSlug) return;
+    const title = prompt('Decision title:');
+    if (!title) return;
+    const date = new Date().toISOString().slice(0,10);
+    await fetch('/api/decisions/add', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({date, title, project: _currentProjectSlug})
+    });
+    const updated = await fetch('/api/decisions').then(r=>r.json());
+    state.decisions = updated;
+    renderProjectDecisions(_currentProjectSlug);
+  }
+
+  async function deleteProjectDecision(date, title) {
+    if (!confirm(`Delete: "${title}"?`)) return;
+    await fetch('/api/decisions', {
+      method: 'DELETE', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({date, title})
+    });
+    const updated = await fetch('/api/decisions').then(r=>r.json());
+    state.decisions = updated;
+    renderProjectDecisions(_currentProjectSlug);
+  }
+
+  async function editProjectDecision(idx, date, oldTitle) {
+    const newTitle = prompt('Rename decision:', oldTitle);
+    if (!newTitle || newTitle === oldTitle) return;
+    await fetch('/api/decisions', {
+      method: 'PATCH', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({date, old_title: oldTitle, new_title: newTitle})
+    });
+    const updated = await fetch('/api/decisions').then(r=>r.json());
+    state.decisions = updated;
+    renderProjectDecisions(_currentProjectSlug);
   }
 
   // ── Spec Viewer ────────────────────────────────────────────────────────────
@@ -1637,6 +2312,7 @@
   }
 
   async function loadSpecFile(slug, path) {
+    _currentSpecPath = path;
     const contentEl = document.getElementById('spec-file-content');
     const titleEl = document.getElementById('spec-file-title');
     if (!contentEl) return;
@@ -1645,7 +2321,23 @@
     const active = [...document.querySelectorAll('.spec-file-item')].find(el => el.title === path);
     if (active) active.classList.add('active');
 
-    if (titleEl) titleEl.textContent = path.split('/').pop();
+    if (titleEl) {
+      titleEl.textContent = path.split('/').pop();
+      // Inject edit button if not already there
+      if (titleEl.parentElement && !document.getElementById('spec-edit-btn')) {
+        const btn = document.createElement('button');
+        btn.id = 'spec-edit-btn';
+        btn.textContent = '✏️ Edit';
+        btn.style.cssText = 'background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;margin-left:auto';
+        btn.onclick = () => toggleFileEdit('spec');
+        titleEl.parentElement.appendChild(btn);
+      }
+    }
+    // Reset edit mode state on new file
+    const editBtn = document.getElementById('spec-edit-btn');
+    if (editBtn) { editBtn.dataset.mode = ''; editBtn.textContent = '✏️ Edit'; }
+    contentEl.style.maxHeight = '';
+    contentEl.style.overflowY = 'auto';
     contentEl.innerHTML = '<div style="padding:12px;font-size:11px;color:var(--muted)">Loading...</div>';
 
     const r = await fetch(`/api/projects/${slug}/spec/file?path=${encodeURIComponent(path)}`);
@@ -1659,58 +2351,436 @@
     contentEl.innerHTML = _renderMarkdown(data.content);
   }
 
+  // ── Plans Viewer ───────────────────────────────────────────────────────────
+
+  async function togglePlansViewer() {
+    const section = document.getElementById('project-plans-section');
+    if (!section) return;
+    const isVisible = section.style.display !== 'none';
+    if (isVisible) {
+      section.style.display = 'none';
+      const btn = document.getElementById('plans-toggle-btn');
+      if (btn) btn.textContent = '📋 View Plans';
+      return;
+    }
+    section.style.display = '';
+    const btn = document.getElementById('plans-toggle-btn');
+    if (btn) btn.textContent = '📋 Hide Plans';
+    if (_specCurrentSlug) await loadPlansTree(_specCurrentSlug);
+  }
+
+  // ── Todos ──────────────────────────────────────────────────────────────────
+
+  async function toggleTodosSection() {
+    const section = document.getElementById('project-todos-section');
+    if (!section) return;
+    const isVisible = section.style.display !== 'none';
+    if (isVisible) {
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = '';
+    if (_specCurrentSlug) await loadTodos(_specCurrentSlug);
+  }
+
+  async function loadTodos(slug) {
+    const body = document.getElementById('todos-body');
+    const countEl = document.getElementById('todos-count');
+    if (!body) return;
+    body.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--muted)">Loading...</div>';
+    const r = await fetch(`/api/projects/${slug}/todos`);
+    const data = await r.json();
+    const todos = data.todos || [];
+    if (countEl) countEl.textContent = todos.length ? `${todos.length} item${todos.length !== 1 ? 's' : ''}` : '';
+    if (!todos.length) {
+      body.innerHTML = '<div style="padding:10px;font-size:11px;color:var(--muted)">No todos yet.</div>';
+      return;
+    }
+    body.innerHTML = todos.map((t, i) => `
+      <div class="todo-row" draggable="true" data-idx="${i}" style="display:flex;align-items:flex-start;gap:8px;padding:8px 6px;border-bottom:1px solid var(--border);position:relative;cursor:grab">
+        <div style="color:var(--muted);font-size:13px;padding-top:1px;flex-shrink:0;cursor:grab" title="Drag to reorder">⠿</div>
+        <div style="flex:1;min-width:0">
+          <div class="todo-heading" data-idx="${i}" style="font-size:12px;font-weight:600;color:var(--text)" title="Double-click to edit">${t.heading}</div>
+          ${t.captured ? `<div style="font-size:10px;color:var(--muted);margin-top:2px">${t.captured}</div>` : ''}
+          ${t.body && t.body !== t.heading ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;white-space:pre-wrap">${t.body}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:3px;flex-shrink:0">
+          <button class="todo-edit-btn" data-idx="${i}" data-heading="${t.heading.replace(/"/g,'&quot;')}" style="opacity:0;font-size:10px;padding:2px 6px;background:none;border:1px solid var(--border);border-radius:3px;color:var(--muted);cursor:pointer;transition:opacity 0.15s" title="Edit">✏️</button>
+          <button class="todo-delete-btn" data-idx="${i}" style="opacity:0;font-size:10px;padding:2px 6px;background:none;border:1px solid var(--border);border-radius:3px;color:var(--muted);cursor:pointer;transition:opacity 0.15s" title="Remove">✕</button>
+        </div>
+      </div>
+    `).join('');
+
+    // Drag-and-drop reorder
+    let _dragSrcIdx = null;
+    body.querySelectorAll('.todo-row').forEach(row => {
+      row.addEventListener('dragstart', e => {
+        _dragSrcIdx = parseInt(row.dataset.idx);
+        row.style.opacity = '0.4';
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      row.addEventListener('dragend', () => { row.style.opacity = ''; });
+      row.addEventListener('dragover', e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        body.querySelectorAll('.todo-row').forEach(r => r.style.borderTop = '');
+        row.style.borderTop = '2px solid var(--accent)';
+      });
+      row.addEventListener('dragleave', () => { row.style.borderTop = ''; });
+      row.addEventListener('drop', async e => {
+        e.preventDefault();
+        row.style.borderTop = '';
+        const destIdx = parseInt(row.dataset.idx);
+        if (_dragSrcIdx === null || _dragSrcIdx === destIdx) return;
+        const order = Array.from({length: todos.length}, (_, i) => i);
+        order.splice(_dragSrcIdx, 1);
+        order.splice(destIdx, 0, _dragSrcIdx);
+        await fetch(`/api/projects/${slug}/todos/reorder`, {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({order})
+        });
+        await loadTodos(slug);
+      });
+    });
+
+    // Hover show/hide action btns + wire edit/delete
+    body.querySelectorAll('.todo-row').forEach(row => {
+      const delBtn  = row.querySelector('.todo-delete-btn');
+      const editBtn = row.querySelector('.todo-edit-btn');
+      row.addEventListener('mouseenter', () => { if (delBtn) delBtn.style.opacity='1'; if (editBtn) editBtn.style.opacity='1'; });
+      row.addEventListener('mouseleave', () => { if (delBtn) delBtn.style.opacity='0'; if (editBtn) editBtn.style.opacity='0'; });
+
+      if (delBtn) delBtn.addEventListener('click', async () => {
+        const idx = parseInt(delBtn.dataset.idx);
+        if (!confirm('Remove this todo?')) return;
+        await fetch(`/api/projects/${slug}/todos/${idx}`, { method: 'DELETE' });
+        await loadTodos(slug);
+      });
+
+      if (editBtn) editBtn.addEventListener('click', () => {
+        const idx = parseInt(editBtn.dataset.idx);
+        const headingEl = row.querySelector('.todo-heading');
+        const current = headingEl ? headingEl.textContent : '';
+        // Replace heading with inline input
+        headingEl.innerHTML = `<input class="todo-inline-edit" value="${current.replace(/"/g,'&quot;')}"
+          style="width:100%;background:var(--surface2);border:1px solid var(--accent);border-radius:3px;padding:2px 6px;font-size:12px;font-weight:600;color:var(--text);outline:none">`;
+        const input = headingEl.querySelector('input');
+        input.focus(); input.select();
+        async function commitEdit() {
+          const newVal = input.value.trim();
+          if (newVal && newVal !== current) {
+            await fetch(`/api/projects/${slug}/todos/${idx}`, {
+              method: 'PATCH', headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({text: newVal})
+            });
+          }
+          await loadTodos(slug);
+        }
+        input.addEventListener('blur', commitEdit);
+        input.addEventListener('keydown', e => { if (e.key==='Enter') { e.preventDefault(); input.blur(); } if (e.key==='Escape') { loadTodos(slug); } });
+      });
+    });
+  }
+
+  async function loadPlansTree(slug) {
+    const treeEl = document.getElementById('plans-file-tree');
+    const countEl = document.getElementById('plans-file-count');
+    if (!treeEl) return;
+
+    treeEl.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--muted)">Loading...</div>';
+
+    const r = await fetch(`/api/projects/${slug}/plans`);
+    const data = await r.json();
+
+    if (data.error || !data.files.length) {
+      treeEl.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--muted)">No plans found.</div>';
+      return;
+    }
+
+    if (countEl) countEl.textContent = `${data.files.length} file${data.files.length !== 1 ? 's' : ''}`;
+
+    const grouped = {};
+    data.files.forEach(f => {
+      const parts = f.path.split('/');
+      const dir = parts.length > 1 ? parts.slice(0, -1).join('/') : '';
+      if (!grouped[dir]) grouped[dir] = [];
+      grouped[dir].push(f);
+    });
+
+    treeEl.innerHTML = Object.entries(grouped).sort().map(([dir, files]) => `
+      <div style="margin-bottom:6px">
+        ${dir ? `<div style="font-size:10px;color:var(--muted);padding:4px 2px;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${dir}">📂 ${dir}</div>` : ''}
+        ${files.map(f => `
+          <div class="plans-file-item" onclick="loadPlansFile('${slug}', '${f.path.replace(/'/g, "\\'")}')"
+            style="padding:4px 6px 4px ${dir ? '14px' : '6px'};font-size:11px;color:var(--muted);cursor:pointer;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+            title="${f.path}">
+            📄 ${f.name}
+          </div>
+        `).join('')}
+      </div>
+    `).join('');
+
+    if (!document.getElementById('plans-tree-style')) {
+      const s = document.createElement('style');
+      s.id = 'plans-tree-style';
+      s.textContent = '.plans-file-item:hover { background: var(--surface2); color: var(--text) !important; } .plans-file-item.active { background: rgba(88,166,255,0.1); color: var(--accent) !important; }';
+      document.head.appendChild(s);
+    }
+  }
+
+  async function loadPlansFile(slug, path) {
+    _currentPlansPath = path;
+    const contentEl = document.getElementById('plans-file-content');
+    const titleEl = document.getElementById('plans-file-title');
+    if (!contentEl) return;
+
+    document.querySelectorAll('.plans-file-item').forEach(el => el.classList.remove('active'));
+    const active = [...document.querySelectorAll('.plans-file-item')].find(el => el.title === path);
+    if (active) active.classList.add('active');
+
+    if (titleEl) {
+      titleEl.textContent = path.split('/').pop();
+      if (titleEl.parentElement && !document.getElementById('plans-edit-btn')) {
+        const btn = document.createElement('button');
+        btn.id = 'plans-edit-btn';
+        btn.textContent = '✏️ Edit';
+        btn.style.cssText = 'background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;margin-left:auto';
+        btn.onclick = () => toggleFileEdit('plans');
+        titleEl.parentElement.appendChild(btn);
+      }
+    }
+    const editBtn = document.getElementById('plans-edit-btn');
+    if (editBtn) { editBtn.dataset.mode = ''; editBtn.textContent = '✏️ Edit'; }
+    contentEl.style.maxHeight = '';
+    contentEl.style.overflowY = 'auto';
+    contentEl.innerHTML = '<div style="padding:12px;font-size:11px;color:var(--muted)">Loading...</div>';
+
+    const r = await fetch(`/api/projects/${slug}/plans/file?path=${encodeURIComponent(path)}`);
+    const data = await r.json();
+
+    if (data.error) {
+      contentEl.innerHTML = `<div style="padding:12px;color:var(--danger);font-size:11px">${data.error}</div>`;
+      return;
+    }
+
+    contentEl.innerHTML = _renderMarkdown(data.content);
+  }
+
+  // Configure marked.js
+  if (typeof marked !== 'undefined') {
+    marked.setOptions({ breaks: true, gfm: true });
+  }
+
   function _renderMarkdown(md) {
-    return '<div style="padding:12px;font-size:12px;line-height:1.7;color:var(--text)">' +
-      md
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        .replace(/^#### (.+)$/gm, '<h4 style="font-size:12px;color:var(--text);margin:12px 0 4px">$1</h4>')
-        .replace(/^### (.+)$/gm, '<h3 style="font-size:13px;color:var(--accent);margin:14px 0 6px;border-bottom:1px solid var(--border);padding-bottom:4px">$1</h3>')
-        .replace(/^## (.+)$/gm, '<h2 style="font-size:14px;font-weight:700;color:var(--text);margin:16px 0 8px">$1</h2>')
-        .replace(/^# (.+)$/gm, '<h1 style="font-size:15px;font-weight:700;color:var(--accent);margin:0 0 12px">$1</h1>')
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/`([^`]+)`/g, '<code style="font-family:monospace;font-size:11px;background:var(--surface2);padding:1px 4px;border-radius:3px;color:var(--accent)">$1</code>')
-        .replace(/```[\w]*\n?([\s\S]*?)```/g, '<pre style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:10px;font-size:11px;overflow-x:auto;margin:8px 0"><code>$1</code></pre>')
-        .replace(/^\|(.+)\|$/gm, (_, row) => {
-          if (row.includes('---')) return '';
-          const cells = row.split('|').map(c => `<td style="padding:4px 10px;border:1px solid var(--border)">${c.trim()}</td>`).join('');
-          return `<tr>${cells}</tr>`;
-        })
-        .replace(/^- (.+)$/gm, '<li style="margin:2px 0;padding-left:4px">$1</li>')
-        .replace(/(<li[^>]*>.*<\/li>\n?)+/g, s => `<ul style="padding-left:18px;margin:6px 0">${s}</ul>`)
-        .replace(/^---$/gm, '<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">')
-        .replace(/\n\n(?!<)/g, '</p><p style="margin:8px 0">')
-        .replace(/^(?!<)/, '<p style="margin:0">')
-      + '</p></div>';
+    if (typeof marked !== 'undefined') {
+      return `<div class="md-body">${marked.parse(md)}</div>`;
+    }
+    // Fallback plain text
+    return `<pre style="padding:12px;font-size:12px;white-space:pre-wrap;color:var(--text)">${md.replace(/</g,'&lt;')}</pre>`;
+  }
+
+  // ── Markdown file viewer/editor ────────────────────────────────────────────
+  let _currentSpecPath  = null;
+  let _currentPlansPath = null;
+
+  function _makeEditBtn(type) {
+    const btn = document.createElement('button');
+    btn.id = `${type}-edit-btn`;
+    btn.textContent = '✏️ Edit';
+    btn.style.cssText = 'background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;flex-shrink:0';
+    btn.onclick = () => toggleFileEdit(type);
+    return btn;
+  }
+
+  function _ensureEditBtn(type) {
+    const headerId = type === 'spec' ? null : null; // injected below via _injectEditBtns
+    if (!document.getElementById(`${type}-edit-btn`)) {
+      const header = document.getElementById(type === 'spec' ? 'spec-file-title' : 'plans-file-title');
+      if (header && header.parentElement) header.parentElement.appendChild(_makeEditBtn(type));
+    }
+  }
+
+  async function toggleFileEdit(type) {
+    const contentId = type === 'spec' ? 'spec-file-content' : 'plans-file-content';
+    const btn = document.getElementById(`${type}-edit-btn`);
+    const contentEl = document.getElementById(contentId);
+    if (!contentEl || !_currentProjectSlug) return;
+
+    const currentPath = type === 'spec' ? _currentSpecPath : _currentPlansPath;
+    if (!currentPath) { alert('Select a file first.'); return; }
+
+    if (btn && btn.dataset.mode === 'edit') {
+      // Exit edit — reload file
+      btn.dataset.mode = '';
+      btn.textContent = '✏️ Edit';
+      const r = await fetch(`/api/projects/${_currentProjectSlug}/${type}/file?path=${encodeURIComponent(currentPath)}`);
+      const data = await r.json();
+      contentEl.style.display = '';
+      contentEl.innerHTML = _renderMarkdown(data.content);
+      return;
+    }
+
+    // Enter edit mode
+    btn.dataset.mode = 'edit';
+    btn.textContent = '✕ Close editor';
+
+    // Fetch raw content
+    const r = await fetch(`/api/projects/${_currentProjectSlug}/${type}/file?path=${encodeURIComponent(currentPath)}`);
+    const data = await r.json();
+    const raw = data.content || '';
+
+    contentEl.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;height:100%;min-height:400px">
+        <div style="border-right:1px solid var(--border);display:flex;flex-direction:column">
+          <div style="padding:4px 8px;font-size:10px;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border)">EDITOR</div>
+          <textarea id="md-editor-${type}" style="flex:1;width:100%;background:var(--surface);border:none;padding:12px;font-size:12px;font-family:'Menlo','Consolas',monospace;color:var(--text);resize:none;outline:none;line-height:1.6;min-height:400px">${raw.replace(/</g,'&lt;')}</textarea>
+        </div>
+        <div style="display:flex;flex-direction:column;overflow:hidden">
+          <div style="padding:4px 8px;font-size:10px;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+            PREVIEW
+            <button onclick="saveMarkdownFile('${type}','${currentPath.replace(/'/g,"\\'")}',document.getElementById('md-editor-${type}').value)" style="background:var(--accent);color:#000;border:none;border-radius:3px;padding:2px 10px;font-size:10px;cursor:pointer;font-weight:600">Save</button>
+          </div>
+          <div id="md-preview-${type}" class="md-body" style="flex:1;padding:12px;overflow-y:auto;font-size:12px;line-height:1.7"></div>
+        </div>
+      </div>`;
+
+    const textarea = document.getElementById(`md-editor-${type}`);
+    const preview  = document.getElementById(`md-preview-${type}`);
+
+    function updatePreview() {
+      if (typeof marked !== 'undefined') preview.innerHTML = marked.parse(textarea.value);
+    }
+    updatePreview();
+    textarea.addEventListener('input', updatePreview);
+    contentEl.style.maxHeight = 'none';
+    contentEl.style.overflowY = 'visible';
+  }
+
+  async function saveMarkdownFile(type, path, content) {
+    if (!_currentProjectSlug) return;
+    // Unescape HTML entities typed into textarea value attribute
+    const r = await fetch(`/api/projects/${_currentProjectSlug}/${type}/file?path=${encodeURIComponent(path)}`, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({content})
+    });
+    if (!r.ok) { alert('Save failed'); return; }
+    // Flash save button
+    const preview = document.getElementById(`md-preview-${type}`);
+    if (preview) { const old = preview.style.outline; preview.style.outline = '2px solid var(--accent2)'; setTimeout(() => preview.style.outline = old, 800); }
   }
 
   // ── ADO panel ────────────────────────────────────────────────────────────
-  function renderADOPanel() {
-    const items = state.ado.items || [];
-    const myItems = items.filter(i => (i.assignee || '').includes('Chase'));
-    _renderItemList('ado-panel-body', myItems.slice(0, 8), i => `
+  function _adoItemRow(i) {
+    const nextStates = _adoNextStates(i.state);
+    const stateBtns = nextStates.map(s =>
+      `<button class="ado-state-btn" onclick="event.stopPropagation();adoUpdateState(${i.id},'${s}')" title="Move to ${s}">${_adoStateShort(s)}</button>`
+    ).join('');
+    return `
       <div class="ado-row">
         <div class="ado-state ${_adoStateClass(i.state)}"></div>
         <div class="ado-body">
-          <div class="ado-text">${i.title}</div>
-          <div class="ado-meta">${i.module || ''} · ${i.type || ''} · ${i.state}</div>
+          <div class="ado-text">${i.url
+            ? `<a href="${i.url}" target="_blank" style="color:inherit;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${i.title}</a>`
+            : i.title}</div>
+          <div class="ado-meta">${i.assignee ? `<strong>${i.assignee.split(' ')[0]}</strong> · ` : ''}${i.type || ''} · ${i.state}</div>
         </div>
         ${i.state === 'Code Review' && i.daysInState
           ? `<div class="review-age ${_ageClass(i.daysInState)}">${i.daysInState}d</div>`
           : ''}
-      </div>
-    `);
-    if (!myItems.length && state.ado.raw_text) {
-      const body = document.getElementById('ado-panel-body');
-      if (body) body.innerHTML = `<pre style="font-size:10px;color:var(--muted);padding:8px;white-space:pre-wrap">${state.ado.raw_text.slice(0, 500)}</pre>`;
+        ${stateBtns ? `<div class="ado-row-actions">${stateBtns}</div>` : ''}
+      </div>`;
+  }
+
+  function _adoNextStates(state) {
+    const map = {
+      'New':          ['Active'],
+      'To Do':        ['Active'],
+      'Active':       ['Code Review', 'Done'],
+      'In Progress':  ['Code Review', 'Done'],
+      'Code Review':  ['Active', 'Done'],
+      'In Review':    ['Active', 'Done'],
+      'Blocked':      ['Active'],
+    };
+    return map[state] || [];
+  }
+
+  function _adoStateShort(state) {
+    const map = { 'Active': '▶ Active', 'Done': '✓ Done', 'Code Review': '⇒ Review' };
+    return map[state] || state;
+  }
+
+  async function adoUpdateState(itemId, newState) {
+    const rows = document.querySelectorAll('.ado-row');
+    // Optimistic: disable buttons on the row
+    try {
+      const r = await fetch(`/api/ado/items/${itemId}/state`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state: newState }),
+      });
+      if (!r.ok) { alert(`Failed to update: ${r.status}`); return; }
+      // Refresh ADO data
+      await fetchADO();
+    } catch (e) {
+      alert(`Error: ${e}`);
+    }
+  }
+
+  function renderADOPanel() {
+    if (adoLoading) return;
+    const items = state.ado.items || [];
+    const updated = document.getElementById('ado-updated');
+    if (updated) updated.textContent = lastAdoRefresh ? `updated ${_ago(lastAdoRefresh)}` : '';
+    const updatedFw = document.getElementById('ado-updated-fw');
+    if (updatedFw) updatedFw.textContent = lastAdoRefresh ? `updated ${_ago(lastAdoRefresh)}` : '';
+    const body = document.getElementById('ado-panel-body');
+    if (!body) return;
+    if (!items.length) {
+      body.innerHTML = state.ado.error
+        ? `<div class="empty-state" style="padding:12px;font-size:11px;color:var(--danger)">Error: ${state.ado.error}</div>`
+        : '<div class="empty-state">No data — click ↻ to load</div>';
+      return;
+    }
+
+    if (adoPanelTab === 'mine') {
+      const mine = items.filter(i => (i.assignee || '').includes('Chase'));
+      _renderItemList('ado-panel-body', mine.slice(0, 15), _adoItemRow);
+
+    } else if (adoPanelTab === 'review') {
+      const review = items.filter(i => i.state === 'Code Review');
+      if (!review.length) {
+        body.innerHTML = '<div class="empty-state">No items in Code Review</div>';
+      } else {
+        _renderItemList('ado-panel-body', review.slice(0, 15), _adoItemRow);
+      }
+
+    } else if (adoPanelTab === 'team') {
+      const members = [
+        { name: 'Chase Ramone', match: 'Chase' },
+        { name: 'Estelle Wu', match: 'Estelle' },
+        { name: 'Akshay Gaikwad', match: 'Akshay' },
+      ];
+      body.innerHTML = members.map(m => {
+        const mine = items.filter(i => (i.assignee || '').includes(m.match));
+        if (!mine.length) return `<div style="padding:6px 8px;font-size:11px;color:var(--muted)">${m.name} — no sprint items</div>`;
+        return `
+          <div style="padding:6px 8px 2px;font-size:11px;font-weight:600;color:var(--text);border-top:1px solid var(--border)">${m.name} <span style="font-weight:400;color:var(--muted)">(${mine.length})</span></div>
+          ${mine.slice(0, 8).map(_adoItemRow).join('')}`;
+      }).join('');
     }
   }
 
   function _adoStateClass(s) {
     if (['Active', 'In Progress'].includes(s)) return 'state-active';
     if (s === 'Code Review') return 'state-review';
-    if (s === 'Blocked') return 'state-blocked';
     if (['Done', 'Closed'].includes(s)) return 'state-done';
     return 'state-active';
+  }
+
+  // Blocked = ADO tag, not state
+  function _isBlocked(i) {
+    return (i.tags || '').toLowerCase().split(';').some(t => t.trim() === 'blocked');
   }
 
   function _ageClass(days) {
@@ -1766,7 +2836,7 @@
       const mine = items.filter(i => (i.assignee || '').includes(m.match));
       const active = mine.filter(i => ['Active', 'In Progress'].includes(i.state)).length;
       const review = mine.filter(i => i.state === 'Code Review').length;
-      const blocked = mine.filter(i => i.state === 'Blocked').length;
+      const blocked = mine.filter(i => _isBlocked(i)).length;
       const wip = mine.find(i => ['Active', 'In Progress'].includes(i.state));
       return `
         <div class="team-card">
@@ -1780,6 +2850,26 @@
           <div class="team-wip">WIP: <strong>${wip ? wip.title : '—'}</strong></div>
         </div>`;
     }).join('');
+  }
+
+  // ── Sync Status panel ────────────────────────────────────────────────────
+  function renderSyncStatus() {
+    const body = document.getElementById('sync-body');
+    if (!body) return;
+    const adoOk = !adoLoading && !state.ado.error && (state.ado.items || []).length > 0;
+    const adoStatus = adoLoading
+      ? '<span class="sync-status sync-pending">Fetching…</span>'
+      : adoOk
+        ? '<span class="sync-status sync-ok">OK</span>'
+        : state.ado.error
+          ? '<span class="sync-status" style="background:rgba(248,81,73,0.15);color:var(--danger)">Error</span>'
+          : '<span class="sync-status sync-pending">Not loaded</span>';
+    const lastSync = lastAdoRefresh
+      ? `<span style="font-size:11px;color:var(--muted)">${lastAdoRefresh.toLocaleTimeString('en-AU', {hour:'2-digit',minute:'2-digit'})} · ${(state.ado.items||[]).length} items</span>`
+      : `<span style="font-size:11px;color:var(--muted)">—</span>`;
+    body.innerHTML = `
+      <div class="sync-row"><span>ADO fetch</span>${adoStatus}</div>
+      <div class="sync-row"><span>Last sync</span>${lastSync}</div>`;
   }
 
   // ── Decisions + Sync panels ──────────────────────────────────────────────
@@ -1977,17 +3067,6 @@
     panel.scrollIntoView({ behavior: 'smooth' });
   }
 
-  function _tagLabel(t) {
-    const map = {
-      'blocked': 'Blocked',
-      'waiting-for-feedback': 'Waiting',
-      'requested-review': 'Review',
-      'needs-more-info': 'Needs info',
-      'complete': 'Complete'
-    };
-    return map[t] || t;
-  }
-
   function _renderDrilldownTags(panel, item) {
     const container = panel.querySelector('.tags-row');
     if (!container) return;
@@ -2178,7 +3257,7 @@
     };
     _set('badge-interrupts', (state.interrupts || []).filter(i => i.status !== 'done').length);
     _set('badge-ado-pending', (state.hermesInbox || []).filter(i => i.status === 'pending').length);
-    _set('badge-blocked', (state.ado.items || []).filter(i => i.state === 'Blocked').length);
+    _set('badge-blocked', (state.ado.items || []).filter(i => _isBlocked(i)).length);
     const overdue = (state.interrupts || []).filter(i =>
       i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'done').length;
     _set('badge-overdue', overdue);
@@ -2186,10 +3265,10 @@
       if (!i.dueDate || i.status === 'done') return false;
       return new Date(i.dueDate).toDateString() === new Date().toDateString();
     }).length);
+    _set('badge-review-queue', (state.githubReviewRequested || []).length);
   }
 
-  // ── Auto-refresh ─────────────────────────────────────────────────────────
-  setInterval(fetchAll, 30000);
+  // ── Auto-refresh (clock only — ADO is manual) ────────────────────────────
   setInterval(renderClock, 10000);
 
   const refreshBtn = document.getElementById('refresh-btn');
@@ -2202,19 +3281,19 @@
     dashboard: null, focus: 'Focus Mode', standup: 'Standup Prep',
     interrupts: 'Interrupts', overdue: 'Overdue', 'due-today': 'Due Today',
     'magiq-media': 'magiq-media', 'magiq-auth': 'magiq-auth',
-    inbox: 'Hermes Inbox', blocked: 'Blocked Items', adhoc: 'Adhoc Notes',
-    'hermes-sync': 'Hermes Sync', team: 'Team Workload',
-    'review-queue': 'Review Queue', decisions: 'Decisions',
+    blocked: 'Blocked Items', team: 'Team Workload',
+    'review-queue': 'Review Queue', claudia: 'Ask Claudia', decisions: 'Decisions',
     sprint: 'Sprint Board', cheatsheet: 'Cheat Sheet',
+    'github-prs': 'GitHub PRs',
   };
 
   const ALL_SWITCHABLE = [
     'focus-strip', 'blocked-banner', 'standup-strip',
     'projects-section', 'panel-grid', 'team-section', 'bottom-row', 'cheatsheet',
     'interrupts-section', 'drilldown-panel',
-    'hermes-panel-fullwidth', 'adhoc-panel-fullwidth',
-    'sync-panel-fullwidth', 'ado-panel-fullwidth', 'decisions-panel-fullwidth',
-    'blocked-panel-fullwidth'
+    'ado-panel-fullwidth', 'decisions-panel-fullwidth',
+    'blocked-panel-fullwidth', 'focus-details-section',
+    'github-prs-fullwidth', 'claudia-panel-fullwidth'
   ];
 
   function switchView(view) {
@@ -2242,8 +3321,15 @@
         const el = document.getElementById(id);
         if (el) el.style.display = '';
       });
+      // Restore project section sub-elements hidden by project page view
+      const projectsRow = document.getElementById('projects-row');
+      if (projectsRow) projectsRow.style.display = '';
+      const projectsSection = document.getElementById('projects-section');
+      if (projectsSection) { const h = projectsSection.querySelector('.section-header'); if (h) h.style.display = ''; }
+      const detailRow = document.getElementById('project-detail-row');
+      if (detailRow) detailRow.style.display = 'none';
       const bb = document.getElementById('blocked-banner');
-      if (bb && (state.ado.items || []).some(i => i.state === 'Blocked')) bb.style.display = '';
+      if (bb && (state.ado.items || []).some(i => _isBlocked(i))) bb.style.display = '';
       return;
     }
 
@@ -2251,18 +3337,29 @@
     if (view === 'overdue') { _showInterruptsView('overdue'); return; }
     if (view === 'due-today') { _showInterruptsView('due-today'); return; }
 
-    // Any project slug — show projects panel + open that project's detail row
+    // Any project slug — full-page project view (hide cards, show detail only)
     if (state.projects.some(p => p.slug === view)) {
-      const el = document.getElementById('projects-section');
-      if (el) el.style.display = '';
-      const dp = document.getElementById('drilldown-panel');
-      if (dp) dp.style.display = 'none';
+      const section = document.getElementById('projects-section');
+      if (section) section.style.display = '';
+      const header = section ? section.querySelector('.section-header') : null;
+      if (header) header.style.display = 'none';
+      const row = document.getElementById('projects-row');
+      if (row) row.style.display = 'none';
+      const detail = document.getElementById('project-detail-row');
+      if (detail) { detail.style.display = ''; detail.style.marginTop = '0'; }
       openProjectDetail(view);
       return;
     }
+    if (view === 'github-prs') {
+      const el = document.getElementById('github-prs-fullwidth');
+      if (el) el.style.display = '';
+      renderGitHubPRsFull();
+      return;
+    }
     if (view === 'review-queue') {
-      const el = document.getElementById('ado-panel-fullwidth');
-      if (el) { el.style.display = ''; _renderADOFullwidth('review'); }
+      const el = document.getElementById('github-prs-fullwidth');
+      if (el) el.style.display = '';
+      renderGitHubPRsFull();
       return;
     }
     if (view === 'sprint') {
@@ -2275,21 +3372,8 @@
       if (fs) fs.style.display = '';
       const el = document.getElementById('ado-panel-fullwidth');
       if (el) { el.style.display = ''; _renderADOFullwidth('mine'); }
-      return;
-    }
-    if (view === 'inbox') {
-      const el = document.getElementById('hermes-panel-fullwidth');
-      if (el) { el.style.display = ''; _renderHermesFullwidth(); }
-      return;
-    }
-    if (view === 'adhoc') {
-      const el = document.getElementById('adhoc-panel-fullwidth');
-      if (el) { el.style.display = ''; _renderAdhocFullwidth(); }
-      return;
-    }
-    if (view === 'hermes-sync') {
-      const el = document.getElementById('sync-panel-fullwidth');
-      if (el) { el.style.display = ''; _renderSyncFullwidth(); }
+      const fd = document.getElementById('focus-details-section');
+      if (fd) { fd.style.display = ''; renderFocusDetails(); }
       return;
     }
     if (view === 'team') {
@@ -2300,6 +3384,11 @@
     if (view === 'blocked') {
       const el = document.getElementById('blocked-panel-fullwidth');
       if (el) { el.style.display = ''; _renderBlockedFullwidth(); }
+      return;
+    }
+    if (view === 'claudia') {
+      const el = document.getElementById('claudia-panel-fullwidth');
+      if (el) el.style.display = '';
       return;
     }
     if (view === 'decisions') {
@@ -2367,8 +3456,10 @@
       <div class="ado-row">
         <div class="ado-state ${_adoStateClass(i.state)}"></div>
         <div class="ado-body">
-          <div class="ado-text">${i.title}</div>
-          <div class="ado-meta">${i.module || ''} · ${i.type || ''} · ${i.state} · ${i.assignee || ''}</div>
+          <div class="ado-text">${i.url
+            ? `<a href="${i.url}" target="_blank" style="color:inherit;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${i.title}</a>`
+            : i.title}</div>
+          <div class="ado-meta">${i.sprint || i.module || ''} · ${i.type || ''} · ${i.state} · ${i.assignee || ''}</div>
         </div>
         ${i.state === 'Code Review' && i.daysInState ? `<div class="review-age ${_ageClass(i.daysInState)}">${i.daysInState}d</div>` : ''}
       </div>
@@ -2414,28 +3505,107 @@
   }
 
   function _renderBlockedFullwidth() {
-    const blocked = (state.ado.items || []).filter(i => i.state === 'Blocked');
+    const blocked = (state.ado.items || []).filter(i => _isBlocked(i));
     _renderItemList('blocked-fullwidth-body', blocked, i => `
       <div class="ado-row">
         <div class="ado-state state-blocked"></div>
         <div class="ado-body">
-          <div class="ado-text">${i.title}</div>
-          <div class="ado-meta">${i.module || ''} · ${i.assignee || ''} · blocked ${i.daysInState || 0}d</div>
+          <div class="ado-text">${i.url
+            ? `<a href="${i.url}" target="_blank" style="color:inherit;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${i.title}</a>`
+            : i.title}</div>
+          <div class="ado-meta">${i.sprint || i.module || ''} · ${i.assignee || ''} · blocked ${i.daysInState || 0}d</div>
         </div>
       </div>
     `);
   }
 
+  // Store decisions keyed by DOM index to avoid HTML attribute escaping issues
+  let _decisionsIndex = [];
+
   function _renderDecisionsFullwidth() {
-    _renderItemList('decisions-fullwidth-body', state.decisions || [], d => `
-      <div class="decision-row">
-        <div class="decision-date">${d.date}</div>
-        <div>
-          <div class="decision-text">${d.text}</div>
-          ${d.project ? `<div class="decision-tag">${d.project}</div>` : ''}
-        </div>
+    const body = document.getElementById('decisions-fullwidth-body');
+    if (!body) return;
+    const decisions = state.decisions || [];
+    _decisionsIndex = decisions;
+
+    const rows = decisions.map((d, i) => `
+      <div class="decision-row" data-di="${i}">
+        <input class="decision-edit" data-di="${i}" value="${d.text.replace(/"/g, '&quot;')}" />
+        ${d.project ? `<span class="decision-tag">${d.project}</span>` : ''}
+        <span class="decision-date">${d.date}</span>
+        <button class="decision-delete-btn" data-di="${i}" title="Delete">✕</button>
       </div>
-    `);
+    `).join('');
+
+    const addRow = `
+      <div class="decision-add-row">
+        <input class="decision-add-input" id="decision-new-input" placeholder="Add a decision… (press Enter to save)" />
+        <span class="decision-date" id="decision-new-date" style="color:var(--muted);font-size:10px">${new Date().toISOString().slice(0,10)}</span>
+      </div>
+    `;
+
+    body.innerHTML = rows + addRow;
+
+    // Wire inline edit — save on blur or Enter if changed
+    body.querySelectorAll('.decision-edit').forEach(input => {
+      const i = +input.dataset.di;
+      const original = _decisionsIndex[i].text;
+      input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
+      input.addEventListener('blur', async () => {
+        const newVal = input.value.trim();
+        if (!newVal || newVal === original) { input.value = original; return; }
+        const d = _decisionsIndex[i];
+        const r = await fetch('/api/decisions', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: d.date, old_title: original, new_title: newVal }),
+        });
+        if (!r.ok) { input.value = original; alert('Failed to save.'); return; }
+        state.decisions = (state.decisions || []).map(dec =>
+          dec.date === d.date && dec.text === original ? { ...dec, text: newVal } : dec
+        );
+        renderDecisionsPanel();
+        _renderDecisionsFullwidth();
+      });
+    });
+
+    // Wire delete buttons
+    body.querySelectorAll('.decision-delete-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const i = +btn.dataset.di;
+        const d = _decisionsIndex[i];
+        if (!confirm(`Delete?\n\n"${d.text}"`)) return;
+        const r = await fetch('/api/decisions', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: d.date, title: d.text }),
+        });
+        if (!r.ok) { alert('Failed to delete.'); return; }
+        state.decisions = (state.decisions || []).filter((_, idx) => idx !== i);
+        renderDecisionsPanel();
+        _renderDecisionsFullwidth();
+      });
+    });
+
+    // Wire add-new row
+    const newInput = document.getElementById('decision-new-input');
+    if (newInput) {
+      newInput.addEventListener('keydown', async e => {
+        if (e.key !== 'Enter') return;
+        const title = newInput.value.trim();
+        if (!title) return;
+        const date = new Date().toISOString().slice(0, 10);
+        const r = await fetch('/api/decisions/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date, title }),
+        });
+        if (!r.ok) { alert('Failed to add decision.'); return; }
+        state.decisions = [{ date, text: title, project: '' }, ...(state.decisions || [])];
+        renderDecisionsPanel();
+        _renderDecisionsFullwidth();
+      });
+    }
   }
 
   document.querySelectorAll('[data-nav-view]').forEach(el => {
@@ -2446,6 +3616,8 @@
   wireInterruptCaptureForm();
   initCheatsheet();
   fetchAll();
+  fetchADO();
+  fetchGitHub();
 
   // Cheat sheet toggle with localStorage persistence
   function initCheatsheet() {
@@ -2549,6 +3721,11 @@
     tab.addEventListener('click', function() {
       tab.closest('.panel-tabs').querySelectorAll('.panel-tab').forEach(function(t) { t.classList.remove('active'); });
       tab.classList.add('active');
+      // ADO panel tabs drive content
+      if (tab.dataset.adoTab) {
+        adoPanelTab = tab.dataset.adoTab;
+        renderADOPanel();
+      }
     });
   });
 

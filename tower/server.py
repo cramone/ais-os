@@ -20,14 +20,18 @@ from tower.interrupts.store import (
     load_interrupts,
     update_interrupt,
 )
-from tower.readers.ado import read_ado_sprint
-from tower.readers.decisions import read_decisions
+from tower.readers.ado import invalidate_cache as invalidate_ado_cache, read_ado_sprint
+from tower.readers.ado_update import update_work_item_state
+from tower.readers.github import read_github_prs, read_github_review_requested
+from tower.readers.decisions import add_decision, delete_decision, read_decisions, rename_decision
 from tower.readers.hermes import (
     read_adhoc_notes,
     read_ado_pending,
     read_hermes_project_captures,
 )
+from tower.readers.claudia import send_to_claudia
 from tower.readers.projects import read_projects
+from tower.standup import generate_standup
 
 
 @asynccontextmanager
@@ -77,6 +81,43 @@ def decisions(limit: int = 10) -> list[dict[str, Any]]:
     return read_decisions(limit=limit)
 
 
+class DecisionDeleteRequest(BaseModel):
+    date: str
+    title: str
+
+
+class DecisionRenameRequest(BaseModel):
+    date: str
+    old_title: str
+    new_title: str
+
+
+class DecisionAddRequest(BaseModel):
+    date: str
+    title: str
+    project: str | None = None
+
+
+@app.post("/api/decisions/add", status_code=201)
+def decision_add(req: DecisionAddRequest) -> dict:
+    if not add_decision(req.date, req.title, project=req.project):
+        raise HTTPException(500, "Failed to add decision")
+    return {"date": req.date, "title": req.title}
+
+
+@app.delete("/api/decisions", status_code=204)
+def decision_delete(req: DecisionDeleteRequest):
+    if not delete_decision(req.date, req.title):
+        raise HTTPException(404, "Decision not found")
+
+
+@app.patch("/api/decisions")
+def decision_rename(req: DecisionRenameRequest) -> dict:
+    if not rename_decision(req.date, req.old_title, req.new_title):
+        raise HTTPException(404, "Decision not found")
+    return {"date": req.date, "title": req.new_title}
+
+
 # --- Hermes ---
 
 @app.get("/api/hermes/inbox")
@@ -99,6 +140,57 @@ def hermes_sync() -> dict[str, Any]:
 @app.get("/api/ado/sprint")
 def ado_sprint() -> dict[str, Any]:
     return read_ado_sprint()
+
+
+class AdoStateUpdate(BaseModel):
+    state: str
+
+
+@app.post("/api/ado/items/{item_id}/state")
+def ado_update_state(item_id: int, body: AdoStateUpdate) -> dict[str, Any]:
+    try:
+        result = update_work_item_state(item_id, body.state)
+        invalidate_ado_cache()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- GitHub ---
+
+@app.get("/api/github/prs")
+def github_prs() -> list[dict[str, Any]]:
+    return read_github_prs()
+
+
+@app.get("/api/github/review-requested")
+def github_review_requested() -> list[dict[str, Any]]:
+    return read_github_review_requested()
+
+
+# --- Claudia ---
+
+class ClaudiaMessage(BaseModel):
+    message: str
+
+
+@app.post("/api/claudia/send")
+def claudia_send(body: ClaudiaMessage) -> dict[str, Any]:
+    if not body.message.strip():
+        raise HTTPException(status_code=400, detail="message required")
+    return send_to_claudia(body.message.strip())
+
+
+# --- Standup ---
+
+@app.post("/api/standup/generate")
+def standup_generate() -> dict[str, list[str]]:
+    ado = read_ado_sprint()
+    interrupts = load_interrupts(config.INTERRUPTS_FILE)
+    try:
+        return generate_standup(ado.get("items", []), interrupts)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # --- Interrupts ---
@@ -231,6 +323,196 @@ def project_spec_file(slug: str, path: str) -> dict:
         raise HTTPException(404, "File not found")
     content = target.read_text(encoding="utf-8", errors="replace")
     return {"path": path, "content": content}
+
+
+class FileWriteRequest(BaseModel):
+    content: str
+
+@app.put("/api/projects/{slug}/spec/file")
+def write_spec_file(slug: str, path: str, body: FileWriteRequest) -> dict:
+    """Overwrite a single spec file."""
+    spec_dir = config.PROJECTS_DIR / slug / "spec"
+    target = (spec_dir / path).resolve()
+    if not str(target).startswith(str(spec_dir.resolve())):
+        raise HTTPException(400, "Invalid path")
+    if not target.exists():
+        raise HTTPException(404, "File not found")
+    target.write_text(body.content, encoding="utf-8")
+    return {"ok": True}
+
+
+# --- Plans viewer ---
+
+@app.get("/api/projects/{slug}/plans")
+def project_plans_tree(slug: str) -> dict:
+    """Return the plans directory file tree for a project."""
+    plans_dir = config.PROJECTS_DIR / slug / "plans"
+    if not plans_dir.exists():
+        return {"files": [], "error": "no plans directory"}
+
+    files = []
+    for root, dirs, filenames in os.walk(plans_dir):
+        dirs.sort()
+        for fname in sorted(filenames):
+            if fname.endswith(('.md', '.json', '.txt')):
+                full = os.path.join(root, fname)
+                rel = os.path.relpath(full, plans_dir).replace('\\', '/')
+                files.append({"path": rel, "name": fname})
+
+    return {"files": files}
+
+
+@app.get("/api/projects/{slug}/plans/file")
+def project_plans_file(slug: str, path: str) -> dict:
+    """Return the content of a single plans file."""
+    plans_dir = config.PROJECTS_DIR / slug / "plans"
+    target = (plans_dir / path).resolve()
+    if not str(target).startswith(str(plans_dir.resolve())):
+        raise HTTPException(400, "Invalid path")
+    if not target.exists():
+        raise HTTPException(404, "File not found")
+    content = target.read_text(encoding="utf-8", errors="replace")
+    return {"path": path, "content": content}
+
+@app.put("/api/projects/{slug}/plans/file")
+def write_plans_file(slug: str, path: str, body: FileWriteRequest) -> dict:
+    """Overwrite a single plans file."""
+    plans_dir = config.PROJECTS_DIR / slug / "plans"
+    target = (plans_dir / path).resolve()
+    if not str(target).startswith(str(plans_dir.resolve())):
+        raise HTTPException(400, "Invalid path")
+    if not target.exists():
+        raise HTTPException(404, "File not found")
+    target.write_text(body.content, encoding="utf-8")
+    return {"ok": True}
+
+
+# --- Todos ---
+
+@app.get("/api/projects/{slug}/todos")
+def project_todos(slug: str) -> dict:
+    """Return parsed todo entries from projects/{slug}/todos.md."""
+    todos_file = config.PROJECTS_DIR / slug / "todos.md"
+    if not todos_file.exists():
+        return {"todos": []}
+    content = todos_file.read_text(encoding="utf-8", errors="replace")
+    todos = []
+    # Split on ## headings
+    import re
+    blocks = re.split(r'\n(?=## )', content)
+    for block in blocks:
+        block = block.strip()
+        if not block.startswith('## '):
+            continue
+        lines = block.split('\n')
+        heading = lines[0][3:].strip()
+        captured = None
+        body_lines = []
+        for line in lines[1:]:
+            if line.startswith('_Captured:') and captured is None:
+                captured = line.strip('_').replace('Captured:', '').strip()
+            elif line.strip() == '---':
+                break
+            else:
+                body_lines.append(line)
+        body = '\n'.join(body_lines).strip()
+        todos.append({"heading": heading, "captured": captured, "body": body})
+    return {"todos": todos}
+
+
+@app.delete("/api/projects/{slug}/todos/{index}")
+def delete_todo(slug: str, index: int) -> dict:
+    """Remove a todo entry by index from projects/{slug}/todos.md."""
+    todos_file = config.PROJECTS_DIR / slug / "todos.md"
+    if not todos_file.exists():
+        raise HTTPException(404, "No todos file")
+    content = todos_file.read_text(encoding="utf-8", errors="replace")
+    import re
+    blocks = re.split(r'\n(?=## )', content)
+    header_blocks = [b for b in blocks if not b.strip().startswith('## ')]
+    todo_blocks = [b for b in blocks if b.strip().startswith('## ')]
+    if index < 0 or index >= len(todo_blocks):
+        raise HTTPException(404, "Todo index out of range")
+    todo_blocks.pop(index)
+    new_content = '\n'.join(header_blocks + todo_blocks)
+    todos_file.write_text(new_content, encoding="utf-8")
+    return {"ok": True}
+
+
+class TodoReorderRequest(BaseModel):
+    order: list[int]
+
+@app.put("/api/projects/{slug}/todos/reorder")
+def reorder_todos(slug: str, body: TodoReorderRequest) -> dict:
+    """Rewrite todos.md with entries in the given index order."""
+    todos_file = config.PROJECTS_DIR / slug / "todos.md"
+    if not todos_file.exists():
+        raise HTTPException(404, "No todos file")
+    content = todos_file.read_text(encoding="utf-8", errors="replace")
+    import re
+    blocks = re.split(r'\n(?=## )', content)
+    header_blocks = [b for b in blocks if not b.strip().startswith('## ')]
+    todo_blocks = [b for b in blocks if b.strip().startswith('## ')]
+    if sorted(body.order) != list(range(len(todo_blocks))):
+        raise HTTPException(400, "Invalid order: must be a permutation of existing indices")
+    reordered = [todo_blocks[i] for i in body.order]
+    new_content = '\n'.join(header_blocks + reordered)
+    todos_file.write_text(new_content, encoding="utf-8")
+    return {"ok": True}
+
+
+class TodoAddRequest(BaseModel):
+    text: str
+
+@app.post("/api/projects/{slug}/todos", status_code=201)
+def add_todo(slug: str, body: TodoAddRequest) -> dict:
+    """Prepend a new todo entry to projects/{slug}/todos.md."""
+    todos_file = config.PROJECTS_DIR / slug / "todos.md"
+    import datetime, re
+    today = datetime.date.today().isoformat()
+    new_block = f"## {body.text.strip()}\n_Captured: {today}_\n\n"
+    if not todos_file.exists():
+        todos_file.write_text(new_block, encoding="utf-8")
+    else:
+        content = todos_file.read_text(encoding="utf-8", errors="replace")
+        todos_file.write_text(new_block + content, encoding="utf-8")
+    return {"ok": True}
+
+
+class TodoEditRequest(BaseModel):
+    text: str
+
+@app.patch("/api/projects/{slug}/todos/{index}")
+def edit_todo(slug: str, index: int, body: TodoEditRequest) -> dict:
+    """Edit the heading of a todo entry by index."""
+    todos_file = config.PROJECTS_DIR / slug / "todos.md"
+    if not todos_file.exists():
+        raise HTTPException(404, "No todos file")
+    content = todos_file.read_text(encoding="utf-8", errors="replace")
+    import re
+    blocks = re.split(r'\n(?=## )', content)
+    header_blocks = [b for b in blocks if not b.strip().startswith('## ')]
+    todo_blocks = [b for b in blocks if b.strip().startswith('## ')]
+    if index < 0 or index >= len(todo_blocks):
+        raise HTTPException(404, "Todo index out of range")
+    todo_blocks[index] = re.sub(
+        r'^## .+$', f'## {body.text.strip()}', todo_blocks[index], count=1, flags=re.MULTILINE
+    )
+    todos_file.write_text('\n'.join(header_blocks + todo_blocks), encoding="utf-8")
+    return {"ok": True}
+
+
+class MemoryWriteRequest(BaseModel):
+    content: str
+
+@app.put("/api/projects/{slug}/memory")
+def write_memory(slug: str, body: MemoryWriteRequest) -> dict:
+    """Overwrite projects/{slug}/MEMORY.md with new content."""
+    memory_file = config.PROJECTS_DIR / slug / "MEMORY.md"
+    if not memory_file.exists():
+        raise HTTPException(404, "No MEMORY.md for this project")
+    memory_file.write_text(body.content, encoding="utf-8")
+    return {"ok": True}
 
 
 # --- Static (must be last) ---

@@ -18,8 +18,9 @@ def read_projects() -> list[dict[str, Any]]:
         text = memory_file.read_text(encoding="utf-8", errors="replace")
         results.append({
             "slug": project_dir.name,
-            "status": _extract(text, r"^\*\*Status\*\*:\s*(.+)$") or "unknown",
-            "priority": _extract(text, r"^\*\*Priority\*\*:\s*(.+)$") or "",
+            "status": _extract(text, r"\*\*Status\*\*:\s*(.+)") or "unknown",
+            "priority": _extract(text, r"\*\*Priority\*\*:\s*(.+)") or "",
+            "description": _extract(text, r"\*\*Description\*\*:\s*(.+)") or "",
             "raw": text,
         })
     return results
