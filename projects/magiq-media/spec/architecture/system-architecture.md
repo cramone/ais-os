@@ -63,6 +63,8 @@ Media Management is a set of C# microservices built around DDD, CQRS, and event 
          │      └─▶ EventConsumers Lambda
          ├──▶ media-sagas SQS → SagaOrchestrator Lambda
          ├──▶ media-document-signing SQS → SagaOrchestrator.DocumentSigning Lambda
+         ├──▶ media-bulk-folder-imports SQS → BulkFolderImportWorker Lambda
+         ├──▶ media-bulk-media-imports SQS → BulkMediaImportWorker Lambda
          ├──▶ Notifications-owned SQS
          ├──▶ Search/Discovery-owned SQS
          ├──▶ Billing-owned SQS
@@ -136,6 +138,10 @@ Projectors are further split into two groups: **read-model projectors** (query-f
 | `RecordTypeVersionProjector` | `media-record-type-versions` | |
 | `RegistrationDetailProjector` | `media-registration-detail` | |
 | `RegistrationSummaryProjector` | `media-registrations` | |
+| `BulkFolderImportJobSummaryProjector` | `media-bulk-folder-import-jobs` | |
+| `BulkFolderImportJobDetailProjector` | `media-bulk-folder-import-job-detail` | |
+| `BulkMediaImportJobSummaryProjector` | `media-bulk-media-import-jobs` | |
+| `BulkMediaImportJobDetailProjector` | `media-bulk-media-import-job-detail` | |
 
 **Write-side reference index projectors** (used by command handlers — not query-facing):
 
@@ -145,7 +151,6 @@ Projectors are further split into two groups: **read-model projectors** (query-f
 | `FolderMediaItemsIndexProjector` | `folder-media-index` | MediaItem membership per media-folder |
 | `MediaProfileIndexProjector` | `media-profile-index` | MediaProfile capability data for Processing Worker |
 | `RecordTypeVersionDetailIndexProjector` | `catalog-record-type-versions` | Published RecordType version tracking for Catalog |
-| ~~`FolderStatusIndexProjector`~~ | ~~`folder-status-index`~~ | ⚠️ NOT IMPLEMENTED — archive cascade blocked |
 | ~~`RegistrationCountIndexProjector`~~ | ~~`folder-registration-index`~~ | ⚠️ NOT IMPLEMENTED |
 | ~~`FolderActiveItemCountIndexProjector`~~ | ~~`folder-active-item-count-index`~~ | ⚠️ NOT IMPLEMENTED |
 
@@ -313,7 +318,69 @@ fires when this count ≥ 1, giving operators advance warning before compensatio
 
 **`MediaItemReviewSaga`** timeout scanning is not yet implemented; the 14-day timeout defined above will be enforced once the `SagaTimeoutScanner` is extended to cover `MediaItemReviewSaga`. Until then, stale review sagas must be manually identified and resolved.
 
-### 10. StorageTierTransitionScanner Lambda
+### 10. BulkFolderImportWorker Lambda
+**Host:** `Workers.BulkFolderImport`
+**Runtime:** Lambda triggered by SQS (`media-bulk-folder-imports` queue, subscribed to `media-integration-events`)
+**Responsibility:** Processes async large-volume folder import jobs. Consumes `BulkFolderImportJobCreatedMessage`, parses input (line-delimited paths, CSV, or JSON), splits into chunks of 200, dispatches `BulkCreateFoldersByPathCommand` per chunk, records per-item results to `media-bulk-import-job-items`, advances job state.
+
+**Processing flow:**
+1. Load input (from S3 if `InputStorageKey` present, else inline from job aggregate)
+2. Parse input per `InputFormat` (line-delimited, CSV, JSON)
+3. Split into chunks of 200 (per `MaxFoldersPerRequest`)
+4. For each chunk:
+   - Dispatch `BulkCreateFoldersByPathCommand` (existing handler — no changes needed)
+   - Collect `succeeded`/`failed` results from partial success envelope
+   - Dispatch `RecordBulkFolderImportJobBatchResultCommand`
+   - Write per-item results to `media-bulk-import-job-items` via `BatchWriteItem`
+5. After all chunks: dispatch `CompleteBulkFolderImportJobCommand` (or `FailBulkFolderImportJobCommand` on fatal error)
+
+**Visibility timeout:** 900 seconds (15 min — chunk processing + DynamoDB writes)
+**Max receive count:** 3
+**Batch size:** 1 (one job per invocation — job internally chunks to 200)
+
+### 11. BulkMediaImportWorker Lambda
+**Host:** `Workers.BulkMediaImport`
+**Runtime:** Lambda triggered by SQS (`media-bulk-media-imports` queue, subscribed to `media-integration-events`)
+**Responsibility:** Processes async large-volume media item imports. Coordinates multi-phase pipeline: upload → validation → cataloging → processing. Consumes `BulkMediaImportJobCreatedMessage`, issues pre-signed S3 upload URLs, waits for client confirmations, subscribes to validation/processing events, catalogs MediaItems in batches of 50, records per-item results, advances job state through phases.
+
+**Multi-phase state machine:**
+
+**Phase 1 — Issue Upload URLs:**
+1. Load manifest (from S3 if `InputStorageKey` present)
+2. Parse manifest per `InputFormat` (JSON or CSV)
+3. Generate `AssetId` per item (UUID v7)
+4. Dispatch `UploadAssetCommand` per item → returns pre-signed S3 URL
+5. Write upload URLs to `media-bulk-import-upload-urls` (temp table, TTL 24h)
+6. Dispatch `StartBulkMediaImportJobUploadsCommand`
+
+Client uploads assets, then calls `POST /v1/catalog/import-jobs/{jobId}/confirm-uploads`.
+
+**Phase 2 — Validation:**
+1. Wait for all upload confirmations (tracked via `UploadedCount`)
+2. Dispatch `StartBulkMediaImportJobValidationCommand`
+3. Subscribe to `AssetValidationPassedIntegrationEvent` and `AssetValidationFailedIntegrationEvent`
+4. Accumulate results, dispatch `RecordBulkMediaImportJobValidationResultsCommand` per batch
+5. After all validations: dispatch `StartBulkMediaImportJobCatalogingCommand`
+
+**Phase 3 — Cataloging:**
+1. Split validated assets into chunks of 50 (per `MaxMediaItemsPerRequest`)
+2. For each chunk:
+   - Dispatch `BulkCreateMediaItemsCommand` (new command — see MediaItem write model)
+   - Collect results
+   - Dispatch `RecordBulkMediaImportJobCatalogingResultsCommand`
+3. After all chunks: dispatch `StartBulkMediaImportJobProcessingCommand`
+
+**Phase 4 — Processing:**
+1. Subscribe to `ProcessingJobCompletedIntegrationEvent` and `ProcessingJobFailedIntegrationEvent`
+2. Accumulate results per asset
+3. Dispatch `RecordBulkMediaImportJobProcessingResultsCommand` per batch
+4. After all processing complete: dispatch `CompleteBulkMediaImportJobCommand`
+
+**Visibility timeout:** 1800 seconds (30 min — multi-phase processing)
+**Max receive count:** 3
+**Batch size:** 1
+
+### 12. StorageTierTransitionScanner Lambda
 **Host:** `Media.StorageTierTransitionScanner.Lambda`
 **Runtime:** Lambda (containerised), triggered by EventBridge Scheduler
 **Schedule:** Daily at 00:30 UTC (`cron(30 0 * * ? *)`)
@@ -380,6 +447,12 @@ fires when this count ≥ 1, giving operators advance warning before compensatio
 | `media-change-request-comments` | `TENANT#{TenantId}#{ChangeRequestId}` | `CommentId` | Threaded comments per change request. |
 | `media-signing-session-detail` | `TENANT#{TenantId}#{SigningSessionId}` | — | Full signing session detail. |
 | `media-signing-sessions` | `TENANT#{TenantId}#{SigningSessionId}` | — | Signing session summary list. ⚠️ `SigningSessionSummaryProjector` not implemented. |
+| `media-bulk-folder-import-jobs` | `JobId` | — | Folder import job summary with progress tracking. GSI1: TenantId+CreatedAt, GSI2: CollectionId+CreatedAt. |
+| `media-bulk-folder-import-job-detail` | `JobId` | — | Full folder import job detail including input payload or S3 key reference. |
+| `media-bulk-media-import-jobs` | `JobId` | — | Media import job summary with multi-phase progress tracking. GSI1: TenantId+CreatedAt, GSI2: CollectionId+CreatedAt. |
+| `media-bulk-media-import-job-detail` | `JobId` | — | Full media import job detail including manifest reference and upload URL table pointer. |
+| `media-bulk-import-job-items` | `TENANT#{TenantId}#JOB#{JobId}` | `ITEM#{Index}` | Per-item results for all bulk import jobs (shared). Supports both folder and media imports with `JobType` discriminator. |
+| `media-bulk-import-upload-urls` | `TENANT#{TenantId}#JOB#{JobId}` | `ITEM#{Index}` | Temporary pre-signed upload URLs for media imports. TTL 24h. |
 
 > All query-facing read model tables store `TenantId` as a plain attribute in addition to the `TENANT#` PK prefix (for observability / scan convenience).
 
@@ -431,6 +504,8 @@ fires when this count ≥ 1, giving operators advance warning before compensatio
 | `media-cross-module-events`  | Integration Event Consumers Lambda trigger — intra-BC fan-in (ADR-005). Renamed from `media-notifications`. | `media-integration-events` | Yes | `EventConsumers` |
 | `media-sagas`                | SagaOrchestrator trigger — subscribes to integration events, not domain events. Integration events are stable versioned contracts; the `MediaItemReviewSaga` also spans the ChangeRequests context, so domain event coupling would violate BC isolation. | `media-integration-events` | Yes | `SagaOrchestrator` |
 | `media-document-signing`     | DocumentSigning saga trigger — separate from `media-sagas` for isolated deployment and DLQ visibility. | `media-integration-events` | Yes | `SagaOrchestrator.DocumentSigning` |
+| `media-bulk-folder-imports`  | BulkFolderImportWorker trigger — processes async folder imports. Filter policy: `message_type = ["media.bulkfolderimportjob.created"]`. | `media-integration-events` | Yes | `BulkFolderImportWorker` |
+| `media-bulk-media-imports`   | BulkMediaImportWorker trigger — processes async media imports with multi-phase pipeline. Filter policy: `message_type = ["media.bulkmediaimportjob.created"]`. | `media-integration-events` | Yes | `BulkMediaImportWorker` |
 
 External bounded contexts (Notifications, Search/Discovery, Billing, Compliance) own their own SQS queues subscribed to `media-integration-events` — these are **not** Media Management-owned resources.
 
@@ -495,6 +570,7 @@ Three separate buckets with independent lifecycle and IAM policies. Keys never i
 | `media-source` | `{tenantId}/{shard}/{assetId}/original.{ext}` | Ingest API (pre-signed PUT) | MediaProfile has `Processing` capability, or unattached asset |
 | `media-renditions` | `{tenantId}/{shard}/{assetId}/{renditionType}.{ext}` | Processing Worker | Generated renditions (image variants, video transcodes) |
 | `media-documents` | `{tenantId}/{shard}/{assetId}/document.{ext}` | Ingest API (pre-signed PUT) | MediaProfile lacks `Processing` capability (media-registration documents, signed PDFs) |
+| `media-bulk-import-inputs` | `{tenantId}/folder-imports/{jobId}.{ext}` or `{tenantId}/media-imports/{jobId}.{ext}` | Ingest API | Large import manifests (>10KB). TTL 7 days. |
 
 **Shard prefix:** `{shard}` = last 4 hex chars of the UUID v7 `AssetId` (`assetId.ToString("N")[^4..]`) — 65,536 distinct prefixes sourced from random bits at positions 112–127. No hashing required; the shard is reconstructible from the `AssetId` alone.
 

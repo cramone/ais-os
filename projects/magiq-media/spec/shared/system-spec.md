@@ -899,7 +899,7 @@ All projectors subscribe to the `media-projector` SQS queue and run as a single 
 | `RecordTypeVersionProjector` | Metadata | `media-record-types` |
 
 **Write-side reference index projectors** (see `system-architecture.md` for full table list and gap status):
-`FolderStatusIndexProjector`, `FolderChildIndexProjector`, `FolderMediaItemsIndexProjector`, `RegistrationCountIndexProjector`, `FolderActiveItemCountIndexProjector`, `MediaProfileIndexProjector`, `RecordTypeVersionDetailIndexProjector`
+`FolderChildIndexProjector`, `FolderMediaItemsIndexProjector`, `RegistrationCountIndexProjector`, `FolderActiveItemCountIndexProjector`, `MediaProfileIndexProjector`, `RecordTypeVersionDetailIndexProjector`
 
 ### OpenSearch Indexes
 

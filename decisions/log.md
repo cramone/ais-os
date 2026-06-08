@@ -20,7 +20,7 @@ Keep it terse. Future-you will thank present-you for capturing the *why*, not ju
 
 ---
 
-## 2026-05-03 — Azure DevOps: REST API over MCP server
+## 2026-05-03 — Azure DevOps: REST API over MCP server 1
 
 **Decision:** Connect to Azure DevOps via direct REST API calls (PAT auth) rather than an MCP server.
 

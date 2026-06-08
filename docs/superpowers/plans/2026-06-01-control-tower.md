@@ -2229,3 +2229,4 @@ git commit -m "feat(tower): keyboard shortcuts, cheat sheet, startup script — 
 **Potential gap:** Sprint health bar % — depends on `devops_summary.py` returning sprint/epic progress data. If it doesn't, the bar renders at 0% without breaking anything. Can be enhanced once the ADO reader output is known (Task 4, Step 1).
 
 **Type consistency:** All interrupt IDs are strings (UUIDs). `adoItemId` is `int | None` — server PATCH route accepts this. Store uses `str` for all IDs from `uuid.uuid4()`.
+

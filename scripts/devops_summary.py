@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
 Queries Azure DevOps for work items assigned to you and prints a grouped summary.
-Usage: python scripts/devops_summary.py [--all] [--sprint]
+Usage: python scripts/devops_summary.py [--all] [--sprint] [--json]
   --all     Show all active items (default: assigned to me only)
   --sprint  Show current sprint items only
+  --json    Output structured JSON instead of human-readable text
 """
 
 import urllib.request
@@ -12,6 +13,7 @@ import json
 import base64
 import os
 import sys
+import datetime
 from collections import defaultdict
 from pathlib import Path
 
@@ -42,6 +44,7 @@ BASE_URL = f"https://dev.azure.com/{ORG}/{PROJECT}/_apis"
 ARGS = sys.argv[1:]
 SHOW_ALL = "--all" in ARGS
 SPRINT_ONLY = "--sprint" in ARGS
+JSON_OUT = "--json" in ARGS
 
 
 def api_get(path):
@@ -84,7 +87,7 @@ def build_query():
     if not SHOW_ALL:
         conditions.append("[System.AssignedTo] = @me")
     if SPRINT_ONLY:
-        conditions.append("[System.IterationPath] = @currentIteration('[Media]\\<IterationPath>')")
+        conditions.append("[System.IterationPath] = @currentIteration")
     where = " AND ".join(conditions)
     return f"SELECT [System.Id] FROM workitems WHERE {where} ORDER BY [System.ChangedDate] DESC"
 
@@ -95,7 +98,63 @@ def display_name(assigned):
     return "Unassigned" if not assigned else str(assigned)
 
 
+def main_json():
+    """Output structured JSON for tower consumption."""
+    result = wiql(build_query())
+    item_ids = [i["id"] for i in result.get("workItems", [])]
+
+    if not item_ids:
+        print(json.dumps({"items": [], "total": 0, "fetched_at": datetime.datetime.now().isoformat()}))
+        return
+
+    fields = [
+        "System.Id",
+        "System.Title",
+        "System.WorkItemType",
+        "System.State",
+        "System.AssignedTo",
+        "System.IterationPath",
+        "System.AreaPath",
+        "Microsoft.VSTS.Common.Priority",
+        "System.Tags",
+    ]
+
+    raw_items = get_work_items(item_ids, fields)
+    output = []
+    for item in raw_items:
+        f = item["fields"]
+        item_id = f["System.Id"]
+        iteration = f.get("System.IterationPath", "")
+        sprint = iteration.split("\\")[-1] if "\\" in iteration else iteration
+        area = f.get("System.AreaPath", "")
+        module = area.split("\\")[-1] if "\\" in area else area
+        output.append({
+            "id": item_id,
+            "title": f.get("System.Title", ""),
+            "type": f.get("System.WorkItemType", ""),
+            "state": f.get("System.State", ""),
+            "assignee": display_name(f.get("System.AssignedTo")),
+            "priority": f.get("Microsoft.VSTS.Common.Priority"),
+            "sprint": sprint,
+            "module": module,
+            "project": area,
+            "tags": f.get("System.Tags", "") or "",
+            "url": f"https://dev.azure.com/{ORG}/{PROJECT}/_workitems/edit/{item_id}",
+            "daysInState": None,
+        })
+
+    print(json.dumps({
+        "items": output,
+        "total": len(output),
+        "fetched_at": datetime.datetime.now().isoformat(),
+    }))
+
+
 def main():
+    if JSON_OUT:
+        main_json()
+        return
+
     print(f"Querying {ORG}/{PROJECT}{'  [sprint only]' if SPRINT_ONLY else ''}{'  [all users]' if SHOW_ALL else '  [assigned to me]'}...\n")
 
     result = wiql(build_query())

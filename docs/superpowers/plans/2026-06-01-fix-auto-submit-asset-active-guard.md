@@ -152,7 +152,7 @@ public async Task HandleAsync_AutoSubmitDisabled_NeverDispatches()
 - [ ] **Step 3: Run tests — confirm they fail**
 
 ```bash
-dotnet test "C:\Users\chase\OneDrive\repos\magiq-media\tests\modules\Catalog\Catalog.WriteModel.Tests" --filter "AssignAssetToRoleHandlerTests" -v 2>&1 | tail -15
+dotnet test "D:\source\github\magiq-media\tests\modules\Catalog\Catalog.WriteModel.Tests" --filter "AssignAssetToRoleHandlerTests" -v 2>&1 | tail -15
 ```
 
 Expected: compile errors or failures because Active guard doesn't exist yet.
@@ -184,7 +184,7 @@ if (profile.AutoSubmitOnComplete
 - [ ] **Step 5: Run tests — confirm they pass**
 
 ```bash
-dotnet test "C:\Users\chase\OneDrive\repos\magiq-media\tests\modules\Catalog\Catalog.WriteModel.Tests" --filter "AssignAssetToRoleHandlerTests" -v 2>&1 | tail -10
+dotnet test "D:\source\github\magiq-media\tests\modules\Catalog\Catalog.WriteModel.Tests" --filter "AssignAssetToRoleHandlerTests" -v 2>&1 | tail -10
 ```
 
 Expected: all pass.
@@ -192,7 +192,7 @@ Expected: all pass.
 - [ ] **Step 6: Run full test suite**
 
 ```bash
-dotnet test "C:\Users\chase\OneDrive\repos\magiq-media\tests\modules\" --logger "console;verbosity=minimal" 2>&1 | tail -5
+dotnet test "D:\source\github\magiq-media\tests\modules\" --logger "console;verbosity=minimal" 2>&1 | tail -5
 ```
 
 Expected: 0 failures.
@@ -200,8 +200,8 @@ Expected: 0 failures.
 - [ ] **Step 7: Commit**
 
 ```bash
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" add src/modules/Catalog/Catalog.WriteModel/Commands/MediaItems/AssignAssetToRole/AssignAssetToRoleHandler.cs tests/modules/Catalog/Catalog.WriteModel.Tests/MediaItems/Commands/AssignAssetToRoleHandlerTests.cs
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" commit -m "fix(catalog): guard auto-submit on asset Active status — prevent premature publish when assets still processing"
+git -C "D:\source\github\magiq-media" add src/modules/Catalog/Catalog.WriteModel/Commands/MediaItems/AssignAssetToRole/AssignAssetToRoleHandler.cs tests/modules/Catalog/Catalog.WriteModel.Tests/MediaItems/Commands/AssignAssetToRoleHandlerTests.cs
+git -C "D:\source\github\magiq-media" commit -m "fix(catalog): guard auto-submit on asset Active status — prevent premature publish when assets still processing"
 ```
 
 ---
@@ -219,3 +219,4 @@ None present. All test code is complete.
 - `MediaItemAssetReference.Status` — `AssetStatus` property confirmed in `MediaItemAssetReference.cs` ✅
 - `IAssetQueryService.GetManyAsync` — already injected into handler ✅
 - `PublishMediaItemCommand` — already used in handler ✅
+

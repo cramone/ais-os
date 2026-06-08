@@ -265,30 +265,10 @@ Both `Media.Api` and `Media.QueryApi` apply `AllowAnyOrigin().AllowAnyHeader().A
 ### FEATURE 1.6: Write-Side Index Projectors
 
 **Description:**
-Three write-side index projectors are documented as NOT IMPLEMENTED. Their absence blocks archive cascade and folder-level registration constraint enforcement. This feature implements all three and provisions their backing DynamoDB tables.
+Two write-side index projectors remain unimplemented. Their absence blocks folder-level registration constraint enforcement. `FolderStatusIndexProjector` is not needed — parent existence and depth are enforced via aggregate load (`IFolderRepository`) and strongly-consistent counters (`IUniquenessCounterService`); archive cascade is handled by `IFolderArchiveFanOutWorker`.
 
 **Priority:** Critical
 **Tags:** projectors, domain, p0, phase-1
-
----
-
-#### USER STORY 1.6.1: Implement FolderStatusIndexProjector
-
-**As a** platform engineer,
-**I want** the folder status index to be maintained by a projector,
-**so that** archive cascade operations can determine a folder's current status before propagating.
-
-**Acceptance Criteria:**
-- `folder-status-index` DynamoDB table is provisioned in CDK
-- `FolderStatusIndexProjector` is registered in `ProjectorRegistrations.cs`
-- Projector correctly handles `FolderCreated`, `FolderArchived`, `FolderDeleted` events
-- Archive cascade reads folder status from this index before processing child folders
-
-**Tasks:**
-- [ ] Provision `folder-status-index` DynamoDB table in `write-indexes.construct.ts`
-- [ ] Implement `FolderStatusIndexProjector` class
-- [ ] Register projector in `ProjectorRegistrations.cs`
-- [ ] Write unit test: folder archive event updates status index correctly
 
 ---
 

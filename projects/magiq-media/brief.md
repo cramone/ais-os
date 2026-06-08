@@ -4,7 +4,7 @@
 **Owner:** Chase Ramone
 **Team:** Estelle Wu (API layer), Akshay Gaikwad (UI/integrations)
 **Full spec:** `projects/magiq-media/spec/` (this repo)
-**Source code:** `C:\Users\chase\OneDrive\repos\magiq-media`
+**Source code:** `D:\source\github\magiq-media`
 
 ---
 

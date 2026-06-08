@@ -34,6 +34,7 @@ Config in `AIS-OS/.claude/settings.json`:
 | `morning-digest` | 8am cron / "morning digest" | Cross-project pending summary |
 | `comms-triage` | "flag this", "follow up on", "remind me about" | `~/.hermes/data/flagged-comms.json` |
 | `project-status` | "project summary", "what's pending" | Cross-project read from Hermes data |
+| `todo-capture` | "add a todo", "new todo", "todo:", "task:", "todo for [project]" | `projects/[slug]/todos.md` (always project-scoped; asks if project missing) |
 
 ### Project management skills
 | Skill | Trigger phrases | Output |

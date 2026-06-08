@@ -1796,3 +1796,4 @@ git commit -m "docs(spec): update MediaItem and ChangeRequest specs — simplifi
 
 ### Placeholder scan
 No TBD, TODO, or "similar to above" patterns present. All steps contain actual code or exact commands.
+

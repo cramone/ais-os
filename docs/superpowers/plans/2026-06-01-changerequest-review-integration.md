@@ -151,7 +151,7 @@ if (!IsParticipant(authorId))
 - [ ] **Step 8: Build ChangeRequests.Domain**
 
 ```bash
-dotnet build "C:\Users\chase\OneDrive\repos\magiq-media\src\modules\ChangeRequests\ChangeRequests.Domain\ChangeRequests.Domain.csproj" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
+dotnet build "D:\source\github\magiq-media\src\modules\ChangeRequests\ChangeRequests.Domain\ChangeRequests.Domain.csproj" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
 ```
 
 Fix all errors. If `ReviewSessionId` type causes a cross-assembly reference issue, switch to `string ReviewSessionId` and add appropriate conversions.
@@ -159,8 +159,8 @@ Fix all errors. If `ReviewSessionId` type causes a cross-assembly reference issu
 - [ ] **Step 9: Commit**
 
 ```bash
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" add src/modules/ChangeRequests/ChangeRequests.Domain/
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" commit -m "feat(change-requests): add ReviewSessionId + participant snapshot to ChangeRequest; guard AddComment to participants only"
+git -C "D:\source\github\magiq-media" add src/modules/ChangeRequests/ChangeRequests.Domain/
+git -C "D:\source\github\magiq-media" commit -m "feat(change-requests): add ReviewSessionId + participant snapshot to ChangeRequest; guard AddComment to participants only"
 ```
 
 ---
@@ -217,14 +217,14 @@ var changeRequest = ChangeRequest.Create(
 - [ ] **Step 4: Build ChangeRequests.WriteModel**
 
 ```bash
-dotnet build "C:\Users\chase\OneDrive\repos\magiq-media\src\modules\ChangeRequests\ChangeRequests.WriteModel\ChangeRequests.WriteModel.csproj" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
+dotnet build "D:\source\github\magiq-media\src\modules\ChangeRequests\ChangeRequests.WriteModel\ChangeRequests.WriteModel.csproj" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" add src/modules/ChangeRequests/ChangeRequests.WriteModel/Commands/CreateChangeRequest/
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" commit -m "feat(change-requests): add ReviewSessionId and ParticipantIds to CreateChangeRequestCommand"
+git -C "D:\source\github\magiq-media" add src/modules/ChangeRequests/ChangeRequests.WriteModel/Commands/CreateChangeRequest/
+git -C "D:\source\github\magiq-media" commit -m "feat(change-requests): add ReviewSessionId and ParticipantIds to CreateChangeRequestCommand"
 ```
 
 ---
@@ -283,7 +283,7 @@ Note: `ReviewSessionId.From(string)` — check if this factory method exists in 
 - [ ] **Step 3: Build**
 
 ```bash
-dotnet build "C:\Users\chase\OneDrive\repos\magiq-media\src\modules\ChangeRequests\ChangeRequests.WriteModel\ChangeRequests.WriteModel.csproj" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
+dotnet build "D:\source\github\magiq-media\src\modules\ChangeRequests\ChangeRequests.WriteModel\ChangeRequests.WriteModel.csproj" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
 ```
 
 Fix any type resolution errors.
@@ -291,8 +291,8 @@ Fix any type resolution errors.
 - [ ] **Step 4: Commit**
 
 ```bash
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" add src/modules/ChangeRequests/ChangeRequests.WriteModel/IntegrationEvents/Consuming/Handlers/MediaItemPublicationRequestedEventHandler.cs
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" commit -m "feat(change-requests): pass ReviewSessionId and participant snapshot when creating comment thread CR"
+git -C "D:\source\github\magiq-media" add src/modules/ChangeRequests/ChangeRequests.WriteModel/IntegrationEvents/Consuming/Handlers/MediaItemPublicationRequestedEventHandler.cs
+git -C "D:\source\github\magiq-media" commit -m "feat(change-requests): pass ReviewSessionId and participant snapshot when creating comment thread CR"
 ```
 
 ---
@@ -369,7 +369,7 @@ Adapt factory/mock setup to match the exact pattern in existing handler tests. C
 - [ ] **Step 2: Run tests to confirm they fail**
 
 ```bash
-dotnet test "C:\Users\chase\OneDrive\repos\magiq-media\tests\modules\Catalog\Catalog.WriteModel.Tests" --filter "PublishMediaItemHandlerTests" -v 2>&1 | tail -10
+dotnet test "D:\source\github\magiq-media\tests\modules\Catalog\Catalog.WriteModel.Tests" --filter "PublishMediaItemHandlerTests" -v 2>&1 | tail -10
 ```
 
 Expected: fails (handler still returns `null`).
@@ -408,20 +408,20 @@ return new PublishMediaItemResult(commentThreadId);
 - [ ] **Step 4: Run tests — confirm they pass**
 
 ```bash
-dotnet test "C:\Users\chase\OneDrive\repos\magiq-media\tests\modules\Catalog\Catalog.WriteModel.Tests" --filter "PublishMediaItemHandlerTests" -v 2>&1 | tail -10
+dotnet test "D:\source\github\magiq-media\tests\modules\Catalog\Catalog.WriteModel.Tests" --filter "PublishMediaItemHandlerTests" -v 2>&1 | tail -10
 ```
 
 - [ ] **Step 5: Build Catalog.WriteModel**
 
 ```bash
-dotnet build "C:\Users\chase\OneDrive\repos\magiq-media\src\modules\Catalog\Catalog.WriteModel\Catalog.WriteModel.csproj" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
+dotnet build "D:\source\github\magiq-media\src\modules\Catalog\Catalog.WriteModel\Catalog.WriteModel.csproj" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
 ```
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" add src/modules/Catalog/Catalog.WriteModel/Commands/MediaItems/PublishMediaItem/PublishMediaItemHandler.cs tests/modules/Catalog/Catalog.WriteModel.Tests/MediaItems/Commands/PublishMediaItemHandlerTests.cs
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" commit -m "feat(catalog): pre-generate comment thread CR ID when publishing with reviewers"
+git -C "D:\source\github\magiq-media" add src/modules/Catalog/Catalog.WriteModel/Commands/MediaItems/PublishMediaItem/PublishMediaItemHandler.cs tests/modules/Catalog/Catalog.WriteModel.Tests/MediaItems/Commands/PublishMediaItemHandlerTests.cs
+git -C "D:\source\github\magiq-media" commit -m "feat(catalog): pre-generate comment thread CR ID when publishing with reviewers"
 ```
 
 ---
@@ -453,15 +453,15 @@ Match the exact projection pattern used for other fields.
 - [ ] **Step 4: Build read model**
 
 ```bash
-dotnet build "C:\Users\chase\OneDrive\repos\magiq-media\src\modules\ChangeRequests\ChangeRequests.ReadModel\ChangeRequests.ReadModel.csproj" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
-dotnet build "C:\Users\chase\OneDrive\repos\magiq-media\src\modules\ChangeRequests\ChangeRequests.ReadModel.Infrastructure\ChangeRequests.ReadModel.Infrastructure.csproj" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
+dotnet build "D:\source\github\magiq-media\src\modules\ChangeRequests\ChangeRequests.ReadModel\ChangeRequests.ReadModel.csproj" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
+dotnet build "D:\source\github\magiq-media\src\modules\ChangeRequests\ChangeRequests.ReadModel.Infrastructure\ChangeRequests.ReadModel.Infrastructure.csproj" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" add src/modules/ChangeRequests/ChangeRequests.ReadModel/
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" commit -m "feat(change-requests-read): project ReviewSessionId onto ChangeRequestDetailReadModel"
+git -C "D:\source\github\magiq-media" add src/modules/ChangeRequests/ChangeRequests.ReadModel/
+git -C "D:\source\github\magiq-media" commit -m "feat(change-requests-read): project ReviewSessionId onto ChangeRequestDetailReadModel"
 ```
 
 ---
@@ -478,7 +478,7 @@ git -C "C:\Users\chase\OneDrive\repos\magiq-media" commit -m "feat(change-reques
 - [ ] **Step 1: Full solution build**
 
 ```bash
-dotnet build "C:\Users\chase\OneDrive\repos\magiq-media\src\" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED" | head -20
+dotnet build "D:\source\github\magiq-media\src\" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED" | head -20
 ```
 
 Fix all errors.
@@ -486,7 +486,7 @@ Fix all errors.
 - [ ] **Step 2: Full test run**
 
 ```bash
-dotnet test "C:\Users\chase\OneDrive\repos\magiq-media\tests\modules\" --logger "console;verbosity=minimal" 2>&1 | tail -5
+dotnet test "D:\source\github\magiq-media\tests\modules\" --logger "console;verbosity=minimal" 2>&1 | tail -5
 ```
 
 Fix any failures.
@@ -494,7 +494,7 @@ Fix any failures.
 - [ ] **Step 3: Run integration tests**
 
 ```bash
-dotnet test "C:\Users\chase\OneDrive\repos\magiq-media\tests\integration\" --logger "console;verbosity=minimal" 2>&1 | tail -5
+dotnet test "D:\source\github\magiq-media\tests\integration\" --logger "console;verbosity=minimal" 2>&1 | tail -5
 ```
 
 - [ ] **Step 4: Update mediachangerequest.write-model.md**
@@ -522,8 +522,8 @@ In the "Submit with reviewers → all approve" scenario, add step: "Client uses 
 - [ ] **Step 8: Commit**
 
 ```bash
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" add -u
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" commit -m "fix: resolve any remaining build/test failures after CR+review integration"
+git -C "D:\source\github\magiq-media" add -u
+git -C "D:\source\github\magiq-media" commit -m "fix: resolve any remaining build/test failures after CR+review integration"
 ```
 
 ---
@@ -553,3 +553,4 @@ No TBD or "similar to above" patterns present.
 
 ### Cross-module dependency note
 `MediaItemPublicationRequestedEventHandler` in ChangeRequests references `ReviewSessionId` from `Magiq.Media.Catalog.Aggregates.MediaItems.ValueObjects`. Verify `ChangeRequests.WriteModel.csproj` already references `Catalog.Domain` (it should — it already uses `MediaItemId` from there). If not, add the project reference.
+

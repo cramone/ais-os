@@ -135,7 +135,7 @@ public sealed record MediaItemRevisionDiscarded(
 - [ ] **Step 5: Build Catalog.Domain**
 
 ```bash
-dotnet build "C:\Users\chase\OneDrive\repos\magiq-media\src\modules\Catalog\Catalog.Domain\Catalog.Domain.csproj" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
+dotnet build "D:\source\github\magiq-media\src\modules\Catalog\Catalog.Domain\Catalog.Domain.csproj" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
 ```
 
 Expected: Build succeeded. Fix any errors before continuing.
@@ -143,8 +143,8 @@ Expected: Build succeeded. Fix any errors before continuing.
 - [ ] **Step 6: Commit**
 
 ```bash
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" add src/modules/Catalog/Catalog.Domain/Aggregates/MediaItems/ValueObjects/MediaItemStatus.cs src/modules/Catalog/Catalog.Domain/Aggregates/MediaItems/Events/MediaItemRevisionStarted.cs src/modules/Catalog/Catalog.Domain/Aggregates/MediaItems/Events/MediaItemRevisionDiscarded.cs
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" commit -m "feat(catalog): add Revising status and MediaItemRevisionStarted/Discarded domain events"
+git -C "D:\source\github\magiq-media" add src/modules/Catalog/Catalog.Domain/Aggregates/MediaItems/ValueObjects/MediaItemStatus.cs src/modules/Catalog/Catalog.Domain/Aggregates/MediaItems/Events/MediaItemRevisionStarted.cs src/modules/Catalog/Catalog.Domain/Aggregates/MediaItems/Events/MediaItemRevisionDiscarded.cs
+git -C "D:\source\github\magiq-media" commit -m "feat(catalog): add Revising status and MediaItemRevisionStarted/Discarded domain events"
 ```
 
 ---
@@ -261,14 +261,14 @@ if (Status != MediaItemStatus.Draft && Status != MediaItemStatus.Revising)
 
 Search for other methods that guard `Status == Draft` (SetMetadataField, BatchSetMetadata, UpdateTitle, etc.). Add `|| Status == MediaItemStatus.Revising` to each. Find them with:
 ```bash
-grep -n "Status != MediaItemStatus.Draft" "C:\Users\chase\OneDrive\repos\magiq-media\src\modules\Catalog\Catalog.Domain\Aggregates\MediaItems\MediaItem.cs"
+grep -n "Status != MediaItemStatus.Draft" "D:\source\github\magiq-media\src\modules\Catalog\Catalog.Domain\Aggregates\MediaItems\MediaItem.cs"
 ```
 Update each one found.
 
 - [ ] **Step 8: Build Catalog.Domain**
 
 ```bash
-dotnet build "C:\Users\chase\OneDrive\repos\magiq-media\src\modules\Catalog\Catalog.Domain\Catalog.Domain.csproj" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
+dotnet build "D:\source\github\magiq-media\src\modules\Catalog\Catalog.Domain\Catalog.Domain.csproj" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
 ```
 
 Expected: Build succeeded. Fix any errors.
@@ -276,8 +276,8 @@ Expected: Build succeeded. Fix any errors.
 - [ ] **Step 9: Commit**
 
 ```bash
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" add src/modules/Catalog/Catalog.Domain/Aggregates/MediaItems/MediaItem.cs
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" commit -m "feat(catalog): add BeginRevision/DiscardRevision to MediaItem aggregate; update edit guards for Revising state"
+git -C "D:\source\github\magiq-media" add src/modules/Catalog/Catalog.Domain/Aggregates/MediaItems/MediaItem.cs
+git -C "D:\source\github\magiq-media" commit -m "feat(catalog): add BeginRevision/DiscardRevision to MediaItem aggregate; update edit guards for Revising state"
 ```
 
 ---
@@ -414,7 +414,7 @@ Check what `CreateDraft` looks like in the factory and adapt `CreatePublished` t
 - [ ] **Step 3: Run tests**
 
 ```bash
-dotnet test "C:\Users\chase\OneDrive\repos\magiq-media\tests\modules\Catalog\Catalog.WriteModel.Tests" --filter "MediaItemAggregateTests" -v 2>&1 | tail -15
+dotnet test "D:\source\github\magiq-media\tests\modules\Catalog\Catalog.WriteModel.Tests" --filter "MediaItemAggregateTests" -v 2>&1 | tail -15
 ```
 
 Fix any failures.
@@ -422,8 +422,8 @@ Fix any failures.
 - [ ] **Step 4: Commit**
 
 ```bash
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" add tests/modules/Catalog/Catalog.WriteModel.Tests/MediaItems/MediaItemAggregateTests.cs tests/modules/Catalog/Catalog.WriteModel.Tests/MediaItems/MediaItemFactory.cs
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" commit -m "test(catalog): add aggregate tests for BeginRevision/DiscardRevision state machine"
+git -C "D:\source\github\magiq-media" add tests/modules/Catalog/Catalog.WriteModel.Tests/MediaItems/MediaItemAggregateTests.cs tests/modules/Catalog/Catalog.WriteModel.Tests/MediaItems/MediaItemFactory.cs
+git -C "D:\source\github\magiq-media" commit -m "test(catalog): add aggregate tests for BeginRevision/DiscardRevision state machine"
 ```
 
 ---
@@ -583,7 +583,7 @@ public sealed class DiscardRevisionHandlerTests
 - [ ] **Step 4: Run tests to confirm they fail**
 
 ```bash
-dotnet test "C:\Users\chase\OneDrive\repos\magiq-media\tests\modules\Catalog\Catalog.WriteModel.Tests" --filter "BeginRevisionHandlerTests|DiscardRevisionHandlerTests" -v 2>&1 | tail -10
+dotnet test "D:\source\github\magiq-media\tests\modules\Catalog\Catalog.WriteModel.Tests" --filter "BeginRevisionHandlerTests|DiscardRevisionHandlerTests" -v 2>&1 | tail -10
 ```
 
 Expected: compile errors (handlers don't exist yet).
@@ -695,7 +695,7 @@ public sealed class DiscardRevisionHandler(IMediaItemRepository repository)
 - [ ] **Step 9: Run tests — confirm they pass**
 
 ```bash
-dotnet test "C:\Users\chase\OneDrive\repos\magiq-media\tests\modules\Catalog\Catalog.WriteModel.Tests" --filter "BeginRevisionHandlerTests|DiscardRevisionHandlerTests" -v 2>&1 | tail -10
+dotnet test "D:\source\github\magiq-media\tests\modules\Catalog\Catalog.WriteModel.Tests" --filter "BeginRevisionHandlerTests|DiscardRevisionHandlerTests" -v 2>&1 | tail -10
 ```
 
 Expected: all pass.
@@ -718,7 +718,7 @@ using Magiq.Media.Catalog.Commands.MediaItems.DiscardRevision;
 - [ ] **Step 11: Build Catalog.WriteModel**
 
 ```bash
-dotnet build "C:\Users\chase\OneDrive\repos\magiq-media\src\modules\Catalog\Catalog.WriteModel\Catalog.WriteModel.csproj" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
+dotnet build "D:\source\github\magiq-media\src\modules\Catalog\Catalog.WriteModel\Catalog.WriteModel.csproj" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
 ```
 
 Expected: Build succeeded.
@@ -726,8 +726,8 @@ Expected: Build succeeded.
 - [ ] **Step 12: Commit**
 
 ```bash
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" add src/modules/Catalog/Catalog.WriteModel/Commands/MediaItems/BeginRevision/ src/modules/Catalog/Catalog.WriteModel/Commands/MediaItems/DiscardRevision/ src/modules/Catalog/Catalog.WriteModel.Infrastructure/ServiceCollectionExtensions.cs tests/modules/Catalog/Catalog.WriteModel.Tests/MediaItems/Commands/BeginRevisionHandlerTests.cs tests/modules/Catalog/Catalog.WriteModel.Tests/MediaItems/Commands/DiscardRevisionHandlerTests.cs
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" commit -m "feat(catalog): add BeginRevision and DiscardRevision command handlers"
+git -C "D:\source\github\magiq-media" add src/modules/Catalog/Catalog.WriteModel/Commands/MediaItems/BeginRevision/ src/modules/Catalog/Catalog.WriteModel/Commands/MediaItems/DiscardRevision/ src/modules/Catalog/Catalog.WriteModel.Infrastructure/ServiceCollectionExtensions.cs tests/modules/Catalog/Catalog.WriteModel.Tests/MediaItems/Commands/BeginRevisionHandlerTests.cs tests/modules/Catalog/Catalog.WriteModel.Tests/MediaItems/Commands/DiscardRevisionHandlerTests.cs
+git -C "D:\source\github\magiq-media" commit -m "feat(catalog): add BeginRevision and DiscardRevision command handlers"
 ```
 
 ---
@@ -847,7 +847,7 @@ public sealed class DiscardRevisionRequest
 - [ ] **Step 6: Build endpoints project**
 
 ```bash
-dotnet build "C:\Users\chase\OneDrive\repos\magiq-media\src\modules\Catalog\Catalog.WriteModel.Endpoints\" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
+dotnet build "D:\source\github\magiq-media\src\modules\Catalog\Catalog.WriteModel.Endpoints\" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
 ```
 
 Expected: Build succeeded.
@@ -855,8 +855,8 @@ Expected: Build succeeded.
 - [ ] **Step 7: Commit**
 
 ```bash
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" add src/modules/Catalog/Catalog.WriteModel.Endpoints/V1/MediaItems/BeginRevision/ src/modules/Catalog/Catalog.WriteModel.Endpoints/V1/MediaItems/DiscardRevision/
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" commit -m "feat(catalog): add BeginRevision and DiscardRevision HTTP endpoints"
+git -C "D:\source\github\magiq-media" add src/modules/Catalog/Catalog.WriteModel.Endpoints/V1/MediaItems/BeginRevision/ src/modules/Catalog/Catalog.WriteModel.Endpoints/V1/MediaItems/DiscardRevision/
+git -C "D:\source\github\magiq-media" commit -m "feat(catalog): add BeginRevision and DiscardRevision HTTP endpoints"
 ```
 
 ---
@@ -894,8 +894,8 @@ Add a handler that sets `Status = "Published"` (reverts to published state). Fol
 - [ ] **Step 4: Build read model project**
 
 ```bash
-dotnet build "C:\Users\chase\OneDrive\repos\magiq-media\src\modules\Catalog\Catalog.ReadModel\" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
-dotnet build "C:\Users\chase\OneDrive\repos\magiq-media\src\modules\Catalog\Catalog.ReadModel.Infrastructure\" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
+dotnet build "D:\source\github\magiq-media\src\modules\Catalog\Catalog.ReadModel\" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
+dotnet build "D:\source\github\magiq-media\src\modules\Catalog\Catalog.ReadModel.Infrastructure\" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
 ```
 
 Expected: Both succeed.
@@ -903,7 +903,7 @@ Expected: Both succeed.
 - [ ] **Step 5: Run read model tests**
 
 ```bash
-dotnet test "C:\Users\chase\OneDrive\repos\magiq-media\tests\modules\Catalog\Catalog.ReadModel.Tests" -v 2>&1 | tail -10
+dotnet test "D:\source\github\magiq-media\tests\modules\Catalog\Catalog.ReadModel.Tests" -v 2>&1 | tail -10
 ```
 
 Fix any failures.
@@ -911,8 +911,8 @@ Fix any failures.
 - [ ] **Step 6: Commit**
 
 ```bash
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" add src/modules/Catalog/Catalog.ReadModel/Projectors/MediaItems/
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" commit -m "feat(catalog-read): project MediaItemRevisionStarted/Discarded — Revising status in read model"
+git -C "D:\source\github\magiq-media" add src/modules/Catalog/Catalog.ReadModel/Projectors/MediaItems/
+git -C "D:\source\github\magiq-media" commit -m "feat(catalog-read): project MediaItemRevisionStarted/Discarded — Revising status in read model"
 ```
 
 ---
@@ -938,15 +938,15 @@ This ensures the backstop auto-submit also fires when an asset completes process
 - [ ] **Step 3: Build and test**
 
 ```bash
-dotnet build "C:\Users\chase\OneDrive\repos\magiq-media\src\modules\Catalog\Catalog.WriteModel.Infrastructure\" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
-dotnet test "C:\Users\chase\OneDrive\repos\magiq-media\tests\modules\Catalog\Catalog.WriteModel.Infrastructure.Tests" -v 2>&1 | tail -10
+dotnet build "D:\source\github\magiq-media\src\modules\Catalog\Catalog.WriteModel.Infrastructure\" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
+dotnet test "D:\source\github\magiq-media\tests\modules\Catalog\Catalog.WriteModel.Infrastructure.Tests" -v 2>&1 | tail -10
 ```
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" add src/modules/Catalog/Catalog.WriteModel.Infrastructure/IntegrationEvents/Consuming/Handlers/AssetProcessingCompletedAutoSubmitHandler.cs
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" commit -m "fix(catalog): allow auto-submit backstop to fire from Revising state"
+git -C "D:\source\github\magiq-media" add src/modules/Catalog/Catalog.WriteModel.Infrastructure/IntegrationEvents/Consuming/Handlers/AssetProcessingCompletedAutoSubmitHandler.cs
+git -C "D:\source\github\magiq-media" commit -m "fix(catalog): allow auto-submit backstop to fire from Revising state"
 ```
 
 ---
@@ -959,7 +959,7 @@ git -C "C:\Users\chase\OneDrive\repos\magiq-media" commit -m "fix(catalog): allo
 - [ ] **Step 1: Full solution build**
 
 ```bash
-dotnet build "C:\Users\chase\OneDrive\repos\magiq-media\src\" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
+dotnet build "D:\source\github\magiq-media\src\" 2>&1 | grep -E "error CS|Build succeeded|Build FAILED"
 ```
 
 Fix all errors.
@@ -967,7 +967,7 @@ Fix all errors.
 - [ ] **Step 2: Full unit test run**
 
 ```bash
-dotnet test "C:\Users\chase\OneDrive\repos\magiq-media\tests\modules\" --logger "console;verbosity=minimal" 2>&1 | tail -5
+dotnet test "D:\source\github\magiq-media\tests\modules\" --logger "console;verbosity=minimal" 2>&1 | tail -5
 ```
 
 Expected: 0 failures.
@@ -1042,7 +1042,7 @@ Add required using at the top of the file if not already present — no new requ
 - [ ] **Step 4: Run integration tests**
 
 ```bash
-dotnet test "C:\Users\chase\OneDrive\repos\magiq-media\tests\integration\modules\Catalog\Catalog.IntegrationTests\" --filter "PublishedItem_BeginRevision" -v 2>&1 | tail -15
+dotnet test "D:\source\github\magiq-media\tests\integration\modules\Catalog\Catalog.IntegrationTests\" --filter "PublishedItem_BeginRevision" -v 2>&1 | tail -15
 ```
 
 Fix any failures.
@@ -1050,8 +1050,8 @@ Fix any failures.
 - [ ] **Step 5: Commit**
 
 ```bash
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" add -u
-git -C "C:\Users\chase\OneDrive\repos\magiq-media" commit -m "test(catalog): add integration tests for BeginRevision/DiscardRevision flow"
+git -C "D:\source\github\magiq-media" add -u
+git -C "D:\source\github\magiq-media" commit -m "test(catalog): add integration tests for BeginRevision/DiscardRevision flow"
 ```
 
 ---
@@ -1155,3 +1155,4 @@ No TBD, TODO, or "similar to Task N" placeholders. All steps contain complete co
 - `DiscardRevisionCommand` — defined Task 4, used Tasks 4 (DI), 5 ✅
 - `MediaItemFactory.CreatePublished` — defined Task 3, used Tasks 3, 4 ✅
 - `MediaItemFactory.CreateRevisingWithAsset` — defined Task 3, used Task 3 ✅
+

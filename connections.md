@@ -7,6 +7,7 @@ Registry of every system your AIOS can reach. Filled by `/onboard` from Q4-Q7 an
 | 1 | Revenue / Financials | N/A — not in scope for this role | — | — | — |
 | 2 | Customer interactions | Microsoft Teams | not yet connected | — | — |
 | 3 | Calendar | Outlook Calendar | not yet connected | — | — |
+|| 9 | Code hosting | GitHub | `gh` CLI (HTTPS, PAT, `cramone`) | PAT | 2026-06-02 |
 | 4 | Communication | Outlook (email) + Microsoft Teams | not yet connected | — | — |
 | 5 | Project / task tracking | Azure DevOps | `key+ref` (`AZURE_DEVOPS_PAT` + `references/azure-devops-api.md`) | PAT | 2026-05-03 |
 | 6 | Meeting intelligence | Notion | `key+ref` (`NOTION_TOKEN` + `references/notion-api.md`) | Internal integration token | 2026-05-03 |

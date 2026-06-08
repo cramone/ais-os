@@ -50,7 +50,6 @@ Track progress by checking off items as work is completed. Each item links to th
 
 ### Domain / Projectors
 
-- [x] **PROJ-1** Implement `FolderStatusIndexProjector` and provision `folder-status-index` DynamoDB table in CDK `write-indexes.construct.ts` _(RS-08, SM-02)_
 - [x] **PROJ-2** Implement `RegistrationCountIndexProjector` and provision `folder-registration-index` DynamoDB table _(RS-08, SM-02)_
 - [x] **PROJ-3** Implement `FolderActiveItemCountIndexProjector` and provision `folder-active-item-count-index` DynamoDB table _(RS-08, SM-02)_
 - [ ] **PROJ-4** Write integration test: attempt to archive a folder with active registrations — assert constraint violation is returned _(SM-02)_

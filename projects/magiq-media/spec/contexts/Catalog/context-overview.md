@@ -35,6 +35,8 @@ Owns the organisational and cataloguing layer of the platform. Manages how media
 | `Folder` | Hierarchical container within a Collection. Max 10 levels. MediaItem membership expressed via `MediaItem.FolderId`. |
 | `MediaItem` | Core cataloguing unit. Conforms to a `MediaProfile`. Owns asset references, validated metadata, and lifecycle state. |
 | `MediaProfile` | Structural contract for a MediaItem type. Defines asset role definitions, pinned RecordType schemas, capabilities, and review/checkout policies. Follows the Draft → Publish versioning model. |
+| `BulkFolderImportJob` | Tracks lifecycle of async large-volume folder hierarchy imports. Processes line-delimited paths, CSV, or JSON input formats. Splits into chunks of 200, tracks progress, records per-item results. |
+| `BulkMediaImportJob` | Tracks lifecycle of async large-volume media item imports. Coordinates multi-phase upload → validation → cataloging → processing pipeline. Tracks per-phase progress, issues pre-signed upload URLs, records per-item results. |
 
 ---
 

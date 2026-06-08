@@ -155,6 +155,64 @@ POST /media-collections/bulk
 
 ---
 
+## Async Bulk Import Jobs
+
+For imports exceeding inline HTTP timeout limits (>1000 items or >30sec processing), use async job pattern instead of inline bulk endpoints.
+
+### Pattern
+
+1. **Initiate:** `POST /v1/catalog/.../import` → Returns `jobId` immediately (202 Accepted)
+2. **Process:** Worker Lambda consumes job creation event from SQS, processes in chunks
+3. **Poll Status:** `GET /v1/catalog/import-jobs/{jobId}` → Returns progress counts
+4. **Retrieve Results:** `GET /v1/catalog/import-jobs/{jobId}/items?status=failed` → Per-item failures
+
+### Job Types
+
+| Job Type | Aggregate | Input Formats | Batch Size | Phases |
+|---|---|---|---|---|
+| Folder Import | `BulkFolderImportJob` | Line-delimited, CSV, JSON | 200 | Single-phase (creation) |
+| Media Import | `BulkMediaImportJob` | JSON, CSV | 50 | Multi-phase (upload → validate → catalog → process) |
+
+### Shared Infrastructure
+
+- **Status API:** `GET /v1/catalog/import-jobs/{jobId}` — polymorphic response shape per job type
+- **Items API:** `GET /v1/catalog/import-jobs/{jobId}/items` — shared table `media-bulk-import-job-items` with `JobType` discriminator
+- **SNS Topic:** `media-integration-events` — job created events published here with message type filtering
+
+### Input Storage Strategy
+
+| Size | Storage | Key Pattern |
+|---|---|---|
+| ≤10KB | Inline in aggregate event payload | N/A |
+| >10KB | S3 `media-bulk-import-inputs` bucket | `{tenantId}/{job-type}/{jobId}.{ext}` |
+
+### Job Lifecycle
+
+```
+Initiate (API) → Queued → Processing (Worker) → Completed
+                                            ↘ Failed
+                                            ↘ Cancelled (user-requested)
+```
+
+Media imports add intermediate phases between Queued and Completed:
+```
+Queued → AwaitingUploads → Validating → Cataloging → Processing → Completed
+```
+
+### Comparison: Inline vs Async
+
+| | Inline Bulk (`/bulk`, `/bulk-paths`) | Async Import (`/import`) |
+|---|---|---|
+| Response | Synchronous — 201/202 with full results | Async — 202 with jobId |
+| Size limit | ~1000 items or 30sec processing | Unlimited (chunked) |
+| Progress | None (all-at-once) | Polled via status endpoint |
+| Failure detail | Immediate in response | Query via items endpoint |
+| Use case | Small-to-medium batches | Large-volume migrations |
+
+---
+
 ## Related
 
 - [api-conventions.md](./api-conventions.md) — idempotency, error contract, auth
+- [BulkFolderImportJob API](../contexts/Catalog/aggregates/BulkFolderImportJob/bulkfolderimportjob.api.md)
+- [BulkMediaImportJob API](../contexts/Catalog/aggregates/BulkMediaImportJob/bulkmediaimportjob.api.md)
