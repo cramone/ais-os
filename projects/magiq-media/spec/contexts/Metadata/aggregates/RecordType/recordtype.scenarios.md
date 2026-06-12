@@ -257,4 +257,4 @@ POST /v1/metadata/record-types/rt-draft-only/deprecate   (Version = 0, never pub
 - [Metadata Context Overview](../../context-overview.md)
 - [RecordType Write Model](recordtype.write-model.md)
 - [Catalog Business Scenarios](../../../Catalog/business-scenarios.md) — MediaProfile scenarios (create, publish, re-pin)
-- [MediaItem Write Model](../../../Catalog/aggregates/MediaItem/mediaitem.write-model.md) — schema validation at SubmitForReview
+- [MediaItem Write Model](../../../Catalog/aggregates/MediaItem/mediaitem.write-model.md) — schema validation at RequestPublication

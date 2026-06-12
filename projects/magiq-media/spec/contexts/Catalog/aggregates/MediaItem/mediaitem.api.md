@@ -21,7 +21,7 @@ Cross-cutting concerns follow [`spec/shared/api-conventions.md`](../../../../sha
 POST   /v1/catalog/items                                     Create (unscoped)
 POST   /v1/catalog/items/bulk                               Bulk create
 POST   /v1/catalog/folders/{folderId}/items                  Create in folder
-PATCH  /v1/catalog/items/{itemId}                            Update title
+PATCH  /v1/catalog/items/{itemId}                            Update title and/or description
 PUT    /v1/catalog/items/{itemId}/folder                     Assign to folder or move (see ADR-014)
 PATCH  /v1/catalog/items/{itemId}/metadata/{fieldName}       Set metadata field
 PUT    /v1/catalog/items/{itemId}/metadata                   Set metadata batch (full replace)
@@ -126,6 +126,44 @@ _Accepts `IdempotencyKey` header._
   "extensions": { "errorCode": "FolderNotFound" }
 }
 ```
+
+---
+
+### `PATCH /v1/catalog/items/{itemId}`
+
+Partially updates mutable fields on a media item. Supply any combination of `title` and/or `description`. At least one field (or `clearDescription: true`) must be present. Omitting a field leaves it unchanged.
+
+**Preconditions:** `Status == Draft | Revising`, `!IsArchived`. Both guards are enforced by the aggregate — violations return `409`.
+
+**Request:**
+```json
+{
+  "title": "Updated Campaign Image",
+  "description": "Q2 hero banner — revised copy",
+  "clearDescription": false
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `title` | `string?` | New title. Max 512 chars. Omit to leave unchanged. |
+| `description` | `string?` | New description. Max 4000 chars. Omit to leave unchanged. |
+| `clearDescription` | `bool` | When `true`, sets description to `null` regardless of the `description` field. Use this to distinguish "no change" from "clear". |
+
+At least one of `title`, `description`, or `clearDescription: true` must be present — an empty body returns `400`.
+
+If both `title` and `description` are supplied, two commands are dispatched sequentially (`UpdateMediaItemTitleCommand` then `UpdateMediaItemDescriptionCommand`). A failure on the second command does not roll back the first.
+
+**Response `204 No Content`**
+
+**Errors:**
+- `400` — no fields supplied; or `title` fails validation (empty string, exceeds 512 chars)
+- `401` — unauthenticated
+- `403` — caller does not own the media item
+- `404` — media item not found
+- `409` — media item is not in `Draft` or `Revising` status, or is archived
+
+_Accepts `IdempotencyKey` header._
 
 ---
 
@@ -606,7 +644,7 @@ _Accepts `IdempotencyKey` header._
 | `POST /v1/catalog/items/{id}/roles/{role}/assets` | `AssignAssetToRoleCommand` | `AssetAssignedToRole` | `MediaItemProjector` → UPDATE roles |
 | `DELETE /v1/catalog/items/{id}/roles/{role}/assets/{assetId}` | `UnassignAssetFromRoleCommand` | `AssetUnassignedFromRole` | `MediaItemProjector` → UPDATE roles |
 | `POST /v1/catalog/items/{id}/publish` (no reviewers) | `PublishMediaItemCommand` | `MediaItemApproved` | `MediaItemProjector` → status UPDATE + version; `MediaItemVersionProjector` → INSERT snapshot |
-| `POST /v1/catalog/items/{id}/publish` (with reviewers) | `PublishMediaItemCommand` | `MediaItemSubmittedForReview` | `MediaItemProjector` → status UPDATE → PendingApproval, ReviewSession |
+| `POST /v1/catalog/items/{id}/publish` (with reviewers) | `PublishMediaItemCommand` | `MediaItemPublicationRequested` | `MediaItemProjector` → status UPDATE → PendingApproval, ReviewSession |
 | `POST /v1/catalog/items/{id}/approve` | `ApproveReviewCommand` | `MediaItemApproved` (when all approved) | `MediaItemProjector` → status + version; `MediaItemVersionProjector` → INSERT snapshot |
 | `POST /v1/catalog/items/{id}/reject` | `RejectReviewCommand` | `MediaItemRejected` | `MediaItemProjector` → status UPDATE (→ Draft), ReviewSession cleared |
 | `POST /v1/catalog/items/{id}/withdraw` | `WithdrawMediaItemCommand` | `MediaItemWithdrawn` | `MediaItemProjector` → status UPDATE (→ Draft) |

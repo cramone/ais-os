@@ -18,6 +18,7 @@ from tower.interrupts.store import (
     create_interrupt,
     delete_interrupt,
     load_interrupts,
+    update_activity,
     update_interrupt,
 )
 from tower.readers.ado import invalidate_cache as invalidate_ado_cache, read_ado_sprint
@@ -200,6 +201,8 @@ class InterruptCreate(BaseModel):
     source: str
     dueDate: str | None = None
     priority: str = "normal"
+    zendeskTicket: str | None = None
+    customer: str | None = None
 
 
 class InterruptUpdate(BaseModel):
@@ -210,6 +213,8 @@ class InterruptUpdate(BaseModel):
     status: str | None = None
     tags: list[str] | None = None
     adoItemId: int | None = None
+    zendeskTicket: str | None = None
+    customer: str | None = None
 
 
 class ActivityEntry(BaseModel):
@@ -236,6 +241,8 @@ def post_interrupt(body: InterruptCreate) -> dict[str, Any]:
         source=body.source,
         due_date=body.dueDate,
         priority=body.priority,
+        zendesk_ticket=body.zendeskTicket,
+        customer=body.customer,
     )
 
 
@@ -266,6 +273,22 @@ def post_activity(interrupt_id: str, body: ActivityEntry) -> dict[str, Any]:
         )
     except KeyError:
         raise HTTPException(404, f"Interrupt {interrupt_id!r} not found")
+
+
+class ActivityEdit(BaseModel):
+    text: str
+
+
+@app.patch("/api/interrupts/{interrupt_id}/activity/{index}")
+def patch_activity(interrupt_id: str, index: int, body: ActivityEdit) -> dict[str, Any]:
+    try:
+        return update_activity(config.INTERRUPTS_FILE, interrupt_id, index, body.text)
+    except KeyError:
+        raise HTTPException(404, f"Interrupt {interrupt_id!r} not found")
+    except IndexError:
+        raise HTTPException(404, f"Activity index {index} not found")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @app.post("/api/interrupts/{interrupt_id}/email-draft")
@@ -513,6 +536,88 @@ def write_memory(slug: str, body: MemoryWriteRequest) -> dict:
         raise HTTPException(404, "No MEMORY.md for this project")
     memory_file.write_text(body.content, encoding="utf-8")
     return {"ok": True}
+
+
+# --- Notes ---
+
+import re as _re
+import datetime as _datetime
+
+@app.get("/api/projects/{slug}/notes")
+def project_notes(slug: str) -> dict:
+    """Return parsed note entries from projects/{slug}/notes.md."""
+    notes_file = config.PROJECTS_DIR / slug / "notes.md"
+    if not notes_file.exists():
+        return {"notes": []}
+    content = notes_file.read_text(encoding="utf-8", errors="replace")
+    notes = []
+    blocks = _re.split(r'\n(?=## )', content)
+    for i, block in enumerate(blocks):
+        block = block.strip()
+        if not block.startswith('## '):
+            continue
+        lines = block.split('\n')
+        title = lines[0][3:].strip()
+        body_lines = [l for l in lines[1:] if not l.startswith('_Captured:')]
+        note_content = '\n'.join(body_lines).strip()
+        notes.append({"id": str(i), "title": title, "content": note_content})
+    return {"notes": notes}
+
+
+class NoteAddRequest(BaseModel):
+    title: str
+
+@app.post("/api/projects/{slug}/notes", status_code=201)
+def add_note(slug: str, body: NoteAddRequest) -> dict:
+    """Append a new note to projects/{slug}/notes.md."""
+    notes_file = config.PROJECTS_DIR / slug / "notes.md"
+    today = _datetime.date.today().isoformat()
+    new_block = f"\n## {body.title.strip()}\n_Captured: {today}_\n\n"
+    if not notes_file.exists():
+        notes_file.write_text(f"# Notes\n{new_block}", encoding="utf-8")
+    else:
+        content = notes_file.read_text(encoding="utf-8", errors="replace")
+        notes_file.write_text(content.rstrip() + new_block, encoding="utf-8")
+    return {"ok": True}
+
+
+class NoteRenameRequest(BaseModel):
+    title: str
+
+@app.patch("/api/projects/{slug}/notes/{index}")
+def rename_note(slug: str, index: int, body: NoteRenameRequest) -> dict:
+    """Rename a note heading by index."""
+    notes_file = config.PROJECTS_DIR / slug / "notes.md"
+    if not notes_file.exists():
+        raise HTTPException(404, "No notes file")
+    content = notes_file.read_text(encoding="utf-8", errors="replace")
+    blocks = _re.split(r'\n(?=## )', content)
+    header_blocks = [b for b in blocks if not b.strip().startswith('## ')]
+    note_blocks = [b for b in blocks if b.strip().startswith('## ')]
+    if index < 0 or index >= len(note_blocks):
+        raise HTTPException(404, "Note index out of range")
+    note_blocks[index] = _re.sub(
+        r'^## .+$', f'## {body.title.strip()}', note_blocks[index], count=1, flags=_re.MULTILINE
+    )
+    notes_file.write_text('\n'.join(header_blocks + note_blocks), encoding="utf-8")
+    return {"ok": True}
+
+
+@app.delete("/api/projects/{slug}/notes/{index}", status_code=204)
+def delete_note(slug: str, index: int) -> Response:
+    """Remove a note by index from projects/{slug}/notes.md."""
+    notes_file = config.PROJECTS_DIR / slug / "notes.md"
+    if not notes_file.exists():
+        raise HTTPException(404, "No notes file")
+    content = notes_file.read_text(encoding="utf-8", errors="replace")
+    blocks = _re.split(r'\n(?=## )', content)
+    header_blocks = [b for b in blocks if not b.strip().startswith('## ')]
+    note_blocks = [b for b in blocks if b.strip().startswith('## ')]
+    if index < 0 or index >= len(note_blocks):
+        raise HTTPException(404, "Note index out of range")
+    note_blocks.pop(index)
+    notes_file.write_text('\n'.join(header_blocks + note_blocks), encoding="utf-8")
+    return Response(status_code=204)
 
 
 # --- Static (must be last) ---

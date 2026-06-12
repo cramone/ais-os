@@ -45,6 +45,7 @@ Owner-scoped. Use `OwnerId = "owner_system"` for platform-level schemas. Query p
 | `RecordTypeId` | `RecordTypeId` | UUID v7-based |
 | `TenantId` | `TenantId` | Set from `RecordTypeCreated`. Immutable. |
 | `Name` | `NonEmptyString` | Unique within owner scope |
+| `DisplayName` | `string?` | Human-readable label; separate from the unique `Name`; updated independently via `UpdateRecordTypeDisplayNameCommand` |
 | `Description` | `string?` | |
 | `OwnerId` | `OwnerId` | Non-nullable |
 | `Version` | `int` | Current published version; `0` before first publish |
@@ -127,6 +128,7 @@ Deprecated RecordTypes remain accessible to MediaProfiles already pinned to thei
 | `DiscardDraft()` | Discards the current draft without publishing. Guards: draft non-null; `Version > 0` (`CannotDiscardInitialDraft`) — discarding the initial draft would leave the aggregate permanently inert since `CreateDraft`, `Publish`, and `Deprecate` all require `Version > 0`. |
 | `Publish()` | Publishes the draft as the next version. Guard: draft non-null and non-empty. Raises `RecordTypePublished({newVersion, fieldSnapshot, capabilities})`. |
 | `Rename(newName)` | Renames the RecordType. |
+| `UpdateDisplayName(displayName, updatedAt)` | Updates the human-readable display name. Guard: not deprecated. No-op if the new value equals the current value. Applies immediately regardless of draft state. |
 | `Deprecate()` | Marks as deprecated. Guard: must be published at least once. |
 
 ---
@@ -146,6 +148,7 @@ Deprecated RecordTypes remain accessible to MediaProfiles already pinned to thei
 | `CapabilityRemovedFromRecordType` | `RecordTypeId`, `CapabilityType`, `OccurredAt` | Removes capability and all fields where `SourceCapability == CapabilityType` from the draft |
 | `RecordTypeDraftDiscarded` | `RecordTypeId`, `DiscardedAt` | |
 | `RecordTypePublished` | `RecordTypeId`, `NewVersion`, `FieldSnapshot[]`, `Capabilities[]`, `PublishedAt` | Immutable snapshot; increments `Version`; `Capabilities` carries the capability type names active at publish time |
+| `RecordTypeDisplayNameUpdated` | `TenantId`, `RecordTypeId`, `DisplayName`, `OccurredAt` | Applies regardless of draft state; not emitted if value unchanged |
 | `RecordTypeRenamed` | `RecordTypeId`, `OldName`, `NewName`, `RenamedAt` | |
 | `RecordTypeDeprecated` | `RecordTypeId`, `DeprecatedAt` | |
 
@@ -169,6 +172,7 @@ Deprecated RecordTypes remain accessible to MediaProfiles already pinned to thei
 | `DiscardRecordTypeDraftCommand(RecordTypeId)` | |
 | `PublishRecordTypeCommand(RecordTypeId)` | |
 | `RenameRecordTypeCommand(RecordTypeId, NewName)` | |
+| `UpdateRecordTypeDisplayNameCommand(RecordTypeId, DisplayName)` | Updates the human-readable display name. Precondition: not deprecated (`RecordTypeDeprecated`). No-op if value unchanged. Applies regardless of draft state — no external services required. |
 | `DeprecateRecordTypeCommand(RecordTypeId)` | |
 
 ---

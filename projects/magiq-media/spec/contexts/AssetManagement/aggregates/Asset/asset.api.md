@@ -60,7 +60,7 @@ All endpoints require a valid JWT with `actor_type = "User"` (or `"System"` for 
 
 ### `POST /v1/assets/uploads`
 
-Initiates an Asset upload. Issues a pre-signed S3 PUT URL. Dispatches `UploadAssetCommand`.
+Initiates an Asset upload. Issues a pre-signed S3 PUT URL. Dispatches `InitiateAssetUploadCommand`.
 
 **Request:**
 ```json
@@ -388,11 +388,15 @@ _Accepts `IdempotencyKey` header._
 
 > 🔧 **Requires implementation (R-29 · Phase 5):** This endpoint must be implemented. S3 `DeleteObjectsAsync` must be called synchronously before the `AssetDeleted` domain event is emitted. Integration events to Billing and Notifications subscribers are required. The pre-condition check (`asset.Status == Archived`) must be enforced as a DynamoDB conditional expression.
 
-Hard-deletes an `Archived` asset permanently. Deletes all S3 objects (original + all renditions) inline before emitting `AssetDeleted`. Dispatches `DeleteAssetCommand`.
+Hard-deletes an asset permanently. Deletes all S3 objects (original + all renditions) inline before emitting `AssetDeleted`. Dispatches `DeleteAssetCommand`.
 
-**Pre-condition:** `asset.Status == Archived`. Returns `409` for any other status. Use `POST /v1/assets/{id}/archive` first.
+**Pre-conditions:**
+1. `asset.Status ∈ {Active, Archived, ValidationFailed, ProcessingFailed}` — all other statuses return `409`.
+2. `asset.IsAssigned() == false` unless status is `ValidationFailed` or `ProcessingFailed` — assigned assets are locked to the MediaItem lifecycle. Unassign from the role before deleting, or manage deletion through the MediaItem. Returns `409`.
 
-**S3 deletion is synchronous.** If `S3.DeleteObjectsAsync` fails, the command returns `500` and the asset remains `Archived`. No partial deletion — all S3 objects are deleted atomically in a single `DeleteObjects` call.
+`VersionArtifact` assets are domain-blocked regardless of the above — use `PurgeVersion` on the owning MediaItem.
+
+**S3 deletion is synchronous.** If `S3.DeleteObjectsAsync` fails, the command returns `500` and the asset remains unchanged. No partial deletion — all S3 objects are deleted atomically in a single `DeleteObjects` call.
 
 **Response `204 No Content`** — no body. S3 deletion completes inline before the response is sent; `202` would incorrectly imply async work in flight.
 
@@ -400,18 +404,29 @@ Hard-deletes an `Archived` asset permanently. Deletes all S3 objects (original +
 - `401` — unauthenticated
 - `403` — caller does not own this asset
 - `404` — asset not found
-- `409` — asset is not in `Archived` status
+- `409` — asset is not in a deletable status, is a version artifact, or is assigned to a MediaItem role
 
 _Accepts `IdempotencyKey` header._
 
-**Error response example (`409 Conflict`):**
+**Error response example (`409 Conflict` — assigned asset):**
 ```json
 {
-  "type": "https://errors.magiqmedia.com/domain/asset-not-archived",
-  "title": "Asset is not archived",
+  "type": "https://errors.magiqmedia.com/domain/asset-not-deletable",
+  "title": "Asset cannot be deleted",
   "status": 409,
-  "detail": "Asset 018e4c7a-... is in status Active. Only Archived assets can be hard deleted. Call POST /v1/assets/{id}/archive first.",
-  "extensions": { "errorCode": "AssetNotArchived", "currentStatus": "Active" }
+  "detail": "Asset 018e4c7a-... is assigned to a media item role and cannot be deleted directly. Unassign the asset from the role before deleting.",
+  "extensions": { "errorCode": "AssetNotDeletable", "currentStatus": "Active" }
+}
+```
+
+**Error response example (`409 Conflict` — wrong status):**
+```json
+{
+  "type": "https://errors.magiqmedia.com/domain/asset-not-deletable",
+  "title": "Asset cannot be deleted",
+  "status": 409,
+  "detail": "Asset 018e4c7a-... is in status Validating. Only Active, Archived, ValidationFailed, or ProcessingFailed assets may be deleted.",
+  "extensions": { "errorCode": "AssetNotDeletable", "currentStatus": "Validating" }
 }
 ```
 
@@ -577,19 +592,19 @@ Returns a short-lived presigned S3 GET URL for a specific rendition of the asset
 
 | API Call | Command | Domain Event | Projection |
 |---|---|---|---|
-| `POST /v1/assets/uploads` | `UploadAssetCommand` | `AssetUploaded` | `AssetProjector` → `media-assets` INSERT (status: `Pending`, `UploadMode: SinglePart`) |
-| `POST /v1/assets/{id}/uploads/confirm` | `ConfirmAssetUploadCommand` | `AssetUploadConfirmed` | `AssetProjector` → status UPDATE (`Pending → Validating`) |
-| `POST /v1/assets/multipart-uploads` | `InitiateMultipartUploadCommand` | `AssetMultipartInitiated` | `AssetProjector` → `media-assets` INSERT (status: `Pending`, `UploadMode: Multipart`) |
-| `POST /v1/assets/{id}/multipart-upload/complete` | `CompleteMultipartUploadCommand` | `AssetMultipartCompleted` | `AssetProjector` → status UPDATE (`Pending → Validating`) |
-| `POST /v1/assets/{id}/multipart-upload/abort` | `AbortMultipartUploadCommand` | `AssetMultipartAborted` | `AssetProjector` → status UPDATE (`Pending → MultipartAborted`) |
-| (Processing integration event — `ProcessingJobScanResultEventHandler`) | `RecordValidationResultCommand` (pass) | `AssetValidationPassed` | `AssetProjector` → no status change; `AssetValidationPassedIntegrationEvent` published (carries `HasProcessingCapability`); saga created |
-| (Processing integration event — `ProcessingJobScanResultEventHandler`) | `RecordValidationResultCommand` (fail/virus) | `AssetInfectionDetected` / `AssetValidationFailed` | `AssetProjector` → status UPDATE (`Validating → ContainsVirus` / `ValidationFailed`) |
-| (Processing integration event — `ProcessingJobStartedEventHandler`) | `StartAssetProcessingCommand` | `AssetProcessingStarted` | `AssetProjector` → status UPDATE (`Validating → Processing`) |
-| (Processing integration event — `ProcessingJobCompletedEventHandler`) | `CompleteAssetProcessingCommand` | `AssetProcessingCompleted` | `AssetProjector` → status UPDATE (`Processing → Active`); renditions + metadata stamped |
-| (Processing integration event — `ProcessingJobFailedEventHandler`) | `FailAssetProcessingCommand` | `AssetProcessingFailed` | `AssetProjector` → status UPDATE (`Processing → ProcessingFailed`) |
-| `POST /v1/assets/{id}/tags` | `TagAssetCommand` | `AssetTagged` | `AssetProjector` → UPDATE `Tags` on both `media-assets` and `media-asset-detail` |
-| `POST /v1/assets/{id}/archive` | `ArchiveAssetCommand` | `AssetArchived` | `AssetProjector` → status UPDATE (`Active\|ProcessingFailed → Archived`) |
-| `DELETE /v1/assets/{id}` | `DeleteAssetCommand` | `AssetDeleted` | `AssetProjector` → DELETE from `media-assets` and `media-asset-detail` |
+| `POST /v1/assets/uploads` | `InitiateAssetUploadCommand` | `AssetUploadInitiated` | `AssetSummaryProjector` + `AssetDetailProjector` → INSERT (status: `Pending`, `UploadMode: SinglePart`) |
+| `POST /v1/assets/{id}/uploads/confirm` | `ConfirmAssetUploadCommand` | `AssetUploadConfirmed` | `AssetSummaryProjector` + `AssetDetailProjector` → status UPDATE (`Pending → Validating`) |
+| `POST /v1/assets/multipart-uploads` | `InitiateMultipartUploadCommand` | `AssetMultipartUploadInitiated` | `AssetSummaryProjector` + `AssetDetailProjector` → INSERT (status: `Pending`, `UploadMode: Multipart`) |
+| `POST /v1/assets/{id}/multipart-upload/complete` | `CompleteMultipartUploadCommand` | `AssetUploadConfirmed` | `AssetSummaryProjector` + `AssetDetailProjector` → status UPDATE (`Pending → Validating`) |
+| `POST /v1/assets/{id}/multipart-upload/abort` | `AbortMultipartUploadCommand` | `AssetMultipartUploadAborted` | `AssetSummaryProjector` + `AssetDetailProjector` → status UPDATE (`Pending → MultipartAborted`) |
+| (Processing integration event — `ProcessingJobScanResultEventHandler`) | `RecordValidationResultCommand` (pass) | `AssetValidationPassed` | `AssetSummaryProjector` + `AssetDetailProjector` → no status change; `AssetValidationPassedIntegrationEvent` published (carries `HasProcessingCapability`); saga created |
+| (Processing integration event — `ProcessingJobScanResultEventHandler`) | `RecordValidationResultCommand` (fail/virus) | `AssetInfectionDetected` / `AssetValidationFailed` | `AssetSummaryProjector` + `AssetDetailProjector` → status UPDATE (`Validating → ContainsVirus` / `ValidationFailed`) |
+| (Processing integration event — `ProcessingJobStartedEventHandler`) | `StartAssetProcessingCommand` | `AssetProcessingStarted` | `AssetSummaryProjector` + `AssetDetailProjector` → status UPDATE (`Validating → Processing`) |
+| (Processing integration event — `ProcessingJobCompletedEventHandler`) | `CompleteAssetProcessingCommand` | `AssetProcessingCompleted` | `AssetSummaryProjector` + `AssetDetailProjector` → status UPDATE (`Processing → Active`); renditions + metadata stamped |
+| (Processing integration event — `ProcessingJobFailedEventHandler`) | `FailAssetProcessingCommand` | `AssetProcessingFailed` | `AssetSummaryProjector` + `AssetDetailProjector` → status UPDATE (`Processing → ProcessingFailed`) |
+| `POST /v1/assets/{id}/tags` | `TagAssetCommand` | `AssetTagged` | `AssetSummaryProjector` + `AssetDetailProjector` → UPDATE `Tags` |
+| `POST /v1/assets/{id}/archive` | `ArchiveAssetCommand` | `AssetArchived` | `AssetSummaryProjector` + `AssetDetailProjector` → status UPDATE (`Active\|ProcessingFailed → Archived`) |
+| `DELETE /v1/assets/{id}` | `DeleteAssetCommand` | `AssetDeleted` | `AssetSummaryProjector` + `AssetDetailProjector` → UPDATE status → `Deleted` |
 | `GET /v1/assets/{id}` | `GetAssetByIdQuery` | — | reads `media-asset-detail` |
 | `GET /v1/assets?itemId=` | `ListAssetsByMediaItemQuery` | — | reads `media-assets` |
 | `GET /v1/assets/{id}/download` | `GetAssetDownloadUrlQuery` | — | reads `media-asset-detail`; calls S3 `GetPreSignedURL` (GET) |
@@ -786,5 +801,5 @@ _(Existing table entries unchanged — appended below)_
 
 | API Call | Command | Domain Event | Projection |
 |---|---|---|---|
-| `POST /v1/assets/uploads/bulk` | `BulkInitiateAssetUploadCommand` | `AssetUploaded` (×N) | `AssetProjector` → INSERT (×N, status: `Pending`) |
+| `POST /v1/assets/uploads/bulk` | `BulkInitiateAssetUploadCommand` | `AssetUploadInitiated` (×N) | `AssetSummaryProjector` + `AssetDetailProjector` → INSERT (×N, status: `Pending`) |
 | `POST /v1/assets/uploads/bulk-confirm` | `BulkConfirmAssetUploa

@@ -28,22 +28,23 @@ Hierarchical container within a `Collection`. A Folder belongs to exactly one Co
 
 ## Properties
 
-| Property         | Type             | Notes                                              |
-| ---------------- | ---------------- | -------------------------------------------------- |
-| `FolderId`       | `FolderId`       | UUID v7-based. Caller-generated.                   |
-| `TenantId`       | `TenantId`       | Set from `FolderCreated` (first field). Immutable. |
-| `CollectionId`   | `CollectionId`   | Immutable after creation.                          |
-| `ParentFolderId` | `FolderId?`      | Null = root media-folder within Collection.        |
-| `Name`           | `FolderName`     | Max 255 chars. Unique within parent scope.         |
-| `OwnerId`        | `OwnerId`        | Denormalised from Collection at creation time.     |
-| `IsArchived`     | `bool`           |                                                    |
-| `IsClosed`       | `bool`           | Derived: `ClosedAt.HasValue`.                      |
-| `OpenedDate`     | `DateTimeOffset?` | Business date the folder was opened. Optional; supplied by caller. |
-| `ClosedDate`     | `DateTimeOffset?` | Business date the folder was closed. Optional; supplied by caller at creation or via `CloseFolder`. |
-| `ClosedAt`       | `DateTimeOffset?` | System timestamp when `CloseFolder` was executed. Null until `Close()` is called. |
-| `Version`        | `int`            | Event sequence count — for optimistic concurrency. |
-| `CreatedAt`      | `DateTimeOffset` |                                                    |
-| `UpdatedAt`      | `DateTimeOffset` | Derived from last applied event.                   |
+| Property         | Type                  | Notes                                              |
+| ---------------- | --------------------- | -------------------------------------------------- |
+| `FolderId`       | `FolderId`            | UUID v7-based. Caller-generated.                   |
+| `TenantId`       | `TenantId`            | Set from `FolderCreated` (first field). Immutable. |
+| `CollectionId`   | `CollectionId`        | Immutable after creation.                          |
+| `ParentFolderId` | `FolderId?`           | Null = root media-folder within Collection.        |
+| `Name`           | `FolderName`          | Max 255 chars. Unique within parent scope.         |
+| `OwnerId`        | `OwnerId`             | Denormalised from Collection at creation time.     |
+| `IsArchived`     | `bool`                |                                                    |
+| `IsClosed`       | `bool`                | Derived: `ClosedAt.HasValue`.                      |
+| `Metadata`       | `MetadataChangeset`   | Free-form key-value metadata. `Current` = committed values; `Draft` = pending edits. |
+| `OpenedDate`     | `DateTimeOffset?`     | Business date the folder was opened. Optional; supplied by caller. |
+| `ClosedDate`     | `DateTimeOffset?`     | Business date the folder was closed. Optional; supplied by caller at creation or via `CloseFolder`. |
+| `ClosedAt`       | `DateTimeOffset?`     | System timestamp when `CloseFolder` was executed. Null until `Close()` is called. |
+| `Version`        | `int`                 | Event sequence count — for optimistic concurrency. |
+| `CreatedAt`      | `DateTimeOffset`      |                                                    |
+| `UpdatedAt`      | `DateTimeOffset`      | Derived from last applied event.                   |
 
 ---
 
@@ -61,14 +62,17 @@ Hierarchical container within a `Collection`. A Folder belongs to exactly one Co
 
 ## Domain Events
 
-| Event                | Key Payload Fields                                                                                                        |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `FolderCreated`      | `TenantId`†, `FolderId`, `CollectionId`, `ParentFolderId?`, `Name`, `Description?`, `OwnerId`, `CreatedAt`, `OpenedDate?`, `ClosedDate?` |
-| `FolderRenamed`      | `FolderId`, `OldName`, `NewName`                                                                                          |
-| `FolderMoved`        | `FolderId`, `OldParentFolderId?`, `NewParentFolderId?`                                                                    |
-| `FolderArchived`     | `FolderId`, `ArchivedAt`                                                                                                  |
-| `FolderClosed`       | `FolderId`, `CollectionId`, `ParentFolderId?`, `ClosedAt`, `ClosedDate?`                                                  |
-| `FolderDescriptionUpdated` | `FolderId`, `CollectionId`, `ParentFolderId?`, `OldDescription?`, `NewDescription?`                              |
+| Event                        | Key Payload Fields                                                                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `FolderCreated`              | `TenantId`†, `FolderId`, `CollectionId`, `ParentFolderId?`, `Name`, `Description?`, `OwnerId`, `CreatedAt`, `OpenedDate?`, `ClosedDate?` |
+| `FolderRenamed`              | `FolderId`, `OldName`, `NewName`                                                                                          |
+| `FolderMoved`                | `FolderId`, `OldParentFolderId?`, `NewParentFolderId?`                                                                    |
+| `FolderArchived`             | `FolderId`, `ArchivedAt`                                                                                                  |
+| `FolderClosed`               | `FolderId`, `CollectionId`, `ParentFolderId?`, `ClosedAt`, `ClosedDate?`                                                  |
+| `FolderDescriptionUpdated`   | `FolderId`, `CollectionId`, `ParentFolderId?`, `OldDescription?`, `NewDescription?`                                       |
+| `FolderMetadataFieldSet`     | `FolderId`, `CollectionId`, `ParentFolderId?`, `FieldName`, `Value`, `SetBy?`, `AttributedTo?`, `AttributedDate?`, `UpdatedAt` |
+| `FolderMetadataBatchSet`     | `FolderId`, `CollectionId`, `ParentFolderId?`, `Fields` (list of `{FieldName, Value}`), `SetBy?`, `AttributedTo?`, `AttributedDate?`, `UpdatedAt` |
+| `FolderMetadataCommitted`    | `FolderId`, `CollectionId`, `ParentFolderId?`, `CommittedMetadata`, `CommittedBy?`, `CommittedAt`                         |
 
 † `TenantId` is the **first field** on the creation event.
 
@@ -78,13 +82,16 @@ Hierarchical container within a `Collection`. A Folder belongs to exactly one Co
 
 ## Commands
 
-| Command                                                                                           | Handler                     | Result                                     |
-| ------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------ |
+| Command                                                                                           | Handler                          | Result                                     |
+| ------------------------------------------------------------------------------------------------- | -------------------------------- | ------------------------------------------ |
 | `CreateFolderCommand(FolderId, CollectionId, ParentFolderId?, Name, Description?, OwnerId, OccurredAt, OpenedDate?, ClosedDate?)` | `CreateFolderHandler` | `Result<Unit, DomainError>` |
-| `RenameFolderCommand(FolderId, NewName, ExpectedVersion)`                                         | `RenameFolderHandler`       | `Result<Unit, DomainError>`                |
-| `MoveFolderCommand(FolderId, NewParentFolderId?, ExpectedVersion)`                                | `MoveFolderHandler`         | `Result<Unit, DomainError>`                |
-| `ArchiveFolderCommand(FolderId, ExpectedVersion)`                                                 | `ArchiveFolderHandler`      | `Result<Unit, DomainError>`                |
-| `CloseFolderCommand(FolderId, OccurredAt, ClosedDate?)`                                           | `CloseFolderHandler`        | `Result<Unit, DomainError>`                |
+| `RenameFolderCommand(FolderId, NewName, ExpectedVersion)`                                         | `RenameFolderHandler`            | `Result<Unit, DomainError>`                |
+| `MoveFolderCommand(FolderId, NewParentFolderId?, ExpectedVersion)`                                | `MoveFolderHandler`              | `Result<Unit, DomainError>`                |
+| `ArchiveFolderCommand(FolderId, ExpectedVersion)`                                                 | `ArchiveFolderHandler`           | `Result<Unit, DomainError>`                |
+| `CloseFolderCommand(FolderId, OccurredAt, ClosedDate?)`                                           | `CloseFolderHandler`             | `Result<Unit, DomainError>`                |
+| `SetFolderMetadataFieldCommand(FolderId, FieldName, RawValue, FieldType, RequestingUser, OccurredAt, AttributedTo?, AttributedDate?)` | `SetFolderMetadataFieldHandler` | `Result<Unit, DomainError>` |
+| `SetFolderMetadataBatchCommand(FolderId, Fields, RequestingUser, OccurredAt, AttributedTo?, AttributedDate?)` | `SetFolderMetadataBatchHandler` | `Result<Unit, DomainError>` |
+| `CommitFolderMetadataCommand(FolderId, RequestingUser, OccurredAt)`                               | `CommitFolderMetadataHandler`    | `Result<Unit, DomainError>`                |
 
 **Handler-side pre-conditions:**
 

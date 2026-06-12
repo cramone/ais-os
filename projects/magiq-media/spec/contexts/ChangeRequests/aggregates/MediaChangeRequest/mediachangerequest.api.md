@@ -17,14 +17,13 @@ Cross-cutting concerns follow [`spec/shared/api-conventions.md`](../../../../sha
 
 ## Overview
 
-`MediaChangeRequest` is a comment thread attached to a MediaItem review cycle. The API exposes only thread creation and comment management. Review decisions (approve/reject) are made directly on the MediaItem via `POST /catalog/items/{id}/approve` and `POST /catalog/items/{id}/reject`.
+`MediaChangeRequest` is a comment thread attached to a MediaItem review cycle. Change requests are created automatically by the system when a MediaItem is submitted for publication (`MediaItemPublicationRequestedEventHandler` dispatches `CreateChangeRequestCommand`); there is no public HTTP endpoint to create them. The API exposes only comment management and read access. Review decisions (approve/reject) are made directly on the MediaItem via `POST /catalog/items/{id}/approve` and `POST /catalog/items/{id}/reject`.
 
 ---
 
 ## Route Structure
 
 ```
-POST   /v1/change-requests                                   Create comment thread
 POST   /v1/change-requests/{changeRequestId}/comments        Add comment
 PATCH  /v1/change-requests/{changeRequestId}/comments/{commentId}  Edit comment
 DELETE /v1/change-requests/{changeRequestId}/comments/{commentId}  Delete comment
@@ -41,7 +40,6 @@ GET    /v1/change-requests/{changeRequestId}/comments/{commentId}  Get single co
 
 | Endpoint | Requirement |
 |---|---|
-| `POST /v1/change-requests` | Caller must be owner of the linked MediaItem |
 | `POST /v1/change-requests/{id}/comments` | Caller must be owner or assigned reviewer of the linked MediaItem |
 | `PATCH /v1/change-requests/{id}/comments/{commentId}` | Original comment author only |
 | `DELETE /v1/change-requests/{id}/comments/{commentId}` | Original comment author only |
@@ -50,33 +48,6 @@ GET    /v1/change-requests/{changeRequestId}/comments/{commentId}  Get single co
 ---
 
 ## Write Endpoints
-
-### `POST /v1/change-requests`
-
-Creates a comment thread for a MediaItem review. Typically created at submit time and linked via `commentThreadId` in `POST /catalog/items/{id}/submit`.
-
-**Request:**
-```json
-{
-  "changeRequestId": "018e4c7a-...",
-  "mediaItemId": "018e4c7b-..."
-}
-```
-
-`changeRequestId` is caller-generated (UUID v7).
-
-**Response `201 Created`:**
-```json
-{ "id": "018e4c7a-..." }
-```
-
-**Errors:**
-- `403` — caller does not own the linked MediaItem
-- `404` — MediaItem not found
-
-_Accepts `IdempotencyKey` header._
-
----
 
 ### `POST /v1/change-requests/{changeRequestId}/comments`
 
@@ -257,7 +228,7 @@ Returns a single comment by ID. Returns `404` if soft-deleted.
 
 | API Call | Command | Domain Event | Projection |
 |---|---|---|---|
-| `POST /v1/change-requests` | `CreateChangeRequestCommand` | `ChangeRequestCreated` | `MediaChangeRequestProjector` → INSERT |
+| System-triggered (via `MediaItemPublicationRequestedEventHandler`) | `CreateChangeRequestCommand` | `ChangeRequestCreated` | `MediaChangeRequestProjector` → INSERT |
 | `POST /comments` | `AddCommentCommand` | `ReviewCommentAdded` | `ChangeRequestCommentProjector` → INSERT; `commentCount += 1` |
 | `PATCH /comments/{id}` | `EditCommentCommand` | `ReviewCommentEdited` | `ChangeRequestCommentProjector` → UPDATE body, editedAt |
 | `DELETE /comments/{id}` | `DeleteCommentCommand` | `ReviewCommentDeleted` | `ChangeRequestCommentProjector` → isDeleted=true; `commentCount -= 1` |

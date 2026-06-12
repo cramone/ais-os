@@ -25,7 +25,9 @@ def save_interrupts(path: Path, items: list[dict[str, Any]]) -> None:
 
 def create_interrupt(
     path: Path, title: str, source: str,
-    due_date: str | None = None, priority: str = "normal"
+    due_date: str | None = None, priority: str = "normal",
+    zendesk_ticket: str | None = None,
+    customer: str | None = None,
 ) -> dict[str, Any]:
     items = load_interrupts(path)
     now = _now()
@@ -38,6 +40,8 @@ def create_interrupt(
         "status": "new",
         "tags": [],
         "adoItemId": None,
+        "zendeskTicket": zendesk_ticket,
+        "customer": customer,
         "capturedAt": now,
         "updatedAt": now,
         "activity": [],
@@ -49,7 +53,7 @@ def create_interrupt(
 
 def update_interrupt(path: Path, interrupt_id: str, **kwargs: Any) -> dict[str, Any]:
     items = load_interrupts(path)
-    allowed = {"title", "source", "dueDate", "priority", "status", "tags", "adoItemId"}
+    allowed = {"title", "source", "dueDate", "priority", "status", "tags", "adoItemId", "zendeskTicket", "customer"}
     for item in items:
         if item["id"] == interrupt_id:
             for k, v in kwargs.items():
@@ -65,6 +69,25 @@ def delete_interrupt(path: Path, interrupt_id: str) -> None:
     items = load_interrupts(path)
     items = [i for i in items if i["id"] != interrupt_id]
     save_interrupts(path, items)
+
+
+def update_activity(
+    path: Path, interrupt_id: str, index: int, text: str
+) -> dict[str, Any]:
+    items = load_interrupts(path)
+    for item in items:
+        if item["id"] == interrupt_id:
+            activity = item.get("activity", [])
+            if index < 0 or index >= len(activity):
+                raise IndexError(f"Activity index {index} out of range")
+            if activity[index].get("type") != "comment":
+                raise ValueError("Only comments can be edited")
+            activity[index]["text"] = text
+            activity[index]["editedAt"] = _now()
+            item["updatedAt"] = _now()
+            save_interrupts(path, items)
+            return item
+    raise KeyError(f"Interrupt {interrupt_id!r} not found")
 
 
 def append_activity(

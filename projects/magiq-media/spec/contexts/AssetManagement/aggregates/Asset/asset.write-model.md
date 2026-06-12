@@ -21,12 +21,14 @@ Represents a single uploaded file. Owns the full ingestion and processing lifecy
 | Status must be `Pending` | `AssetNotPending` | `ConfirmAssetUpload` |
 | Status must be `Validating` | `AssetNotValidating` | `RecordValidationResult` |
 | Status must be `Validating` or `Processing` | varies by `FailureCategory` | `FailAssetProcessing` |
-| Status must be `Active` | `AssetNotActive` | `TagAsset`, `ArchiveAsset`, `AssignAssetToRole` |
-| Status must be `Active` or `Archived` | `AssetAlreadyDeleted` | `DeleteAsset` |
+| Status must be `Active` | `AssetNotActive` | `TagAsset`, `AssignAssetToRole` |
+| Status must be `Active` or `ProcessingFailed` | `InvalidOperation` | `ArchiveAsset` |
+| Status must be `Active`, `Archived`, `ValidationFailed`, or `ProcessingFailed` | `InvalidOperation` | `DeleteAsset` |
 | Status must not be `VersionArtifact` | `InvalidOperation` | `DeleteAsset` — version artifacts cannot be deleted; use `PurgeVersion` on the owning MediaItem |
+| Asset must not be assigned to a MediaItem role (`IsAssigned() = false`) unless status is `ValidationFailed` or `ProcessingFailed` | `InvalidOperation` | `DeleteAsset` — assigned assets are locked to the MediaItem lifecycle; unassign first or manage deletion through the MediaItem |
 | Asset must not be set as `DefaultAssetId` on any `AssetDefinition` in a published `MediaProfile` (cross-context guard via `AssetProfileDefaultReference`) | `InvalidOperation` | `DeleteAsset` |
 | `MediaItemId` must be null | `AssetAlreadyAttached` | `AttachAssetToMediaItem` (implicit via `AssignAssetToRole`) |
-| `StorageKey` is immutable after `AssetUploaded` | — | Structural invariant |
+| `StorageKey` is immutable after `AssetUploadInitiated` | — | Structural invariant |
 
 ---
 
@@ -46,7 +48,7 @@ Represents a single uploaded file. Owns the full ingestion and processing lifecy
 | `OriginalFileName` | `FileName` | Sanitised at command time. |
 | `ContentType` | `MediaContentType` | `Image` \| `Video` \| `Audio` \| `Document` \| `Archive` |
 | `StorageKey` | `S3Key` | Immutable after creation event. Stamped by `StorageKeyGenerator`. |
-| `StorageTier` | `StorageTier` | `Standard` at upload time. Transitions to `GlacierInstant` atomically on `ArchiveAsset`. May be updated independently by system storage policy via `RecordStorageTierTransition`. |
+| `StorageTier` | `StorageTier` | `Standard` at upload time. Not changed by `ArchiveAsset` — S3 storage class transitions are managed by AWS lifecycle policy on object creation date and are asynchronous. Updated only by `RecordStorageTierTransition` (system-only), dispatched when the storage tier scanner or S3 event notification confirms the actual transition has occurred. Reflects the last observed S3 storage class, not a speculative post-archive value. |
 | `Renditions` | `IReadOnlyList<Rendition>` | Empty when `Processing` capability absent. |
 | `Metadata` | `AssetMetadata` | Write-once; stamped by `CompleteAssetProcessing`. All null when `Processing` capability absent. |
 | `Tags` | `IReadOnlyList<Tag>` | |
@@ -68,13 +70,18 @@ Validating    → (StartAssetProcessing)            → Processing  [capable ass
 Processing    → (CompleteAssetProcessing)          → Active
 Processing    → (FailAssetProcessing)              → ProcessingFailed
 Active        → (ArchiveAsset)                    → Archived
+ProcessingFailed → (ArchiveAsset)                 → Archived
 Active        → (PromoteToVersionArtifact)        → VersionArtifact
 Archived      → (PromoteToVersionArtifact)        → VersionArtifact
-VersionArtifact → (ArchiveAsset)                  → Archived  [storage tier change; deletion remains blocked]
+VersionArtifact → (ArchiveAsset)                  → ❌ BLOCKED — VersionArtifact lifecycle is managed by the owning MediaItem version
 VersionArtifact → (ReleaseVersionArtifact)        → Active | Archived  [restores pre-promotion status]
-Archived      → (DeleteAsset)                     → Deleted  [soft]
-Active        → (DeleteAsset)                     → Deleted  [soft]
+Active        → (DeleteAsset)                     → Deleted  [soft; unassigned only]
+Archived      → (DeleteAsset)                     → Deleted  [soft; unassigned only]
+ValidationFailed → (DeleteAsset)                  → Deleted  [soft; always deletable — cleanup]
+ProcessingFailed → (DeleteAsset)                  → Deleted  [soft; always deletable — cleanup]
 VersionArtifact → (DeleteAsset)                   → ❌ BLOCKED — use PurgeVersion on owning MediaItem
+Active (assigned) → (DeleteAsset)                 → ❌ BLOCKED — unassign from role before deleting
+Archived (assigned) → (DeleteAsset)               → ❌ BLOCKED — unassign from role before deleting
 ```
 
 **Pipeline branching (determined by `AssetIngestionSaga` at `AssetValidationPassed`, with `AssetProcessingWorker` as defensive fallback):**
@@ -135,7 +142,7 @@ VersionArtifact → (DeleteAsset)                   → ❌ BLOCKED — use Purg
 
 | Method | Description | Preconditions |
 |---|---|---|
-| `Asset.Upload(tenantId, assetId, ownerId, mediaItemId?, fileName, contentType, sizeBytes, storageKey)` | Factory. Raises `AssetUploaded`. `UploadMode = SinglePart`. | — |
+| `Asset.InitiateUpload(tenantId, assetId, ownerId, mediaItemId?, fileName, contentType, sizeBytes, storageKey)` | Factory. Raises `AssetUploadInitiated`. `UploadMode = SinglePart`. | — |
 | `Asset.InitiateMultipartUpload(tenantId, assetId, ownerId, mediaItemId?, fileName, contentType, sizeBytes, storageKey, multipartUploadId)` | Factory. Raises `AssetMultipartUploadInitiated`. `UploadMode = Multipart`. | — |
 | `ConfirmUpload()` | Confirms S3 upload; transitions to Validating. Raises `AssetUploadConfirmed`. Rejected if `UploadMode = Multipart` — use `CompleteMultipartUpload` instead. | `Status = Pending`, `UploadMode = SinglePart` |
 | `AbortMultipartUpload()` | Aborts a pending multipart upload. Raises `AssetMultipartUploadAborted`. Terminal. | `Status = Pending`, `UploadMode = Multipart` |
@@ -144,9 +151,9 @@ VersionArtifact → (DeleteAsset)                   → ❌ BLOCKED — use Purg
 | `CompleteProcessing(renditions, metadata, processingStatus)` | Stamps renditions + metadata. Raises `AssetProcessingCompleted`. | `Status = Processing` |
 | `FailProcessing(category, reason)` | Records failure with category. Raises `AssetProcessingFailed`. | `Status = Validating` or `Processing` (category-dependent) |
 | `Tag(tags)` | Full tag list replacement. Raises `AssetTagged`. | `Status = Active` |
-| `Archive()` | Soft-archive. Raises `AssetArchived` then `AssetStorageTierTransitioned` (Standard → GlacierInstant) atomically. Background system policy transitions the S3 object to Glacier Instant Retrieval and schedules deletion after `AssetRetentionDays` (default: 365 days). | `Status = Active` or `VersionArtifact` |
+| `Archive()` | Soft-archive. Raises `AssetArchived` only. Does not emit `AssetStorageTierTransitioned` — S3 storage class transitions are asynchronous, managed by AWS lifecycle policy on the object's creation date, and recorded separately via `RecordStorageTierTransition` when the actual transition is confirmed. | `Status = Active` or `ProcessingFailed`. Blocked for `VersionArtifact` — lifecycle managed by the owning MediaItem version. |
 | `RecordStorageTierTransition(newTier, transitionedAt)` | System-only. Records a storage-class change initiated by AWS Lifecycle Policy. Raises `AssetStorageTierTransitioned`. No-op if `StorageTier == newTier`. | — |
-| `Delete()` | Soft-delete. Raises `AssetDeleted`. | `Status = Active` or `Archived`. Blocked if `Status = VersionArtifact`. |
+| `Delete()` | Soft-delete. Raises `AssetDeleted`. | `Status ∈ {Active, Archived, ValidationFailed, ProcessingFailed}`. Blocked if `Status = VersionArtifact`. Blocked if `IsAssigned()` unless status is `ValidationFailed` or `ProcessingFailed` (failed assets can never be assigned). |
 | `PromoteToVersionArtifact(mediaItemId, versionNumber, occurredAt)` | Marks the asset as a version artifact — snapshotted in an approved MediaItem version. Prevents deletion while the version exists. Raises `AssetPromotedToVersionArtifact`. Captures `_preVersionArtifactStatus` (rebuilt from event replay) before overwriting `Status`. | `Status = Active` or `Archived` |
 | `ReleaseVersionArtifact(mediaItemId, versionNumber, releasedAt)` | Releases the asset from `VersionArtifact` protection back to its pre-promotion status (`Active` or `Archived`). Called when the owning MediaItem version is purged. Raises `AssetVersionArtifactReleased`. Guard: `Status == VersionArtifact`. | `Status = VersionArtifact` |
 | `AttachToMediaItem(mediaItemId, roleName)` | Permanently binds asset to MediaItem. Raises `AssetAttachedToMediaItem`. | `MediaItemId = null`, `Status = Active` |
@@ -158,9 +165,9 @@ VersionArtifact → (DeleteAsset)                   → ❌ BLOCKED — use Purg
 
 | Event | Key Payload Fields | Status Transition |
 |---|---|---|
-| `AssetUploaded` | `TenantId`†, `AssetId`, `MediaItemId?`, `OwnerId`, `StorageKey`, `ContentType`, `OriginalFileName`, `SizeBytes` | → Pending (`UploadMode = SinglePart`) |
+| `AssetUploadInitiated` | `TenantId`†, `AssetId`, `OwnerId`, `MediaItemId?`, `OriginalFileName`, `ContentType`, `StorageKey`, `BucketName`, `StorageTier`, `Status`, `SizeBytes`, `UploadedAt` | → Pending (`UploadMode = SinglePart`) |
 | `AssetMultipartUploadInitiated` | `TenantId`†, `AssetId`, `MediaItemId?`, `OwnerId`, `StorageKey`, `ContentType`, `OriginalFileName`, `SizeBytes`, `MultipartUploadId` | → Pending (`UploadMode = Multipart`) |
-| `AssetUploadConfirmed` | `AssetId`, `ConfirmedAt` | Pending → Validating |
+| `AssetUploadConfirmed` | `TenantId`, `AssetId`, `OwnerId`, `OriginalFileName`, `ContentType`, `StorageKey`, `BucketName`, `StorageTier`, `Status`, `SizeBytes`, `ConfirmedAt` | Pending → Validating |
 | `AssetMultipartUploadAborted` | `AssetId`, `MultipartUploadId`, `AbortedAt` | Pending → MultipartAborted [terminal] |
 | `AssetValidationPassed` | `AssetId`, `MediaItemId?`, `JobId`, `StorageKey`, `ContentType`, `HasProcessingCapability`, `PassedAt` | Validating → (Processing or Active) |
 | `AssetValidationFailed` | `AssetId`, `Reason` | Validating → ValidationFailed |
@@ -170,7 +177,7 @@ VersionArtifact → (DeleteAsset)                   → ❌ BLOCKED — use Purg
 | `AssetProcessingFailed` | `AssetId`, `FailureCategory`, `Reason` | Processing/Validating → ProcessingFailed |
 | `AssetTagged` | `AssetId`, `Tags[]` | — |
 | `AssetArchived` | `AssetId`, `ArchivedAt` | Active → Archived |
-| `AssetStorageTierTransitioned` | `AssetId`, `OldTier`, `NewTier`, `OccurredAt` | StorageTier updated. Emitted atomically after `AssetArchived` (Standard → GlacierInstant), and standalone by `RecordStorageTierTransition` for system-policy-driven tier changes (Standard → StandardIA → GlacierInstant → DeepArchive). |
+| `AssetStorageTierTransitioned` | `AssetId`, `OldTier`, `NewTier`, `OccurredAt` | StorageTier updated. Emitted only by `RecordStorageTierTransition` (system-only command). Not emitted by `ArchiveAsset` — S3 storage class transitions are asynchronous and driven by AWS lifecycle policy (Standard → StandardIA → GlacierInstant → DeepArchive) based on object creation date. |
 | `AssetDeleted` | `AssetId`, `DeletedAt` | → Deleted |
 | `AssetPromotedToVersionArtifact` | `TenantId`†, `AssetId`, `MediaItemId`, `VersionNumber`, `PromotedAt` | Active/Archived → VersionArtifact. Raised by `PromoteToVersionArtifact`. Blocks deletion while this event is in the stream. Apply captures `_preVersionArtifactStatus` before overwriting `Status`. |
 | `AssetVersionArtifactReleased` | `TenantId`†, `AssetId`, `MediaItemId`, `VersionNumber`, `ReleasedAt` | VersionArtifact → Active \| Archived (restores `_preVersionArtifactStatus`). Raised by `ReleaseVersionArtifact`. |
@@ -185,7 +192,7 @@ VersionArtifact → (DeleteAsset)                   → ❌ BLOCKED — use Purg
 
 | Command | Handler | Result |
 |---|---|---|
-| `UploadAssetCommand(AssetId, OwnerId, MediaItemId?, FileName, ContentType, SizeBytes)` | `UploadAssetHandler` | `Result<UploadAssetResult, DomainError>` — returns `AssetId` + pre-signed PUT URL |
+| `InitiateAssetUploadCommand(AssetId, OwnerId, MediaItemId?, FileName, ContentType, SizeBytes)` | `InitiateAssetUploadHandler` | `Result<InitiateAssetUploadResult, DomainError>` — returns `AssetId` + pre-signed PUT URL |
 | `InitiateMultipartUploadCommand(AssetId, OwnerId, MediaItemId?, FileName, ContentType, SizeBytes)` | `InitiateMultipartUploadHandler` | `Result<InitiateMultipartUploadResult, DomainError>` — returns `AssetId`, `UploadId`, `Parts[]` (pre-signed part URLs) |
 | `CompleteMultipartUploadCommand(AssetId, Parts[{PartNumber, ETag}])` | `CompleteMultipartUploadHandler` | `Result<Unit, DomainError>` — calls S3 `CompleteMultipartUpload`, then transitions Pending → Validating |
 | `AbortMultipartUploadCommand(AssetId)` | `AbortMultipartUploadHandler` | `Result<Unit, DomainError>` — calls S3 `AbortMultipartUpload`, then transitions Pending → MultipartAborted |
@@ -196,7 +203,7 @@ VersionArtifact → (DeleteAsset)                   → ❌ BLOCKED — use Purg
 | `FailAssetProcessingCommand(AssetId, FailureCategory, Reason)` | `FailAssetProcessingHandler` | `Result<Unit, DomainError>` |
 | `TagAssetCommand(AssetId, Tags[])` | `TagAssetHandler` | `Result<Unit, DomainError>` |
 | `ArchiveAssetCommand(AssetId)` | `ArchiveAssetHandler` | `Result<Unit, DomainError>` |
-| `DeleteAssetCommand(AssetId)` | `DeleteAssetHandler` | `Result<Unit, DomainError>` |
+| `DeleteAssetCommand(AssetId, Reason?, OccurredAt)` | `DeleteAssetHandler` | `Result<Unit, DomainError>` |
 | `AttachAssetToMediaItemCommand(AssetId, MediaItemId, RoleName)` | Internal — dispatched by `AssignAssetToRoleHandler` in Catalog | `Result<Unit, DomainError>` |
 | `DetachAssetFromMediaItemCommand(AssetId)` | Internal — dispatched by `UnassignAssetFromRoleHandler` in Catalog | `Result<Unit, DomainError>` |
 | `RecordStorageTierTransitionCommand(AssetId, NewTier, TransitionedAt)` | **System-only — no API endpoint.** Dispatched by a system storage lifecycle process when AWS S3 Lifecycle Policy transitions an object's storage class. | `Result<Unit, DomainError>` |
@@ -214,7 +221,7 @@ All handlers:
 4. Persist via `IEventStore.SaveAsync<Asset, AssetId>(asset, ct)`
 5. Return `Result<T, DomainError>` — no domain exceptions escape
 
-**`UploadAssetHandler` additional responsibilities:**
+**`InitiateAssetUploadHandler` additional responsibilities:**
 
 All capability lookups below resolve against the **`media-item-capability-refs` reference model** (owned by Catalog, consumed by AssetManagement via `IMediaItemCapabilityReadModel`). See [MediaItemCapabilityIndex](../../../Catalog/aggregates/MediaItem/media-item.read-model.md#media-item-capability-index) for the index contract.
 
@@ -312,11 +319,11 @@ Published inline by `AssetDomainEventPublisher` (`AssetManagement.WriteModel`) i
 
 | Integration Event                          | Source Domain Event        | Published When / Consumers                                                                                                 |
 | ------------------------------------------ | -------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `AssetUploadedIntegrationEvent`            | `AssetUploaded`            | Always — Processing (capability-gated), Notifications                                                                      |
-| `AssetUploadConfirmedIntegrationEvent`     | `AssetConfirmed`           | Always — Processing (capability-gated), Notifications                                                                      |
+| `AssetUploadInitiatedIntegrationEvent`     | `AssetUploadInitiated`     | Always — Processing (capability-gated), Notifications. `[MessageType("media.asset.upload-initiated")]`                     |
+| `AssetUploadConfirmedIntegrationEvent`     | `AssetUploadConfirmed`     | Always — Processing (`AssetValidationWorker` via `media-processing` SQS), Notifications. Payload: `TenantId`, `AssetId`, `OwnerId`, `FileName`, `ContentType`, `StorageKey`, `Status` (`"Validating"`), `ConfirmedAt`, `EventVersion`. See [context-overview](../../context-overview.md#assetuploadconfirmedintegrationevent). |
 | `AssetValidationPassedIntegrationEvent`    | `AssetValidationPassed`    | Always — SagaOrchestrator (`AssetValidationPassedSagaHandler`); advances `AssetIngestionSaga` to select processing branch. Carries `HasProcessingCapability` flag so the saga can dispatch `StartProcessingJobCommand` or `BypassProcessingJobCommand` without a cross-BC capability lookup. |
 | `AssetProcessingCompletedIntegrationEvent` | `AssetProcessingCompleted` | Always — Notifications; Billing (filtered: forwarded only when `Processing` capability present on the linked MediaProfile) |
-| `AssetProcessingFailedIntegrationEvent`    | `AssetProcessingFailed`    | Always — Notifications, SagaOrchestrator (for timeout compensation)                                                        |
+| `AssetProcessingFailedIntegrationEvent`    | `AssetProcessingFailed` \| `AssetValidationFailed` | Always — Notifications, SagaOrchestrator (for timeout compensation). `Status` and `FailureCategory` string values vary by source — see [context-overview `AssetProcessingFailedIntegrationEvent`](../../context-overview.md#assetprocessingfailedintegrationevent). |
 | `AssetAttachedToMediaItemIntegrationEvent` | `AssetAttachedToMediaItem` | Always — Search/Discovery                                                                                                  |
 | `AssetArchivedIntegrationEvent`            | `AssetArchived`            | Always — Notifications, Billing                                                                                            |
 | `AssetDeletedIntegrationEvent`             | `AssetDeleted`             | Always — Notifications, Search/Discovery                                                                                   |
@@ -378,4 +385,4 @@ See: [System Spec — Saga Coordination](../../../../shared/system-spec.md#saga-
 
 ## Internal Consistency Rules
 
-1. `StorageKey` is computed by `StorageKeyGenerator` at `UploadAsset` time; stamped onto `AssetUploaded`; immutable ther
+1. `StorageKey` is computed by `StorageKeyGenerator` at `InitiateUpload` time; stamped onto `AssetUploadInitiated`; immutable ther

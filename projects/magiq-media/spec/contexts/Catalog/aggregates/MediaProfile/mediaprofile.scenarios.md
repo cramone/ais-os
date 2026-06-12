@@ -97,7 +97,7 @@ sequenceDiagram
 3. `PUT /media-profiles/{mediaProfileId}/media-record-types/{recordTypeId}/version` → `UpdatePinnedRecordTypeVersion({version: 4})` → validates `{rt-01, v4}` exists ✓ → `RecordTypeVersionPinnedOnProfile`. Draft now pins `{rt-01, v4}`.
 4. `POST /media-profiles/{mediaProfileId}/publish` → `PublishMediaProfile` → `MediaProfilePublished({newVersion: 3, snapshot: {..., recordTypes: [{recordTypeId, pinnedVersion: 4}]}})`. New MediaItems created after this publish will validate against the v4 schema.
 5. Existing `Published` MediaItems (on v2 of this media-profile) are not affected mid-lifecycle — their `Metadata.Current` was validated against the v3 schema at approval time and remains valid.
-6. When an existing media-item is next edited and resubmitted, `SubmitForReview` will validate `Metadata.Draft` against the v4 schema. Any `release_year` value in draft will fail validation — the owner must populate `release_date` first.
+6. When an existing media-item is next edited and resubmitted, `RequestPublication` will validate `Metadata.Draft` against the v4 schema. Any `release_year` value in draft will fail validation — the owner must populate `release_date` first.
 
 **Key invariants:**
 - `UpdatePinnedRecordTypeVersion` only applies to an already-attached RecordType.

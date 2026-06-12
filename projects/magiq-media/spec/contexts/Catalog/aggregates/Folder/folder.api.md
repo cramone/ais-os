@@ -30,6 +30,9 @@ PATCH  /v1/catalog/folders/{folderId}/description
 PUT    /v1/catalog/folders/{folderId}/parent
 POST   /v1/catalog/folders/{folderId}/archive
 POST   /v1/catalog/folders/{folderId}/close
+PATCH  /v1/catalog/folders/{folderId}/metadata/{fieldName}
+PUT    /v1/catalog/folders/{folderId}/metadata
+POST   /v1/catalog/folders/{folderId}/metadata/commit
 GET    /v1/catalog/folders/{folderId}
 GET    /v1/catalog/folders/{folderId}/children?sortBy=&sortOrder=
 GET    /v1/catalog/folders?collectionId=&parentFolderId=
@@ -186,6 +189,66 @@ _Accepts `IdempotencyKey` header._
 
 ---
 
+### `PATCH /v1/catalog/folders/{folderId}/metadata/{fieldName}`
+
+Sets a single metadata field on the folder. The value is written to the draft; call `/metadata/commit` to promote.
+
+**Request:**
+```json
+{
+  "value": "Campaign 2026",
+  "fieldType": "String",
+  "attributedTo": null,
+  "attributedDate": null
+}
+```
+
+`fieldType` — required. One of: `Boolean`, `Integer`, `IntegerArray`, `Number`, `NumberArray`, `String`, `StringArray`, `Text`, `Date`, `DateTime`.
+
+**Response `204 No Content`**
+
+**Errors:** `400` (unknown fieldType), `404`, `422` (archived folder or type mismatch)
+
+_Accepts `IdempotencyKey` header._
+
+---
+
+### `PUT /v1/catalog/folders/{folderId}/metadata`
+
+Sets multiple metadata fields atomically. All fields must pass type validation or the entire batch is rejected.
+
+**Request:**
+```json
+{
+  "fields": {
+    "campaign": { "value": "Campaign 2026", "fieldType": "String" },
+    "year":     { "value": 2026,            "fieldType": "Integer" }
+  },
+  "attributedTo": null,
+  "attributedDate": null
+}
+```
+
+**Response `204 No Content`**
+
+**Errors:** `400` (unknown fieldType in any field), `404`, `422` (archived folder or type mismatch in any field)
+
+_Accepts `IdempotencyKey` header._
+
+---
+
+### `POST /v1/catalog/folders/{folderId}/metadata/commit`
+
+Promotes the pending metadata draft to current. Returns 422 if no draft exists.
+
+**Response `204 No Content`**
+
+**Errors:** `404`, `422` (no pending draft or folder archived)
+
+_Accepts `IdempotencyKey` header._
+
+---
+
 ## Read Endpoints
 
 ### `GET /v1/catalog/collections/{collectionId}/folders/hierarchy`
@@ -256,6 +319,10 @@ Returns immediate child folders and media items of the specified folder.
   "closedDate": "2026-03-31T00:00:00Z",
   "createdAt": "2026-01-01T10:00:00Z",
   "openedDate": "2026-01-01T00:00:00Z",
+  "metadata": {
+    "current": { "campaign": "Hero 2026", "year": 2026 },
+    "draft": null
+  },
   "updatedAt": "2026-03-31T09:15:00Z"
 }
 ```
@@ -307,6 +374,9 @@ Returns immediate child folders and media items of the specified folder.
 | `POST /v1/catalog/folders/{id}/close` | `CloseFolderCommand` | `FolderClosed` | `FolderDetailProjector` → UPDATE, `FolderSummaryProjector` → UPDATE |
 | `POST /v1/catalog/collections/{collectionId}/folders/bulk` | `BulkCreateFoldersCommand` | `FolderCreated` (×N) | `FolderDetailProjector` → INSERT (×N), `FolderSummaryProjector` → INSERT (×N) |
 | `POST /v1/catalog/collections/{collectionId}/folders/bulk-paths` | `BulkCreateFoldersByPathCommand` | `FolderCreated` (×N created) | `FolderDetailProjector` → INSERT (×N), `FolderSummaryProjector` → INSERT (×N) |
+| `PATCH /v1/catalog/folders/{id}/metadata/{fieldName}` | `SetFolderMetadataFieldCommand` | `FolderMetadataFieldSet` | `FolderDetailProjector` → UPDATE `Metadata.Draft` |
+| `PUT /v1/catalog/folders/{id}/metadata` | `SetFolderMetadataBatchCommand` | `FolderMetadataBatchSet` | `FolderDetailProjector` → UPDATE `Metadata.Draft` |
+| `POST /v1/catalog/folders/{id}/metadata/commit` | `CommitFolderMetadataCommand` | `FolderMetadataCommitted` | `FolderDetailProjector` → UPDATE `Metadata.Current`, clear Draft |
 
 ---
 

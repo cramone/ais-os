@@ -390,7 +390,7 @@ Table:    media-events
 PK:       TENANT#{TenantId}#{AggregateId}   (e.g., "TENANT#acme#asset_018e4c7a-...")
 SK:       AggregateVersion                     (integer, 0-based, monotonic)
 TenantId: string                             (plain attribute — redundant with PK prefix; for observability)
-EventType: string                            (e.g., "AssetUploaded")
+EventType: string                            (e.g., "AssetUploadInitiated")
 OccurredAt: ISO8601
 Payload:  JSON blob
 SchemaVersion: int
@@ -441,22 +441,22 @@ public interface IEventUpcaster<TEvent> where TEvent : IDomainEvent
 
 ```csharp
 // In each module's DI registration:
-services.AddUpcaster<AssetUploaded, AssetUploadedV1Upcaster>();
+services.AddUpcaster<AssetUploadInitiated, AssetUploadInitiatedV1Upcaster>();
 ```
 
 **Example upcaster** (renaming `FileName` → `OriginalFileName` at v2):
 
 ```csharp
-public class AssetUploadedV1Upcaster : IEventUpcaster<AssetUploaded>
+public class AssetUploadInitiatedV1Upcaster : IEventUpcaster<AssetUploadInitiated>
 {
     public int FromVersion => 1;
     public int ToVersion   => 2;
 
-    public AssetUploaded Upcast(JsonElement raw)
+    public AssetUploadInitiated Upcast(JsonElement raw)
     {
         // Map old field name to new field name; all other fields deserialize normally.
         var fileName = raw.GetProperty("FileName").GetString();
-        return new AssetUploaded(
+        return new AssetUploadInitiated(
             ...,
             OriginalFileName: new FileName(fileName!),
             ...
@@ -576,7 +576,8 @@ Integration events are a curated subset of domain events, translated into publis
 | `media.item.signing-session-voided`   | `SigningEnvelopeVoided`           | Notifications _(declared; DocumentSigning module not yet built)_                                                                                                   |
 | `media.profile.published`             | `MediaProfilePublished`           | Notifications                                                                                                                                                      |
 | `media.profile.deprecated`            | `MediaProfileDeprecated`          | Notifications                                                                                                                                                      |
-| `media.asset.uploaded`                | `AssetUploaded`                   | Notifications                                                                                                                                                      |
+| `media.asset.upload-initiated`        | `AssetUploadInitiatedIntegrationEvent` | Processing (capability-gated), Notifications                                                                                                                  |
+| `media.asset.upload-confirmed`        | `AssetUploadConfirmedIntegrationEvent` | Processing (`media-processing` SQS — `AssetUploadConfirmedEventHandler` dispatches `CreateProcessingJobCommand`; `AssetValidationWorker` uses `StorageKey` + `ContentType` to run virus scan and format check) |
 | `media.asset.attached`                | `AssetAttachedToMediaItem`        | Search/Discovery                                                                                                                                                   |
 | `media.asset.processing-completed`    | `AssetProcessingCompleted`        | Notifications, Billing _(filtered: `Processing` capability only)_                                                                                                  |
 | `media.asset.processing-failed`       | `AssetProcessingFailed`           | Notifications                                                                                                                                                      |

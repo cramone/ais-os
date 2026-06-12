@@ -169,7 +169,7 @@ Assigned (new FolderId; CollectionId re-derived — cross-collection permitted)
 
 > **Capability model:** `MediaItem` carries no behavioral role field. All domain module activation derives from the `Capabilities` set on its assigned `MediaProfile`. For example: items whose MediaProfile has the `Processing` capability go through the full processing pipeline and count toward storage quota; items whose MediaProfile lacks `Processing` fast-exit after virus scan and are quota-exempt. Items whose MediaProfile has the `Registration` capability may have `Registration` aggregates attached. The activation chain is: `MediaItem → MediaProfile → Capabilities → Domain Modules`.
 
-**Key domain events:** `MediaItemCreated`, `MediaItemAssignedToFolder`, `MediaItemTitleUpdated`, `MediaItemMoved`, `MediaItemMetadataFieldSet`, `MediaItemMetadataBatchSet`, `AssetAssignedToRole`, `AssetUnassignedFromRole`, `MediaItemSubmittedForReview`, `MediaItemApproved`, `MediaItemRejected`, `MediaItemWithdrawn`, `MediaItemArchived`, `MediaItemTagged`, `RegistrationRefAdded`, `MediaItemSigningSessionLinked`, `MediaItemSigningSessionUnlinked`
+**Key domain events:** `MediaItemCreated`, `MediaItemAssignedToFolder`, `MediaItemTitleUpdated`, `MediaItemMoved`, `MediaItemMetadataFieldSet`, `MediaItemMetadataBatchSet`, `AssetAssignedToRole`, `AssetUnassignedFromRole`, `MediaItemPublicationRequested`, `MediaItemApproved`, `MediaItemRejected`, `MediaItemWithdrawn`, `MediaItemArchived`, `MediaItemTagged`, `RegistrationRefAdded`, `MediaItemSigningSessionLinked`, `MediaItemSigningSessionUnlinked`
 
 ---
 
@@ -207,7 +207,7 @@ Pending → Validating → ValidationFailed
 > When the owning MediaItem's MediaProfile **has the `Processing` capability**: full pipeline runs — renditions generated, metadata/EXIF extracted.
 > When `MediaItemId` is null at processing time (standalone upload): Processing Worker defaults to the full processing pipeline.
 
-**Key domain events:** `AssetUploaded`, `AssetUploadConfirmed`, `AssetValidationPassed`, `AssetValidationFailed`, `AssetInfectionDetected`, `AssetProcessingStarted`, `AssetProcessingCompleted`, `AssetProcessingFailed`, `AssetTagged`, `AssetArchived`, `AssetDeleted`, `AssetAttachedToMediaItem`, `AssetDetachedFromMediaItem`
+**Key domain events:** `AssetUploadInitiated`, `AssetUploadConfirmed`, `AssetValidationPassed`, `AssetValidationFailed`, `AssetInfectionDetected`, `AssetProcessingStarted`, `AssetProcessingCompleted`, `AssetProcessingFailed`, `AssetTagged`, `AssetArchived`, `AssetDeleted`, `AssetAttachedToMediaItem`, `AssetDetachedFromMediaItem`
 
 > **Note:** `AssetProcessingStarted` / `AssetProcessingCompleted` / `AssetProcessingFailed` on the Asset aggregate are signalled by the Processing Worker via `StartProcessingJob` / `CompleteProcessingJob` / `FailProcessingJob` commands — the Asset aggregate receives these transitions as a result of the `ProcessingJob` lifecycle completing. See `ProcessingJob` aggregate below.
 
@@ -401,7 +401,7 @@ Initiated → EnvelopeCreated → Sent → Completed
 |---|---|
 | `AssetValidator` | Coordinates format check, size limit enforcement, virus scan result interpretation |
 | `RenditionFactory` | Determines which rendition profiles apply to a given `MediaContentType`. Returns an empty list for `Document` and `Archive` content types (no renditions generated). Not invoked at all when the owning MediaItem's MediaProfile lacks the `Processing` capability. |
-| `StorageKeyGenerator` | Deterministic S3 key from `TenantId` + `AssetId`. Signature: `Generate(TenantId, AssetId, MediaContentType, FileName) → S3Key`. Computes `{shard}` = `assetId.ToString("N")[^4..]`. Key is stamped onto `AssetUploaded` event and is immutable thereafter. `TenantId` sourced from `IExecutionContext` by the command handler — never from `OwnerId`. `OwnerId` is deliberately excluded from S3 keys because ownership is mutable; keys must remain stable across ownership transfers. |
+| `StorageKeyGenerator` | Deterministic S3 key from `TenantId` + `AssetId`. Signature: `Generate(TenantId, AssetId, MediaContentType, FileName) → S3Key`. Computes `{shard}` = `assetId.ToString("N")[^4..]`. Key is stamped onto `AssetUploadInitiated` event and is immutable thereafter. `TenantId` sourced from `IExecutionContext` by the command handler — never from `OwnerId`. `OwnerId` is deliberately excluded from S3 keys because ownership is mutable; keys must remain stable across ownership transfers. |
 | `MetadataValidator` | Validates metadata field values against pinned `RecordTypeVersion` schemas on `SetMetadataField` and `Publish` |
 | `FolderHierarchyService` | Enforces 10-level depth limit on `CreateFolder` / `MoveFolder`; detects circular parent chains |
 | `FolderDomainService` | Queries `media-items` read model to check folder emptiness before `ArchiveFolder` (eventually consistent) |

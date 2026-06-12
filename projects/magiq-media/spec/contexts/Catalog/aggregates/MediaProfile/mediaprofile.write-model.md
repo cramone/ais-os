@@ -421,7 +421,7 @@ Reference models consumed by this write model's command handlers. All are read-o
 
 | Event | Source | Write |
 |---|---|---|
-| `AssetUploaded` | AssetManagement | INSERT with `Status = Pending`, `ContentType` |
+| `AssetUploadInitiated` | AssetManagement | INSERT with `Status = Pending`, `ContentType` |
 | `AssetProcessingCompleted` | AssetManagement | UPDATE `Status = Active` |
 | `AssetValidationPassed` (fast-exit path) | AssetManagement | UPDATE `Status = Active` |
 | `AssetArchived` | AssetManagement | UPDATE `Status = Archived` |

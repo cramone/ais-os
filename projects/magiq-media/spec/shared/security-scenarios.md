@@ -144,10 +144,10 @@ sequenceDiagram
 
 ## PERM-3: Reviewer Self-Approval Block (409)
 
-**Context:** In a review-gated publish workflow, the user who submitted the MediaItem for review (`SubmitForReview` caller = `user_A`) attempts to approve their own `MediaChangeRequest`. Self-review is a domain invariant violation — it returns `409 Conflict`, not `403`, because the actor is fully authenticated and authorized as a reviewer in general; the specific business rule blocks this instance.
+**Context:** In a review-gated publish workflow, the user who submitted the MediaItem for review (`RequestPublication` caller = `user_A`) attempts to approve their own `MediaChangeRequest`. Self-review is a domain invariant violation — it returns `409 Conflict`, not `403`, because the actor is fully authenticated and authorized as a reviewer in general; the specific business rule blocks this instance.
 
 **Pre-conditions:**
-- `user_A` submitted MediaItem `item-018e` for review: `POST /media-items/{item-018e}/submit` → `MediaItemSubmittedForReview`. `MediaItemReviewSaga` created `MediaChangeRequest MCR-018f` with `SubmittedBy = user_A`.
+- `user_A` submitted MediaItem `item-018e` for review: `POST /media-items/{item-018e}/submit` → `MediaItemPublicationRequested`. `MediaItemReviewSaga` created `MediaChangeRequest MCR-018f` with `SubmittedBy = user_A`.
 - `user_A` holds a reviewer role within the tenant (e.g., `roles: ["Reviewer", "Owner"]`).
 - MCR-018f is in `Open` status.
 
@@ -178,7 +178,7 @@ Content-Type: application/problem+json
 ```
 
 **Key invariants:**
-- The `SubmittedBy` actor identity is captured in `MediaItemSubmittedForReview` and persisted in the MCR aggregate state — it is not re-derived from the read model.
+- The `SubmittedBy` actor identity is captured in `MediaItemPublicationRequested` and persisted in the MCR aggregate state — it is not re-derived from the read model.
 - No event is written. The MCR remains in `Open` status.
 - `user_A` may still perform other reviewer actions on MCRs submitted by other users — this invariant is scoped to the specific MCR, not a global role restriction.
 - `user_A` retains their ownership actions on the MediaItem (e.g., withdraw if needed) — this block applies only to the review approval action.
