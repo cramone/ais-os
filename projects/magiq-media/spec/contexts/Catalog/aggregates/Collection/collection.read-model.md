@@ -25,7 +25,7 @@ Summary table. Powers list queries.
 | `ProjectedVersion` | `long`     | Dedup guard                        |
 | `EventId`          | `string`   |                                    |
 
-**GSI:** `VisibilityIndex` (Visibility + CreatedAt) — public media-collection discovery.
+**GSI:** `CollectionByNameIndex` (`GSI1PK`/`GSI1SK`) — name lookup; `PublicCollectionByNameIndex` (`GSI2PK`/`GSI2SK`, sparse on `Visibility=Public`) — public media-collection discovery. The previously documented `VisibilityIndex` (Visibility + CreatedAt) does not exist in code or CDK — removed as stale/fictional.
 
 ### `media-collection-detail` (DynamoDB)
 
@@ -75,7 +75,7 @@ Full detail table. Powers `GET /media-collections/{collectionId}`.
 | ------------------------------------------------ | ------------------------------------------- |
 | `GetCollectionByIdQuery(TenantId, CollectionId)` | Full detail                                 |
 | `ListCollections(TenantId, PageToken?)`          | Paginated list of owner's media-collections       |
-| `ListPublicCollectionsQuery(PageToken?)`         | Public media-collections (uses `VisibilityIndex`) |
+| `ListPublicCollectionsQuery(PageToken?)`         | Public media-collections (uses `PublicCollectionByNameIndex`) |
 
 ---
 

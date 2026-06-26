@@ -58,7 +58,7 @@ Distinct from `ActiveMediaChangeRequestId` (which is set at submit time). These 
 |---|---|---|
 | No CR → actor must be `CheckedOutBy` to checkin | `NotCheckedOutByUser` | `CheckInMediaItem` |
 | With CR → actor must be a CR participant to checkin | `NotChangeRequestParticipant` | `CheckInMediaItem` |
-| `CheckoutChangeRequestId` set → CR already exists at submit time | — | `SubmitForReview` |
+| `CheckoutChangeRequestId` set → CR already exists at submit time | — | `RequestPublication` |
 
 ### `CheckOut` method (modified)
 
@@ -92,7 +92,7 @@ if (mediaItem.CheckoutChangeRequestId.HasValue)
 }
 ```
 
-### `SubmitForReviewHandler` (modified)
+### `PublishMediaItemHandler` (modified)
 
 Current: creates a new CR when `ReviewPolicy = RequiredForPublish`.
 
@@ -102,7 +102,7 @@ New behaviour:
 if (mediaItem.CheckoutChangeRequestId != null)
     → reuse CheckoutChangeRequestId as the submission CR
     → transition CR from checkout-bound → submission-bound (new CR command: ActivateForReview?)
-    → call mediaItem.SubmitForReview(checkoutCrId)
+    → call mediaItem.RequestPublication(checkoutCrId)
 else if (ReviewPolicy == RequiredForPublish)
     → error: cannot submit for review without a CR checkout (CR-first model enforces this)
 else (ReviewPolicy == None)
@@ -120,7 +120,7 @@ The CR lifecycle gains an intermediate state:
 ```
 CheckoutBound  ← created at checkout
     │
-    │  ActivateForReview (triggered by SubmitForReview)
+    │  ActivateForReview (triggered by RequestPublication)
     ▼
 SubmissionBound → [existing review cycle: Approved / Rejected / Abandoned]
 ```
@@ -160,7 +160,7 @@ Correlated on `CheckoutChangeRequestId` / `MediaChangeRequestId`. Saga instance 
 | `AwaitingCheckin` | `MediaItemCheckedIn` | No dispatch — checkin recorded | `AwaitingSubmission` |
 | `AwaitingCheckin` | `MediaItemCheckoutAbandoned` | Dispatch `AbandonChangeRequestCommand(reason: "CheckoutAbandoned")` | `CrAbandoned` [terminal] |
 | `AwaitingCheckin` | `MediaItemCheckoutForceReleased` | Dispatch `AbandonChangeRequestCommand(reason: "CheckoutForceReleased")` | `CrAbandoned` [terminal] |
-| `AwaitingSubmission` | `MediaItemSubmittedForReview` (matching CR) | No dispatch — `MediaItemReviewSaga` takes over via `ActivateChangeRequestForReview` | `HandedToReviewSaga` [terminal] |
+| `AwaitingSubmission` | `MediaItemPublicationRequested` (matching CR) | No dispatch — `MediaItemReviewSaga` takes over via `ActivateChangeRequestForReview` | `HandedToReviewSaga` [terminal] |
 | `AwaitingSubmission` | `MediaItemCheckoutForceReleased` | Dispatch `AbandonChangeRequestCommand(reason: "CheckoutForceReleased")` | `CrAbandoned` [terminal] |
 
 > **Note:** `AwaitingSubmission` has no timeout. CR stays `CheckoutBound` indefinitely until actor submits or an admin force-releases. See [decisions/log.md — Checkin Without Submit Requires Explicit Abandon](../../../../../decisions/log.md).
@@ -201,7 +201,7 @@ record MediaItemCheckoutReviewSagaData(
 
 Existing fast path (`ReviewPolicy = None`) and review path (`ReviewPolicy = RequiredForPublish`) unchanged.
 
-New entry: when `SubmitForReview` carries a pre-existing `CheckoutChangeRequestId`, saga is correlated to that CR ID rather than creating a new one. The `ActivateForReview` command transitions the CR from `CheckoutBound → SubmissionBound` and notifies reviewers.
+New entry: when `RequestPublication` carries a pre-existing `CheckoutChangeRequestId`, saga is correlated to that CR ID rather than creating a new one. The `ActivateForReview` command transitions the CR from `CheckoutBound → SubmissionBound` and notifies reviewers.
 
 ---
 

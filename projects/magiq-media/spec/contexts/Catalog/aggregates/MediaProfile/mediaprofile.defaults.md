@@ -134,7 +134,7 @@ All platform defaults are published at seed time (status `Published`, `Published
 **Notes:**
 - `Registration` capability is included because content that requires formal governance (review + checkout) will frequently also require formal registration. The capability is permissive — having it present does not force registration on any MediaItem; it simply allows `InitiateRegistrationHandler` to pass its capability gate check.
 - `supporting-document` role assets take the fast-exit processing path (no renditions, `media-documents` bucket). The `primary` asset takes the full processing path.
-- `RequiredForPublish` means `SubmitForReview` creates a `MediaChangeRequest`; `MediaItemReviewSaga` waits for reviewer approval before dispatching `ApproveMediaItemCommand`. A reviewer must approve via the MCR cycle.
+- `RequiredForPublish` means `RequestPublication` creates a `MediaChangeRequest`; `MediaItemReviewSaga` waits for reviewer approval before dispatching `ApproveMediaItemCommand`. A reviewer must approve via the MCR cycle.
 - `RequiredForEdit` means `CheckOutMediaItem` must be called before any write command is accepted. Concurrent edit attempts by other users return `DomainError.MediaItemCheckedOut`.
 - Tenants should create a revision to restrict `primary` to a single `AcceptedContentType` and to add `DimensionConstraints` or `MaxFileSizeBytes` where appropriate.
 

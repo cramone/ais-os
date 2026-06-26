@@ -114,7 +114,7 @@ FolderCreated → FolderRenamed / FolderMoved → FolderArchived
 MediaItemCreated → [MediaItemAssignedToFolder]
 → MediaItemTitleUpdated / MediaItemTagged / MediaItemMetadataFieldSet
 → AssetAssignedToRole / AssetUnassignedFromRole
-→ MediaItemSubmittedForReview (→ PendingApproval) → MediaItemApproved (published) / MediaItemRejected
+→ MediaItemPublicationRequested (→ PendingApproval) → MediaItemApproved (published) / MediaItemRejected
 MediaItemApproved → MediaItemRevertedToDraft (on any write post-publish)
 MediaItemApproved → MediaItemWithdrawn / MediaItemArchived
 MediaItemCheckedOut → MediaItemCheckedIn / MediaItemCheckoutAbandoned / MediaItemCheckoutForceReleased
@@ -157,7 +157,7 @@ Published inline by context-specific publisher classes in `Catalog.WriteModel` i
 |---|---|---|
 | `MediaItemCreatedMessage` | `MediaItemCreated` | Enriched with capabilities and `MaxFileSizeBytes` from the published `MediaProfile` |
 | `MediaItemAssignedToFolderMessage` | `MediaItemAssignedToFolder` | |
-| `MediaItemSubmittedForReviewMessage` | `MediaItemSubmittedForReview` | |
+| `MediaItemSubmittedForReviewMessage` | `MediaItemPublicationRequested` | |
 | `MediaItemApprovedMessage` | `MediaItemApproved` | |
 | `MediaItemRejectedMessage` | `MediaItemRejected` | |
 | `MediaItemArchivedMessage` | `MediaItemArchived` | |

@@ -152,7 +152,7 @@ GET /media-change-requests?mediaItemId=        → PagedResult<MediaChangeReques
 
 | Command | Aggregate | Key Events Raised |
 |---|---|---|
-| `UploadAsset` | `Asset` (new) | `AssetUploaded` |
+| `UploadAsset` | `Asset` (new) | `AssetUploadInitiated` |
 | `ConfirmAssetUpload` | `Asset` | `AssetUploadConfirmed` |
 | `RecordValidationResult` | `Asset` | `AssetValidationPassed` / `AssetValidationFailed` |
 | `StartAssetProcessing` | `Asset` | `AssetProcessingStarted` |
@@ -173,7 +173,7 @@ GET /media-change-requests?mediaItemId=        → PagedResult<MediaChangeReques
 | `MoveMediaItem` | `MediaItem` | `MediaItemMoved` |
 | `AssignAssetToRole` | `MediaItem` | `AssetAssignedToRole`; optionally `AssetAttachedToMediaItem` (on `Asset`) |
 | `SetMetadataField` / `SetMetadataBatch` | `MediaItem` | `MediaItemMetadataFieldSet` / `MediaItemMetadataBatchSet` |
-| `SubmitForReview` | `MediaItem` | `MediaItemSubmittedForReview`; optionally `MediaChangeRequestCreated` + `MediaChangeRequestLinked` |
+| `RequestPublication` | `MediaItem` | `MediaItemPublicationRequested`; optionally `MediaChangeRequestCreated` + `MediaChangeRequestLinked` |
 | `ApproveMediaItem` | `MediaItem` | `MediaItemApproved` |
 | `RejectMediaItem` | `MediaItem` | `MediaItemRejected` |
 | `CheckOutMediaItem` / `CheckInMediaItem` | `MediaItem` | `MediaItemCheckedOut` / `MediaItemCheckedIn` |
@@ -209,10 +209,11 @@ GET /media-change-requests?mediaItemId=        → PagedResult<MediaChangeReques
 
 | Projector | Events Consumed | Targets |
 |---|---|---|
-| `AssetProjector` | `AssetUploaded`, `AssetValidationPassed/Failed`, `AssetProcessingCompleted/Failed`, `AssetTagged`, `AssetArchived`, `AssetDetachedFromMediaItem` | `media-assets`, `media-asset-detail` |
+| `AssetSummaryProjector` | `AssetUploadInitiated`, `AssetMultipartUploadInitiated`, `AssetUploadConfirmed`, `AssetValidationPassed/Failed`, `AssetProcessingStarted/Completed/Failed`, `AssetTagged`, `AssetArchived`, `AssetDeleted`, `AssetAttachedToMediaItem`, `AssetDetachedFromMediaItem`, `AssetStorageTierTransitioned` | `media-assets` |
+| `AssetDetailProjector` | Same events as `AssetSummaryProjector` | `media-asset-detail` |
 | `CollectionProjector` | `CollectionCreated`, `CollectionRenamed`, `CollectionTagged`, `CollectionVisibilityChanged`, `CollectionDefaultProfileSet`, `CollectionArchived` | `media-collections`, `media-collection-detail`, OpenSearch |
 | `FolderProjector` | `FolderCreated`, `FolderRenamed`, `FolderMoved`, `FolderArchived` | `media-folders`, `media-folder-detail` |
-| `MediaItemProjector` | `MediaItemCreated`, `MediaItemAssignedToFolder`, `MediaItemMoved`, `MediaItemTitleUpdated`, `MediaItemTagged`, `MediaItemRevertedToDraft`, `MediaItemMetadataFieldSet/BatchSet`, `AssetAssignedToRole`, `AssetUnassignedFromRole`, `MediaItemSubmittedForReview`, `MediaItemApproved`, `MediaItemRejected`, `MediaItemArchived`, `MediaChangeRequestLinked/Unlinked` | `media-items` (all GSIs), `media-item-detail`, OpenSearch |
+| `MediaItemProjector` | `MediaItemCreated`, `MediaItemAssignedToFolder`, `MediaItemMoved`, `MediaItemTitleUpdated`, `MediaItemTagged`, `MediaItemRevertedToDraft`, `MediaItemMetadataFieldSet/BatchSet`, `AssetAssignedToRole`, `AssetUnassignedFromRole`, `MediaItemPublicationRequested`, `MediaItemApproved`, `MediaItemRejected`, `MediaItemArchived`, `MediaChangeRequestLinked/Unlinked` | `media-items` (all GSIs), `media-item-detail`, OpenSearch |
 | `MediaItemVersionProjector` | `MediaItemApproved` | `media-item-versions` (full snapshot per publish) |
 | `RegistrationProjector` | `RegistrationInitiated`, `RegistrationSubmitted`, `RegistrationConfirmed`, `RegistrationRejected`, `RegistrationCancelled`, `RegistrationDocumentAttached` | `media-registrations`, OpenSearch |
 | `RecordTypeProjector` | `RecordTypeCreated`, `FieldAddedToRecordType`, `FieldDefinitionUpdated`, `FieldReplacedInRecordType`, `FieldRemovedFromRecordType`, `FieldsReorderedInRecordType`, `RecordTypeDeprecated`, `RecordTypeRenamed` | `media-record-types` (latest state), `media-record-type-versions` (full snapshot per version) |

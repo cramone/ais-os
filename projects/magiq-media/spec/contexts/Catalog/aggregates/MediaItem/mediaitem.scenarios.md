@@ -110,7 +110,7 @@ sequenceDiagram
 
 **Steps:**
 
-1. `POST /catalog/items/{id}/publish` — body: `{ "reviewerIds": ["user_alice", "user_bob"] }` → `MediaItemSubmittedForReview` (Draft → PendingApproval). `ReviewSession` created with Alice and Bob both `Pending`.
+1. `POST /catalog/items/{id}/publish` — body: `{ "reviewerIds": ["user_alice", "user_bob"] }` → `MediaItemPublicationRequested` (Draft → PendingApproval). `ReviewSession` created with Alice and Bob both `Pending`.
 2. Response: `202 Accepted`.
 3. Alice: `POST /catalog/items/{id}/approve` → `ApproveReviewCommand(reviewerId: alice)` → reviewer decision recorded. Bob still `Pending` → no publication yet. `204 No Content`.
 4. Bob: `POST /catalog/items/{id}/approve` → `ApproveReviewCommand(reviewerId: bob)` → all non-withdrawn reviewers approved → `MediaItemApproved({newVersionNumber: 1})` raised. `ReviewSession` cleared. `200 OK` or `204 No Content`.
@@ -135,8 +135,8 @@ sequenceDiagram
     Owner->>API: POST /catalog/items/{id}/publish {reviewerIds:[alice, bob]}
     API->>CH: Publish(reviewerIds=[alice, bob])
     Note over CH: Metadata ✓, Assets ✓ → create ReviewSession
-    CH->>ES: append MediaItemSubmittedForReview
-    ES-->>Bus: media-domain-events + MediaItemSubmittedForReviewMessage
+    CH->>ES: append MediaItemPublicationRequested
+    ES-->>Bus: media-domain-events + MediaItemPublicationRequestedMessage
     Bus-->>Proj: MediaItemProjector → status=PendingApproval, ReviewSession
     Bus-->>Bus: Notifications → alert alice, bob
     CH-->>Owner: 202 Accepted
@@ -165,7 +165,7 @@ sequenceDiagram
 
 **Steps:**
 
-1. `POST /catalog/items/{id}/publish` — body: `{ "reviewerIds": ["user_alice", "user_bob"] }` → `MediaItemSubmittedForReview` (Draft → PendingApproval). `202 Accepted`.
+1. `POST /catalog/items/{id}/publish` — body: `{ "reviewerIds": ["user_alice", "user_bob"] }` → `MediaItemPublicationRequested` (Draft → PendingApproval). `202 Accepted`.
 2. Alice: `POST /catalog/items/{id}/reject` — body: `{ "reason": "Image resolution too low." }` → `RejectReviewCommand(reviewerId: alice, reason)` → `MediaItemRejected` (PendingApproval → Draft). `ReviewSession` cleared immediately. Bob no longer has a pending vote.
 3. Owner corrects metadata / replaces asset.
 4. Owner: `POST /catalog/items/{id}/publish` — new review cycle. May include same or different reviewers.
@@ -188,7 +188,7 @@ sequenceDiagram
     participant Proj as Projector
 
     Owner->>API: POST /catalog/items/{id}/publish {reviewerIds:[alice, bob]}
-    CH->>ES: append MediaItemSubmittedForReview
+    CH->>ES: append MediaItemPublicationRequested
     Bus-->>Proj: MediaItemProjector → status=PendingApproval
     CH-->>Owner: 202 Accepted
 
@@ -204,7 +204,7 @@ sequenceDiagram
 
     Note over Owner: Owner revises metadata / asset, then republishes
     Owner->>API: POST /catalog/items/{id}/publish {reviewerIds:[alice, bob]}
-    CH->>ES: append MediaItemSubmittedForReview (new ReviewSessionId)
+    CH->>ES: append MediaItemPublicationRequested (new ReviewSessionId)
     CH-->>Owner: 202 Accepted
 ```
 
@@ -426,16 +426,17 @@ sequenceDiagram
 
 **Steps:**
 
-1. `POST /catalog/items/bulk/metadata` — body: `{ "itemIds": ["mi-01", "mi-02", "mi-03"], "fields": { "campaign": "Q1-2026" }, "onError": "ContinueOnError" }`
+1. `POST /catalog/items/bulk/metadata` — body: `{ "itemIds": ["mi-01", "mi-02", "mi-03"], "fields": [{ "fieldName": "campaign", "value": "Q1-2026", "origin": "General" }], "onError": "ContinueOnError" }`
 2. Handler processes in parallel:
    - mi-01, mi-02: field resolved → `MediaItemMetadataBatchSet` × 2
-   - mi-03: `campaign` not in schema → `BulkItemError { errorCode: "FieldNotFound" }`
+   - mi-03: `campaign` not in schema and collides with no Governed name, but item's profile attaches a RecordType that itself defines a `campaign` field — `General`-origin entry rejected as reserved → `BulkItemError { errorCode: "FieldNotFound" }` (bulk path does not split this into a distinct `MetadataFieldNameReserved` code — see [mediaitem.api.md](./mediaitem.api.md#post-v1catalogitemsbulkmetadata))
 3. `207 Multi-Status`
 
 **Key invariants:**
 - Full-replace semantics per item — omitting a field clears it.
 - Each item independent with `ContinueOnError`.
 - Max 100 items per request.
+- `origin` is required per entry — resolved independently against each item's own `SnapshotFields`, same algorithm as the single-item endpoints (see [Metadata Field Origin Resolution](./mediaitem.write-model.md#metadata-field-origin-resolution)).
 
 ---
 
@@ -470,10 +471,10 @@ sequenceDiagram
 1. `POST /catalog/items` → `MediaItemCreated` (Draft)
 2. Asset A uploaded, validated, activated.
 3. `POST /catalog/items/{id}/roles/primary-document/assets` → `AssetAssignedToRole(A)`.
-4. `POST /catalog/items/{id}/publish` — body: `{ "reviewerIds": ["reviewer@org.com"] }` → `MediaItemSubmittedForReview` (Draft → PendingApproval). `ReviewSession` created.
+4. `POST /catalog/items/{id}/publish` — body: `{ "reviewerIds": ["reviewer@org.com"] }` → `MediaItemPublicationRequested` (Draft → PendingApproval). `ReviewSession` created.
 5. Reviewer: `POST /catalog/items/{id}/reject` — body: `{ "reason": "Not countersigned." }` → `MediaItemRejected` (PendingApproval → Draft). `ReviewSession` cleared.
 6. Owner uploads Asset B (countersigned), validates, activates. Replaces primary-document role.
-7. `POST /catalog/items/{id}/publish` — body: `{ "reviewerIds": ["reviewer@org.com"] }` → `MediaItemSubmittedForReview` (Draft → PendingApproval). New `ReviewSession` (new `ReviewSessionId`).
+7. `POST /catalog/items/{id}/publish` — body: `{ "reviewerIds": ["reviewer@org.com"] }` → `MediaItemPublicationRequested` (Draft → PendingApproval). New `ReviewSession` (new `ReviewSessionId`).
 8. Reviewer: `POST /catalog/items/{id}/approve` → all non-withdrawn reviewers approved → `MediaItemApproved({newVersionNumber: 1, ApprovedAssets: [Asset B]})`. Status → Published.
 9. `MediaItemVersionProjector` inserts v1. `MediaItemApprovedEventHandler` promotes Asset B to `VersionArtifact`.
 
@@ -501,7 +502,7 @@ sequenceDiagram
     AM->>ES: append AssetProcessingCompleted (Active)
 
     Client->>API: POST /catalog/items/{id}/publish {reviewerIds:[reviewer]}
-    CH->>ES: append MediaItemSubmittedForReview (ReviewSession rs-01)
+    CH->>ES: append MediaItemPublicationRequested (ReviewSession rs-01)
     Bus-->>Bus: Notifications → alert reviewer
     CH-->>Client: 202
 
@@ -518,7 +519,7 @@ sequenceDiagram
     CH->>ES: append AssetReplacedInRole
 
     Client->>API: POST /catalog/items/{id}/publish {reviewerIds:[reviewer]}
-    CH->>ES: append MediaItemSubmittedForReview (ReviewSession rs-02)
+    CH->>ES: append MediaItemPublicationRequested (ReviewSession rs-02)
     CH-->>Client: 202
 
     Note over Client: Reviewer approves

@@ -6,6 +6,9 @@ Yearly automated process to cull documents and folders from MAGIQ Documents base
 
 **Current status:** Spec v0.3 in progress (markdown). All blocking questions resolved 2026-05-05. Ready for architecture. Two non-blocking UI questions remain open (see notes.md).
 
+## ADO Board
+_Not yet assigned_
+
 ## Stack
 
 - **Frontend:** React (review + confirmation UI — Steps 6 & 7)

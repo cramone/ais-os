@@ -14,7 +14,7 @@ Provides reusable, versioned metadata schemas via the `RecordType` aggregate. Re
 
 - Define and version metadata schemas (`RecordType` with typed field definitions)
 - Enforce the Draft → Publish versioning model for `RecordType`
-- Provide schema validation service (`IMetadataValidator`) consumed by Catalog on `SubmitForReview`
+- Provide schema validation service (`IMetadataValidator`) consumed by Catalog on `RequestPublication`
 
 ---
 
@@ -51,7 +51,7 @@ Provides reusable, versioned metadata schemas via the `RecordType` aggregate. Re
 
 | Event | Consumer |
 |---|---|
-| `RecordTypePublished` | `RecordTypeProjector` → `media-record-types` (schema validation source for `MediaProfile` and `SubmitForReview`) |
+| `RecordTypePublished` | `RecordTypeProjector` → `media-record-types` (schema validation source for `MediaProfile` and `RequestPublication`) |
 
 ---
 

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "tower",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["tower/start.py", "--no-reload"],
+      "port": 8765
+    }
+  ]
+}

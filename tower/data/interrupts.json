@@ -1,1 +1,62 @@
-[]
+[
+  {
+    "id": "0552ddda-8dac-4225-a36a-378b80384058",
+    "title": "IXReports - SQL injection being allowed - ticket [#87973]",
+    "source": "Support",
+    "dueDate": null,
+    "priority": "normal",
+    "status": "new",
+    "tags": [],
+    "adoItemId": null,
+    "capturedAt": "2026-06-09T05:49:45.951417+00:00",
+    "updatedAt": "2026-06-11T04:26:00.401711+00:00",
+    "activity": [
+      {
+        "type": "event",
+        "text": "Added tag: needs-more-info",
+        "timestamp": "2026-06-09T05:54:18.395178+00:00"
+      },
+      {
+        "type": "event",
+        "text": "Removed tag: needs-more-info",
+        "timestamp": "2026-06-09T05:54:19.726620+00:00"
+      },
+      {
+        "type": "comment",
+        "text": "**Time of compromise: 04:31 AM AEST 6th June**\n**Initial detection time and method: 05:50 AM AEST 6th June | Microsoft Defender (Endpoint Incident)**\n\n\nThe SQL commands executed, Account details that were used for SQL command execution , AD enumeration, etc and Any further details or findings that might assist us in discover: \n \n1. Patch the SQL injection in IXReports (the actual root cause vulnerability). ReportProcessing.aspx builds SQL from the Condition_* report-filter parameters (e.g. Condition_ACTIONDATE_FROM) via string concatenation. Convert all database access to parameterised queries / prepared statements; validate and type-check the Condition_* inputs server-side.\n2. De-privilege the IXReports SQL login. The app connects to SQL with a sysadmin-level account. Reduce it to least privilege.\n3. Disable xp_cmdshell on the InfoExpert SQL instance, and deny the app login the ability to re-enable it (sp_configure / RECONFIGURE rights).\n4. Review the IXReports authentication/access model. The attacker hit /IXReports/login.aspx then immediately reached ReportProcessing.aspx\n5. Magiq must code-review/test the whole InfoExpert app for injection",
+        "timestamp": "2026-06-09T07:11:37.059765+00:00",
+        "author": "Chase",
+        "editedAt": "2026-06-09T07:30:59.023032+00:00"
+      },
+      {
+        "type": "comment",
+        "text": "Found the injection issue only allowed an attacker to inject into parameters to get back counts not actually view the information. The real issue was the login which looked like it was logging in for real.",
+        "timestamp": "2026-06-11T04:25:35.313790+00:00",
+        "author": "Chase"
+      },
+      {
+        "type": "comment",
+        "text": "Fixed sql injection issue in 8.8.0.1",
+        "timestamp": "2026-06-11T04:26:00.401700+00:00",
+        "author": "Chase"
+      }
+    ],
+    "zendeskTicket": "87973",
+    "customer": "Barcoo"
+  },
+  {
+    "id": "df4336d2-a9be-4ea7-8907-a879bf71df20",
+    "title": "Portlincoln Conversion",
+    "source": "adhoc",
+    "dueDate": "2026-06-14",
+    "priority": "normal",
+    "status": "new",
+    "tags": [],
+    "adoItemId": null,
+    "zendeskTicket": null,
+    "customer": null,
+    "capturedAt": "2026-06-14T02:25:37.360017+00:00",
+    "updatedAt": "2026-06-14T02:25:37.360017+00:00",
+    "activity": []
+  }
+]

@@ -318,7 +318,7 @@ All events persisted to `media-events`. Grouped by aggregate.
 | `MediaItemMetadataBatchSet` | `MediaItemId`, `Fields[]` | — |
 | `AssetAssignedToRole` | `MediaItemId`, `AssetId`, `RoleName` | — |
 | `AssetUnassignedFromRole` | `MediaItemId`, `AssetId`, `RoleName` | — |
-| `MediaItemSubmittedForReview` | `MediaItemId`, `SubmittedAt` | Draft → PendingApproval |
+| `MediaItemPublicationRequested` | `MediaItemId`, `SubmittedAt` | Draft → PendingApproval |
 | `MediaItemApproved` | `MediaItemId`, `ApprovedAt`, `NewVersionNumber`, `ApprovedMetadataSnapshot` | PendingApproval → Published (or Draft → Published on immediate publish) |
 | `MediaItemRejected` | `MediaItemId`, `Reason`, `RejectedAt` | PendingApproval → Draft |
 | `MediaItemWithdrawn` | `MediaItemId`, `WithdrawnAt` | Published → Withdrawn |
@@ -338,8 +338,8 @@ All events persisted to `media-events`. Grouped by aggregate.
 
 | Event | Key Payload Fields | Status Transition |
 |---|---|---|
-| `AssetUploaded` | `AssetId`, `MediaItemId?`, `OwnerId`, `StorageKey`, `ContentType`, `OriginalFileName` | → Pending |
-| `AssetUploadConfirmed` | `AssetId`, `ConfirmedAt` | Pending → Validating |
+| `AssetUploadInitiated` | `TenantId`, `AssetId`, `MediaItemId?`, `OwnerId`, `StorageKey`, `BucketName`, `StorageTier`, `ContentType`, `OriginalFileName`, `SizeBytes`, `Status`, `UploadedAt` | → Pending |
+| `AssetUploadConfirmed` | `TenantId`, `AssetId`, `OwnerId`, `MediaItemId?`, `OriginalFileName`, `ContentType`, `StorageKey`, `BucketName`, `StorageTier`, `Status`, `SizeBytes`, `ConfirmedAt` | Pending → Validating |
 | `AssetValidationPassed` | `AssetId`, `MediaItemId?`, `JobId`, `StorageKey`, `ContentType`, `PassedAt` | Validating → (Processing or Active) |
 | `AssetValidationFailed` | `AssetId`, `Reason` | Validating → ValidationFailed |
 | `AssetProcessingStarted` | `AssetId` | → Processing |
@@ -561,10 +561,11 @@ The queue's SNS filter policy must allow every `EventType` in the **Subscribed M
 
 | Projector | Consumes | Writes |
 |---|---|---|
-| `AssetProjector` | `AssetUploaded`, `AssetValidationPassed/Failed`, `AssetProcessingCompleted/Failed`, `AssetTagged`, `AssetArchived`, `AssetDeleted`, `AssetAttachedToMediaItem`, `AssetDetachedFromMediaItem` | `media-assets`, `media-asset-detail` |
+| `AssetSummaryProjector` | `AssetUploadInitiated`, `AssetMultipartUploadInitiated`, `AssetUploadConfirmed`, `AssetValidationPassed/Failed`, `AssetProcessingStarted/Completed/Failed`, `AssetTagged`, `AssetArchived`, `AssetDeleted`, `AssetAttachedToMediaItem`, `AssetDetachedFromMediaItem`, `AssetStorageTierTransitioned` | `media-assets` |
+| `AssetDetailProjector` | Same events as `AssetSummaryProjector` | `media-asset-detail` |
 | `CollectionProjector` | `CollectionCreated`, `CollectionRenamed`, `CollectionTagged`, `CollectionVisibilityChanged`, `CollectionDefaultProfileSet`, `CollectionArchived`, `RootFolderAdded/RemovedFromCollection` | `media-collections`, `media-collection-detail`, OpenSearch `media-items` (`isAccessible`) |
 | `FolderProjector` | `FolderCreated`, `FolderRenamed`, `FolderMoved`, `FolderArchived` | `media-folders`, `media-folder-detail` |
-| `MediaItemProjector` | `MediaItemCreated`, `MediaItemAssignedToFolder`, `MediaItemMoved`, `MediaItemTitleUpdated`, `MediaItemTagged`, `MediaItemRevertedToDraft`, `MediaItemMetadataFieldSet/BatchSet`, `AssetAssignedToRole`, `AssetUnassignedFromRole`, `MediaItemSubmittedForReview`, `MediaItemApproved`, `MediaItemRejected`, `MediaItemArchived`, `MediaChangeRequestLinked/Unlinked` | `media-items` (all GSIs), `media-item-detail`, OpenSearch `media-items` |
+| `MediaItemProjector` | `MediaItemCreated`, `MediaItemAssignedToFolder`, `MediaItemMoved`, `MediaItemTitleUpdated`, `MediaItemTagged`, `MediaItemRevertedToDraft`, `MediaItemMetadataFieldSet/BatchSet`, `AssetAssignedToRole`, `AssetUnassignedFromRole`, `MediaItemPublicationRequested`, `MediaItemApproved`, `MediaItemRejected`, `MediaItemArchived`, `MediaChangeRequestLinked/Unlinked` | `media-items` (all GSIs), `media-item-detail`, OpenSearch `media-items` |
 | `MediaItemVersionProjector` | `MediaItemApproved` | `media-item-versions` (full snapshot per publish) |
 | `RegistrationProjector` | `RegistrationInitiated`, `RegistrationSubmitted`, `RegistrationConfirmed`, `RegistrationRejected`, `RegistrationCancelled`, `RegistrationDocumentAttached`, `RegistrationExpiryRecorded` | `media-registrations`, OpenSearch `media-registrations` |
 | `RecordTypeProjector` | `RecordTypeCreated`, `FieldAddedToRecordType`, `FieldDefinitionUpdated`, `FieldReplacedInRecordType`, `FieldRemovedFromRecordType`, `FieldsReorderedInRecordType`, `RecordTypeDeprecated`, `RecordTypeRenamed` | `media-record-types` (latest), `media-record-type-versions` (snapshot per version) |

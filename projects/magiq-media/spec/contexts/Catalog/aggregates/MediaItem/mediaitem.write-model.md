@@ -23,6 +23,10 @@ Activation chain: **`MediaItem → MediaProfile → Capabilities → Domain Modu
 | Must not have active `SigningSession` to publish                    | `SigningSessionInProgress`    | `Publish`                             |
 | Must be `Draft` to publish                                         | `MediaItemNotDraft`           | `Publish`                             |
 | Metadata field values validated against pinned `RecordTypeVersion` | `MetadataValidationFailed`    | `SetMetadataField`, `Publish`         |
+| Every metadata write entry carries a required `Origin` (`Governed \| General`) — resolved against `SnapshotFields` per [Metadata Field Origin Resolution](#metadata-field-origin-resolution) below | `MetadataFieldOriginRequired` | `SetMetadataField`, `SetMetadataBatch`, `BulkSetMetadata` (request-DTO level) |
+| `Governed` entry's `FieldName` does not match any bare, alias-qualified, or RecordTypeId-qualified key in `SnapshotFields` | `MetadataFieldUnknown`        | `SetMetadataField`, `SetMetadataBatch` |
+| `Governed` entry's `FieldName` is a bare name that collides across ≥2 contributing RecordTypes (suppressed at `MediaProfile` compile time — see `MediaProfileSnapshot.SuppressedFieldNames`) | `MetadataFieldAmbiguous`      | `SetMetadataField`, `SetMetadataBatch` |
+| `General` entry's `FieldName` collides with a bare or qualified key already reserved by a `Governed` field on `SnapshotFields` | `MetadataFieldNameReserved`   | `SetMetadataField`, `SetMetadataBatch` |
 | Reviewer cannot be the user who published                          | `ReviewerIsInitiator`         | `Publish`                             |
 | Caller must be an assigned reviewer with `Pending` decision        | `ReviewerNotFound` / `ReviewerAlreadyDecided` | `ApproveReview`, `RejectReview` |
 
@@ -39,6 +43,7 @@ Activation chain: **`MediaItem → MediaProfile → Capabilities → Domain Modu
 | `OwnerId` | `OwnerId` | |
 | `MediaProfileId` | `MediaProfileId` | Determines active capabilities. Immutable after creation. |
 | `Title` | `NonEmptyString` | Max 512 chars. |
+| `Description` | `string?` | Optional free-text description. Max 4000 chars. May be explicitly cleared to null. |
 | `Status` | `MediaItemStatus` | See lifecycle. |
 | `Metadata` | `MetadataChangeset` | `Current` (approved) + `Draft?` (pending changes) |
 | `Assets` | `IReadOnlyList<MediaAssetReference>` | `{AssetId, RoleName}` pairs |
@@ -47,7 +52,9 @@ Activation chain: **`MediaItem → MediaProfile → Capabilities → Domain Modu
 | `CurrentVersionNumber` | `int` | 0 until first publish; increments on each `ApproveMediaItem` |
 | `ReviewSession` | `ReviewSession?` | Embedded value object. Set when `Status = PendingApproval`. Cleared on resolution. |
 | `ActiveSigningSessionId` | `SigningSessionId?` | Set during active signing session |
-| `SnapshotFields` | `IReadOnlyDictionary<string, MediaProfileSnapshotField>` | Derived from `MediaItemCreated.ProfileSnapshot.Fields`. Immutable after creation. Used for all `SetMetadataField` validation. |
+| `ConformanceStatus` | `ConformanceStatus` | `Conformant` (default) or `PendingConformance`. Derived from `ConformanceGaps`. |
+| `ConformanceGaps` | `IReadOnlyList<ConformanceGap>` | Active gaps against the pinned `MediaProfile`'s requirements. Empty when `ConformanceStatus = Conformant`. |
+| `SnapshotFields` | `IReadOnlyDictionary<string, MediaProfileSnapshotField>` | Keyed by the (possibly alias- or RecordTypeId-qualified) `Name` emitted by `MediaProfileDomainService.CompileTemplateAsync`. Derived from `MediaItemCreated.ProfileSnapshot.Fields`. Immutable after creation. Used for all `Governed`-origin metadata resolution — see [Metadata Field Origin Resolution](#metadata-field-origin-resolution). |
 | `SnapshotRecordTypeVersions` | `IReadOnlyDictionary<RecordTypeId, int>` | Pinned `{RecordTypeId → Version}` map at creation time. Provenance/audit use. |
 | `CreatedAt` | `DateTimeOffset` | |
 | `PublishedAt` | `DateTimeOffset?` | |
@@ -149,8 +156,12 @@ Assigned (new FolderId; CollectionId re-derived — cross-collection permitted)
 | `MediaItemStatus` | `Draft \| PendingApproval \| Published \| Revising \| Archived` |
 | `ReviewSession` | `{ ReviewSessionId, CommentThreadId?, Reviewers: IReadOnlyList<ReviewerAssignment>, StartedAt }` |
 | `ReviewerAssignment` | `{ ReviewerId, Decision: Pending \| Approved \| Rejected \| Withdrawn, AssignedAt, DecidedAt? }` |
-| `MediaProfileSnapshot` | `{ MediaProfileId, MediaProfileVersion, Fields: IReadOnlyList<MediaProfileSnapshotField> }` — derivative of `CompiledMetadataTemplate.ToSnapshot()`. Embedded in `MediaItemCreated`. Never mutated after creation. |
-| `MediaProfileSnapshotField` | Per-field definition derived from the compiled template: `{ RecordTypeId, RecordTypeVersion, Name, FieldType, IsRequired, IsImmutable }` + nullable constraint properties per field type (`MinLength`, `MaxLength`, `RegexPattern`, `MinValue`, `MaxValue`, `MinDate`, `MaxDate`, `AllowedValues`, `MaxSelections`, `DefaultValue`). |
+| `MediaProfileSnapshot` | `{ Capabilities, Fields: IReadOnlyList<MediaProfileSnapshotField>, MaxFileSizeBytes?, MediaProfileId, MediaProfileVersion, SuppressedFieldNames: IReadOnlyList<string> }` — derivative of `CompiledMetadataTemplate.ToSnapshot()`. Embedded in `MediaItemCreated`. Never mutated after creation. `SuppressedFieldNames` lists bare field names that collided across ≥2 RecordTypes at `MediaProfile` compile time and therefore have no bare key in `Fields` — only qualified forms. Defaults to `[]`. |
+| `MediaProfileSnapshotField` | Per-field definition derived from the compiled template: `{ RecordTypeId, RecordTypeVersion, Name, FieldType, IsRequired, IsImmutable }` + `BareName` (init-only, defaults to `Name`; the unqualified field name before any alias/RecordTypeId qualification) + nullable constraint properties per field type (`MinLength`, `MaxLength`, `RegexPattern`, `MinValue`, `MaxValue`, `MinDate`, `MaxDate`, `AllowedValues`, `MaxSelections`, `DefaultValue`, `DefaultValueType`). |
+| `MetadataFieldOrigin` | Enum — `Governed \| General`. Required on every entry of every metadata write (`SetMetadataField`, `SetMetadataBatch`, `BulkSetMetadata`) — no default; omission is a request-DTO validation failure (`MetadataFieldOriginRequired`), never silently resolved. Per-write input only — never persisted as a discriminator on `MetadataChangeset`; whether a stored key is Governed or General is always re-derivable via `SnapshotFields.ContainsKey(key)`. See [Metadata Field Origin Resolution](#metadata-field-origin-resolution). |
+| `ConformanceStatus` | Enum — `Conformant \| PendingConformance`. Derived from whether any `ConformanceGap` entries are active. |
+| `ConformanceGap` | `{ GapType: ConformanceGapType, Identifier: string }` — describes a single unmet requirement. `Identifier` is the role name (for `MissingRequiredAssetRole`) or field name (for `MissingRequiredMetadataField`). |
+| `ConformanceGapType` | Enum — `MissingRequiredAssetRole \| MissingRequiredMetadataField`. |
 
 ---
 
@@ -161,14 +172,15 @@ Assigned (new FolderId; CollectionId re-derived — cross-collection permitted)
 | `MediaItem.Create(tenantId, id, ownerId, profileId, title, description?, folderId?, collectionId?, profileSnapshot, snapshotRecordTypeVersions, createdAt)` | Factory. `profileSnapshot` and `snapshotRecordTypeVersions` are always supplied by the handler (derived from `CompiledMetadataTemplate.ToSnapshot()`); the aggregate never fetches media-profile data directly. |
 | `AssignToFolder(folderId, collectionId)` | One-way assignment |
 | `UpdateTitle(newTitle)` | Raises `MediaItemTitleUpdated` |
+| `UpdateDescription(newDescription?, updatedAt)` | Raises `MediaItemDescriptionUpdated`. Guard: `Status == Draft \| Revising` and `!IsArchived`. No-op if value is unchanged — event not emitted. `newDescription = null` explicitly clears the description. |
 | `Move(newFolderId, newCollectionId)` | Raises `MediaItemMoved` |
-| `SetMetadataField(fieldName, value, recordTypeId, recordTypeVersion)` | Validates against schema |
-| `SetMetadataBatch(fields[])` | Batch metadata set |
+| `SetMetadataField(fieldName, value, origin, setBy, attributedTo?, attributedDate?, updatedAt)` | Resolves `(fieldName, origin)` via `ResolveFieldKey` — see [Metadata Field Origin Resolution](#metadata-field-origin-resolution). `setBy` is the authenticated system user; `attributedTo` and `attributedDate` are optional provenance for migration scenarios. Guard: `Status == Draft \| Revising`, not archived; immutable field already set → `InvalidOperation`. |
+| `SetMetadataBatch(fields[], setBy, attributedTo?, attributedDate?, updatedAt)` | Batch metadata set — `fields` is `IReadOnlyList<(FieldName, Value, Origin)>`. Every entry resolved and validated before any event is raised — no partial writes; the first failure aborts the whole batch. Same attribution and guard semantics as `SetMetadataField`. |
 | `AssignAssetToRole(assetId, roleName)` | Raises `AssetAssignedToRole`. Guard: role must not already be filled when `AllowMultiple = false` — use `ReplaceAssetInRole` for intentional replacement. |
 | `UnassignAssetFromRole(assetId, roleName)` | Raises `AssetUnassignedFromRole` |
 | `ReplaceAssetInRole(roleName, newAssetId)` | Atomically swaps the asset in a filled role. Guard: role must already have an assigned asset. Raises `AssetReplacedInRole { RoleName, OldAssetId, NewAssetId }`. Old asset is detached; new asset is attached. |
 | `Tag(tags)` | Full replacement |
-| `Publish(reviewerIds[], commentThreadId?)` | Guard: no active signing, `Draft` status. User intent is to publish. If `reviewerIds` empty → publishes immediately (raises `MediaItemApproved`, bumps version). If non-empty → creates `ReviewSession`, raises `MediaItemSubmittedForReview`, item enters `PendingApproval`. |
+| `Publish(reviewerIds[], commentThreadId?)` | Guard: no active signing, `Draft` status. User intent is to publish. If `reviewerIds` empty → publishes immediately (raises `MediaItemApproved`, bumps version). If non-empty → creates `ReviewSession`, raises `MediaItemPublicationRequested`, item enters `PendingApproval`. |
 | `ApproveReview(reviewerId, decisionComment?)` | Reviewer records approval. When all non-withdrawn reviewers approved → raises `MediaItemApproved`, bumps version, clears `ReviewSession`. |
 | `RejectReview(reviewerId, reason)` | Reviewer records rejection. Raises `MediaItemRejected` → `Status → Draft`. `ReviewSession` cleared. |
 | `BeginRevision()` | Guard: `Status == Published`. Raises `MediaItemRevisionStarted`. `Status → Revising`. Initialises `Metadata.Draft` from `Metadata.Current`. Published version remains live. |
@@ -179,7 +191,30 @@ Assigned (new FolderId; CollectionId re-derived — cross-collection permitted)
 | `LinkSigningSession(sessionId)` | Raises `MediaItemSigningSessionLinked` |
 | `UnlinkSigningSession(sessionId)` | Raises `MediaItemSigningSessionUnlinked` |
 | `AddRegistrationRef(registrationId)` | Raises `RegistrationRefAdded` |
+| `RemoveRegistrationRef(registrationId, removedAt)` | Raises `RegistrationRefRemoved`. Guard: `registrationId` must be present in `RegistrationIds` — returns `InvalidOperation` if not found. No status guard; removal is permitted regardless of `MediaItemStatus` or archive state. |
 | `PurgeVersion(versionNumber, assetIds, reason, purgedAt)` | **System/admin only.** Permanently removes a published version snapshot. Raises `MediaItemVersionPurged`. Guards: `versionNumber >= 1` (cannot purge draft v0); `versionNumber != CurrentVersionNumber` (cannot purge live version); `reason` non-empty. Allowed even when `IsArchived`. `assetIds` resolved by handler via `IMediaItemVersionQueryService` before calling this method. | Any status incl. Archived |
+| `UpdateConformanceStatus(gaps, evaluatedAt)` | **System-internal only.** Recomputes `ConformanceStatus` from the provided gap list. `ConformanceStatus = Conformant` when `gaps` is empty; `PendingConformance` otherwise. Emits `MediaItemConformanceStatusChanged` only when the status or gap set has changed — no-op writes are suppressed. Called by `MediaProfilePublishedConformanceFanoutHandler`. Also triggered inline by `TryResolveConformanceGaps` (see below). |
+
+### Conformance Auto-Resolution
+
+`TryResolveConformanceGaps` is a private aggregate method called inline after any operation that could satisfy an open conformance gap — specifically `AssignAssetToRole`, `ReplaceAssetInRole`, `SetMetadataField`, and `SetMetadataBatch`. If any active gap is now satisfied, the aggregate recomputes the remaining gap list and emits `MediaItemConformanceStatusChanged` (with an empty gap list if all are resolved). This keeps conformance status consistent without requiring an explicit external evaluation call after every mutation.
+
+### Metadata Field Origin Resolution
+
+Every metadata write entry (`SetMetadataField`, `SetMetadataBatch`, and `BulkSetMetadata` at the application layer) carries a required `Origin: MetadataFieldOrigin`. The aggregate resolves `(fieldName, origin)` against `SnapshotFields` via a private `ResolveFieldKey(fieldName, origin)` method — the single resolution path shared by both `SetMetadataField` and `SetMetadataBatch` (this sharing is itself a bug fix; see below).
+
+**`Origin == Governed`:**
+1. Exact match — `SnapshotFields.TryGetValue(fieldName, ...)`. If `fieldName` is already a qualified key (`{alias}.{bareName}` or `{recordTypeId}.{bareName}`) or a bare key that was never involved in a collision, this hits directly and resolution stops here.
+2. Otherwise, `fieldName` is treated as a bare name and matched against `SnapshotFields.Values` by `BareName`:
+   - **Zero matches** → `MetadataFieldUnknown(fieldName)` — the name is not defined anywhere in the compiled schema, under any form.
+   - **Exactly one match** → resolves to that field's qualified (or bare, if uncollided) `Name`.
+   - **Two or more matches** → `MetadataFieldAmbiguous(fieldName, candidates)` — the bare name collided at `MediaProfile` compile time and was suppressed (see `MediaProfileSnapshot.SuppressedFieldNames`); the caller must use one of the qualified forms. `candidates` lists every qualified `Name` that shares the bare name.
+
+**`Origin == General`:** the field is caller-defined, with no schema backing — no entry in `SnapshotFields` is expected. Rejected with `MetadataFieldNameReserved(fieldName)` if `fieldName` matches any key in `SnapshotFields` either exactly *or* by `BareName` (so a caller cannot use `Origin = General` to either overwrite an existing governed slot, bare or qualified, or to "claim" a bare name that was suppressed due to a collision). Otherwise accepted unconditionally — no type or constraint validation against any schema.
+
+In both `SetMetadataField` and `SetMetadataBatch`, a resolved `Governed` entry additionally carries the resolved field's `RecordTypeId`/`RecordTypeVersion` onto the stored entry (`MediaItemMetadataFieldSet.RecordTypeId`/`RecordTypeVersion`, or the corresponding fields on each `MediaItemMetadataBatchSet` entry); a `General` entry stores `null` for both — there is no RecordType attribution for ungoverned fields.
+
+**Bug fix (closed by this design):** prior to this resolution path, `SetMetadataBatch` did not reject unknown field names the way `SetMetadataField` did — an unrecognised `fieldName` would silently succeed with a `null` `RecordTypeId`/`RecordTypeVersion` on the stored entry, indistinguishable from a legitimate general field. Both methods now route through the identical `ResolveFieldKey` logic, so an unknown `Governed` entry is rejected the same way in both single-field and batch writes. `SetMetadataBatch` validates every entry before raising any event — a single invalid entry rejects the whole batch atomically; there is no partial application.
 
 ---
 
@@ -190,14 +225,15 @@ Assigned (new FolderId; CollectionId re-derived — cross-collection permitted)
 | `MediaItemCreated` | `TenantId`†, `MediaItemId`, `FolderId?`, `CollectionId?`, `OwnerId`, `MediaProfileId`, `Title`, `Description?`, `ProfileSnapshot`, `SnapshotRecordTypeVersions` | → Draft |
 | `MediaItemAssignedToFolder` | `MediaItemId`, `FolderId`, `CollectionId` | — |
 | `MediaItemTitleUpdated` | `MediaItemId`, `OldTitle`, `NewTitle` | — |
+| `MediaItemDescriptionUpdated` | `MediaItemId`, `OldDescription?`, `NewDescription?`, `UpdatedAt` | — |
 | `MediaItemMoved` | `MediaItemId`, `OldFolderId`, `NewFolderId`, `OldCollectionId`, `NewCollectionId` | — |
-| `MediaItemMetadataFieldSet` | `MediaItemId`, `FieldName`, `Value`, `RecordTypeId`, `RecordTypeVersion` | — |
-| `MediaItemMetadataBatchSet` | `MediaItemId`, `Fields[]` | — |
+| `MediaItemMetadataFieldSet` | `MediaItemId`, `FieldName` (resolved key — bare or qualified), `Value`, `RecordTypeId?`, `RecordTypeVersion?` (both `null` for `Origin = General`), `SetBy?`, `AttributedTo?`, `AttributedDate?` | — |
+| `MediaItemMetadataBatchSet` | `MediaItemId`, `Fields: IReadOnlyList<MetadataFieldEntry>` where each entry is `{ FieldName (resolved key), Value, RecordTypeId?, RecordTypeVersion? }` (both `null` for `Origin = General` entries), `SetBy?`, `AttributedTo?`, `AttributedDate?` | — |
 | `AssetAssignedToRole` | `MediaItemId`, `AssetId`, `RoleName` | — |
 | `AssetUnassignedFromRole` | `MediaItemId`, `AssetId`, `RoleName` | — |
 | `AssetReplacedInRole` | `MediaItemId`, `RoleName`, `OldAssetId`, `NewAssetId` | — |
 | `MediaItemTagged` | `MediaItemId`, `Tags[]` | — |
-| `MediaItemSubmittedForReview` | `MediaItemId`, `ReviewSessionId`, `ReviewerIds[]`, `CommentThreadId?`, `SubmittedAt` | Draft → PendingApproval |
+| `MediaItemPublicationRequested` | `MediaItemId`, `ReviewSessionId`, `ReviewerIds[]`, `CommentThreadId?`, `SubmittedAt` | Draft → PendingApproval |
 | `MediaItemApproved` | `MediaItemId`, `ApprovedAt`, `NewVersionNumber`, `ApprovedMetadataSnapshot`, `ApprovedAssets: IReadOnlyList<ApprovedAssetSnapshot>` where `ApprovedAssetSnapshot = { AssetId, RoleName, FileName?, SourceStorageKey?, Renditions: [{ RenditionType, StorageKey, ContentType }] }` | PendingApproval → Published (or Draft → Published on immediate publish) |
 | `MediaItemRejected` | `MediaItemId`, `RejectedBy`, `Reason`, `RejectedAt` | PendingApproval → Draft |
 | `MediaItemWithdrawn` | `MediaItemId`, `WithdrawnAt` | Published → Draft or PendingApproval → Draft |
@@ -206,7 +242,9 @@ Assigned (new FolderId; CollectionId re-derived — cross-collection permitted)
 | `MediaItemSigningSessionLinked` | `MediaItemId`, `SigningSessionId` | — |
 | `MediaItemSigningSessionUnlinked` | `MediaItemId`, `SigningSessionId` | — |
 | `RegistrationRefAdded` | `MediaItemId`, `RegistrationId` | — |
+| `RegistrationRefRemoved` | `MediaItemId`, `RegistrationId`, `RemovedAt` | — |
 | `MediaItemVersionPurged` | `MediaItemId`, `VersionNumber`, `PurgedAssetIds: IReadOnlyList<string>`, `Reason`, `PurgedAt` | — (no status change; version row deleted by projector) |
+| `MediaItemConformanceStatusChanged` | `MediaItemId`, `PreviousStatus: ConformanceStatus`, `NewStatus: ConformanceStatus`, `Gaps: IReadOnlyList<ConformanceGap>`, `OccurredAt` | — (no lifecycle transition; conformance is orthogonal to publish status) |
 
 † `TenantId` is the **first field** on the creation event.
 
@@ -220,8 +258,10 @@ Assigned (new FolderId; CollectionId re-derived — cross-collection permitted)
 | `AssignMediaItemToFolderCommand(MediaItemId, FolderId)` | Handler derives `CollectionId` from media-folder |
 | `MoveMediaItemCommand(MediaItemId, NewFolderId)` | Handler derives new `CollectionId` |
 | `UpdateMediaItemTitleCommand(MediaItemId, NewTitle)` | |
-| `SetMetadataFieldCommand(MediaItemId, FieldName, Value, RecordTypeId, RecordTypeVersion)` | Validated against schema |
-| `SetMetadataBatchCommand(MediaItemId, Fields[])` | |
+| `UpdateMediaItemDescriptionCommand(MediaItemId, Description?, OccurredAt)` | `Description = null` explicitly clears. Dispatched by `UpdateMediaItemEndpoint` when `description` or `clearDescription` is present on the request. Guard enforced in aggregate: `Status == Draft \| Revising`, not archived. No-op if unchanged. |
+| `SetMetadataFieldCommand(MediaItemId, FieldName, Value, Origin, RequestingUser, OccurredAt, AttributedTo?, AttributedDate?)` | `Origin: MetadataFieldOrigin` is required — no default. `AttributedTo` and `AttributedDate` are optional; used for migration/conversion to record the original person and date from the source system. `RequestingUser` is always the authenticated API caller. |
+| `SetMetadataBatchCommand(MediaItemId, Fields: IReadOnlyList<(FieldName, Value, Origin)>, RequestingUser, OccurredAt, AttributedTo?, AttributedDate?)` | Each entry carries its own required `Origin` — a single batch may mix `Governed` and `General` entries. Same attribution semantics as `SetMetadataFieldCommand`. Single-aggregate command — every entry validated before any event is raised (atomic, no partial writes), backs `PUT /v1/catalog/items/{id}/metadata`. |
+| `BulkSetMetadataCommand(ItemIds: IReadOnlyList<MediaItemId>, Fields: IReadOnlyList<(FieldName, RawValue: JsonElement, Origin)>, RequestingUser, OnError: BulkOnErrorMode, OccurredAt, AttributedTo?, AttributedDate?)` | **Multi-aggregate bulk command** — backs `POST /v1/catalog/items/bulk/metadata`. Distinct from `SetMetadataBatchCommand`: applies the *same* field set across multiple MediaItems, each resolved independently against its own `SnapshotFields` via `BulkSetMetadataHandler`, processed with `Parallel.ForEachAsync` (bounded by `BulkOperationsOptions.WritePhaseMaxDegreeOfParallelism`). Per-item resolution/validation/domain failures are collected as `BulkItemError` rather than aborting the request, except that `OnError = FailFast` discards the entire `succeeded` list (not just remaining items) if any item failed. Each per-item write is independently atomic (resolved via the same field-resolution algorithm as `SetMetadataBatchCommand`, then dispatched through `MediaItem.SetMetadataBatch` on that item's aggregate) but the bulk command as a whole is **not** atomic across items — partial success across the MediaItem set is expected and is the normal `ContinueOnError` outcome. |
 | `AssignAssetToRoleCommand(MediaItemId, AssetId, RoleName)` | Handler also dispatches `AttachAssetToMediaItemCommand` on Asset. Returns `RoleAlreadyFilled` if `AllowMultiple = false` and role is occupied — use `ReplaceAssetInRoleCommand` instead. |
 | `UnassignAssetFromRoleCommand(MediaItemId, AssetId, RoleName)` | Handler dispatches `DetachAssetFromMediaItemCommand` on old Asset. |
 | `ReplaceAssetInRoleCommand(MediaItemId, RoleName, NewAssetId)` | Handler dispatches `DetachAssetFromMediaItemCommand` on old Asset and `AttachAssetToMediaItemCommand` on new Asset. Old asset is left `Active` and detached — owner decides whether to archive or delete it. |
@@ -234,9 +274,11 @@ Assigned (new FolderId; CollectionId re-derived — cross-collection permitted)
 | `WithdrawMediaItemCommand(MediaItemId)` | Caller is owner. Returns Published or PendingApproval item to Draft. |
 | `ArchiveMediaItemCommand(MediaItemId)` | |
 | `DeleteMediaItemCommand(MediaItemId)` | Hard-delete. Precondition: `Status == Archived`. No name-reservation or counter calls — both released at archive time. |
+| `RemoveRegistrationRefCommand(MediaItemId, RegistrationId, RemovedAt)` | **System-internal only. No HTTP endpoint.** Dispatched by `RegistrationCancelledEventHandler` and `RegistrationRejectedEventHandler` when a registration terminal event arrives from the Registration context. Handler also decrements the `active-registrations` counter (scope: `MediaItemRegistrations(MediaItemId)`) used by `IFolderArchiveFanOutWorker.HasActiveRegistrationsAsync`. Idempotent on delivery: if the ref is not present the aggregate returns `InvalidOperation`, which is logged and not re-raised (message acknowledged). |
 | `LinkSigningSessionCommand(MediaItemId, SigningSessionId)` | Dispatched by `SagaOrchestrator` |
 | `UnlinkSigningSessionCommand(MediaItemId, SigningSessionId)` | Dispatched by `SagaOrchestrator` |
 | `PurgeMediaItemVersionCommand(MediaItemId, VersionNumber, Reason)` | **System/admin only.** `DELETE /catalog/items/{id}/versions/{versionNumber}`. Resolves `assetIds` from `IMediaItemVersionQueryService` (write-side `MediaItemVersionAssetReference`) before calling `mediaItem.PurgeVersion(...)`. Emits `MediaItemVersionPurgedIntegrationEvent` which triggers `MediaItemVersionPurgedEventHandler` in AssetManagement to release each asset from `VersionArtifact` status. |
+| `UpdateMediaItemConformanceStatusCommand(TenantId, MediaItemId, Gaps: IReadOnlyList<ConformanceGap>, OccurredAt)` | **System-internal only. No HTTP endpoint.** Dispatched by `MediaProfilePublishedConformanceFanoutHandler` to update conformance on each pinned media item after a profile is published. Calls `mediaItem.UpdateConformanceStatus(gaps, occurredAt)`. No-op if status and gap set are unchanged. Does not publish an integration event — read models only. |
 
 ---
 
@@ -370,12 +412,12 @@ Published inline by `MediaItemIntegrationEventPublisher` (`Catalog.WriteModel`) 
 
 | Integration Event | Source Domain Event | Notes |
 |---|---|---|
-| `MediaItemCreatedMessage` | `MediaItemCreated` | Enriched with capabilities and `MaxFileSizeBytes` from the embedded `MediaProfileSnapshot` — consumed by AssetManagement to materialise the `media-reference-models` projection |
+| `MediaItemCreatedMessage` | `MediaItemCreated` | Enriched with capabilities and `MaxFileSizeBytes` from the embedded `MediaProfileSnapshot` — consumed by AssetManagement to materialise the `media-asset-item-capability-ref` projection |
 | `MediaItemAssignedToFolderMessage` | `MediaItemAssignedToFolder` | Carries `FolderId`, `CollectionId` |
-| `MediaItemSubmittedForReviewMessage` | `MediaItemSubmittedForReview` | Carries `ReviewSessionId`, `ReviewerIds[]`, `CommentThreadId?`. Consumed by Notifications to alert assigned reviewers. |
+| `MediaItemSubmittedForReviewMessage` | `MediaItemPublicationRequested` | Carries `ReviewSessionId`, `ReviewerIds[]`, `CommentThreadId?`. Consumed by Notifications to alert assigned reviewers. |
 | `MediaItemApprovedMessage` | `MediaItemApproved` | Consumed by Search/Discovery, Billing, Registration (updates `IsPublished` on the media-registration context projection), AssetManagement (`MediaItemApprovedEventHandler` — promotes each asset in `ApprovedAssets` to `VersionArtifact` status). Carries `ApprovedAssets: [{ AssetId, RoleName }]`. |
 | `MediaItemRejectedMessage` | `MediaItemRejected` | Consumed by Notifications |
-| `MediaItemArchivedMessage` | `MediaItemArchived` | Consumed by AssetManagement (flips `IsArchived` on `media-reference-models`), Search/Discovery, Billing |
+| `MediaItemArchivedMessage` | `MediaItemArchived` | Consumed by AssetManagement (flips `IsArchived` on `media-asset-item-capability-ref`), Search/Discovery, Billing |
 | `MediaItemDeletedMessage` | `MediaItemDeleted` | Consumed by Search/Discovery (remove from index), Billing, Notifications. Carries `FolderId?` for downstream context. |
 | `MediaItemVersionPurgedIntegrationEvent` | `MediaItemVersionPurged` | Consumed by AssetManagement (`MediaItemVersionPurgedEventHandler` — releases each asset in `PurgedAssetIds` from `VersionArtifact` back to `Active` or `Archived`). Also consumed by `MediaItemVersionAssetReferenceProjector` (deletes write-side version reference row). Carries `VersionNumber`, `PurgedAssetIds`, `Reason`, `PurgedAt`. |
 
@@ -387,11 +429,36 @@ Consumed via the `media-cross-module-events` SQS queue. All consumers are regist
 
 **From Registration — consumer: `RegistrationInitiatedConsumer`**
 
-Closes the cross-context link from Registration back to Catalog by appending the `RegistrationId` onto the MediaItem's event stream. This is the only integration event that drives a **command dispatch** into this write model from an external context.
+Closes the cross-context link from Registration back to Catalog by appending the `RegistrationId` onto the MediaItem's event stream.
 
 | Integration Event              | Source       | Command Dispatched          | Result                                                                                                               |
 | ------------------------------ | ------------ | --------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `RegistrationInitiatedMessage` | Registration | `AddRegistrationRefCommand` | Appends `RegistrationRefAdded` to the linked `MediaItem` stream; `RegistrationIds` becomes visible on the read model |
+
+**From Registration — consumers: `RegistrationCancelledEventHandler`, `RegistrationRejectedEventHandler`**
+
+Removes the registration reference from the linked `MediaItem` when a registration reaches a terminal state (Cancelled or Rejected). Both handlers dispatch `RemoveRegistrationRefCommand`. Cancellation may occur from any prior status including Confirmed — the ref is removed regardless. Idempotent: if no ref is present (e.g. duplicate delivery) the error is logged and the message is acknowledged.
+
+| Integration Event | Source | Consumer | Command Dispatched |
+|---|---|---|---|
+| `RegistrationCancelledIntegrationEvent` | Registration | `RegistrationCancelledEventHandler` | `RemoveRegistrationRefCommand` |
+| `RegistrationRejectedIntegrationEvent` | Registration | `RegistrationRejectedEventHandler` | `RemoveRegistrationRefCommand` |
+
+Both handlers also trigger the `active-registrations` counter decrement (via the command handler) that guards folder archival.
+
+---
+
+**From Catalog (same context) — consumer: `MediaProfilePublishedConformanceFanoutHandler`**
+
+Triggered when a `MediaProfile` is published (new version). Fans out conformance re-evaluation to every `MediaItem` pinned to that profile. Uses the `ProfileIndex` GSI on `media-items` to enumerate pinned items, then calls `mediaItem.UpdateConformanceStatus(gaps, publishedAt)` on each — saving the aggregate directly without dispatching `UpdateMediaItemConformanceStatusCommand`. Items that are archived are skipped. Items with `count > 1000` log a warning (pagination not yet implemented).
+
+| Integration Event | Source | Consumer | Result |
+|---|---|---|---|
+| `MediaProfilePublishedIntegrationEvent` | Catalog (MediaProfile) | `MediaProfilePublishedConformanceFanoutHandler` | Re-evaluates conformance gaps for all pinned `MediaItem` aggregates. Emits `MediaItemConformanceStatusChanged` per item where gap set has changed. |
+
+Conformance gaps evaluated:
+- `MissingRequiredAssetRole` — a required asset role (from `MediaProfile.AssetDefinitions`) has no assigned asset.
+- `MissingRequiredMetadataField` — a required field (from `MediaProfile.CompiledTemplate`) is absent from the item's effective metadata (`Draft ?? Current`).
 
 ---
 

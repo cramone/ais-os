@@ -49,7 +49,7 @@ Owner-scoped. `OwnerId = "owner_system"` for platform-level media-profiles. Quer
 | `Capabilities`     | `IReadOnlyList<Capability>`        | Published state — domain module activators               |
 | `ReviewPolicy`     | `ReviewPolicy`                     | Published state — `None \| RequiredForPublish`           |
 | `CheckoutPolicy`   | `CheckoutPolicy`                   | Published state — `None \| RequiredForEdit`              |
-| `CompiledTemplate` | `CompiledMetadataTemplate?`        | Null before first publish. Set exclusively by `Apply(MetadataTemplateCompiled)`. Merged field definition list across all pinned RecordType versions at the time of publish. |
+| `CompiledTemplate` | `CompiledMetadataTemplate?`        | Null before first publish. Set exclusively by `Apply(MetadataTemplateCompiled)`. Merged field definition list across all pinned RecordType versions at the time of publish. See [Metadata Field Collision Resolution](#metadata-field-collision-resolution) below for how colliding bare field names across RecordTypes are qualified. |
 | `CreatedAt`        | `DateTimeOffset`                   |                                                          |
 | `PublishedAt`      | `DateTimeOffset?`                  |                                                          |
 | `Draft`            | `MediaProfileDraft?`               | Present when a revision is in progress                   |
@@ -71,6 +71,50 @@ Contains the full working set of mutations before publish. The draft is a comple
 | `Name` | `MediaProfileName` |
 | `Description` | `string?` |
 | `CreatedAt` | `DateTimeOffset` |
+
+---
+
+## CompiledMetadataField Value Object
+
+One entry within `CompiledMetadataTemplate.Fields`. Produced by `MediaProfileDomainService.CompileTemplateAsync` at publish time; the aggregate treats `CompiledMetadataTemplate` as opaque.
+
+| Property | Type | Notes |
+|---|---|---|
+| `Name` | `string` | The emitted (possibly qualified) key. Equal to `BareName` for non-colliding fields; otherwise `"{alias}.{BareName}"` or `"{RecordTypeId}.{BareName}"` — see [Metadata Field Collision Resolution](#metadata-field-collision-resolution). |
+| `BareName` | `string` | The unqualified field name as defined on the RecordType, before any collision qualification. |
+| `FieldType` | `string` | Mirrors the source `FieldDefinition.FieldType`. |
+| `IsRequired` | `bool` | Mirrors the source field definition. |
+| `IsImmutable` | `bool` | Mirrors the source field definition. |
+| `RecordTypeId` | `RecordTypeId` | The contributing RecordType. |
+| `RecordTypeVersion` | `int` | The pinned version the field was sourced from. |
+| `AllowedValues` | `IReadOnlyList<string>?` | Enum / MultiEnum only. |
+| `DefaultValue` | `MetadataValueSnapshot?` | |
+| `MinLength` / `MaxLength` | `int?` | Text only. |
+| `MinValue` / `MaxValue` | `decimal?` | Number only. |
+| `MinDate` / `MaxDate` | `DateTimeOffset?` | Date only; inclusive. |
+| `MaxSelections` | `int?` | MultiEnum only. |
+| `RegexPattern` | `string?` | Text only; evaluated with `RegexOptions.NonBacktracking`. |
+
+`CompiledMetadataTemplate` also carries `SuppressedFieldNames: IReadOnlyList<string>` — the bare names that collided across two or more contributing RecordTypes and were therefore never emitted as a standalone bare key (every contributing field for that bare name was re-keyed instead). This list is propagated into `MediaProfileSnapshot.SuppressedFieldNames` for embedding in `MediaItemCreated`.
+
+---
+
+## Metadata Field Collision Resolution
+
+`MediaProfileDomainService.CompileTemplateAsync(tenantId, recordTypeRefs, ct)` merges the published field schemas of every RecordType version pinned to the profile's draft. Deprecated fields are excluded entirely (never emitted, never counted toward collisions).
+
+Fields are grouped by **bare name** (ordinal comparison) across all contributing RecordTypes:
+
+- **No collision** (exactly one contributor for that bare name): the field is emitted as-is — `Name == BareName`.
+- **Collision** (two or more contributors for the same bare name): the bare name is recorded in `SuppressedFieldNames` and is never emitted as a standalone key. Every contributing field is re-keyed instead:
+  - If the owning RecordType has one or more `Aliases` (see [RecordType Write Model — Aliases](../../../Metadata/aggregates/RecordType/recordtype.write-model.md)), the field is emitted **once per alias** as `"{alias}.{BareName}"`.
+  - If the owning RecordType has **no** aliases, the field falls back to the guaranteed-unique `"{RecordTypeId}.{BareName}"` key.
+
+This means a single colliding bare name can produce multiple emitted keys for the same underlying field (one per alias) — by design, since aliases are meant to be stable, human-readable qualifiers and a RecordType may legitimately have more than one.
+
+`Capabilities` are unioned (not collision-checked) across all contributing RecordType versions into `CompiledMetadataTemplate.Capabilities`.
+
+A `RecordTypeVersion` reference that cannot be resolved against the `RecordTypeVersionReference` lookup at compile time fails the whole publish with `InvalidOperation` — there is no partial/best-effort compilation.
 
 ---
 
@@ -237,7 +281,7 @@ Maintains the `media-record-types` write-side reference model used by `AttachRec
 | `PublishMediaProfileHandler`           | `IRecordTypeVersionReadModel.VersionExistsAsync`      | Blocking — `InvalidOperation`              | Per each `draft.RecordTypeRefs` entry — reject if any pinned version no longer exists                                                     |
 | `PublishMediaProfileHandler`           | `IRecordTypeVersionReadModel.IsDeprecatedAsync`       | Blocking — `InvalidOperation`              | Per each `draft.RecordTypeRefs` entry — reject if any pinned record type is deprecated                                                    |
 | `PublishMediaProfileHandler`           | `IMediaProfileDomainService.CheckRevisionBreaksAsync` | Blocking — delegates from service `Result` | Only called when `draft.BasedOnVersion > 0`; best-effort, non-transactional break detection                                               |
-| `PublishMediaProfileHandler`           | `IMediaProfileDomainService.CompileTemplateAsync`     | Blocking — delegates from service `Result` | Always called; compiles merged metadata template from all pinned RecordType versions; result passed into `media-profile.Publish(template, ...)` |
+| `PublishMediaProfileHandler`           | `IMediaProfileDomainService.CompileTemplateAsync`     | Blocking — delegates from service `Result` | Called when `draft.RecordTypeRefs.Count > 0`; compiles merged metadata template (with collision/alias qualification — see [Metadata Field Collision Resolution](#metadata-field-collision-resolution)) from all pinned RecordType versions. When `draft.RecordTypeRefs` is empty (capabilities-only or asset-defs-only profiles), the handler short-circuits to `CompiledMetadataTemplate.Empty(profile.Id)` without calling the service. Result passed into `media-profile.Publish(template, ...)` |
 | `SetAssetDefinitionDefaultHandler`     | `IMediaProfileAssetQueryService.GetSummaryAsync`      | Blocking — `InvalidOperation`              | Only called when `DefaultAssetId` is not null; asset must be `Active` and its `ContentType` must be accepted by the role                  |
 | `UpdatePinnedRecordTypeVersionHandler` | `IRecordTypeVersionReadModel.VersionExistsAsync`      | Blocking — `InvalidOperation`              | Reject if the new version does not exist                                                                                                  |
 | `UpdatePinnedRecordTypeVersionHandler` | `IRecordTypeVersionReadModel.IsDeprecatedAsync`       | Blocking — `InvalidOperation`              | Reject if the record type is deprecated                                                                                                   |
@@ -277,6 +321,7 @@ interface IMediaProfileDomainService {
         CancellationToken ct = default);
 
     Task<Result<CompiledMetadataTemplate, DomainError>> CompileTemplateAsync(
+        TenantId tenantId,
         IReadOnlyList<RecordTypeVersion> recordTypeRefs,
         CancellationToken ct = default);
 }
@@ -421,7 +466,7 @@ Reference models consumed by this write model's command handlers. All are read-o
 
 | Event | Source | Write |
 |---|---|---|
-| `AssetUploaded` | AssetManagement | INSERT with `Status = Pending`, `ContentType` |
+| `AssetUploadInitiated` | AssetManagement | INSERT with `Status = Pending`, `ContentType` |
 | `AssetProcessingCompleted` | AssetManagement | UPDATE `Status = Active` |
 | `AssetValidationPassed` (fast-exit path) | AssetManagement | UPDATE `Status = Active` |
 | `AssetArchived` | AssetManagement | UPDATE `Status = Archived` |

@@ -27,7 +27,7 @@ The Processing context owns the asset ingestion pipeline — from upload confirm
 
 | Service | Runtime | Trigger | Responsibility |
 |---|---|---|---|
-| `Processing Worker` | Lambda | SQS `media-processing` queue (`AssetUploadConfirmedIntegrationEvent`) | Resolves `ProcessingJobId` via `AssetProcessingJobIndex`; runs virus scan via `AssetValidationWorker`; dispatches `RecordProcessingJobScanResultCommand` → publishes `ProcessingJobScanResultIntegrationEvent`. For capable media-assets (after saga routes): runs rendition/metadata pipeline via `AssetProcessingWorker`; dispatches `CompleteProcessingJobCommand` or `FailProcessingJobCommand`. |
+| `Processing Worker` | Lambda | SQS `media-processing` queue (`AssetUploadConfirmedIntegrationEvent`) | Receives `AssetUploadConfirmedIntegrationEvent`; creates `ProcessingJob`; runs virus scan via `AssetValidationWorker`; dispatches `RecordProcessingJobScanResultCommand`; publishes `ProcessingJobScanResultIntegrationEvent`. For capable assets: runs rendition/metadata pipeline after `StartProcessingJobCommand` is dispatched by SagaOrchestrator. Stateless executor — saga routing owned by SagaOrchestrator. |
 | `SagaTimeoutScanner` | Lambda | CloudWatch schedule (every 5 minutes) | Scans `media-sagas` for timed-out processing jobs; dispatches `FailProcessingJobCommand` |
 
 ---
@@ -48,7 +48,8 @@ This context owns the **`ProcessingJob`** aggregate. All write-side Asset state 
 ## Pipeline Logic
 
 ```
-AssetUploadConfirmedIntegrationEvent (from media-processing SQS)
+[ProcessingWorker Lambda — media-processing SQS]
+AssetUploadConfirmedIntegrationEvent
     │
     ├─ AssetValidationWorker
     │       ├─ Resolve ProcessingJobId via AssetProcessingJobIndex (AssetId → JobId)
@@ -56,13 +57,17 @@ AssetUploadConfirmedIntegrationEvent (from media-processing SQS)
     │       └─ Dispatch RecordProcessingJobScanResultCommand
     │               └─ ProcessingJob.RecordScanResult() → ProcessingJobScanResultRecorded
     │                       └─ Publish ProcessingJobScanResultIntegrationEvent (SNS)
+    │                                                       ▲
+    │                          [ProcessingWorker terminates here]
     │
+    │   [EventConsumers Lambda — media-cross-module-events SQS]
     │   [AssetManagement subscribes — ProcessingJobScanResultEventHandler]
     │       └─ RecordValidationResultCommand → Asset.RecordValidationResult()
     │               ├─ Resolves HasProcessingCapability via IMediaItemCapabilityService
     │               └─ Emits AssetValidationPassed (HasProcessingCapability, ...) → SNS
     │
-    │   [AssetIngestionSaga subscribes to AssetValidationPassedIntegrationEvent]
+    │   [SagaOrchestrator Lambda — media-sagas SQS]
+    │   [AssetIngestionSaga handles AssetValidationPassedIntegrationEvent]
     │       │
     │       ├─ HasProcessingCapability = false → BypassProcessingJobCommand
     │       │       └─ ProcessingJobBypassed → ProcessingJobBypassedIntegrationEvent → AM: Validating → Active
@@ -70,7 +75,7 @@ AssetUploadConfirmedIntegrationEvent (from media-processing SQS)
     │       └─ HasProcessingCapability = true → StartProcessingJobCommand
     │               └─ ProcessingJobStarted → ProcessingJobStartedIntegrationEvent → AM: Validating → Processing
     │
-    │   [AssetProcessingWorker — triggered after StartProcessingJobCommand]
+    │   [ProcessingWorker Lambda — StartProcessingJobCommand triggers rendition pipeline]
     │       ├─ Image → Sharp / ImageMagick (Lambda layer) → renditions + EXIF
     │       ├─ Video → MediaConvert job (async; completion via EventBridge → SQS)
     │       ├─ Audio → rendition generation (Lambda layer)
@@ -132,15 +137,22 @@ Published inline by the `ProcessingJob` domain event handlers in `Processing.Wri
 
 ### Consumed
 
-Consumed from `media-processing` SQS queue (subscribed to `media-integration-events` SNS).
+#### ProcessingWorker Lambda (`media-processing` SQS — filtered: `AssetUploadConfirmedIntegrationEvent` only)
 
 | Integration Event | Source | Handler | Action |
 |---|---|---|---|
 | `AssetUploadConfirmedIntegrationEvent` | AssetManagement | `AssetUploadConfirmedEventHandler` | Creates `ProcessingJob`; `AssetValidationWorker` runs virus scan; `RecordProcessingJobScanResultCommand` dispatched |
+
+#### SagaOrchestrator Lambda (`media-sagas` SQS)
+
+The following events drive `AssetIngestionSaga` coordination and are consumed by the **SagaOrchestrator** — not by the ProcessingWorker:
+
+| Integration Event | Source | Handler | Action |
+|---|---|---|---|
+| `ProcessingJobCreatedIntegrationEvent` | Processing (self) | `ProcessingJobCreatedSagaHandler` | Initialises `AssetIngestionSaga` in `AwaitingValidation` state |
 | `AssetValidationPassedIntegrationEvent` | AssetManagement | `AssetValidationPassedSagaHandler` | Advances `AssetIngestionSaga`; dispatches `StartProcessingJobCommand` or `BypassProcessingJobCommand` based on `HasProcessingCapability` |
 | `AssetProcessingCompletedIntegrationEvent` | AssetManagement | `AssetProcessingCompletedSagaHandler` | Closes `AssetIngestionSaga` on success |
 | `AssetProcessingFailedIntegrationEvent` | AssetManagement | `AssetProcessingFailedSagaHandler` | Closes `AssetIngestionSaga` on failure |
-| `ProcessingJobCreatedIntegrationEvent` | Processing (self) | `ProcessingJobCreatedSagaHandler` | Saga housekeeping |
 
 ## Integration Event Contracts
 
@@ -224,7 +236,6 @@ record ProcessingJobFailedIntegrationEvent(
 | Dependency | Type | Direction |
 |---|---|---|
 | `AssetProcessingJobIndex` read model | DynamoDB (Processing) | Inbound — resolve ProcessingJobId from AssetId for `AssetValidationWorker` |
-| `media-sagas` | DynamoDB | Read/write — saga state |
 | `media-source`, `media-documents` S3 buckets | S3 | Inbound — read uploaded files |
 | `media-renditions` S3 bucket | S3 | Outbound — write generated renditions |
 | `media-integration-events` SNS | AWS SNS | Outbound — publish `ProcessingJobScanResultIntegrationEvent`, `ProcessingJobStartedIntegrationEvent`, `ProcessingJobCompletedIntegrationEvent`, `ProcessingJobFailedIntegrationEvent` |

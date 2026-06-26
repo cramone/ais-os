@@ -19,7 +19,7 @@ C# .NET 8, DynamoDB, Lambda, Openiddict, Fast-endpoints
 All MAGIQ cloud applications and APIs
 
 ## ADO Board
-_Not yet assigned_
+MagiqAuth
 
 ## Priority
 High

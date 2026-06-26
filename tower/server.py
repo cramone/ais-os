@@ -1,12 +1,15 @@
+import hmac
 import os
+import shutil
+import subprocess
 import threading
 import webbrowser
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -18,17 +21,13 @@ from tower.interrupts.store import (
     create_interrupt,
     delete_interrupt,
     load_interrupts,
+    update_activity,
     update_interrupt,
 )
 from tower.readers.ado import invalidate_cache as invalidate_ado_cache, read_ado_sprint
 from tower.readers.ado_update import update_work_item_state
 from tower.readers.github import read_github_prs, read_github_review_requested
 from tower.readers.decisions import add_decision, delete_decision, read_decisions, rename_decision
-from tower.readers.hermes import (
-    read_adhoc_notes,
-    read_ado_pending,
-    read_hermes_project_captures,
-)
 from tower.readers.claudia import send_to_claudia
 from tower.readers.projects import read_projects
 from tower.standup import generate_standup
@@ -53,18 +52,55 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def _token_auth(request: Request, call_next):
+    """Gate /api/* with a shared bearer token when TOWER_TOKEN is set.
+
+    Leaves /api/health open (proxy healthchecks) and lets CORS preflight through.
+    """
+    token = config.TOWER_TOKEN
+    path = request.url.path
+    if (
+        token
+        and request.method != "OPTIONS"
+        and path.startswith("/api")
+        and path != "/api/health"
+    ):
+        provided = request.headers.get("authorization", "")
+        if not hmac.compare_digest(provided, f"Bearer {token}"):
+            return JSONResponse({"detail": "unauthorized"}, status_code=401)
+    return await call_next(request)
+
+
 # --- Health ---
+
+def _hermes_container_up() -> bool:
+    """True if docker is on PATH and a container named 'hermes' is running."""
+    if not shutil.which("docker"):
+        return False
+    try:
+        r = subprocess.run(
+            ["docker", "ps", "--filter", "name=hermes", "--format", "{{.Names}}"],
+            capture_output=True, text=True, timeout=5,
+        )
+        return "hermes" in r.stdout
+    except Exception:
+        return False
+
 
 @app.get("/api/health")
 def health() -> dict[str, Any]:
+    """Probe real source reachability, not just file existence."""
     sources = {
         "projects": config.PROJECTS_DIR.exists(),
-        "hermes_pending": config.ADO_PENDING.exists(),
-        "adhoc_notes": config.ADHOC_NOTES.exists(),
         "decisions": config.DECISIONS_LOG.exists(),
         "interrupts": config.INTERRUPTS_FILE.exists(),
+        "ado": config.ADO_SCRIPT.exists() and bool(os.getenv("AZURE_DEVOPS_PAT")),
+        "github": shutil.which("gh") is not None,
+        "claudia": _hermes_container_up(),
     }
-    return {"status": "ok", "sources": sources}
+    core_ok = all((sources["projects"], sources["decisions"], sources["interrupts"]))
+    return {"status": "ok" if core_ok else "degraded", "sources": sources}
 
 
 # --- Projects ---
@@ -116,23 +152,6 @@ def decision_rename(req: DecisionRenameRequest) -> dict:
     if not rename_decision(req.date, req.old_title, req.new_title):
         raise HTTPException(404, "Decision not found")
     return {"date": req.date, "title": req.new_title}
-
-
-# --- Hermes ---
-
-@app.get("/api/hermes/inbox")
-def hermes_inbox() -> list[dict[str, Any]]:
-    return read_ado_pending()
-
-
-@app.get("/api/hermes/adhoc")
-def hermes_adhoc() -> list[dict[str, Any]]:
-    return read_adhoc_notes()
-
-
-@app.get("/api/hermes/sync")
-def hermes_sync() -> dict[str, Any]:
-    return read_hermes_project_captures()
 
 
 # --- ADO ---
@@ -200,6 +219,8 @@ class InterruptCreate(BaseModel):
     source: str
     dueDate: str | None = None
     priority: str = "normal"
+    zendeskTicket: str | None = None
+    customer: str | None = None
 
 
 class InterruptUpdate(BaseModel):
@@ -210,6 +231,8 @@ class InterruptUpdate(BaseModel):
     status: str | None = None
     tags: list[str] | None = None
     adoItemId: int | None = None
+    zendeskTicket: str | None = None
+    customer: str | None = None
 
 
 class ActivityEntry(BaseModel):
@@ -236,6 +259,8 @@ def post_interrupt(body: InterruptCreate) -> dict[str, Any]:
         source=body.source,
         due_date=body.dueDate,
         priority=body.priority,
+        zendesk_ticket=body.zendeskTicket,
+        customer=body.customer,
     )
 
 
@@ -266,6 +291,22 @@ def post_activity(interrupt_id: str, body: ActivityEntry) -> dict[str, Any]:
         )
     except KeyError:
         raise HTTPException(404, f"Interrupt {interrupt_id!r} not found")
+
+
+class ActivityEdit(BaseModel):
+    text: str
+
+
+@app.patch("/api/interrupts/{interrupt_id}/activity/{index}")
+def patch_activity(interrupt_id: str, index: int, body: ActivityEdit) -> dict[str, Any]:
+    try:
+        return update_activity(config.INTERRUPTS_FILE, interrupt_id, index, body.text)
+    except KeyError:
+        raise HTTPException(404, f"Interrupt {interrupt_id!r} not found")
+    except IndexError:
+        raise HTTPException(404, f"Activity index {index} not found")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @app.post("/api/interrupts/{interrupt_id}/email-draft")
@@ -513,6 +554,88 @@ def write_memory(slug: str, body: MemoryWriteRequest) -> dict:
         raise HTTPException(404, "No MEMORY.md for this project")
     memory_file.write_text(body.content, encoding="utf-8")
     return {"ok": True}
+
+
+# --- Notes ---
+
+import re as _re
+import datetime as _datetime
+
+@app.get("/api/projects/{slug}/notes")
+def project_notes(slug: str) -> dict:
+    """Return parsed note entries from projects/{slug}/notes.md."""
+    notes_file = config.PROJECTS_DIR / slug / "notes.md"
+    if not notes_file.exists():
+        return {"notes": []}
+    content = notes_file.read_text(encoding="utf-8", errors="replace")
+    notes = []
+    blocks = _re.split(r'\n(?=## )', content)
+    for i, block in enumerate(blocks):
+        block = block.strip()
+        if not block.startswith('## '):
+            continue
+        lines = block.split('\n')
+        title = lines[0][3:].strip()
+        body_lines = [l for l in lines[1:] if not l.startswith('_Captured:')]
+        note_content = '\n'.join(body_lines).strip()
+        notes.append({"id": str(i), "title": title, "content": note_content})
+    return {"notes": notes}
+
+
+class NoteAddRequest(BaseModel):
+    title: str
+
+@app.post("/api/projects/{slug}/notes", status_code=201)
+def add_note(slug: str, body: NoteAddRequest) -> dict:
+    """Append a new note to projects/{slug}/notes.md."""
+    notes_file = config.PROJECTS_DIR / slug / "notes.md"
+    today = _datetime.date.today().isoformat()
+    new_block = f"\n## {body.title.strip()}\n_Captured: {today}_\n\n"
+    if not notes_file.exists():
+        notes_file.write_text(f"# Notes\n{new_block}", encoding="utf-8")
+    else:
+        content = notes_file.read_text(encoding="utf-8", errors="replace")
+        notes_file.write_text(content.rstrip() + new_block, encoding="utf-8")
+    return {"ok": True}
+
+
+class NoteRenameRequest(BaseModel):
+    title: str
+
+@app.patch("/api/projects/{slug}/notes/{index}")
+def rename_note(slug: str, index: int, body: NoteRenameRequest) -> dict:
+    """Rename a note heading by index."""
+    notes_file = config.PROJECTS_DIR / slug / "notes.md"
+    if not notes_file.exists():
+        raise HTTPException(404, "No notes file")
+    content = notes_file.read_text(encoding="utf-8", errors="replace")
+    blocks = _re.split(r'\n(?=## )', content)
+    header_blocks = [b for b in blocks if not b.strip().startswith('## ')]
+    note_blocks = [b for b in blocks if b.strip().startswith('## ')]
+    if index < 0 or index >= len(note_blocks):
+        raise HTTPException(404, "Note index out of range")
+    note_blocks[index] = _re.sub(
+        r'^## .+$', f'## {body.title.strip()}', note_blocks[index], count=1, flags=_re.MULTILINE
+    )
+    notes_file.write_text('\n'.join(header_blocks + note_blocks), encoding="utf-8")
+    return {"ok": True}
+
+
+@app.delete("/api/projects/{slug}/notes/{index}", status_code=204)
+def delete_note(slug: str, index: int) -> Response:
+    """Remove a note by index from projects/{slug}/notes.md."""
+    notes_file = config.PROJECTS_DIR / slug / "notes.md"
+    if not notes_file.exists():
+        raise HTTPException(404, "No notes file")
+    content = notes_file.read_text(encoding="utf-8", errors="replace")
+    blocks = _re.split(r'\n(?=## )', content)
+    header_blocks = [b for b in blocks if not b.strip().startswith('## ')]
+    note_blocks = [b for b in blocks if b.strip().startswith('## ')]
+    if index < 0 or index >= len(note_blocks):
+        raise HTTPException(404, "Note index out of range")
+    note_blocks.pop(index)
+    notes_file.write_text('\n'.join(header_blocks + note_blocks), encoding="utf-8")
+    return Response(status_code=204)
 
 
 # --- Static (must be last) ---

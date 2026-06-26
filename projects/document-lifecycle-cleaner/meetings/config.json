@@ -1,0 +1,27 @@
+{
+  "project": "document-lifecycle-cleaner",
+  "meetings": [
+    {
+      "id": "standup",
+      "topic": "Daily standup",
+      "duration_min": 15,
+      "participants": ["chase.ramone@magiqsoftware.com"],
+      "sections": [
+        { "title": "What did we ship yesterday?", "minutes": 5 },
+        { "title": "What's blocked?", "minutes": 5 },
+        { "title": "Today's focus", "minutes": 5 }
+      ]
+    },
+    {
+      "id": "requirements",
+      "topic": "Requirements & scope review",
+      "duration_min": 45,
+      "participants": ["chase.ramone@magiqsoftware.com"],
+      "sections": [
+        { "title": "Scope alignment", "minutes": 15 },
+        { "title": "Open questions", "minutes": 15 },
+        { "title": "Decisions & next steps", "minutes": 15 }
+      ]
+    }
+  ]
+}

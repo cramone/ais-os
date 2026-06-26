@@ -31,6 +31,7 @@ POST   /v1/metadata/record-types/{recordTypeId}/draft/fields/{fieldName}/depreca
 DELETE /v1/metadata/record-types/{recordTypeId}/draft                      Discard draft
 POST   /v1/metadata/record-types/{recordTypeId}/publish                    Publish
 PATCH  /v1/metadata/record-types/{recordTypeId}                            Rename
+PUT    /v1/metadata/record-types/{recordTypeId}/aliases                    Replace aliases
 POST   /v1/metadata/record-types/{recordTypeId}/deprecate                  Deprecate
 
 GET    /v1/metadata/record-types/{recordTypeId}                            Get detail
@@ -259,6 +260,51 @@ _Accepts `IdempotencyKey` header._
 
 ---
 
+### `PUT /v1/metadata/record-types/{recordTypeId}/aliases`
+
+Replaces the full set of aliases on the record type. Aliases are short, stable, lowercase qualifiers used to disambiguate metadata field names that collide across record types contributed to the same MediaProfile (e.g. `invoice.amount` vs `receipt.amount`, used by `MediaProfile.CompileTemplateAsync`). Unique per tenant, independent of RecordType names. Not draft-gated — takes effect immediately regardless of draft state, same as Rename. Pinned into the next `RecordTypePublished` snapshot at whatever value is active at `Publish()` time.
+
+**Request:**
+```json
+{
+  "aliases": ["invoice", "inv"]
+}
+```
+
+An empty array clears all aliases.
+
+**Response `204 No Content`** — no body.
+
+**Errors:** `400` — an alias does not match the required format · `404` — no record type with the given id · `409` — one or more aliases are already in use by another record type for this tenant.
+
+_Accepts `IdempotencyKey` header._
+
+**Error response example (`400 Bad Request` — invalid alias format):**
+```json
+{
+  "type": "https://errors.magiqmedia.com/validation/invalid-record-type-alias",
+  "title": "Invalid record type alias",
+  "status": 400,
+  "detail": "One or more aliases are not valid. Aliases must be lowercase, 1-32 characters, and may only contain letters, digits, '_' and '-'.",
+  "extensions": { "errorCode": "InvalidRecordTypeAlias" }
+}
+```
+
+**Error response example (`409 Conflict` — alias already in use):**
+```json
+{
+  "type": "https://errors.magiqmedia.com/domain/record-type-alias-not-unique",
+  "title": "Alias already in use",
+  "status": 409,
+  "detail": "One or more aliases are already in use by another record type for this tenant.",
+  "extensions": { "errorCode": "EntityAlreadyExists" }
+}
+```
+
+Note: a request containing duplicate values within the `aliases` array itself (rather than colliding with another RecordType) is rejected by the aggregate with `DuplicateAliasInRequest`, surfaced as a `422`.
+
+---
+
 ## Read Endpoints (selected)
 
 ### `GET /v1/metadata/record-types/{recordTypeId}`
@@ -271,6 +317,7 @@ _Accepts `IdempotencyKey` header._
   "name": "FilmRecord",
   "publishedVersion": 3,
   "publishedAt": "2026-01-15T10:00:00Z",
+  "aliases": ["filmrecord", "film"],
   "hasDraft": true,
   "draftFields": [
     { "fieldName": "director",      "fieldType": "Text",    "isRequired": true,  "order": 1 },
@@ -292,6 +339,7 @@ _Accepts `IdempotencyKey` header._
 {
   "id": "018e4c7a-...",
   "version": 3,
+  "aliases": ["filmrecord", "film"],
   "fieldSnapshot": [
     { "fieldName": "director",     "fieldType": "Text",   "isRequired": true, "order": 1 },
     { "fieldName": "release_year", "fieldType": "Number", "isRequired": true, "order": 2,
@@ -344,6 +392,7 @@ _Accepts `IdempotencyKey` header._
 |---|---|---|---|
 | `POST /v1/metadata/record-types` | `CreateRecordTypeCommand` | `RecordTypeCreated` + `RecordTypeDraftCreated` | `RecordTypeProjector` → INSERT |
 | `PATCH /v1/metadata/record-types/{id}` | `RenameRecordTypeCommand` | `RecordTypeRenamed` | `RecordTypeProjector` → UPDATE `Name` |
+| `PUT /v1/metadata/record-types/{id}/aliases` | `SetRecordTypeAliasesCommand` | `RecordTypeAliasesUpdated` | `RecordTypeProjector` → UPDATE `Aliases` |
 | `POST /v1/metadata/record-types/{id}/draft` | `CreateRecordTypeDraftCommand` | `RecordTypeDraftCreated` | `RecordTypeProjector` → `hasDraft=true` |
 | `POST /fields` | `AddFieldToRecordTypeCommand` | `FieldAddedToRecordType` | `RecordTypeProjector` → `draftFields` append |
 | `PATCH /fields/{name}` | `UpdateFieldInRecordTypeCommand` | `FieldDefinitionUpdated` | `RecordTypeProjector` → `draftFields` update |

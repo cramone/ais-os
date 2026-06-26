@@ -157,12 +157,12 @@ Only add when the need is real.
 - Reference for what Hermes captures (notes, digests, cron) vs what Claude Code executes (ADO writes, spec work)
 - Skills live at `C:\Users\chase\.hermes\skills\` — not in AIS-OS, but document the pattern here
 
-**Integration points:**
-- MCP connection: `.claude/settings.json` → `docker exec -i hermes /opt/hermes/.venv/bin/hermes mcp serve`
-- Data files: `C:\Users\chase\.hermes\data\ado-pending.json`, `flagged-comms.json`, `projects/[slug]/`
-- Execution skills: `.claude/skills/ado-flush/`, `project-scaffold/`, `project-sync/`, `project-review/`
-- Constraint: Hermes never calls ADO API directly — org IP allowlist blocks cloud-origin requests
-- Project capture flow: Telegram → Hermes skill (`project-create` etc.) → `~/.hermes/data/projects/[slug]/` → Claude Code `scaffold`/`sync`/`review`
+**Integration points** (see `hermes-integration.md` for detail):
+- MCP connection: `.claude/settings.json` → `docker exec -i hermes hermes mcp serve` (messaging bridge)
+- Direct repo write: Hermes mounts AIS-OS at `/workspace/ais-os` and writes captures straight into `projects/[slug]/` and `context/adhoc-notes.md`
+- Skills: capability-area umbrellas in `~/.hermes/skills/` (e.g. `project-management`, `adhoc-capture`, `morning-digest`)
+- Constraint: ADO writes originate from the local machine (org IP allowlist)
+- Retired: the `~/.hermes/data/` JSON handoff and the `ado-flush` / `project-scaffold` / `project-sync` / `project-review` skills
 
 ---
 

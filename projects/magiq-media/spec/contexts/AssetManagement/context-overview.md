@@ -68,7 +68,7 @@ Owns the full lifecycle of a single uploaded file — from pre-signed URL issuan
 ### Published Domain Events
 
 ```
-AssetUploaded → AssetUploadConfirmed → AssetValidationPassed / AssetValidationFailed / AssetInfectionDetected
+AssetUploadInitiated → AssetUploadConfirmed → AssetValidationPassed / AssetValidationFailed / AssetInfectionDetected
 AssetValidationPassed → AssetProcessingStarted → AssetProcessingCompleted / AssetProcessingFailed
 AssetTagged
 AssetArchived → AssetDeleted
@@ -81,7 +81,7 @@ Published inline by `AssetDomainEventPublisher` (`AssetManagement.WriteModel`) i
 
 | C# Record Type | Trigger Domain Event | Consumers |
 |---|---|---|
-| `AssetUploadedIntegrationEvent` | `AssetUploaded` | Processing (capability-gated), Notifications |
+| `AssetUploadInitiatedIntegrationEvent` | `AssetUploadInitiated` | Processing (capability-gated), Notifications |
 | `AssetValidationPassedIntegrationEvent` | `AssetValidationPassed` | SagaOrchestrator (`AssetValidationPassedSagaHandler`) — advances `AssetIngestionSaga`; carries `HasProcessingCapability` flag so saga selects `StartProcessingJobCommand` or `BypassProcessingJobCommand` without a cross-BC lookup |
 | `AssetProcessingCompletedIntegrationEvent` | `AssetProcessingCompleted` | Notifications, Billing (filtered: `Processing` capability only) |
 | `AssetProcessingFailedIntegrationEvent` | `AssetProcessingFailed` | Notifications, SagaOrchestrator |
@@ -135,23 +135,47 @@ Dispatches the corresponding AssetManagement command to advance the `Asset` aggr
 
 ### Published
 
-#### `AssetUploadedIntegrationEvent`
+#### `AssetUploadInitiatedIntegrationEvent`
 
-**Publisher:** `AssetDomainEventPublisher` — triggered by `AssetUploaded`
+**Publisher:** `AssetDomainEventPublisher` — triggered by `AssetUploadInitiated`  
+**SNS message type:** `media.asset.upload-initiated`
 
 ```csharp
-record AssetUploadedIntegrationEvent(
+record AssetUploadInitiatedIntegrationEvent(
     string TenantId,
     string AssetId,
     string OwnerId,
     string FileName,
-    string ContentType,    // MIME type string
+    string ContentType,    // MediaContentType enum value as string
     string StorageKey,
-    DateTimeOffset UploadedAt
+    string Status,         // Always "Pending"
+    DateTimeOffset UploadedAt,
+    long EventVersion
 );
 ```
 
-> Processing subscribes and gates on whether the owning MediaProfile's `Capabilities` list contains `"Processing"`.
+---
+
+#### `AssetUploadConfirmedIntegrationEvent`
+
+**Publisher:** `AssetDomainEventPublisher` — triggered by `AssetUploadConfirmed`  
+**SNS message type:** `media.asset.upload-confirmed`
+
+```csharp
+record AssetUploadConfirmedIntegrationEvent(
+    string TenantId,
+    string AssetId,
+    string OwnerId,
+    string FileName,
+    string ContentType,    // MediaContentType enum value as string
+    string StorageKey,     // S3 key path — used by AssetValidationWorker to locate the object
+    string Status,         // Always "Validating"
+    DateTimeOffset ConfirmedAt,
+    long EventVersion
+);
+```
+
+> `AssetValidationWorker` (Processing context) subscribes via the `media-processing` SQS queue and uses `StorageKey` and `ContentType` to run the virus scan and format check. `Status` is always `"Validating"` — the asset transitions from `Pending` to `Validating` on this event.
 
 ---
 
@@ -198,17 +222,39 @@ record AssetProcessingCompletedIntegrationEvent(
 
 #### `AssetProcessingFailedIntegrationEvent`
 
-**Publisher:** `AssetDomainEventPublisher` — triggered by `AssetProcessingFailed`
+**Publisher:** `AssetDomainEventPublisher` — triggered by `AssetProcessingFailed` and `AssetValidationFailed` (see below).
 
 ```csharp
 record AssetProcessingFailedIntegrationEvent(
     string TenantId,
     string AssetId,
     string OwnerId,
-    string FailureCategory,   // AssetProcessingFailureCategory enum value as string
+    string ContentType,        // MediaContentType enum value as string
+    string Status,             // AssetStatus enum value as string — see values below
+    string FailureCategory,    // FailureCategory enum value as string — see values below
     string Reason,
-    DateTimeOffset OccurredAt
+    DateTimeOffset OccurredAt,
+    long EventVersion
 );
 ```
 
-> `FailureCategory` values: `"ProcessingError"`, `"Timeout"`, `"ValidationFailure"`. SagaOrchestrator subscribes to 
+**`Status` values:**
+
+| Value | Source domain event | Meaning |
+|---|---|---|
+| `"ProcessingFailed"` | `AssetProcessingFailed` | Pipeline failure (timeout, processing error, upload expiry) |
+| `"ValidationFailed"` | `AssetValidationFailed` | Virus scan or format check failed |
+
+**`FailureCategory` values:**
+
+| Value | Source domain event | Meaning |
+|---|---|---|
+| `"ProcessingError"` | `AssetProcessingFailed` | Pipeline worker returned a failure result |
+| `"ProcessingTimeout"` | `AssetProcessingFailed` | Processing window expired before completion |
+| `"ValidationTimeout"` | `AssetProcessingFailed` | Validation did not complete within the allowed window |
+| `"UploadExpired"` | `AssetProcessingFailed` | Upload TTL elapsed; asset never left Pending |
+| `"ValidationError"` | `AssetValidationFailed` | Virus scan or format validation rejected the file |
+
+> `AssetValidationFailed` maps to this event (rather than a dedicated event) so the `AssetIngestionSaga` can compensate via its existing `OnAssetProcessingFailed` handler — the saga does not distinguish between validation and pipeline failures for compensation purposes. `AssetInfectionDetected` publishes `AssetInfectionDetectedIntegrationEvent` separately and is not routed through this event.
+
+SagaOrchestrator subscribes to this event to mark the `AssetIngestionSaga` as `Failed` and trigger any necessary compensation.

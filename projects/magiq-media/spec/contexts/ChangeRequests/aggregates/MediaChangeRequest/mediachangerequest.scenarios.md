@@ -48,7 +48,7 @@ Arrows: `→` command/request/event dispatch · `-->>` async / response
 
 1. Owner pre-generates `changeRequestId = "cr-01"` (UUID v7).
 2. Owner: `POST /v1/change-requests` — body: `{ "changeRequestId": "cr-01", "mediaItemId": "mi-01" }` → `CreateChangeRequestCommand` → `ChangeRequestCreated { ChangeRequestId: cr-01, MediaItemId: mi-01 }` → `201 Created`.
-3. Owner: `POST /catalog/items/mi-01/publish` — body: `{ "reviewerIds": ["user_alice"], "commentThreadId": "cr-01" }` → `MediaItemSubmittedForReview { ReviewSession.CommentThreadId: cr-01 }` → `202 Accepted`.
+3. Owner: `POST /catalog/items/mi-01/publish` — body: `{ "reviewerIds": ["user_alice"], "commentThreadId": "cr-01" }` → `MediaItemPublicationRequested { ReviewSession.CommentThreadId: cr-01 }` → `202 Accepted`.
 4. Reviewers can now add comments on `cr-01` and cast decisions via `POST /catalog/items/mi-01/approve` or `/reject`.
 
 **Key invariants:**
@@ -73,7 +73,7 @@ sequenceDiagram
 
     Owner->>API: POST /catalog/items/mi-01/publish {reviewerIds:[alice], commentThreadId: cr-01}
     API->>CH: Publish(mi-01, reviewerIds=[alice], commentThreadId=cr-01)
-    CH->>ES: append MediaItemSubmittedForReview(ReviewSession.CommentThreadId=cr-01)
+    CH->>ES: append MediaItemPublicationRequested(ReviewSession.CommentThreadId=cr-01)
     CH-->>Owner: 202 Accepted
 ```
 

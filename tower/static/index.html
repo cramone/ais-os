@@ -645,6 +645,24 @@
   .event-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 11px; }
   .event-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); flex-shrink: 0; margin-left: 11px; }
 
+  /* NOTES */
+  .note-row {
+    display: flex; align-items: center; gap: 8px; padding: 7px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .note-row:last-child { border-bottom: none; }
+  .note-row:hover { background: var(--surface2); border-radius: 4px; }
+  .note-title { font-size: 11px; flex: 1; color: var(--text); line-height: 1.4; }
+  .note-actions { display: none; gap: 3px; flex-shrink: 0; }
+  .note-row:hover .note-actions { display: flex; }
+  .note-action-btn {
+    font-size: 10px; padding: 1px 6px; background: none; border: 1px solid var(--border);
+    border-radius: 3px; color: var(--muted); cursor: pointer;
+  }
+  .note-action-btn:hover { border-color: var(--accent); color: var(--accent); }
+  /* MEMORY MODAL close on backdrop */
+  #memory-modal { cursor: default; }
+
   /* Tag active states */
   .tag.active { font-weight: 600; }
   .tag-blocked.active { background: rgba(248,81,73,0.1); color: var(--danger); border-color: rgba(248,81,73,0.3); }
@@ -829,10 +847,15 @@
         <!-- Project detail row — shown when a project card is clicked -->
         <div id="project-detail-row" style="display:none">
           <!-- Title row -->
-          <div style="margin-bottom:20px">
-            <div id="project-detail-title" style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:4px">—</div>
-            <div id="project-detail-description" style="font-size:13px;color:var(--muted);margin-bottom:8px"></div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap" id="project-detail-chips"></div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
+            <div>
+              <div id="project-detail-title" style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:4px">—</div>
+              <div id="project-detail-description" style="font-size:13px;color:var(--muted);margin-bottom:8px"></div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap" id="project-detail-chips"></div>
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0;align-items:flex-start;padding-top:4px">
+              <button onclick="openMemoryModal()" title="View project memory" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:border-color 0.15s,color 0.15s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">🧠</button>
+            </div>
           </div>
 
           <!-- Todos -->
@@ -894,14 +917,19 @@
             </div>
           </div>
 
-          <!-- Memory + Decisions -->
+          <!-- Notes + Decisions -->
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div class="panel">
               <div class="panel-header">
-                <div class="panel-title">🧠 Memory</div>
-                <button id="memory-edit-btn" onclick="toggleMemoryEdit()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px">✏️ Edit</button>
+                <div class="panel-title">📝 Notes</div>
+                <button onclick="showNoteAddInput()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px">+ Add</button>
               </div>
-              <div class="panel-body" id="project-detail-overview" style="max-height:400px;overflow-y:auto"></div>
+              <div id="note-add-row" style="display:none;padding:6px 8px;border-bottom:1px solid var(--border);gap:6px;align-items:center">
+                <input id="note-add-input" type="text" placeholder="Note title…" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px;color:var(--text);outline:none" onkeydown="if(event.key==='Enter')commitAddNote();if(event.key==='Escape')hideNoteAddInput()">
+                <button onclick="commitAddNote()" style="background:var(--accent);color:#000;border:none;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600">Add</button>
+                <button onclick="hideNoteAddInput()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer">✕</button>
+              </div>
+              <div class="panel-body" id="project-detail-notes" style="max-height:400px;overflow-y:auto"></div>
             </div>
             <div class="panel">
               <div class="panel-header">
@@ -1185,11 +1213,13 @@
             <div class="interrupt-tab" data-tab="all">All</div>
           </div>
           <div class="filter-chips">
-            <div class="filter-chip active">All sources</div>
-            <div class="filter-chip">Support</div>
-            <div class="filter-chip">Email</div>
-            <div class="filter-chip">Teams</div>
-            <div class="filter-chip">Adhoc</div>
+            <div class="filter-chip active" data-filter="">All sources</div>
+            <div class="filter-chip" data-filter="Support">Support</div>
+            <div class="filter-chip" data-filter="Email">Email</div>
+            <div class="filter-chip" data-filter="Teams">Teams</div>
+            <div class="filter-chip" data-filter="Adhoc">Adhoc</div>
+            <div class="filter-chip" data-filter="zendesk">🎫 Zendesk</div>
+            <div class="filter-chip" data-filter="customer">🏢 Customer</div>
           </div>
         </div>
 
@@ -1214,16 +1244,16 @@
 
       <!-- GitHub PRs Fullwidth View -->
       <div id="github-prs-fullwidth" style="display:none">
-        <div class="panel">
-          <div class="panel-header">
+        <div class="panel" style="margin-bottom:16px">
+          <div class="panel-header" style="border-bottom:1px solid var(--border)">
             <div class="panel-title">
               <svg height="14" width="14" viewBox="0 0 16 16" style="fill:currentColor;flex-shrink:0"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
               GitHub PRs <span id="github-full-count" style="font-size:10px;font-weight:400;color:var(--muted)"></span>
             </div>
-            <button onclick="fetchGitHub()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;cursor:pointer;font-size:11px">↻ Refresh</button>
+            <button id="github-refresh-btn" onclick="fetchGitHub()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;cursor:pointer;font-size:11px">↻ Refresh</button>
           </div>
-          <div class="panel-body" id="github-full-body" style="max-height:none;overflow-y:visible;padding:12px"></div>
         </div>
+        <div id="github-full-body"></div>
       </div>
 
       <!-- Focus Details: Interrupts + Blockers (shown in Focus Mode only) -->
@@ -1311,6 +1341,8 @@
         <span class="dd-source">—</span>
         <span class="dd-status">Open</span>
         <span class="dd-age">—</span>
+        <span class="dd-zendesk" style="display:none;font-size:10px;color:var(--muted)"></span>
+        <span class="dd-customer" style="display:none;font-size:10px;color:var(--muted)"></span>
       </div>
     </div>
     <button id="drilldown-close">✕</button>
@@ -1318,9 +1350,40 @@
 
   <!-- Action buttons -->
   <div class="dd-actions">
-    <button class="btn">✏️ Edit</button>
-    <button class="btn success">✅ Mark Done</button>
-    <button class="btn">→ ADO</button>
+    <button class="btn dd-edit-btn">✏️ Edit</button>
+    <button class="btn success dd-mark-done">✅ Mark Done</button>
+    <button class="btn dd-push-ado">→ ADO</button>
+  </div>
+
+  <!-- Inline edit form (hidden by default) -->
+  <div class="dd-edit-section" style="display:none;padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);display:none;flex-direction:column;gap:8px;">
+    <div style="display:flex;gap:8px;align-items:center;">
+      <label style="font-size:11px;color:var(--muted);width:70px;flex-shrink:0">Title</label>
+      <input class="dd-edit-title" style="flex:1;background:var(--surface3);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;font-size:12px">
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <label style="font-size:11px;color:var(--muted);width:70px;flex-shrink:0">Source</label>
+      <select class="dd-edit-source" style="flex:1;background:var(--surface3);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;font-size:12px">
+        <option value="">— none —</option>
+        <option>Support</option>
+        <option>Email</option>
+        <option>Teams</option>
+        <option>Adhoc</option>
+        <option>Internal</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <label style="font-size:11px;color:var(--muted);width:70px;flex-shrink:0">Zendesk #</label>
+      <input class="dd-edit-zendesk" placeholder="e.g. 87973" style="flex:1;background:var(--surface3);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;font-size:12px">
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <label style="font-size:11px;color:var(--muted);width:70px;flex-shrink:0">Customer</label>
+      <input class="dd-edit-customer" placeholder="e.g. Acme Corp" style="flex:1;background:var(--surface3);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;font-size:12px">
+    </div>
+    <div style="display:flex;gap:6px;justify-content:flex-end;">
+      <button class="btn dd-edit-save" style="font-size:11px;padding:4px 12px;">Save</button>
+      <button class="btn dd-edit-cancel" style="font-size:11px;padding:4px 10px;">Cancel</button>
+    </div>
   </div>
 
   <!-- Body: left (comments/tags) + right (email draft) -->
@@ -1344,13 +1407,13 @@
       </div>
 
       <!-- Add comment -->
-      <div class="add-comment-form">
+      <form class="add-comment-form">
         <textarea class="comment-input" placeholder="Add a note or update..."></textarea>
         <div class="comment-actions">
-          <button class="btn primary" style="font-size:11px; padding:4px 12px;">Save</button>
-          <button class="btn" style="font-size:11px; padding:4px 10px;">Cancel</button>
+          <button type="submit" class="btn primary" style="font-size:11px; padding:4px 12px;">Save</button>
+          <button type="button" class="btn" style="font-size:11px; padding:4px 10px;" onclick="this.closest('form').querySelector('textarea').value=''">Cancel</button>
         </div>
-      </div>
+      </form>
 
     </div>
 
@@ -1406,10 +1469,52 @@
   </div>
 </div><!-- /drilldown-panel -->
 
+<!-- MEMORY MODAL -->
+<div id="memory-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:500;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;width:720px;max-height:82vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div style="font-size:14px;font-weight:700;color:var(--text)">🧠 Memory — <span id="memory-modal-project" style="color:var(--accent)"></span></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="modal-memory-edit-btn" onclick="toggleModalMemoryEdit()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:3px 10px;border-radius:4px;cursor:pointer;font-size:11px">✏️ Edit</button>
+        <button onclick="closeMemoryModal()" style="background:none;border:1px solid var(--border);color:var(--muted);width:24px;height:24px;border-radius:4px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;line-height:1">✕</button>
+      </div>
+    </div>
+    <div id="memory-modal-body" style="flex:1;overflow-y:auto;padding:16px"></div>
+  </div>
+</div>
+
 <script>
+  // ── Auth: attach Bearer token to every /api call ───────────────────────
+  (function () {
+    const _fetch = window.fetch.bind(window);
+    const KEY = 'tower-token';
+    let prompting = false;
+    function getToken() { return localStorage.getItem(KEY) || ''; }
+    window.towerSetToken = function () {
+      const t = window.prompt('Control Tower access token:', getToken());
+      if (t !== null) { localStorage.setItem(KEY, t.trim()); location.reload(); }
+    };
+    window.fetch = function (url, opts) {
+      opts = opts || {};
+      const u = (typeof url === 'string') ? url : ((url && url.url) || '');
+      if (u.includes('/api')) {
+        const tok = getToken();
+        if (tok) opts.headers = Object.assign({}, opts.headers || {}, { 'Authorization': 'Bearer ' + tok });
+      }
+      return _fetch(url, opts).then(function (r) {
+        if (r.status === 401 && !prompting) {
+          prompting = true;
+          alert('Control Tower: access token required or invalid.');
+          window.towerSetToken();
+        }
+        return r;
+      });
+    };
+  })();
+
   // ── State ──────────────────────────────────────────────────────────────
   const state = {
-    projects: [], ado: {items:[]}, hermesInbox: [], adhoc: [], hermesSync: {},
+    projects: [], ado: {items:[]},
     decisions: [], interrupts: [], health: {}
   };
   let lastRefreshed = null;
@@ -1460,7 +1565,9 @@
   // ── GitHub fetch (on-demand only) ───────────────────────────────────────
   async function fetchGitHub() {
     const body = document.getElementById('github-panel-body');
+    const btn = document.getElementById('github-refresh-btn');
     if (body) body.innerHTML = '<div class="empty-state">Loading…</div>';
+    if (btn) { btn.textContent = '↻ Refreshing…'; btn.disabled = true; }
     try {
       const [prs, reviewRequested] = await Promise.all([
         fetch('/api/github/prs').then(r => r.ok ? r.json() : Promise.reject(r.status)),
@@ -1473,6 +1580,8 @@
       updateBadges();
     } catch (e) {
       if (body) body.innerHTML = `<div class="empty-state">Failed to load (${e})</div>`;
+    } finally {
+      if (btn) { btn.textContent = '↻ Refresh'; btn.disabled = false; }
     }
   }
 
@@ -1486,22 +1595,36 @@
       body.innerHTML = '<div class="empty-state">No open PRs</div>';
       return;
     }
-    body.innerHTML = prs.map(pr => {
-      const draft = pr.isDraft ? ' <span style="color:var(--muted);font-size:10px">[draft]</span>' : '';
-      const decision = pr.reviewDecision === 'APPROVED'
-        ? '<span style="color:var(--accent2);font-size:10px">✓ approved</span>'
-        : pr.reviewDecision === 'CHANGES_REQUESTED'
-        ? '<span style="color:#e06c75;font-size:10px">✗ changes requested</span>'
-        : '<span style="color:var(--muted);font-size:10px">awaiting review</span>';
-      const repo = pr.repo ? `<span style="color:var(--muted);font-size:10px">${pr.repo}</span>` : '';
-      return `<div class="item-row" style="padding:6px 0;border-bottom:1px solid var(--border)">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-          <a href="${pr.url}" target="_blank" style="color:var(--text);text-decoration:none;font-size:12px;line-height:1.4" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">#${pr.number} ${pr.title}${draft}</a>
-          ${decision}
-        </div>
-        ${repo}
-      </div>`;
-    }).join('');
+    const byRepo = {};
+    prs.forEach(pr => {
+      const r = pr.repo ? pr.repo.replace(/^[^/]+\//, '') : 'unknown';
+      if (!byRepo[r]) byRepo[r] = [];
+      byRepo[r].push(pr);
+    });
+    body.innerHTML = Object.entries(byRepo).map(([repo, items]) => `
+      <div style="margin-bottom:10px">
+        <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:4px 0 4px;border-bottom:1px solid var(--border)">${repo}</div>
+        ${items.map(pr => {
+          const draft = pr.isDraft ? ' <span style="color:var(--muted);font-size:10px">[draft]</span>' : '';
+          return `<div style="padding:5px 0;border-bottom:1px solid var(--border)">
+            <a href="${pr.url}" target="_blank" style="color:var(--text);text-decoration:none;font-size:12px;line-height:1.4" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">#${pr.number} ${pr.title}${draft}</a>
+          </div>`;
+        }).join('')}
+      </div>
+    `).join('');
+  }
+
+  function _timeAgo(iso) {
+    if (!iso) return '';
+    const diff = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    const d = Math.floor(h / 24);
+    if (d < 30) return `${d}d ago`;
+    return `${Math.floor(d / 30)}mo ago`;
   }
 
   function _prRows(prs) {
@@ -1513,20 +1636,41 @@
       byRepo[r].push(pr);
     });
     return Object.entries(byRepo).map(([repo, items]) => `
-      <div style="margin-bottom:16px">
-        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">${repo}</div>
+      <div style="margin-bottom:24px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+        <div style="background:var(--surface2);padding:8px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)">
+          <span style="font-size:12px;font-weight:700;color:var(--text)">${repo.replace(/^[^/]+\//, '')}</span>
+          <span style="font-size:10px;color:var(--muted)">${repo.includes('/') ? repo.split('/')[0] : ''}</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--muted)">${items.length} PR${items.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div style="padding:0 12px">
         ${items.map(pr => {
           const draft = pr.isDraft ? ' <span style="color:var(--muted);font-size:10px">[draft]</span>' : '';
           const decision = pr.reviewDecision === 'APPROVED'
             ? '<span style="color:var(--accent2);font-size:11px">✓ approved</span>'
             : pr.reviewDecision === 'CHANGES_REQUESTED'
-            ? '<span style="color:#e06c75;font-size:11px">✗ changes requested</span>'
+            ? '<span style="color:#e06c75;font-size:11px">✗ changes</span>'
             : '<span style="color:var(--muted);font-size:11px">awaiting review</span>';
-          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
-            <a href="${pr.url}" target="_blank" style="color:var(--text);text-decoration:none;font-size:13px" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">#${pr.number} ${pr.title}${draft}</a>
-            ${decision}
+          const author = pr.author ? `<span style="color:var(--muted);font-size:11px">@${pr.author}</span>` : '';
+          const la = pr.lastActivity;
+          const lastActivity = la ? (() => {
+            const ago = _timeAgo(la.date);
+            const snippet = la.body ? la.body.replace(/\s+/g, ' ').trim().slice(0, 80) + (la.body.length > 80 ? '…' : '') : '';
+            const stateTag = la.state && la.state !== 'COMMENTED' ? ` <span style="color:${la.state === 'APPROVED' ? 'var(--accent2)' : '#e06c75'};font-size:10px">[${la.state.toLowerCase().replace('_', ' ')}]</span>` : '';
+            return `<div style="margin-top:5px;padding:5px 8px;background:var(--surface2);border-radius:4px;border-left:2px solid var(--accent)">
+              <div style="font-size:11px;color:var(--muted)"><span style="color:var(--text);font-weight:600">@${la.author}</span>${stateTag} · ${ago}</div>
+              ${snippet ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;font-style:italic">"${snippet}"</div>` : ''}
+            </div>`;
+          })() : '';
+          return `<div style="padding:9px 0;border-bottom:1px solid var(--border)">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+              <a href="${pr.url}" target="_blank" style="color:var(--text);text-decoration:none;font-size:13px;line-height:1.4" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">#${pr.number} ${pr.title}${draft}</a>
+              ${decision}
+            </div>
+            ${author}
+            ${lastActivity}
           </div>`;
         }).join('')}
+        </div>
       </div>
     `).join('');
   }
@@ -1543,16 +1687,19 @@
       body.innerHTML = '<div class="empty-state">No open PRs — or not loaded yet. Hit Refresh.</div>';
       return;
     }
-    body.innerHTML = `
-      <div style="margin-bottom:20px">
-        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)">My Open PRs <span style="font-size:10px;font-weight:400;color:var(--muted)">(${prs.length})</span></div>
-        ${_prRows(prs)}
-      </div>
-      <div>
-        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)">Awaiting My Review <span style="font-size:10px;font-weight:400;color:var(--muted)">(${reviewRequested.length})</span></div>
-        ${_prRows(reviewRequested)}
-      </div>
-    `;
+    function section(label, items) {
+      return `
+        <div class="panel" style="margin-bottom:16px">
+          <div class="panel-header" style="border-bottom:1px solid var(--border)">
+            <div class="panel-title" style="font-size:13px">${label}</div>
+            <span style="font-size:11px;color:var(--muted)">${items.length} PR${items.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div style="padding:8px 12px">
+            ${items.length ? _prRows(items) : '<div class="empty-state" style="padding:8px 0">None</div>'}
+          </div>
+        </div>`;
+    }
+    body.innerHTML = section('My Open PRs', prs) + section('Awaiting My Review', reviewRequested);
   }
 
   // ── ADO fetch (on-demand only) ───────────────────────────────────────────
@@ -1642,15 +1789,13 @@
     const el = document.getElementById('status-pills');
     if (!el) return;
     const h = state.health;
-    const pending = (state.hermesInbox || []).filter(i => i.status === 'pending').length;
     const blocked = (state.ado.items || []).filter(i => _isBlocked(i)).length;
     const overdue = (state.interrupts || []).filter(i => {
       return i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'done';
     }).length;
     const pills = [
-      { label: 'Hermes', ok: h.sources?.hermes_pending !== false },
+      { label: 'Hermes', ok: h.sources?.claudia !== false },
       { label: 'ADO', ok: !state.ado.error },
-      pending > 0 ? { label: `${pending} pending flush`, warn: true } : null,
       blocked > 0 ? { label: `${blocked} blocked`, danger: true } : null,
       overdue > 0 ? { label: `${overdue} overdue`, danger: true } : null,
     ].filter(Boolean);
@@ -1971,11 +2116,15 @@
     }
   }
 
-  // Ctrl+Enter / Cmd+Enter to send
+  // Ctrl+Enter / Cmd+Enter to send; Escape to close memory modal
   document.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       const active = document.activeElement;
       if (active && active.id === 'claudia-input') claudiaSend();
+    }
+    if (e.key === 'Escape') {
+      const modal = document.getElementById('memory-modal');
+      if (modal && modal.style.display === 'flex') closeMemoryModal();
     }
   });
 
@@ -2096,6 +2245,9 @@
 
     // Auto-load todos
     loadTodos(slug);
+
+    // Auto-load notes
+    loadProjectNotes(slug);
   }
 
   // ── Project detail utilities ────────────────────────────────────────────────
@@ -2170,6 +2322,152 @@
     if (body && project) body.innerHTML = `<pre style="font-size:11px;color:var(--text);white-space:pre-wrap;line-height:1.6;padding:8px">${(project.raw||'').replace(/</g,'&lt;')}</pre>`;
     if (btn) btn.textContent = '✏️ Edit';
   }
+
+  // ── Project Notes ─────────────────────────────────────────────────────────────
+
+  async function loadProjectNotes(slug) {
+    const body = document.getElementById('project-detail-notes');
+    if (!body) return;
+    body.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--muted)">Loading...</div>';
+    const r = await fetch(`/api/projects/${slug}/notes`);
+    const data = await r.json();
+    const notes = data.notes || [];
+    if (!notes.length) {
+      body.innerHTML = '<div style="padding:10px;font-size:11px;color:var(--muted);font-style:italic">No notes yet — click + Add to create one.</div>';
+      return;
+    }
+    body.innerHTML = notes.map((n, i) => `
+      <div class="note-row" data-idx="${i}">
+        <div class="note-title">${n.title.replace(/</g,'&lt;')}</div>
+        <div class="note-actions">
+          <button class="note-action-btn" onclick="renameProjectNote(${i},'${n.title.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">✏️</button>
+          <button class="note-action-btn" style="color:var(--danger);border-color:rgba(248,81,73,0.3)" onclick="deleteProjectNote(${i},'${n.title.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">✕</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function showNoteAddInput() {
+    const row = document.getElementById('note-add-row');
+    if (row) { row.style.display = 'flex'; }
+    const input = document.getElementById('note-add-input');
+    if (input) { input.value = ''; input.focus(); }
+  }
+
+  function hideNoteAddInput() {
+    const row = document.getElementById('note-add-row');
+    if (row) row.style.display = 'none';
+    const input = document.getElementById('note-add-input');
+    if (input) input.value = '';
+  }
+
+  async function commitAddNote() {
+    const input = document.getElementById('note-add-input');
+    if (!input || !_currentProjectSlug) return;
+    const title = input.value.trim();
+    if (!title) return;
+    await fetch(`/api/projects/${_currentProjectSlug}/notes`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({title})
+    });
+    hideNoteAddInput();
+    await loadProjectNotes(_currentProjectSlug);
+  }
+
+  async function deleteProjectNote(idx, title) {
+    if (!confirm(`Delete note: "${title}"?`)) return;
+    await fetch(`/api/projects/${_currentProjectSlug}/notes/${idx}`, { method: 'DELETE' });
+    await loadProjectNotes(_currentProjectSlug);
+  }
+
+  async function renameProjectNote(idx, oldTitle) {
+    const newTitle = prompt('Rename note:', oldTitle);
+    if (!newTitle || newTitle.trim() === oldTitle) return;
+    await fetch(`/api/projects/${_currentProjectSlug}/notes/${idx}`, {
+      method: 'PATCH', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({title: newTitle.trim()})
+    });
+    await loadProjectNotes(_currentProjectSlug);
+  }
+
+  // ── Memory Modal ──────────────────────────────────────────────────────────────
+  let _modalMemoryEditMode = false;
+
+  function openMemoryModal() {
+    const modal = document.getElementById('memory-modal');
+    if (!modal || !_currentProjectSlug) return;
+    const project = state.projects.find(p => p.slug === _currentProjectSlug);
+    if (!project) return;
+    _modalMemoryEditMode = false;
+    const editBtn = document.getElementById('modal-memory-edit-btn');
+    if (editBtn) editBtn.textContent = '✏️ Edit';
+    const projLabel = document.getElementById('memory-modal-project');
+    if (projLabel) projLabel.textContent = _currentProjectSlug;
+    const body = document.getElementById('memory-modal-body');
+    if (body) body.innerHTML = `<div class="md-body" style="padding:0">${typeof marked !== 'undefined' ? marked.parse(project.raw || '') : '<pre style="font-size:11px;white-space:pre-wrap;line-height:1.6">' + (project.raw||'').replace(/</g,'&lt;') + '</pre>'}</div>`;
+    modal.style.display = 'flex';
+  }
+
+  function closeMemoryModal() {
+    const modal = document.getElementById('memory-modal');
+    if (modal) modal.style.display = 'none';
+    _modalMemoryEditMode = false;
+  }
+
+  function toggleModalMemoryEdit() {
+    const body = document.getElementById('memory-modal-body');
+    const btn = document.getElementById('modal-memory-edit-btn');
+    if (!body || !btn) return;
+    if (!_modalMemoryEditMode) {
+      _modalMemoryEditMode = true;
+      const project = state.projects.find(p => p.slug === _currentProjectSlug);
+      const raw = (project && project.raw) || '';
+      body.innerHTML = `
+        <div style="padding:8px">
+          <textarea id="modal-memory-textarea" style="width:100%;min-height:340px;background:var(--surface2);border:1px solid var(--accent);border-radius:4px;padding:10px;font-size:11px;font-family:inherit;color:var(--text);resize:vertical;box-sizing:border-box;line-height:1.6">${raw.replace(/</g,'&lt;')}</textarea>
+          <div style="display:flex;gap:6px;margin-top:8px">
+            <button onclick="saveModalMemory()" style="background:var(--accent);color:#000;border:none;border-radius:4px;padding:5px 14px;font-size:12px;cursor:pointer;font-weight:600">Save</button>
+            <button onclick="cancelModalMemoryEdit()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:5px 10px;font-size:12px;cursor:pointer">Cancel</button>
+          </div>
+        </div>`;
+      btn.textContent = '✕ Cancel';
+    } else {
+      cancelModalMemoryEdit();
+    }
+  }
+
+  function cancelModalMemoryEdit() {
+    _modalMemoryEditMode = false;
+    const btn = document.getElementById('modal-memory-edit-btn');
+    if (btn) btn.textContent = '✏️ Edit';
+    const project = state.projects.find(p => p.slug === _currentProjectSlug);
+    const body = document.getElementById('memory-modal-body');
+    if (body && project) body.innerHTML = `<div class="md-body" style="padding:0">${typeof marked !== 'undefined' ? marked.parse(project.raw || '') : '<pre style="font-size:11px;white-space:pre-wrap;line-height:1.6">' + (project.raw||'').replace(/</g,'&lt;') + '</pre>'}</div>`;
+  }
+
+  async function saveModalMemory() {
+    const textarea = document.getElementById('modal-memory-textarea');
+    if (!textarea || !_currentProjectSlug) return;
+    const content = textarea.value;
+    const r = await fetch(`/api/projects/${_currentProjectSlug}/memory`, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({content})
+    });
+    if (!r.ok) { alert('Save failed'); return; }
+    const updated = await fetch('/api/projects').then(r => r.json());
+    state.projects = updated;
+    _modalMemoryEditMode = false;
+    const btn = document.getElementById('modal-memory-edit-btn');
+    if (btn) btn.textContent = '✏️ Edit';
+    const project = state.projects.find(p => p.slug === _currentProjectSlug);
+    const body = document.getElementById('memory-modal-body');
+    if (body && project) body.innerHTML = `<div class="md-body" style="padding:0">${typeof marked !== 'undefined' ? marked.parse(project.raw || '') : '<pre style="font-size:11px;white-space:pre-wrap;line-height:1.6">' + (project.raw||'').replace(/</g,'&lt;') + '</pre>'}</div>`;
+  }
+
+  // Close memory modal on backdrop click or Escape
+  document.getElementById('memory-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeMemoryModal();
+  });
 
   // Add todo
   async function addTodo() {
@@ -2789,31 +3087,6 @@
     return 'age-old';
   }
 
-  // ── Hermes + Adhoc panels ────────────────────────────────────────────────
-  function renderHermesPanel() {
-    _renderItemList('hermes-panel-body', state.hermesInbox || [], i => `
-      <div class="list-item">
-        <div class="item-icon">📌</div>
-        <div style="flex:1">
-          <div class="item-title">${i.title}</div>
-          <div class="item-meta">${i.project || ''} · ${i.module || ''} · ${i.type || ''}</div>
-        </div>
-        <div class="item-tag">${i.status}</div>
-      </div>
-    `);
-  }
-
-  function renderAdhocPanel() {
-    _renderItemList('adhoc-panel-body', (state.adhoc || []).slice(0, 5), i => `
-      <div class="list-item">
-        <div style="flex:1">
-          <div class="item-title">${i.title}</div>
-          <div class="item-meta">${_formatTs(i.timestamp)}</div>
-        </div>
-      </div>
-    `);
-  }
-
   function _renderItemList(containerId, items, renderFn) {
     const el = document.getElementById(containerId);
     if (!el) return;
@@ -2885,36 +3158,31 @@
     `);
   }
 
-  function renderSyncPanel() {
-    const sync = state.hermesSync || {};
-    const pending = (state.hermesInbox || []).filter(i => i.status === 'pending').length;
-    const items = [
-      ...Object.entries(sync).map(([slug, data]) => ({
-        icon: '✅',
-        text: `${slug} — synced`,
-        meta: `${Object.values(data).filter(v => v && v.length).length} capture files`
-      })),
-      pending > 0 ? {
-        icon: '📥',
-        text: `${pending} ADO items pending flush`,
-        meta: 'Say "flush pending notes" to push to ADO'
-      } : null
-    ].filter(Boolean);
-    _renderItemList('sync-body', items, i => `
-      <div class="list-item">
-        <div class="item-icon">${i.icon}</div>
-        <div style="flex:1">
-          <div class="item-title">${i.text}</div>
-          <div class="item-meta">${i.meta}</div>
-        </div>
-      </div>
-    `);
+  // ── Interrupts filter state ──────────────────────────────────────────────
+  let _interruptSourceFilter = '';
+
+  function _wireInterruptFilterChips() {
+    document.querySelectorAll('.filter-chips .filter-chip').forEach(chip => {
+      chip.onclick = () => {
+        document.querySelectorAll('.filter-chips .filter-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        _interruptSourceFilter = chip.dataset.filter || '';
+        renderInterruptsSection();
+      };
+    });
   }
 
   // ── Interrupts section ───────────────────────────────────────────────────
   function renderInterruptsSection() {
     const items = state.interrupts || [];
-    const open = items.filter(i => i.status !== 'done');
+    let open = items.filter(i => i.status !== 'done');
+    if (_interruptSourceFilter === 'zendesk') {
+      open = open.filter(i => i.zendeskTicket);
+    } else if (_interruptSourceFilter === 'customer') {
+      open = open.filter(i => i.customer);
+    } else if (_interruptSourceFilter) {
+      open = open.filter(i => (i.source || '').toLowerCase() === _interruptSourceFilter.toLowerCase());
+    }
     const overdue = open.filter(i => i.dueDate && new Date(i.dueDate) < new Date());
     const dueToday = open.filter(i => {
       if (!i.dueDate) return false;
@@ -3048,6 +3316,30 @@
     if (markDoneBtn) markDoneBtn.onclick = () => markInterruptDone(id);
     const adoBtn = panel.querySelector('.dd-push-ado');
     if (adoBtn) adoBtn.onclick = () => pushInterruptToADO(id);
+    const editBtn = panel.querySelector('.dd-edit-btn');
+    if (editBtn) editBtn.onclick = () => _toggleEditSection(panel, item);
+
+    // Zendesk display
+    const zendeskEl = panel.querySelector('.dd-zendesk');
+    if (zendeskEl) {
+      if (item.zendeskTicket) {
+        zendeskEl.textContent = `ZD #${item.zendeskTicket}`;
+        zendeskEl.style.display = '';
+      } else {
+        zendeskEl.style.display = 'none';
+      }
+    }
+
+    // Customer display
+    const customerEl = panel.querySelector('.dd-customer');
+    if (customerEl) {
+      if (item.customer) {
+        customerEl.textContent = `🏢 ${item.customer}`;
+        customerEl.style.display = '';
+      } else {
+        customerEl.style.display = 'none';
+      }
+    }
 
     // Tags
     _renderDrilldownTags(panel, item);
@@ -3065,6 +3357,44 @@
     _wireEmailDraftPanel(panel, id);
 
     panel.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function _toggleEditSection(panel, item) {
+    const section = panel.querySelector('.dd-edit-section');
+    if (!section) return;
+    const isHidden = section.style.display === 'none' || section.style.display === '';
+    if (isHidden) {
+      section.style.display = 'flex';
+      const titleInput = section.querySelector('.dd-edit-title');
+      const sourceSelect = section.querySelector('.dd-edit-source');
+      const zendeskInput = section.querySelector('.dd-edit-zendesk');
+      const customerInput = section.querySelector('.dd-edit-customer');
+      if (titleInput) titleInput.value = item.title || '';
+      if (sourceSelect) sourceSelect.value = item.source || '';
+      if (zendeskInput) zendeskInput.value = item.zendeskTicket || '';
+      if (customerInput) customerInput.value = item.customer || '';
+      const saveBtn = section.querySelector('.dd-edit-save');
+      if (saveBtn) saveBtn.onclick = async () => {
+        const updates = {
+          title: titleInput ? titleInput.value.trim() : item.title,
+          source: sourceSelect ? sourceSelect.value : item.source,
+          zendeskTicket: zendeskInput ? (zendeskInput.value.trim() || null) : item.zendeskTicket,
+          customer: customerInput ? (customerInput.value.trim() || null) : item.customer,
+        };
+        await fetch(`/api/interrupts/${item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates),
+        });
+        section.style.display = 'none';
+        await fetchAll();
+        openInterruptDrilldown(item.id);
+      };
+      const cancelBtn = section.querySelector('.dd-edit-cancel');
+      if (cancelBtn) cancelBtn.onclick = () => { section.style.display = 'none'; };
+    } else {
+      section.style.display = 'none';
+    }
   }
 
   function _renderDrilldownTags(panel, item) {
@@ -3123,18 +3453,28 @@
     if (!feed) return;
     const activity = item.activity || [];
     feed.innerHTML = activity.length
-      ? activity.map(e => {
+      ? activity.map((e, idx) => {
           if (e.type === 'comment') {
             const initials = (e.author || '?').slice(0, 2).toUpperCase();
+            const edited = e.editedAt ? ` <span style="font-size:10px;color:var(--muted)">(edited)</span>` : '';
+            const rawEscaped = e.text.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+            const renderedMd = typeof marked !== 'undefined' ? marked.parse(e.text) : e.text;
             return `
-              <div class="comment-item">
+              <div class="comment-item" data-idx="${idx}">
                 <div class="comment-avatar">${initials}</div>
-                <div class="comment-body">
+                <div class="comment-body" style="flex:1;min-width:0">
                   <div class="comment-header">
                     <span class="comment-author">${e.author || ''}</span>
-                    <span class="comment-time">${_formatTs(e.timestamp)}</span>
+                    <span class="comment-time">${_formatTs(e.timestamp)}${edited}</span>
+                    <button class="comment-edit-btn" style="margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:0 4px;opacity:0.5" onclick="_startCommentEdit(this,'${item.id}',${idx})">✏️</button>
                   </div>
-                  <div class="comment-text">${e.text}</div>
+                  <div class="comment-text" data-raw="${rawEscaped}" style="outline:none;border-radius:4px;line-height:1.6;font-size:12px">${renderedMd}</div>
+                  <div class="comment-preview" style="display:none;line-height:1.6;font-size:12px;padding:6px 8px;background:var(--surface);border-radius:4px;border:1px solid var(--border);margin-top:4px"></div>
+                  <div class="comment-inline-actions" style="display:none;margin-top:6px;gap:6px;align-items:center">
+                    <button class="btn primary" style="font-size:11px;padding:3px 10px" onclick="_saveCommentEdit(this,'${item.id}',${idx})">Save</button>
+                    <button class="btn" style="font-size:11px;padding:3px 8px" onclick="_cancelCommentEdit(this)">Cancel</button>
+                    <button class="btn" style="font-size:11px;padding:3px 8px;margin-left:auto" onclick="_toggleCommentPreview(this)">Preview</button>
+                  </div>
                 </div>
               </div>`;
           }
@@ -3164,6 +3504,97 @@
       await fetchAll();
       openInterruptDrilldown(item.id);
     };
+  }
+
+  function _startCommentEdit(btn, itemId, idx) {
+    const commentItem = btn.closest('.comment-item');
+    if (!commentItem) return;
+    const textEl = commentItem.querySelector('.comment-text');
+    const actions = commentItem.querySelector('.comment-inline-actions');
+    // Swap rendered HTML → raw markdown for editing
+    textEl.innerText = textEl.dataset.raw || '';
+    textEl.contentEditable = 'true';
+    textEl.style.background = 'var(--surface2)';
+    textEl.style.padding = '6px 8px';
+    textEl.style.border = '1px solid var(--accent)';
+    textEl.style.borderRadius = '4px';
+    textEl.style.whiteSpace = 'pre-wrap';
+    textEl.focus();
+    const range = document.createRange();
+    range.selectNodeContents(textEl);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    if (actions) actions.style.display = 'flex';
+    btn.style.display = 'none';
+  }
+
+  function _toggleCommentPreview(btn) {
+    const commentItem = btn.closest('.comment-item');
+    if (!commentItem) return;
+    const textEl = commentItem.querySelector('.comment-text');
+    const previewEl = commentItem.querySelector('.comment-preview');
+    if (textEl.style.display === 'none') {
+      // Back to edit
+      previewEl.style.display = 'none';
+      textEl.style.display = '';
+      btn.textContent = 'Preview';
+    } else {
+      // To preview — capture raw, render
+      textEl.dataset.editingRaw = textEl.innerText;
+      previewEl.innerHTML = typeof marked !== 'undefined' ? marked.parse(textEl.innerText) : textEl.innerText;
+      previewEl.style.display = '';
+      textEl.style.display = 'none';
+      btn.textContent = '← Edit';
+    }
+  }
+
+  function _cancelCommentEdit(btn) {
+    const commentItem = btn.closest('.comment-item');
+    if (!commentItem) return;
+    const textEl = commentItem.querySelector('.comment-text');
+    const previewEl = commentItem.querySelector('.comment-preview');
+    // Restore original rendered markdown from data-raw
+    const raw = textEl.dataset.raw || '';
+    textEl.innerHTML = typeof marked !== 'undefined' ? marked.parse(raw) : raw;
+    textEl.contentEditable = 'false';
+    textEl.style.cssText = 'outline:none;border-radius:4px;line-height:1.6;font-size:12px';
+    textEl.style.display = '';
+    previewEl.style.display = 'none';
+    commentItem.querySelector('.comment-inline-actions').style.display = 'none';
+    commentItem.querySelector('.comment-edit-btn').style.display = '';
+    // Reset preview toggle label
+    const previewToggle = commentItem.querySelector('.comment-inline-actions button:last-child');
+    if (previewToggle) previewToggle.textContent = 'Preview';
+  }
+
+  async function _saveCommentEdit(btn, itemId, idx) {
+    const commentItem = btn.closest('.comment-item');
+    if (!commentItem) return;
+    const textEl = commentItem.querySelector('.comment-text');
+    const previewEl = commentItem.querySelector('.comment-preview');
+    // Raw text: use editingRaw if in preview mode, else innerText
+    const inPreview = previewEl && previewEl.style.display !== 'none';
+    const text = (inPreview ? textEl.dataset.editingRaw : textEl.innerText || '').trim();
+    if (!text) return;
+    // Optimistic update
+    textEl.dataset.raw = text;
+    textEl.innerHTML = typeof marked !== 'undefined' ? marked.parse(text) : text;
+    textEl.contentEditable = 'false';
+    textEl.style.cssText = 'outline:none;border-radius:4px;line-height:1.6;font-size:12px';
+    textEl.style.display = '';
+    previewEl.style.display = 'none';
+    commentItem.querySelector('.comment-inline-actions').style.display = 'none';
+    commentItem.querySelector('.comment-edit-btn').style.display = '';
+    await fetch(`/api/interrupts/${itemId}/activity/${idx}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    await fetchAll();
+    const interruptId = document.getElementById('drilldown-panel')?.dataset?.interruptId;
+    if (interruptId) openInterruptDrilldown(interruptId);
   }
 
   function _wireEmailDraftPanel(panel, itemId) {
@@ -3256,7 +3687,6 @@
       }
     };
     _set('badge-interrupts', (state.interrupts || []).filter(i => i.status !== 'done').length);
-    _set('badge-ado-pending', (state.hermesInbox || []).filter(i => i.status === 'pending').length);
     _set('badge-blocked', (state.ado.items || []).filter(i => _isBlocked(i)).length);
     const overdue = (state.interrupts || []).filter(i =>
       i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'done').length;
@@ -3466,44 +3896,6 @@
     `);
   }
 
-  function _renderHermesFullwidth() {
-    _renderItemList('hermes-fullwidth-body', state.hermesInbox || [], i => `
-      <div class="list-item">
-        <div class="item-icon">📌</div>
-        <div style="flex:1">
-          <div class="item-title">${i.title}</div>
-          <div class="item-meta">${i.project || ''} · ${i.module || ''} · ${i.type || ''} · ${i.status}</div>
-        </div>
-      </div>
-    `);
-  }
-
-  function _renderAdhocFullwidth() {
-    _renderItemList('adhoc-fullwidth-body', state.adhoc || [], i => `
-      <div class="list-item">
-        <div style="flex:1">
-          <div class="item-title">${i.title}</div>
-          <div class="item-meta">${_formatTs(i.timestamp)}</div>
-          ${i.text ? `<div style="font-size:11px;color:var(--text);margin-top:4px;line-height:1.5">${i.text}</div>` : ''}
-        </div>
-      </div>
-    `);
-  }
-
-  function _renderSyncFullwidth() {
-    const sync = state.hermesSync || {};
-    const items = Object.entries(sync).map(([slug, data]) => ({
-      icon: '✅', text: slug,
-      meta: Object.entries(data).filter(([,v]) => v && v.length).map(([k]) => k).join(', ') || 'no pending captures'
-    }));
-    _renderItemList('sync-fullwidth-body', items, i => `
-      <div class="list-item">
-        <div class="item-icon">${i.icon}</div>
-        <div style="flex:1"><div class="item-title">${i.text}</div><div class="item-meta">${i.meta}</div></div>
-      </div>
-    `);
-  }
-
   function _renderBlockedFullwidth() {
     const blocked = (state.ado.items || []).filter(i => _isBlocked(i));
     _renderItemList('blocked-fullwidth-body', blocked, i => `
@@ -3614,6 +4006,7 @@
 
   // Kick off
   wireInterruptCaptureForm();
+  _wireInterruptFilterChips();
   initCheatsheet();
   fetchAll();
   fetchADO();

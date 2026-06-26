@@ -44,10 +44,14 @@ Full detail. Powers `GET /media-folders/{folderId}`.
 
 All fields from `media-folders` plus:
 
-| Field         | Type      | Notes                         |
-|---------------|-----------|-------------------------------|
-| `Description` | `string?` |                               |
-| `UpdatedAt`   | `string?` | Derived from last event       |
+| Field                    | Type      | Notes                                                             |
+|--------------------------|-----------|-------------------------------------------------------------------|
+| `Description`            | `string?` |                                                                   |
+| `Metadata`               | `object`  | `{ current: {...}, draft: {...} \| null }` — `MetadataChangeset` |
+| `MetadataSetBy`          | `string?` | Member ID who last modified the metadata draft                    |
+| `MetadataAttributedTo`   | `string?` | Business-level attribution                                        |
+| `MetadataAttributedDate` | `string?` | Business date of the attributed metadata change                   |
+| `UpdatedAt`              | `string?` | Derived from last event                                           |
 
 ---
 
@@ -58,14 +62,17 @@ All fields from `media-folders` plus:
 **Trigger:** `media-projector` SQS queue  
 **Target:** `media-folder-detail`
 
-| Event                      | Write                                                                  |
-| -------------------------- | ---------------------------------------------------------------------- |
-| `FolderCreated`            | INSERT — all fields including `OpenedDate`, `ClosedDate`               |
-| `FolderRenamed`            | UPDATE `Name`, `UpdatedAt`                                             |
-| `FolderMoved`              | UPDATE `ParentFolderId`, `CollectionId`, `UpdatedAt`                   |
-| `FolderDescriptionUpdated` | UPDATE `Description`, `UpdatedAt`                                      |
-| `FolderArchived`           | UPDATE `IsArchived = true`, `UpdatedAt`                                |
-| `FolderClosed`             | UPDATE `ClosedAt`, `ClosedDate`, `UpdatedAt`                           |
+| Event                      | Write                                                                                               |
+| -------------------------- | --------------------------------------------------------------------------------------------------- |
+| `FolderCreated`            | INSERT — all fields including `OpenedDate`, `ClosedDate`; `Metadata = { current: {}, draft: null }` |
+| `FolderRenamed`            | UPDATE `Name`, `UpdatedAt`                                                                          |
+| `FolderMoved`              | UPDATE `ParentFolderId`, `CollectionId`, `UpdatedAt`                                                |
+| `FolderDescriptionUpdated` | UPDATE `Description`, `UpdatedAt`                                                                   |
+| `FolderArchived`           | UPDATE `IsArchived = true`, `UpdatedAt`                                                             |
+| `FolderClosed`             | UPDATE `ClosedAt`, `ClosedDate`, `UpdatedAt`                                                        |
+| `FolderMetadataFieldSet`   | UPDATE `Metadata.Draft[FieldName] = Value`, `MetadataSetBy`, `MetadataAttributedTo`, `MetadataAttributedDate`, `UpdatedAt` |
+| `FolderMetadataBatchSet`   | UPDATE `Metadata.Draft` (merge all fields), `MetadataSetBy`, `MetadataAttributedTo`, `MetadataAttributedDate`, `UpdatedAt` |
+| `FolderMetadataCommitted`  | UPDATE `Metadata = { current: CommittedMetadata, draft: null }`, `UpdatedAt`                        |
 
 ### `FolderSummaryProjector`
 
@@ -168,6 +175,11 @@ record FolderDetailReadModel(
     DateTimeOffset? ClosedDate,
     DateTimeOffset CreatedAt,
     DateTimeOffset? OpenedDate,
+    string? Originator,
+    MetadataChangesetDto Metadata,
+    string? MetadataSetBy,
+    string? MetadataAttributedTo,
+    DateTimeOffset? MetadataAttributedDate,
     DateTimeOffset? UpdatedAt,
     long ProjectedVersion) : IReadModel;
 ```

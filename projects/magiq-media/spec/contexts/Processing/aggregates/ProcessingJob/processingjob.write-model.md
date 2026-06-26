@@ -36,6 +36,7 @@ The `ProcessingJob` does **not** own the final asset state. It drives the proces
 | `Status` | `ProcessingJobStatus` | `Queued → Running → Succeeded \| Failed` |
 | `Renditions` | `IReadOnlyList<RenditionResult>` | Empty until `ProcessingJobSucceeded`. Empty list on fast-exit path. |
 | `Metadata` | `ExtractedMetadata?` | Null until `ProcessingJobSucceeded`. Null on fast-exit path. |
+| `FailureCategory` | `ProcessingJobFailureCategory?` | Set on `ProcessingJobFailed`. |
 | `FailureReason` | `string?` | Set on `ProcessingJobFailed`. |
 | `CompletedAt` | `DateTimeOffset?` | Set on `ProcessingJobSucceeded` or `ProcessingJobFailed`. |
 | `CreatedAt` | `DateTimeOffset` | |
@@ -67,6 +68,7 @@ Running → (Fail)               → Failed     [terminal]
 | `ProcessingJobStatus` | `Queued \| Running \| Succeeded \| Failed` |
 | `RenditionResult` | `{ RenditionType, StorageKey, ContentType, SizeBytes }` — one per generated rendition |
 | `ExtractedMetadata` | `{ Width?, Height?, DurationSeconds?, Format?, ExifData }` — technical characteristics extracted from the original file |
+| `ProcessingJobFailureCategory` | `ProcessingError` (worker crash) \| `ProcessingTimeout` (saga TTL exceeded). String value is intentionally aligned with `AssetManagement.FailureCategory` for round-trip serialization through the integration event. |
 
 **`ExtractedMetadata` fields:**
 
@@ -87,7 +89,7 @@ Running → (Fail)               → Failed     [terminal]
 | `RecordScanResult(outcome, failureReason, recordedAt)` | Records virus scan / format validation outcome. Raises `ProcessingJobScanResultRecorded`. Status remains `Queued` — scan result is an informational event; the saga drives the next transition. | `Status = Queued` |
 | `Start()` | Marks pipeline execution start. Raises `ProcessingJobStarted`. | `Status = Queued` |
 | `Complete(renditions, metadata, completedAt)` | Records successful outcome. Raises `ProcessingJobSucceeded`. | `Status = Running` |
-| `Fail(reason)` | Records failure. Raises `ProcessingJobFailed`. | `Status = Running` |
+| `Fail(failureCategory, reason)` | Records failure. Raises `ProcessingJobFailed`. | `Status = Running` |
 
 ---
 
@@ -99,7 +101,7 @@ Running → (Fail)               → Failed     [terminal]
 | `ProcessingJobScanResultRecorded` | `TenantId`, `JobId`, `AssetId`, `Outcome` (`Passed`/`Failed`/`VirusDetected`), `FailureReason?`, `RecordedAt` | Queued → Queued (no status change) |
 | `ProcessingJobStarted` | `TenantId`, `JobId`, `StartedAt` | Queued → Running |
 | `ProcessingJobSucceeded` | `TenantId`, `JobId`, `AssetId`, `Renditions[]`, `Metadata?`, `CompletedAt` | Running → Succeeded |
-| `ProcessingJobFailed` | `TenantId`, `JobId`, `AssetId`, `Reason`, `FailedAt` | Running → Failed |
+| `ProcessingJobFailed` | `TenantId`, `JobId`, `AssetId`, `FailureCategory` (`ProcessingError` \| `ProcessingTimeout`), `Reason`, `FailedAt` | Running → Failed |
 
 † `TenantId` is the **first field** on the creation event per multi-tenancy convention. See [System Spec — Multi-Tenancy](../../../../shared/system-spec.md#multi-tenancy-strategy).
 
@@ -114,7 +116,7 @@ Running → (Fail)               → Failed     [terminal]
 | `StartProcessingJobCommand(TenantId, JobId)` | `StartProcessingJobCommandHandler` | `AssetIngestionSaga` on `AssetValidationPassedIntegrationEvent` (when `HasProcessingCapability = true`) | `Result<Unit, DomainError>` |
 | `BypassProcessingJobCommand(TenantId, JobId)` | `BypassProcessingJobCommandHandler` | `AssetIngestionSaga` on `AssetValidationPassedIntegrationEvent` (when `HasProcessingCapability = false`) | `Result<Unit, DomainError>` |
 | `CompleteProcessingJobCommand(TenantId, JobId, Renditions[], Metadata?)` | `CompleteProcessingJobCommandHandler` | Processing Worker Lambda on pipeline success | `Result<Unit, DomainError>` |
-| `FailProcessingJobCommand(TenantId, JobId, Reason)` | `FailProcessingJobCommandHandler` | Processing Worker Lambda on error; `SagaTimeoutScanner` on timeout | `Result<Unit, DomainError>` |
+| `FailProcessingJobCommand(TenantId, JobId, FailureCategory, Reason)` | `FailProcessingJobCommandHandler` | Processing Worker Lambda on error (`ProcessingError`); `SagaTimeoutScanner` on timeout (`ProcessingTimeout`) | `Result<Unit, DomainError>` |
 
 
 ---
