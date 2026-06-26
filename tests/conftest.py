@@ -25,24 +25,6 @@ def tmp_aios(tmp_path):
     return tmp_path
 
 @pytest.fixture
-def tmp_hermes(tmp_path):
-    """Minimal Hermes data directory for testing."""
-    hermes = tmp_path / "hermes"
-    hermes.mkdir()
-    (hermes / "ado-pending.json").write_text(json.dumps([
-        {"id": "1", "title": "Test item", "project": "magiq-media",
-         "module": "Catalog", "type": "Story", "status": "pending",
-         "priority": "Medium", "capturedAt": "2026-06-01T08:00:00Z"}
-    ]))
-    (hermes / "adhoc-notes.md").write_text(
-        "# Adhoc Notes\n\n## 2026-06-01T08:00:00Z - Test note\n\nRemember this thing.\n\n---\n"
-    )
-    projects = hermes / "projects" / "magiq-media"
-    projects.mkdir(parents=True)
-    (projects / "ideas.md").write_text("- Consider caching layer\n")
-    return hermes
-
-@pytest.fixture
 def tmp_interrupts(tmp_path):
     data = tmp_path / "data"
     data.mkdir()

@@ -1244,16 +1244,16 @@
 
       <!-- GitHub PRs Fullwidth View -->
       <div id="github-prs-fullwidth" style="display:none">
-        <div class="panel">
-          <div class="panel-header">
+        <div class="panel" style="margin-bottom:16px">
+          <div class="panel-header" style="border-bottom:1px solid var(--border)">
             <div class="panel-title">
               <svg height="14" width="14" viewBox="0 0 16 16" style="fill:currentColor;flex-shrink:0"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
               GitHub PRs <span id="github-full-count" style="font-size:10px;font-weight:400;color:var(--muted)"></span>
             </div>
-            <button onclick="fetchGitHub()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;cursor:pointer;font-size:11px">↻ Refresh</button>
+            <button id="github-refresh-btn" onclick="fetchGitHub()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;cursor:pointer;font-size:11px">↻ Refresh</button>
           </div>
-          <div class="panel-body" id="github-full-body" style="max-height:none;overflow-y:visible;padding:12px"></div>
         </div>
+        <div id="github-full-body"></div>
       </div>
 
       <!-- Focus Details: Interrupts + Blockers (shown in Focus Mode only) -->
@@ -1484,9 +1484,37 @@
 </div>
 
 <script>
+  // ── Auth: attach Bearer token to every /api call ───────────────────────
+  (function () {
+    const _fetch = window.fetch.bind(window);
+    const KEY = 'tower-token';
+    let prompting = false;
+    function getToken() { return localStorage.getItem(KEY) || ''; }
+    window.towerSetToken = function () {
+      const t = window.prompt('Control Tower access token:', getToken());
+      if (t !== null) { localStorage.setItem(KEY, t.trim()); location.reload(); }
+    };
+    window.fetch = function (url, opts) {
+      opts = opts || {};
+      const u = (typeof url === 'string') ? url : ((url && url.url) || '');
+      if (u.includes('/api')) {
+        const tok = getToken();
+        if (tok) opts.headers = Object.assign({}, opts.headers || {}, { 'Authorization': 'Bearer ' + tok });
+      }
+      return _fetch(url, opts).then(function (r) {
+        if (r.status === 401 && !prompting) {
+          prompting = true;
+          alert('Control Tower: access token required or invalid.');
+          window.towerSetToken();
+        }
+        return r;
+      });
+    };
+  })();
+
   // ── State ──────────────────────────────────────────────────────────────
   const state = {
-    projects: [], ado: {items:[]}, hermesInbox: [], adhoc: [], hermesSync: {},
+    projects: [], ado: {items:[]},
     decisions: [], interrupts: [], health: {}
   };
   let lastRefreshed = null;
@@ -1537,7 +1565,9 @@
   // ── GitHub fetch (on-demand only) ───────────────────────────────────────
   async function fetchGitHub() {
     const body = document.getElementById('github-panel-body');
+    const btn = document.getElementById('github-refresh-btn');
     if (body) body.innerHTML = '<div class="empty-state">Loading…</div>';
+    if (btn) { btn.textContent = '↻ Refreshing…'; btn.disabled = true; }
     try {
       const [prs, reviewRequested] = await Promise.all([
         fetch('/api/github/prs').then(r => r.ok ? r.json() : Promise.reject(r.status)),
@@ -1550,6 +1580,8 @@
       updateBadges();
     } catch (e) {
       if (body) body.innerHTML = `<div class="empty-state">Failed to load (${e})</div>`;
+    } finally {
+      if (btn) { btn.textContent = '↻ Refresh'; btn.disabled = false; }
     }
   }
 
@@ -1563,22 +1595,36 @@
       body.innerHTML = '<div class="empty-state">No open PRs</div>';
       return;
     }
-    body.innerHTML = prs.map(pr => {
-      const draft = pr.isDraft ? ' <span style="color:var(--muted);font-size:10px">[draft]</span>' : '';
-      const decision = pr.reviewDecision === 'APPROVED'
-        ? '<span style="color:var(--accent2);font-size:10px">✓ approved</span>'
-        : pr.reviewDecision === 'CHANGES_REQUESTED'
-        ? '<span style="color:#e06c75;font-size:10px">✗ changes requested</span>'
-        : '<span style="color:var(--muted);font-size:10px">awaiting review</span>';
-      const repo = pr.repo ? `<span style="color:var(--muted);font-size:10px">${pr.repo}</span>` : '';
-      return `<div class="item-row" style="padding:6px 0;border-bottom:1px solid var(--border)">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-          <a href="${pr.url}" target="_blank" style="color:var(--text);text-decoration:none;font-size:12px;line-height:1.4" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">#${pr.number} ${pr.title}${draft}</a>
-          ${decision}
-        </div>
-        ${repo}
-      </div>`;
-    }).join('');
+    const byRepo = {};
+    prs.forEach(pr => {
+      const r = pr.repo ? pr.repo.replace(/^[^/]+\//, '') : 'unknown';
+      if (!byRepo[r]) byRepo[r] = [];
+      byRepo[r].push(pr);
+    });
+    body.innerHTML = Object.entries(byRepo).map(([repo, items]) => `
+      <div style="margin-bottom:10px">
+        <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:4px 0 4px;border-bottom:1px solid var(--border)">${repo}</div>
+        ${items.map(pr => {
+          const draft = pr.isDraft ? ' <span style="color:var(--muted);font-size:10px">[draft]</span>' : '';
+          return `<div style="padding:5px 0;border-bottom:1px solid var(--border)">
+            <a href="${pr.url}" target="_blank" style="color:var(--text);text-decoration:none;font-size:12px;line-height:1.4" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">#${pr.number} ${pr.title}${draft}</a>
+          </div>`;
+        }).join('')}
+      </div>
+    `).join('');
+  }
+
+  function _timeAgo(iso) {
+    if (!iso) return '';
+    const diff = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    const d = Math.floor(h / 24);
+    if (d < 30) return `${d}d ago`;
+    return `${Math.floor(d / 30)}mo ago`;
   }
 
   function _prRows(prs) {
@@ -1590,20 +1636,41 @@
       byRepo[r].push(pr);
     });
     return Object.entries(byRepo).map(([repo, items]) => `
-      <div style="margin-bottom:16px">
-        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">${repo}</div>
+      <div style="margin-bottom:24px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+        <div style="background:var(--surface2);padding:8px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)">
+          <span style="font-size:12px;font-weight:700;color:var(--text)">${repo.replace(/^[^/]+\//, '')}</span>
+          <span style="font-size:10px;color:var(--muted)">${repo.includes('/') ? repo.split('/')[0] : ''}</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--muted)">${items.length} PR${items.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div style="padding:0 12px">
         ${items.map(pr => {
           const draft = pr.isDraft ? ' <span style="color:var(--muted);font-size:10px">[draft]</span>' : '';
           const decision = pr.reviewDecision === 'APPROVED'
             ? '<span style="color:var(--accent2);font-size:11px">✓ approved</span>'
             : pr.reviewDecision === 'CHANGES_REQUESTED'
-            ? '<span style="color:#e06c75;font-size:11px">✗ changes requested</span>'
+            ? '<span style="color:#e06c75;font-size:11px">✗ changes</span>'
             : '<span style="color:var(--muted);font-size:11px">awaiting review</span>';
-          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
-            <a href="${pr.url}" target="_blank" style="color:var(--text);text-decoration:none;font-size:13px" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">#${pr.number} ${pr.title}${draft}</a>
-            ${decision}
+          const author = pr.author ? `<span style="color:var(--muted);font-size:11px">@${pr.author}</span>` : '';
+          const la = pr.lastActivity;
+          const lastActivity = la ? (() => {
+            const ago = _timeAgo(la.date);
+            const snippet = la.body ? la.body.replace(/\s+/g, ' ').trim().slice(0, 80) + (la.body.length > 80 ? '…' : '') : '';
+            const stateTag = la.state && la.state !== 'COMMENTED' ? ` <span style="color:${la.state === 'APPROVED' ? 'var(--accent2)' : '#e06c75'};font-size:10px">[${la.state.toLowerCase().replace('_', ' ')}]</span>` : '';
+            return `<div style="margin-top:5px;padding:5px 8px;background:var(--surface2);border-radius:4px;border-left:2px solid var(--accent)">
+              <div style="font-size:11px;color:var(--muted)"><span style="color:var(--text);font-weight:600">@${la.author}</span>${stateTag} · ${ago}</div>
+              ${snippet ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;font-style:italic">"${snippet}"</div>` : ''}
+            </div>`;
+          })() : '';
+          return `<div style="padding:9px 0;border-bottom:1px solid var(--border)">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+              <a href="${pr.url}" target="_blank" style="color:var(--text);text-decoration:none;font-size:13px;line-height:1.4" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">#${pr.number} ${pr.title}${draft}</a>
+              ${decision}
+            </div>
+            ${author}
+            ${lastActivity}
           </div>`;
         }).join('')}
+        </div>
       </div>
     `).join('');
   }
@@ -1620,16 +1687,19 @@
       body.innerHTML = '<div class="empty-state">No open PRs — or not loaded yet. Hit Refresh.</div>';
       return;
     }
-    body.innerHTML = `
-      <div style="margin-bottom:20px">
-        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)">My Open PRs <span style="font-size:10px;font-weight:400;color:var(--muted)">(${prs.length})</span></div>
-        ${_prRows(prs)}
-      </div>
-      <div>
-        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)">Awaiting My Review <span style="font-size:10px;font-weight:400;color:var(--muted)">(${reviewRequested.length})</span></div>
-        ${_prRows(reviewRequested)}
-      </div>
-    `;
+    function section(label, items) {
+      return `
+        <div class="panel" style="margin-bottom:16px">
+          <div class="panel-header" style="border-bottom:1px solid var(--border)">
+            <div class="panel-title" style="font-size:13px">${label}</div>
+            <span style="font-size:11px;color:var(--muted)">${items.length} PR${items.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div style="padding:8px 12px">
+            ${items.length ? _prRows(items) : '<div class="empty-state" style="padding:8px 0">None</div>'}
+          </div>
+        </div>`;
+    }
+    body.innerHTML = section('My Open PRs', prs) + section('Awaiting My Review', reviewRequested);
   }
 
   // ── ADO fetch (on-demand only) ───────────────────────────────────────────
@@ -1719,15 +1789,13 @@
     const el = document.getElementById('status-pills');
     if (!el) return;
     const h = state.health;
-    const pending = (state.hermesInbox || []).filter(i => i.status === 'pending').length;
     const blocked = (state.ado.items || []).filter(i => _isBlocked(i)).length;
     const overdue = (state.interrupts || []).filter(i => {
       return i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'done';
     }).length;
     const pills = [
-      { label: 'Hermes', ok: h.sources?.hermes_pending !== false },
+      { label: 'Hermes', ok: h.sources?.claudia !== false },
       { label: 'ADO', ok: !state.ado.error },
-      pending > 0 ? { label: `${pending} pending flush`, warn: true } : null,
       blocked > 0 ? { label: `${blocked} blocked`, danger: true } : null,
       overdue > 0 ? { label: `${overdue} overdue`, danger: true } : null,
     ].filter(Boolean);
@@ -3019,31 +3087,6 @@
     return 'age-old';
   }
 
-  // ── Hermes + Adhoc panels ────────────────────────────────────────────────
-  function renderHermesPanel() {
-    _renderItemList('hermes-panel-body', state.hermesInbox || [], i => `
-      <div class="list-item">
-        <div class="item-icon">📌</div>
-        <div style="flex:1">
-          <div class="item-title">${i.title}</div>
-          <div class="item-meta">${i.project || ''} · ${i.module || ''} · ${i.type || ''}</div>
-        </div>
-        <div class="item-tag">${i.status}</div>
-      </div>
-    `);
-  }
-
-  function renderAdhocPanel() {
-    _renderItemList('adhoc-panel-body', (state.adhoc || []).slice(0, 5), i => `
-      <div class="list-item">
-        <div style="flex:1">
-          <div class="item-title">${i.title}</div>
-          <div class="item-meta">${_formatTs(i.timestamp)}</div>
-        </div>
-      </div>
-    `);
-  }
-
   function _renderItemList(containerId, items, renderFn) {
     const el = document.getElementById(containerId);
     if (!el) return;
@@ -3110,32 +3153,6 @@
         <div>
           <div class="decision-text">${d.text}</div>
           ${d.project ? `<div class="decision-tag">${d.project}</div>` : ''}
-        </div>
-      </div>
-    `);
-  }
-
-  function renderSyncPanel() {
-    const sync = state.hermesSync || {};
-    const pending = (state.hermesInbox || []).filter(i => i.status === 'pending').length;
-    const items = [
-      ...Object.entries(sync).map(([slug, data]) => ({
-        icon: '✅',
-        text: `${slug} — synced`,
-        meta: `${Object.values(data).filter(v => v && v.length).length} capture files`
-      })),
-      pending > 0 ? {
-        icon: '📥',
-        text: `${pending} ADO items pending flush`,
-        meta: 'Say "flush pending notes" to push to ADO'
-      } : null
-    ].filter(Boolean);
-    _renderItemList('sync-body', items, i => `
-      <div class="list-item">
-        <div class="item-icon">${i.icon}</div>
-        <div style="flex:1">
-          <div class="item-title">${i.text}</div>
-          <div class="item-meta">${i.meta}</div>
         </div>
       </div>
     `);
@@ -3670,7 +3687,6 @@
       }
     };
     _set('badge-interrupts', (state.interrupts || []).filter(i => i.status !== 'done').length);
-    _set('badge-ado-pending', (state.hermesInbox || []).filter(i => i.status === 'pending').length);
     _set('badge-blocked', (state.ado.items || []).filter(i => _isBlocked(i)).length);
     const overdue = (state.interrupts || []).filter(i =>
       i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'done').length;
@@ -3876,44 +3892,6 @@
           <div class="ado-meta">${i.sprint || i.module || ''} · ${i.type || ''} · ${i.state} · ${i.assignee || ''}</div>
         </div>
         ${i.state === 'Code Review' && i.daysInState ? `<div class="review-age ${_ageClass(i.daysInState)}">${i.daysInState}d</div>` : ''}
-      </div>
-    `);
-  }
-
-  function _renderHermesFullwidth() {
-    _renderItemList('hermes-fullwidth-body', state.hermesInbox || [], i => `
-      <div class="list-item">
-        <div class="item-icon">📌</div>
-        <div style="flex:1">
-          <div class="item-title">${i.title}</div>
-          <div class="item-meta">${i.project || ''} · ${i.module || ''} · ${i.type || ''} · ${i.status}</div>
-        </div>
-      </div>
-    `);
-  }
-
-  function _renderAdhocFullwidth() {
-    _renderItemList('adhoc-fullwidth-body', state.adhoc || [], i => `
-      <div class="list-item">
-        <div style="flex:1">
-          <div class="item-title">${i.title}</div>
-          <div class="item-meta">${_formatTs(i.timestamp)}</div>
-          ${i.text ? `<div style="font-size:11px;color:var(--text);margin-top:4px;line-height:1.5">${i.text}</div>` : ''}
-        </div>
-      </div>
-    `);
-  }
-
-  function _renderSyncFullwidth() {
-    const sync = state.hermesSync || {};
-    const items = Object.entries(sync).map(([slug, data]) => ({
-      icon: '✅', text: slug,
-      meta: Object.entries(data).filter(([,v]) => v && v.length).map(([k]) => k).join(', ') || 'no pending captures'
-    }));
-    _renderItemList('sync-fullwidth-body', items, i => `
-      <div class="list-item">
-        <div class="item-icon">${i.icon}</div>
-        <div style="flex:1"><div class="item-title">${i.text}</div><div class="item-meta">${i.meta}</div></div>
       </div>
     `);
   }

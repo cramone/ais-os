@@ -1,5 +1,6 @@
 .env
 .env.local
+.mcp.json
 .DS_Store
 *.log
 __pycache__/
