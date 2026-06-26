@@ -38,13 +38,25 @@ Command Handler           Read Models
   │
   ③ Publish → SNS: media-domain-events
               │
-  ┌───────────┼─────────────┬─────────────┐
-  ▼           ▼             ▼             ▼
-media-      media-       media-        media-
-projector   processing   sagas         signing
-  │           │             │             │
-Projectors  Processing  SagaOrch      SecuredSigning
-Lambda      Worker      estrator      Adapter
+  ┌───────────┼──────────────────┐
+  ▼           ▼                  ▼
+media-      media-            media-
+projector   projector-search  signing
+  │           │                  │
+Projectors  Projectors        SecuredSigning
+.ReadModel  .Search           Adapter
+
+  ② also → SNS: media-integration-events
+              │
+  ┌───────────┼─────────────┐
+  ▼           ▼             ▼
+media-      media-        media-
+cross-      processing    sagas
+module-       │             │
+events      Processing  SagaOrch-
+  │         Worker      estrator
+EventCons.
+Lambda
 ```
 
 ---
@@ -126,15 +138,21 @@ Integration events published **inline** in Command Handler by per-module `*Integ
 
 ### SQS Queues (MM-owned)
 
-| Queue | Consumer | Source |
-|---|---|---|
-| `media-projector` | Projectors Lambda | `media-domain-events` |
-| `media-processing` | Processing Worker | `media-domain-events` (`AssetValidationPassed` filter) |
-| `media-sagas` | SagaOrchestrator | `media-domain-events` |
-| `media-signing` | SecuredSigning Adapter | `media-domain-events` |
-| `media-cross-module-events` | Integration Event Consumers Lambda | `media-integration-events` |
+| Queue | Consumer | Source | Status |
+|---|---|---|---|
+| `media-projector` | Projectors.ReadModel Lambda | `media-domain-events` | ✅ |
+| `media-projector-search` | Projectors.Search Lambda | `media-domain-events` | ⏸️ Queue provisioned; SNS subscription deferred until `deploySearch=true` |
+| `media-signing` | SecuredSigning Adapter Lambda | `media-domain-events` | ✅ |
+| `media-cross-module-events` | EventConsumers Lambda | `media-integration-events` | ✅ |
+| `media-sagas` | SagaOrchestrator Lambda | `media-integration-events` | ✅ |
+| `media-processing` | Processing Worker Lambda | `media-integration-events` | ✅ Queue provisioned; Lambda host not yet deployed |
+| `media-document-signing` | SagaOrchestrator.DocumentSigning Lambda | `media-integration-events` | 🔴 Deferred — add with DocumentSigningSaga implementation |
+| `media-bulk-folder-imports` | BulkFolderImportWorker Lambda | `media-integration-events` | 🔴 Deferred — add with bulk import implementation |
+| `media-bulk-media-imports` | BulkMediaImportWorker Lambda | `media-integration-events` | 🔴 Deferred — add with bulk import implementation |
 
 All queues: standard (not FIFO), max 3 retries, DLQ with CloudWatch alarm on depth > 0.
+
+External bounded contexts (Notifications, Search/Discovery, Billing, Compliance) own their own SQS queues subscribed to `media-integration-events` — not MM-owned resources.
 
 ---
 

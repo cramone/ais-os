@@ -1,0 +1,231 @@
+# Plan: Consistent Claims — Central JWT Token Factory
+
+## Goal
+
+Eliminate scattered `JwtTokenBuilder` call sites across controllers. Introduce a single `IMagiqJwtTokenFactory` service that owns all claim construction and JWT issuance. Align claim type names across JWT and OIDC (IS4) paths.
+
+---
+
+## Problems
+
+### 1. Inline `JwtTokenBuilder` — 5 sites, inconsistent claims
+
+| Location | Claims emitted | Missing |
+|---|---|---|
+| V1 `LoginCustomerInternal` | `given_name`, `family_name`, `MembershipId` | `LoginID`, `CustomerName` |
+| V1 `LoginCustomersInternal` | `given_name`, `family_name`, `MembershipId` | `LoginID`, `CustomerName` |
+| V2 `LoginCustomerInternal` | `given_name`, `family_name`, `MembershipId` | `LoginID`, `CustomerName` |
+| V2 `LoginCustomersInternal` | `given_name`, `family_name`, `MembershipId` | `LoginID`, `CustomerName` |
+| V2 `Verify` (post-2FA) | `MembershipId` only | `given_name`, `family_name` — **plus wrong issuer** |
+
+### 2. Issuer inconsistency
+- All login endpoints: `"https://" + domain` ✓
+- V2 `Verify`: hardcoded `"MagiqCloud"` ✗
+
+### 3. `JwtTokenBuilder.AddClaims` silently broken
+```csharp
+// JwtTokenBuilder.cs:53 — LINQ Union returns IEnumerable, never mutates this.claims
+this.claims.Union(claims);  // BUG: no-op
+```
+
+### 4. `UserProfileService` hardcodes claim name strings
+```csharp
+new Claim("LoginID", ...)     // should use MagiqClaimsFactory.LoginId
+new Claim("ClientName", ...)  // should use MagiqClaimsFactory.ClientName
+new Claim("TenantId", ...)    // no constant defined yet
+```
+
+### 5. Claim type mismatch between JWT and OIDC paths
+- `MagiqClaimsFactory` defines `given_name` / `family_name` (short OIDC form)
+- `UserProfileService` emits `ClaimTypes.GivenName` / `ClaimTypes.Surname` (long MS URN)
+- Consumers receive different claim type strings depending on which auth path was used
+
+### 6. `CookieAuthenticationService` and `IDPAuthenticationService` have identical `SignIn` bodies
+
+---
+
+## Breaking Change Analysis
+
+| Change | Risk | Verdict |
+|---|---|---|
+| `AddClaims` bug fix | No callers exist in codebase | ✅ Safe |
+| `TenantId` constant | Additive | ✅ Safe |
+| New claims in `BuildCustomerToken` (`LoginID`, `CustomerName`) | Additive — consumers ignore unknown claims | ✅ Safe |
+| `JwtClaimTypes.GivenName` → `MagiqClaimsFactory.GivenName` | Same string value (`"given_name"`) — identical output | ✅ Safe |
+| `UserProfileService`: `ClaimTypes.GivenName` → `MagiqClaimsFactory.GivenName` | IS4 outbound mapper converts long URN → `given_name` before emitting; output is identical. No internal code reads `ClaimTypes.GivenName` from `IssuedClaims`. | ✅ Safe |
+| V2 `Verify` issuer `"MagiqCloud"` → `"https://" + domain` | `ValidIssuer = "https://" + domain` in `ServiceCollectionExtensions.cs:297` — tokens with issuer `"MagiqCloud"` already fail JWT bearer validation. Current Verify flow is non-functional. Fix corrects a live bug. | ✅ Safe (fixes broken) |
+
+### Guard — do NOT change in Step 2
+
+`UserProfileService.cs:42` uses `ClaimTypes.Name` for the username claim — leave it as-is. `UserStore.cs` reads `ClaimTypes.Name` from external IDP token claims in unrelated flows; changing this line would risk collateral damage.
+
+```csharp
+// Line 42 — leave ClaimTypes.Name unchanged
+context.IssuedClaims.Add(new Claim(ClaimTypes.Name, user.Username));
+```
+
+---
+
+## Implementation Steps
+
+### Step 1 — Extend `MagiqClaimsFactory`
+**File:** `src/MagiqAuth.Core/Security/MagiqClaimsFactory.cs`
+
+Add missing constant:
+```csharp
+public const string TenantId = "TenantId";
+```
+
+---
+
+### Step 2 — Fix `UserProfileService`
+**File:** `src/MagiqAuth.Services/Authentication/UserProfileService.cs`
+
+- Replace `"LoginID"` → `MagiqClaimsFactory.LoginId`
+- Replace `"ClientName"` → `MagiqClaimsFactory.ClientName`
+- Replace `"TenantId"` → `MagiqClaimsFactory.TenantId`
+- Replace `ClaimTypes.GivenName` → `MagiqClaimsFactory.GivenName`
+- Replace `ClaimTypes.Surname` → `MagiqClaimsFactory.FamilyName`
+
+---
+
+### Step 3 — Fix `JwtTokenBuilder.AddClaims` bug
+**File:** `src/MagiqAuth.Web/Api/v1/Models/Security/JwtTokenBuilder.cs`
+
+```csharp
+// Before (no-op):
+this.claims.Union(claims);
+
+// After:
+foreach (var kvp in claims)
+    this.claims[kvp.Key] = kvp.Value;
+```
+
+---
+
+### Step 4 — Create `IMagiqJwtTokenFactory`
+**File:** `src/MagiqAuth.Services/Authentication/IMagiqJwtTokenFactory.cs` *(new)*
+
+```csharp
+using MagiqAuth.Core.Domain.Users;
+using MagiqAuth.Web.Api.v1.Models.Security;
+
+namespace MagiqAuth.Services.Authentication;
+
+public interface IMagiqJwtTokenFactory
+{
+    /// <summary>User-only token — no tenant/customer context (all-tenants login).</summary>
+    JwtToken BuildUserToken(User user);
+
+    /// <summary>Customer-scoped token — includes LoginID and CustomerName.</summary>
+    JwtToken BuildCustomerToken(User user, string customerName, string loginId);
+}
+```
+
+---
+
+### Step 5 — Create `MagiqJwtTokenFactory`
+**File:** `src/MagiqAuth.Services/Authentication/MagiqJwtTokenFactory.cs` *(new)*
+
+```csharp
+using MagiqAuth.Core.Configuration;
+using MagiqAuth.Core.Domain.Users;
+using MagiqAuth.Core.Security;
+using MagiqAuth.Web.Api.v1.Models.Security;
+
+namespace MagiqAuth.Services.Authentication;
+
+public class MagiqJwtTokenFactory : IMagiqJwtTokenFactory
+{
+    private readonly MagiqConfig _config;
+
+    public MagiqJwtTokenFactory(MagiqConfig config)
+    {
+        _config = config;
+    }
+
+    public JwtToken BuildUserToken(User user)
+    {
+        var claims = MagiqClaimsFactory.BuildUserClaims(
+            user.FirstName, user.LastName, user.UserGuid.ToString());
+
+        return BuildToken(user.Email, claims);
+    }
+
+    public JwtToken BuildCustomerToken(User user, string customerName, string loginId)
+    {
+        var claims = MagiqClaimsFactory.BuildCustomerClaims(
+            user.FirstName, user.LastName, user.UserGuid.ToString(), loginId, customerName);
+
+        return BuildToken(user.Email, claims);
+    }
+
+    private JwtToken BuildToken(string subject, IEnumerable<Claim> claims)
+    {
+        var issuerAudience = "https://" + _config.Site.Domain;
+        var builder = new JwtTokenBuilder()
+            .AddSecurityKey(_config.Security.SecurityKey)
+            .AddSubject(subject)
+            .AddIssuer(issuerAudience)
+            .AddAudience(issuerAudience)
+            .AddExpiry(10);
+
+        foreach (var claim in claims)
+            builder.AddClaim(claim.Type, claim.Value);
+
+        return builder.Build();
+    }
+}
+```
+
+---
+
+### Step 6 — Register factory in DI
+**File:** `src/MagiqAuth.Web.Framework/Infrastructure/Extensions/ServiceCollectionExtensions.cs`
+
+```csharp
+services.AddScoped<IMagiqJwtTokenFactory, MagiqJwtTokenFactory>();
+```
+
+---
+
+### Step 7 — Refactor `JwtAuthV1Controller`
+**File:** `src/MagiqAuth.Web/Api/v1/Controllers/JwtAuthV1Controller.cs`
+
+- Inject `IMagiqJwtTokenFactory _tokenFactory`
+- `LoginCustomerInternal`: replace `new JwtTokenBuilder()...Build()` with `_tokenFactory.BuildCustomerToken(user, userCustomer.Customer.Name, userCustomer.LoginId)`
+- `LoginCustomersInternal`: replace with `_tokenFactory.BuildUserToken(user)` (all-tenants path — no single customer in scope)
+
+---
+
+### Step 8 — Refactor `JwtAuthV2Controller`
+**File:** `src/MagiqAuth.Web/Api/v1/Controllers/JwtAuthV2Controller.cs`
+
+- Inject `IMagiqJwtTokenFactory _tokenFactory`
+- `Login` (no-customer path): replace with `_tokenFactory.BuildUserToken(user)`
+- `LoginCustomerInternal`: replace with `_tokenFactory.BuildCustomerToken(user, userCustomer.Customer.Name, userCustomer.LoginId)`
+- `LoginCustomersInternal`: replace with `_tokenFactory.BuildUserToken(user)`
+- `Verify` (post-2FA): replace with `_tokenFactory.BuildCustomerToken(user, customer.Name, loginId)` — **fixes missing claims and wrong issuer**
+
+---
+
+## File Summary
+
+| File | Change |
+|---|---|
+| `src/MagiqAuth.Core/Security/MagiqClaimsFactory.cs` | Add `TenantId` constant |
+| `src/MagiqAuth.Services/Authentication/UserProfileService.cs` | Use `MagiqClaimsFactory` constants, fix claim type inconsistency |
+| `src/MagiqAuth.Web/Api/v1/Models/Security/JwtTokenBuilder.cs` | Fix `AddClaims` silent no-op bug |
+| `src/MagiqAuth.Services/Authentication/IMagiqJwtTokenFactory.cs` | **New** — interface |
+| `src/MagiqAuth.Services/Authentication/MagiqJwtTokenFactory.cs` | **New** — implementation |
+| `src/MagiqAuth.Web.Framework/Infrastructure/Extensions/ServiceCollectionExtensions.cs` | Register `IMagiqJwtTokenFactory` |
+| `src/MagiqAuth.Web/Api/v1/Controllers/JwtAuthV1Controller.cs` | Inject factory, remove 2 inline builder call sites |
+| `src/MagiqAuth.Web/Api/v1/Controllers/JwtAuthV2Controller.cs` | Inject factory, remove 4 inline builder call sites, fix Verify issuer/claims |
+
+---
+
+## Out of Scope
+
+- `CookieAuthenticationService` / `IDPAuthenticationService` deduplication — separate PR
+- `JwtAuthenticationService.SignIn` enrichment — separate concern
+- Token expiry configurability — follow-up

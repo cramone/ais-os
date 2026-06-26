@@ -275,6 +275,15 @@ _Accepts `IdempotencyKey` header._
   "capabilities": ["Processing", "VersionControl"],
   "reviewPolicy": "RequiredForPublish",
   "checkoutPolicy": "None",
+  "compiledMetadataFields": [
+    { "name": "director", "bareName": "director", "fieldType": "Text", "isRequired": true, "isImmutable": false,
+      "recordTypeId": "018e4c7b-...", "recordTypeVersion": 3 },
+    { "name": "invoice.amount", "bareName": "amount", "fieldType": "Number", "isRequired": true, "isImmutable": false,
+      "recordTypeId": "018e4c81-...", "recordTypeVersion": 2 },
+    { "name": "receipt.amount", "bareName": "amount", "fieldType": "Number", "isRequired": false, "isImmutable": false,
+      "recordTypeId": "018e4c82-...", "recordTypeVersion": 1 }
+  ],
+  "suppressedFieldNames": ["amount"],
   "hasDraft": true,
   "draft": {
     "name": "Film Record Profile",
@@ -298,6 +307,8 @@ _Accepts `IdempotencyKey` header._
 ```
 
 `draft` is `null` when `hasDraft` is `false`.
+
+`compiledMetadataFields` and `suppressedFieldNames` are derived from `CompiledTemplate` (set at publish time — see [MediaProfile Write Model — Metadata Field Collision Resolution](./mediaprofile.write-model.md#metadata-field-collision-resolution)). Both are empty arrays on a profile that has never been published. A bare field name appearing in `suppressedFieldNames` means it collided across two or more attached RecordTypes — every contributing field is exposed only under its qualified key (`{alias}.{bareName}` or `{recordTypeId}.{bareName}`) in `compiledMetadataFields`, never under the bare key itself. Clients writing metadata via `SetMetadataField`/`SetMetadataBatch`/`BulkSetMetadata` with `origin: "Governed"` must use the qualified key for any field whose `bareName` appears in `suppressedFieldNames`.
 
 ---
 

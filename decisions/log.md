@@ -199,3 +199,19 @@ unnecessary complexity for Q2.
 **Owner:** Chase Ramone
 
 ---
+
+## 2026-06-15 — InfoXpert SQL injection fix approach
+
+**Decision:** Fix IXReports SQL injection via operator whitelisting + single-quote escaping rather than full parameterized query refactor.
+
+**Why:** Parameterized queries require refactoring the OleDBDataSource execution layer — a large change to legacy code with no test coverage. Operator whitelisting closes the highest-risk vector entirely; quote escaping is the correct SQL literal defense. Risk-adjusted, the fix is correct and safe.
+
+**Alternatives considered:** Full parameterization (deferred — flagged as outstanding recommendation). Stored procedures (not viable without schema access).
+
+## 2026-06-15 — Security incident folder added to AIS-OS
+
+**Decision:** Add `security-incidents/{customer}/{dd mm yyyy}/` to AIS-OS as a standing folder for recording security events across customers.
+
+**Why:** InfoXpert incident review produced findings worth retaining for audit, future document generation, and pattern detection across customers. Lean addition — only created when an incident occurs.
+
+**Alternatives considered:** Storing in `projects/` (not right — incidents are cross-project); storing in `references/` (not right — these are time-bound events, not reusable knowledge).

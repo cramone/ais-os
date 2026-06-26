@@ -51,7 +51,7 @@ Track progress by checking off items as work is completed. Each item links to th
 ### Domain / Projectors
 
 - [x] **PROJ-2** Implement `RegistrationCountIndexProjector` and provision `folder-registration-index` DynamoDB table _(RS-08, SM-02)_
-- [x] **PROJ-3** Implement `FolderActiveItemCountIndexProjector` and provision `folder-active-item-count-index` DynamoDB table _(RS-08, SM-02)_
+- [ ] **PROJ-3** ~~Implement `FolderActiveItemCountIndexProjector` and provision `folder-active-item-count-index` DynamoDB table~~ — **correction (2026-06-17): never implemented, incorrectly checked off.** Repo-wide grep of `magiq-media` finds zero hits for `FolderActiveItemCountIndexProjector`/`FolderActiveItemCountIndex`. The CDK table was provisioned but unregistered (orphaned) and has been removed from `write-indexes.construct.ts`. The invariant this would have enforced is instead covered by the `active-items` atomic counter in [ADR-006](../../adrs/ADR-006-uniqueness-registry-hierarchy-invariants.md) — no projector-based replacement is planned _(RS-08, SM-02)_
 - [ ] **PROJ-4** Write integration test: attempt to archive a folder with active registrations — assert constraint violation is returned _(SM-02)_
 
 ---

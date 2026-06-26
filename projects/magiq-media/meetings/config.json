@@ -1,0 +1,40 @@
+{
+  "project": "magiq-media",
+  "meetings": [
+    {
+      "id": "standup",
+      "topic": "Daily standup",
+      "duration_min": 15,
+      "participants": ["chase.ramone@magiqsoftware.com"],
+      "sections": [
+        { "title": "What did we ship yesterday?", "minutes": 5 },
+        { "title": "What's blocked?", "minutes": 5 },
+        { "title": "Today's focus", "minutes": 5 }
+      ]
+    },
+    {
+      "id": "sprint-review",
+      "topic": "Sprint review & planning",
+      "duration_min": 60,
+      "participants": ["chase.ramone@magiqsoftware.com"],
+      "sections": [
+        { "title": "Demo — what shipped", "minutes": 20 },
+        { "title": "Retro — what worked / what didn't", "minutes": 15 },
+        { "title": "Next sprint scope", "minutes": 20 },
+        { "title": "Action items", "minutes": 5 }
+      ]
+    },
+    {
+      "id": "architecture",
+      "topic": "Architecture review",
+      "duration_min": 60,
+      "participants": ["chase.ramone@magiqsoftware.com"],
+      "sections": [
+        { "title": "Context & problem statement", "minutes": 10 },
+        { "title": "Options considered", "minutes": 20 },
+        { "title": "Decision & rationale", "minutes": 20 },
+        { "title": "Risks & mitigations", "minutes": 10 }
+      ]
+    }
+  ]
+}
