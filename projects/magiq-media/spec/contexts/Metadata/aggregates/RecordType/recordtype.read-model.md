@@ -209,4 +209,4 @@ record FieldConstraintsDto(
 
 - [RecordType Write Model](./recordtype.write-model.md)
 - [RecordType API](./recordtype.api.md)
-- [System Spec — Storage Boundaries](../../../../shared/system-spec.md#storage-boundaries)                                                                                                                                                                                                                                                                                                                                                            
+- [System Spec — Storage Boundaries](../../../../shared/system-spec.md#storage-boundaries)

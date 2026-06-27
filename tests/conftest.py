@@ -20,7 +20,11 @@ def tmp_aios(tmp_path):
     decisions = tmp_path / "decisions"
     decisions.mkdir()
     (decisions / "log.md").write_text(
-        "## 2026-06-01 - Some decision\n*Project: magiq-media*\n\n## 2026-05-30 - Another decision\n*Project: aios*\n"
+        "## 2026-06-01 — Some decision\n\n**Project:** magiq-media\n\n"
+        "**Decision:** did a thing\n\n"
+        "## 2026-05-30 — Another decision\n\n**Project:** aios\n\n"
+        "**Decision:** did another thing\n",
+        encoding="utf-8",
     )
     return tmp_path
 

@@ -55,7 +55,15 @@ def test_read_decisions_missing_file(tmp_path, monkeypatch):
 
 import json as _json2
 from unittest.mock import patch
-from tower.readers.ado import read_ado_sprint
+from tower.readers.ado import read_ado_sprint, invalidate_cache
+
+
+@pytest.fixture(autouse=True)
+def _reset_ado_cache():
+    """ADO reader holds a module-global cache; reset around each test."""
+    invalidate_cache()
+    yield
+    invalidate_cache()
 
 SAMPLE_ADO_JSON = _json2.dumps({
     "items": [

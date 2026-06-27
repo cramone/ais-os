@@ -236,4 +236,3 @@ record ArchiveMetadataDto(
 - [Asset API](./asset.api.md)
 - [System Spec — Storage Boundaries](../../../../shared/system-spec.md#storage-boundaries)
 - [System Spec — Messaging Patterns](../../../../shared/system-spec.md#messaging-patterns)
-                                                                                                                                                                                                                                                                                                        

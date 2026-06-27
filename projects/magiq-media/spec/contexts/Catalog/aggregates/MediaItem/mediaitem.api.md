@@ -884,4 +884,3 @@ _(Existing table entries unchanged — appended below)_
 |---|---|---|---|
 | `POST /v1/catalog/items/bulk` | `BulkCreateMediaItemsCommand` | `MediaItemCreated` (×N) | `MediaItemProjector` → INSERT (×N), `active-items` counter per media-folder |
 | `POST /v1/catalog/items/bulk/metadata` | `BulkSetMetadataCommand` | `MediaItemMetadataBatchSet` (×N) | `MediaItemProjector` → UPDATE metadata (×N) |
-                                                                                                                                                                                
