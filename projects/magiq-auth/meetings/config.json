@@ -1,0 +1,40 @@
+{
+  "project": "magiq-auth",
+  "meetings": [
+    {
+      "id": "standup",
+      "topic": "Daily standup",
+      "duration_min": 15,
+      "participants": ["chase.ramone@magiqsoftware.com"],
+      "sections": [
+        { "title": "What did we ship yesterday?", "minutes": 5 },
+        { "title": "What's blocked?", "minutes": 5 },
+        { "title": "Today's focus", "minutes": 5 }
+      ]
+    },
+    {
+      "id": "sprint-review",
+      "topic": "Sprint review & planning",
+      "duration_min": 60,
+      "participants": ["chase.ramone@magiqsoftware.com"],
+      "sections": [
+        { "title": "Demo — what shipped", "minutes": 20 },
+        { "title": "Retro — what worked / what didn't", "minutes": 15 },
+        { "title": "Next sprint scope", "minutes": 20 },
+        { "title": "Action items", "minutes": 5 }
+      ]
+    },
+    {
+      "id": "security-review",
+      "topic": "Security & auth design review",
+      "duration_min": 45,
+      "participants": ["chase.ramone@magiqsoftware.com"],
+      "sections": [
+        { "title": "Threat model update", "minutes": 10 },
+        { "title": "Open security items", "minutes": 15 },
+        { "title": "Policy & compliance gaps", "minutes": 10 },
+        { "title": "Decisions & next steps", "minutes": 10 }
+      ]
+    }
+  ]
+}

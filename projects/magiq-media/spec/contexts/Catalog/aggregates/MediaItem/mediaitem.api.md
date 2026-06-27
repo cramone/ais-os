@@ -171,16 +171,22 @@ _Accepts `IdempotencyKey` header._
 
 Sets a single metadata field on the media-item.
 
+> 🔧 **`origin` is required (ADR-013).** Every metadata write must declare `origin: "Governed" | "General"`. There is no default — omitting it is a `400`, never silently treated as either value. `"Governed"` resolves `fieldName` against the media item's compiled RecordType schema (`SnapshotFields`); a bare name that collides across two or more RecordTypes contributed to the profile must be qualified (e.g. `invoice.amount`, or the RecordTypeId-qualified fallback) — see [MediaProfile API — `compiledMetadataFields`](../MediaProfile/mediaprofile.api.md#get-v1catalogprofilesprofileid) for how to discover the valid qualified forms. `"General"` is a caller-defined field with no schema backing and must not collide with a Governed field name (bare or qualified).
+
 **Request:**
 ```json
 {
   "value": "Q1 2026 hero banner",
-  "recordTypeId": "018e4c7d-...",
-  "recordTypeVersion": 3
+  "origin": "Governed"
 }
 ```
 
 **Response `200 OK`** — no body.
+
+**Errors:**
+- `400` — `origin` missing or not one of `Governed`/`General`
+- `401` / `403` / `404` — standard auth/ownership/not-found
+- `422` — value fails schema validation, or field-name resolution fails (`MetadataFieldUnknown`, `MetadataFieldAmbiguous`, `MetadataFieldNameReserved`) — see error shapes below
 
 _Accepts `IdempotencyKey` header._
 
@@ -195,34 +201,76 @@ _Accepts `IdempotencyKey` header._
 }
 ```
 
+**Metadata field origin/resolution error shapes** (shared across `PATCH .../metadata/{fieldName}` and `PUT .../metadata` — see [§Metadata Field Origin Error Shapes](#metadata-field-origin-error-shapes) below):
+
+```json
+// 422 — unknown governed field
+{
+  "type": "https://errors.magiqmedia.com/domain/invalid-operation",
+  "title": "Invalid operation",
+  "status": 422,
+  "detail": "Field 'made_up_field' is not defined on this media item's record type.",
+  "extensions": { "errorCode": "InvalidOperation", "fieldName": "made_up_field" }
+}
+
+// 422 — ambiguous bare name
+{
+  "type": "https://errors.magiqmedia.com/domain/invalid-operation",
+  "title": "Invalid operation",
+  "status": 422,
+  "detail": "Field name 'status' is ambiguous — it is defined by more than one record type contributing to this media item's profile. Use one of the qualified field names instead: shipping.status, 018e4c9f-....status.",
+  "extensions": { "errorCode": "InvalidOperation", "fieldName": "status", "candidates": ["shipping.status", "018e4c9f-....status"] }
+}
+
+// 422 — general field reserved
+{
+  "type": "https://errors.magiqmedia.com/domain/invalid-operation",
+  "title": "Invalid operation",
+  "status": 422,
+  "detail": "Field name 'carrier' is reserved by this media item's record type schema and cannot be used as a general field.",
+  "extensions": { "errorCode": "InvalidOperation", "fieldName": "carrier" }
+}
+```
+
+Note: as implemented today, `MetadataFieldUnknown`/`MetadataFieldAmbiguous`/`MetadataFieldNameReserved` are distinct named-error *helper methods* in `MediaItemDomainErrors`, but all three currently map onto the generic `DomainError.InvalidOperation` kind (`errorCode: "InvalidOperation"`) rather than dedicated error codes — the plan's originally proposed distinct `errorCode` values (`MetadataFieldUnknown`, `MetadataFieldAmbiguous`, `MetadataFieldNameReserved`) were not adopted at the HTTP-mapping layer. Clients must currently disambiguate by parsing `detail` / the `candidates` extension, not by `errorCode`. Flagged as a candidate follow-up, not a blocker for this plan.
+
 ---
 
 ### `PUT /v1/catalog/items/{itemId}/metadata`
 
-Full replacement of the media-item's metadata payload in a single atomic operation. All fields are validated against the RecordType schema — any validation failure rejects the entire batch with `422` and no changes are persisted. Prefer this over multiple `PATCH` calls when updating several fields together.
+Full replacement of the media-item's metadata payload in a single atomic operation. Every entry is resolved against `SnapshotFields` (per [Metadata Field Origin Resolution](./mediaitem.write-model.md#metadata-field-origin-resolution)) and validated before any event is raised — any single entry's resolution or validation failure rejects the entire batch with `422` and no changes are persisted. Prefer this over multiple `PATCH` calls when updating several fields together.
 
-> ⚠️ **Full replace semantics (R-23):** This is a **complete replacement** of `Metadata.Draft`. Fields omitted from the `fields` map are **cleared** — they will no longer appear in the draft. If you intend to preserve existing field values, read the current draft first and include all fields you wish to retain. There is no merge or partial-update behaviour.
+> 🔧 **Breaking shape change (ADR-013):** `fields` is now an **array of entries**, not a `fieldName → value` map. This was required because every entry now carries its own required `origin` and must be independently resolvable (a `Governed` entry resolves against the schema; a `General` entry is rejected if it collides with a reserved name) — a flat map can't carry that per-entry metadata. There is no migration path or compatibility shim; the platform has no released version yet, so this is a straight breaking change.
+
+> ⚠️ **Full replace semantics (R-23):** This is a **complete replacement** of `Metadata.Draft`. Entries omitted from the `fields` array are **cleared** — they will no longer appear in the draft. If you intend to preserve existing field values, read the current draft first and include all fields you wish to retain. There is no merge or partial-update behaviour.
 
 **Request:**
 ```json
 {
-  "fields": {
-    "description": "Q1 2026 hero banner",
-    "release_year": 2026,
-    "approved": true
-  },
+  "fields": [
+    { "fieldName": "description", "value": "Q1 2026 hero banner", "origin": "General" },
+    { "fieldName": "release_year", "value": 2026, "origin": "Governed" },
+    { "fieldName": "invoice.amount", "value": 199.99, "origin": "Governed" }
+  ],
   "recordTypeId": "018e4c7d-...",
   "recordTypeVersion": 3
 }
 ```
 
+| Field | Type | Notes |
+|---|---|---|
+| `fields` | `array` | Each entry: `{ fieldName: string, value: <any JSON>, origin: "Governed" \| "General" }`. `origin` is required per entry — there is no batch-level default. |
+| `recordTypeId` / `recordTypeVersion` | `string?` / `int?` | **Currently dead.** The DTO carries these (doc comment claims "validated server-side against the media item's current RecordType — mismatches return 422"), but `SetMetadataBatchEndpoint.HandleAsync` never reads `req.RecordTypeId`/`req.RecordTypeVersion` — no such validation is actually wired up. Accepted on the wire but silently ignored. Flagged as a bug (dead validated-looking field, misleading doc comment) — not introduced by this plan, pre-existing, surfaced during this review. |
+
 **Response `204 No Content`**
 
-**Errors:** `400`, `401`, `403`, `404`, `422` (field validation failure)
+**Errors:**
+- `400`, `401`, `403`, `404` — standard
+- `422` — schema validation failure, or origin/resolution failure (`MetadataFieldUnknown`, `MetadataFieldAmbiguous`, `MetadataFieldNameReserved` — see [error shapes under `PATCH .../metadata/{fieldName}`](#patch-v1catalogitemsitemidmetadatafieldname) above; same shapes apply here)
 
 _Accepts `IdempotencyKey` header._
 
-**Error response example (`422 Unprocessable Entity`):**
+**Error response example (`422 Unprocessable Entity` — schema validation failure):**
 ```json
 {
   "type": "https://errors.magiqmedia.com/validation/metadata-invalid",
@@ -637,7 +685,8 @@ _Accepts `IdempotencyKey` header._
 |---|---|---|---|
 | `POST /v1/catalog/items` | `CreateMediaItemCommand` | `MediaItemCreated` | `MediaItemProjector` → INSERT |
 | `POST /v1/catalog/folders/{folderId}/items` | `CreateMediaItemCommand` | `MediaItemCreated` | `MediaItemProjector` → INSERT (media-folder pre-assigned) |
-| `PUT /v1/catalog/items/{id}/metadata` | `SetMetadataBatchCommand` | `MediaItemMetadataSet` | `MediaItemProjector` → UPDATE metadata |
+| `PUT /v1/catalog/items/{id}/metadata` | `SetMetadataBatchCommand` | `MediaItemMetadataBatchSet` | `MediaItemProjector` → UPDATE metadata |
+| `PATCH /v1/catalog/items/{id}/metadata/{fieldName}` | `SetMetadataFieldCommand` | `MediaItemMetadataFieldSet` | `MediaItemProjector` → UPDATE metadata |
 | `PATCH /v1/catalog/items/{id}` | `UpdateMediaItemTitleCommand`, `UpdateMediaItemDescriptionCommand` (per field present) | `MediaItemTitleUpdated`, `MediaItemDescriptionUpdated` | `MediaItemProjector` → UPDATE `Title` / `Description` |
 | `PUT /v1/catalog/items/{id}/folder` | `AssignMediaItemToFolderCommand` or `MoveMediaItemCommand` (if already assigned) | `MediaItemAssignedToFolder` or `MediaItemMoved` | `MediaItemProjector` → UPDATE folder/collection, remove `UnassignedIndex` on first assign |
 | `POST /v1/catalog/items/{id}/tags` | `TagMediaItemCommand` | `MediaItemTagged` | `MediaItemProjector` → UPDATE `Tags` |
@@ -759,18 +808,20 @@ _Accepts `IdempotencyKey` header._
 
 ### `POST /v1/catalog/items/bulk/metadata`
 
-Applies a shared set of metadata fields to multiple MediaItems in a single request. Each item is validated independently against its own RecordType schema — items with different profiles are supported as long as all specified fields exist on each item's schema.
+Applies a shared set of metadata fields to multiple MediaItems in a single request. Each item is resolved independently against its own `SnapshotFields` (per [Metadata Field Origin Resolution](./mediaitem.write-model.md#metadata-field-origin-resolution)) — items with different profiles are supported as long as every entry resolves on each item's schema.
 
-Per-item failures do not affect other items (`ContinueOnError` default). Use `FailFast` to abort on first failure.
+Per-item failures do not affect other items (`ContinueOnError` default). Use `FailFast` to abort on first failure — note that with `FailFast`, if *any* item fails, the response returns **zero** succeeded items even if other items resolved cleanly (the handler discards the `succeeded` bag entirely rather than returning a partial commit list), since the per-item writes already happened by the time the failure is observed and a `FailFast` caller is signalling they want an all-or-nothing read on the result.
+
+> 🔧 **Breaking shape change (ADR-013):** `fields` is now an **array of entries**, not a `fieldName → value` map — same change and same reason as `PUT .../metadata` above: each entry now carries its own required `origin`.
 
 **Request:**
 ```json
 {
   "itemIds": ["mi-01", "mi-02", "mi-03"],
-  "fields": {
-    "campaign": "Q1-2026",
-    "status": "Ready for Distribution"
-  },
+  "fields": [
+    { "fieldName": "campaign", "value": "Q1-2026", "origin": "General" },
+    { "fieldName": "status", "value": "Ready for Distribution", "origin": "Governed" }
+  ],
   "onError": "ContinueOnError"
 }
 ```
@@ -778,7 +829,7 @@ Per-item failures do not affect other items (`ContinueOnError` default). Use `Fa
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `itemIds` | `string[]` | ✅ | 1–100 items (configurable via `BulkOperations:MaxMediaItemsPerRequest`) |
-| `fields` | `object` | ✅ | Key/value map of field name → raw JSON value. Full-replace semantics per item — omitted fields are cleared. |
+| `fields` | `array` | ✅ | Each entry: `{ fieldName: string, value: <any JSON>, origin: "Governed" \| "General" }`. Full-replace semantics per item — entries not present are cleared on each item. `origin` is required per entry. |
 | `onError` | `"ContinueOnError" \| "FailFast"` | ❌ | Default `ContinueOnError` |
 
 **Response `200 OK`** — all items succeeded:
@@ -809,9 +860,11 @@ Per-item failures do not affect other items (`ContinueOnError` default). Use `Fa
 | `MediaItemNotFound` | Item does not exist in tenant |
 | `MediaItemArchived` | Item is archived — writes blocked |
 | `MediaItemNotCheckedOut` | Profile `CheckoutPolicy = RequiredForEdit` and item not checked out by caller |
-| `FieldNotFound` | Field name not in item's RecordType schema |
+| `FieldNotFound` | Origin/field-name resolution failed — covers what the single-item endpoints split into `MetadataFieldUnknown`, `MetadataFieldAmbiguous`, and `MetadataFieldNameReserved`. The bulk path does not currently distinguish these three cases at the `errorCode` level; callers must parse `message` for the specific reason. **This is a real divergence from the single-item endpoints, not just a doc simplification — flagged as a follow-up to align bulk and single-item error vocabularies.** |
+| `RequiredFieldNull` | Field is `IsRequired` on the schema but value is `null` |
 | `UnknownFieldType` | Field type in schema is unrecognised |
 | `FieldTypeMismatch` | JSON value incompatible with schema field type |
+| `DomainError` | Aggregate rejected the batch (e.g. item status guard) — message is the raw `DomainError.ErrorMessage` |
 | `DomainError` | Aggregate rejected the batch (e.g. item status guard) |
 
 **Request-level errors:**

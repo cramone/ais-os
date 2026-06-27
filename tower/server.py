@@ -1,12 +1,15 @@
+import hmac
 import os
+import shutil
+import subprocess
 import threading
 import webbrowser
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -25,11 +28,6 @@ from tower.readers.ado import invalidate_cache as invalidate_ado_cache, read_ado
 from tower.readers.ado_update import update_work_item_state
 from tower.readers.github import read_github_prs, read_github_review_requested
 from tower.readers.decisions import add_decision, delete_decision, read_decisions, rename_decision
-from tower.readers.hermes import (
-    read_adhoc_notes,
-    read_ado_pending,
-    read_hermes_project_captures,
-)
 from tower.readers.claudia import send_to_claudia
 from tower.readers.projects import read_projects
 from tower.standup import generate_standup
@@ -54,18 +52,55 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def _token_auth(request: Request, call_next):
+    """Gate /api/* with a shared bearer token when TOWER_TOKEN is set.
+
+    Leaves /api/health open (proxy healthchecks) and lets CORS preflight through.
+    """
+    token = config.TOWER_TOKEN
+    path = request.url.path
+    if (
+        token
+        and request.method != "OPTIONS"
+        and path.startswith("/api")
+        and path != "/api/health"
+    ):
+        provided = request.headers.get("authorization", "")
+        if not hmac.compare_digest(provided, f"Bearer {token}"):
+            return JSONResponse({"detail": "unauthorized"}, status_code=401)
+    return await call_next(request)
+
+
 # --- Health ---
+
+def _hermes_container_up() -> bool:
+    """True if docker is on PATH and a container named 'hermes' is running."""
+    if not shutil.which("docker"):
+        return False
+    try:
+        r = subprocess.run(
+            ["docker", "ps", "--filter", "name=hermes", "--format", "{{.Names}}"],
+            capture_output=True, text=True, timeout=5,
+        )
+        return "hermes" in r.stdout
+    except Exception:
+        return False
+
 
 @app.get("/api/health")
 def health() -> dict[str, Any]:
+    """Probe real source reachability, not just file existence."""
     sources = {
         "projects": config.PROJECTS_DIR.exists(),
-        "hermes_pending": config.ADO_PENDING.exists(),
-        "adhoc_notes": config.ADHOC_NOTES.exists(),
         "decisions": config.DECISIONS_LOG.exists(),
         "interrupts": config.INTERRUPTS_FILE.exists(),
+        "ado": config.ADO_SCRIPT.exists() and bool(os.getenv("AZURE_DEVOPS_PAT")),
+        "github": shutil.which("gh") is not None,
+        "claudia": _hermes_container_up(),
     }
-    return {"status": "ok", "sources": sources}
+    core_ok = all((sources["projects"], sources["decisions"], sources["interrupts"]))
+    return {"status": "ok" if core_ok else "degraded", "sources": sources}
 
 
 # --- Projects ---
@@ -117,23 +152,6 @@ def decision_rename(req: DecisionRenameRequest) -> dict:
     if not rename_decision(req.date, req.old_title, req.new_title):
         raise HTTPException(404, "Decision not found")
     return {"date": req.date, "title": req.new_title}
-
-
-# --- Hermes ---
-
-@app.get("/api/hermes/inbox")
-def hermes_inbox() -> list[dict[str, Any]]:
-    return read_ado_pending()
-
-
-@app.get("/api/hermes/adhoc")
-def hermes_adhoc() -> list[dict[str, Any]]:
-    return read_adhoc_notes()
-
-
-@app.get("/api/hermes/sync")
-def hermes_sync() -> dict[str, Any]:
-    return read_hermes_project_captures()
 
 
 # --- ADO ---

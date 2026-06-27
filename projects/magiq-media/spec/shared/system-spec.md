@@ -1,6 +1,6 @@
 # System Specification — Media Management
 
-_Last updated: 2026-04-22_
+_Last updated: 2026-06-17_
 
 > Cross-cutting concerns shared across all bounded contexts in the Media Management platform.
 
@@ -299,9 +299,16 @@ DynamoDB `TransactWriteItems` supports up to 25 media-items per call; the event 
 
 ```
 Table: media-name-reservations
-PK:    TENANT#{TenantId}#SCOPE#{ScopeKey}#NAME#{NormalizedName}
+PK:    TENANT#{TenantId}#SCOPE#{ScopeKey}
+SK:    NAME#{NormalizedName}      — name reservation row (Tier 2 of uniqueness enforcement, this section)
+       COUNTER#{CounterName}      — atomic hierarchy counter row (see ADR-006), distinct sort-key prefix on the same table
 TTL:   none — reservations persist until explicitly released on rename or archive
 ```
+
+This table serves two distinct purposes on the same physical table, distinguished by SK prefix:
+
+1. **Name reservations** (`NAME#` prefix) — strongly-consistent name uniqueness, described below.
+2. **Hierarchy counters** (`COUNTER#` prefix) — atomic `ADD`-based counters (`child-folders`, `active-items`, `active-registrations`) backing `IUniquenessCounterService.CounterIsZeroAsync`, used by `ArchiveFolderHandler` to enforce hierarchy invariants without the eventual-consistency window of projection reads. See [ADR-006](../../adrs/ADR-006-uniqueness-registry-hierarchy-invariants.md) for the counter schema and assignment table. The originally specified `FolderChildCountIndex` / `FolderActiveItemCountIndex` projectors that this design was meant to supersede were never implemented (zero hits in `magiq-media` as of 2026-06-17) — the counters are the only mechanism enforcing these invariants, not a strongly-consistent alternative to an existing advisory path.
 
 Scope keys are lowercase with colon delimiters, defined in each module's `ScopeKeys.cs`:
 
@@ -510,7 +517,6 @@ Events flow through **two SNS topics** (see ADR-005):
 SNS Topic: media-domain-events                       ← internal (domain event shapes)
     │
     ├── SQS: media-projector       → Projectors (cross-aggregate)
-    ├── SQS: media-processing      → Processing Worker (AssetUploadConfirmedIntegrationEvent only)
     ├── SQS: media-sagas           → SagaOrchestrator
     └── SQS: media-signing         → SecuredSigning Adapter
 
@@ -518,6 +524,7 @@ SNS Topic: media-integration-events                  ← boundary (media.* envel
     │     populated by per-module *IntegrationEventPublisher classes
     │     running inline with Command Handler (ADR-005 — no separate Lambda)
     │
+    ├── SQS: media-processing      → Processing Worker (AssetUploadConfirmedIntegrationEvent only)
     ├── SQS: media-cross-module-events  → Integration Event Consumers Lambda
     │                                      (MM-owned intra-BC fan-in; capability
     │                                       index, saga triggers, etc.)
@@ -529,11 +536,11 @@ SNS Topic: media-integration-events                  ← boundary (media.* envel
 
 | Queue                                                            | Owner            | Source Topic               | Filter                                                                 | Visibility Timeout   | Max Receive | DLQ                             | DLQ Retention |
 | ---------------------------------------------------------------- | ---------------- | -------------------------- | ---------------------------------------------------------------------- | -------------------- | ----------- | ------------------------------- | ------------- |
-| `media-projector`                                                | Media Management | `media-domain-events`      | All events                                                             | 60s                  | 3           | `media-projector-dlq`           | 14 days       |
-| `media-processing`                                               | Media Management | `media-integration-events` | `AssetUploadConfirmedIntegrationEvent` only                            | 30 min / 4 h (video) | 3           | `media-processing-dlq`          | 14 days       |
-| `media-sagas`                                                    | Media Management | `media-domain-events`      | All events                                                             | 30s                  | 3           | `media-sagas-dlq`               | 14 days       |
-| `media-signing`                                                  | Media Management | `media-domain-events`      | `SigningSessionInitiated` + webhook triggers                           | 60s                  | 3           | `media-signing-dlq`             | 14 days       |
-| `media-cross-module-events` (renamed from `media-notifications`) | Media Management | `media-integration-events` | `EventType` filter — integration events consumed by intra-BC consumers | 30s                  | 3           | `media-cross-module-events-dlq` | 7 days        |
+| `media-projector`                                                | Media Management | `media-domain-events`      | All events                                                             | 300s (≥ Lambda timeout) | 3           | `media-projector-dlq`           | 14 days       |
+| `media-processing`                                               | Media Management | `media-integration-events` | `AssetUploadConfirmedIntegrationEvent` only                            | 1800s (30 min); video jobs extend via ChangeMessageVisibility up to 4 h | 3 | `media-processing-dlq` | 14 days |
+| `media-sagas`                                                    | Media Management | `media-integration-events` | Saga-triggering integration events (AssetValidationPassed, ChangeRequest\*, Registration\*, ProcessingJob\*) — TODO: add explicit SNS filter policy | 300s (≥ Lambda timeout) | 3 | `media-sagas-dlq` | 14 days |
+| `media-signing`                                                  | Media Management | `media-domain-events`      | `SigningSessionInitiated`                                              | 300s (≥ Lambda timeout) | 3           | `media-signing-dlq`             | 14 days       |
+| `media-cross-module-events` (renamed from `media-notifications`) | Media Management | `media-integration-events` | Intra-BC integration events (processingjob.\*, item.created/archived, changerequest.\*) — TODO: add explicit SNS filter policy | 300s (≥ Lambda timeout) | 3 | `media-cross-module-events-dlq` | 7 days |
 | External BC consumer queues                                      | External BC      | `media-integration-events` | Per-BC filter policy on `EventType` message attribute                  | BC-defined           | BC-defined  | BC-owned DLQ                    | BC-defined    |
 
 All queues are standard (not FIFO). Per-aggregate event ordering is guaranteed at the event store level by `AggregateVersion`. Projectors and media-sagas are idempotent and tolerate out-of-order SQS delivery.
@@ -613,12 +620,12 @@ Integration events are a curated subset of domain events, translated into publis
 | ------------------------------------ | ------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | `media-asset`                        | `TENANT#{TenantId}#{AssetId}`                           | `DETAIL`                                                  | AssetManagement.ReadModel (`AssetDetailReadModel`)                                                                             |
 | `media-assets`                       | `TENANT#{TenantId}#ASSETS`                              | `{AssetId}`                                               | AssetManagement.ReadModel (`AssetSummaryReadModel`)                                                                            |
-| `media-asset-item-ref`               | `TENANT#{TenantId}#MEDIA_ITEM#{MediaItemId}`            | `CAPABILITY`                                              | AssetManagement.ReadModel (`MediaItemCapabilityReference`)                                                                     |
+| `media-asset-item-capability-ref`    | `TENANT#{TenantId}#MEDIA_ITEM#{MediaItemId}`            | `CAPABILITY`                                              | AssetManagement.ReadModel (`MediaItemCapabilityReference`)                                                                     |
 | `media-catalog-asset-ref`            | `TENANT#{TenantId}#ASSET#{AssetId}`                     | `STATE`                                                   | Catalog.WriteModel (cross-module reference; `AssetStateReference`)                                                             |
 | `media-catalog-change-request-ref`   | `TENANT#{TenantId}#CHANGE_REQUEST`                      | `{ChangeRequestId}`                                       | Catalog.WriteModel (cross-module reference; `ChangeRequestReference`)                                                          |
 | `media-catalog-folder-folders-index` | `TENANT#{TenantId}#FOLDER`                              | `{FolderId\|CollectionId}`                                | Catalog.WriteModel (`FolderFoldersIndex`)                                                                                      |
 | `media-catalog-folder-items-index`   | `TENANT#{TenantId}#MEDIA_ITEM`                          | `{MediaItemId}`                                           | Catalog.WriteModel (`MediaItemFolderIndex`)                                                                                    |
-| `media-catalog-media-profile-index`  | `TENANT#{TenantId}#MEDIA_PROFILE`                       | `{MediaProfileId}`                                        | Catalog.WriteModel (`MediaProfileIndex`)                                                                                       |
+| `media-catalog-profile-index`  | `TENANT#{TenantId}#MEDIA_PROFILE`                       | `{MediaProfileId}`                                        | Catalog.WriteModel (`MediaProfileIndex`)                                                                                       |
 | `media-catalog-record-type-ref`      | `TENANT#{TenantId}#RECORD_TYPE`                         | `{RecordTypeId}#{Version}` \| `{RecordTypeId}#DEPRECATED` | Catalog.WriteModel (cross-module reference; `RecordTypeVersionDetailIndex`)                                                    |
 | `media-change-request`               | `TENANT#{TenantId}#{ChangeRequestId}`                   | `DETAIL`                                                  | ChangeRequests.ReadModel (`ChangeRequestDetailReadModel`)                                                                      |
 | `media-change-request-comments`      | `TENANT#{TenantId}#CHANGE_REQUEST#{ChangeRequestId}`    | `COMMENT#{CommentId}`                                     | ChangeRequests.ReadModel (`ChangeRequestCommentReadModel`)                                                                     |
@@ -634,7 +641,8 @@ Integration events are a curated subset of domain events, translated into publis
 | `media-item`                         | `TENANT#{TenantId}#{MediaItemId}`                       | `DETAIL`                                                  | Catalog.ReadModel (`MediaItemDetailReadModel`)                                                                                 |
 | `media-items`                        | `TENANT#{TenantId}#ITEMS`                               | `{MediaItemId}`                                           | Catalog.ReadModel (`MediaItemSummaryReadModel`)                                                                                |
 | `media-item-versions`                | `TENANT#{TenantId}#ITEM_VERSIONS#{MediaItemId}`         | `{VersionNumber}`                                         | Catalog.ReadModel (`MediaItemVersionReadModel`)                                                                                |
-| `media-name-reservations`            | `TENANT#{TenantId}#SCOPE#{ScopeKey}`                    | `NAME#{normalizedName}`                                   | Cross-aggregate uniqueness enforcement — see [Cross-Aggregate Constraint Enforcement](#cross-aggregate-constraint-enforcement) |
+| `media-migrations`                   | `MIGRATIONS`                                            | `{MigrationId}`                                           | DocumentStorage migration framework (Platform plugin)                                                                          |
+| `media-name-reservations`            | `TENANT#{TenantId}#SCOPE#{ScopeKey}`                    | `NAME#{normalizedName}` \| `COUNTER#{counterName}`        | Cross-aggregate uniqueness enforcement (`NAME#`) — see [Cross-Aggregate Constraint Enforcement](#cross-aggregate-constraint-enforcement); hierarchy counters (`COUNTER#`) — see ADR-006 |
 | `media-profile`                      | `TENANT#{TenantId}#{MediaProfileId}`                    | `DETAIL`                                                  | Catalog.ReadModel (`MediaProfileDetailReadModel`)                                                                              |
 | `media-profile-versions`             | `TENANT#{TenantId}#PROFILE#{MediaProfileId}`            | `{VersionNumber}`                                         | Catalog.ReadModel (`MediaProfileVersionReadModel`)                                                                             |
 | `media-profiles`                     | `TENANT#{TenantId}#PROFILES`                            | `{MediaProfileId}`                                        | Catalog.ReadModel (`MediaProfileSummaryReadModel`)                                                                             |
@@ -649,12 +657,13 @@ Integration events are a curated subset of domain events, translated into publis
 | `media-sagas`                        | `TENANT#{TenantId}`                                     | `SAGA#{sagaType}#{sagaId}`                                | SagaOrchestrator                                                                                                               |
 | `media-signing-sessions`             | `EnvelopeId`                                            | `DETAIL`                                                  | DocumentSigning (lookup table for webhook TenantId resolution)                                                                 |
 | `media-signing-session`              | `TENANT#{TenantId}#{SigningSessionId}`                  | `DETAIL`                                                  | DocumentSigning                                                                                                                |
+| `media-tenants`                      | `TENANTS`                                               | `{TenantId}`                                              | MultiTenancy.ITenantStore (Platform plugin)                                                                                    |
 | `media-used-jtis`                    | `jti`                                                   | —                                                         | Auth layer (TTL = `exp`) (Platform plugin)                                                                                     |
 
 ### DynamoDB Table GSIs
 
-| Table              | Index Name                        | GSI PK   | GSI PK Example                                              | GSI SK   | GSI SK Example                          | Owner Context                                                    |
-| ------------------ | --------------------------------- | -------- | ----------------------------------------------------------- | -------- | --------------------------------------- | ---------------------------------------------------------------- |
+| Table                    | Index Name                        | GSI PK   | GSI PK Example                                              | GSI SK   | GSI SK Example                          | Owner Context                                                    |
+| ------------------------ | --------------------------------- | -------- | ----------------------------------------------------------- | -------- | --------------------------------------- | ---------------------------------------------------------------- |
 | `media-assets`           | `AssetByMediaItemIndex`           | `GSI1PK` | `TENANT#{TenantId}#ITEM#{MediaItemId}#ASSETS`               | —        | —                                       | AssetManagement.ReadModel (`AssetByMediaItemIndexSchema`)        |
 | `media-collections`      | `CollectionByNameIndex`           | `GSI1PK` | `TENANT#{TenantId}#COLLECTIONS`                             | `GSI1SK` | `{Name}#{CollectionId}`                 | Catalog.ReadModel (`CollectionByNameIndexSchema`)                |
 | `media-collections`      | `PublicCollectionByNameIndex`     | `GSI2PK` | `TENANT#{TenantId}#COLLECTIONS#PUBLIC`                      | `GSI2SK` | `{Name}#{CollectionId}`                 | Catalog.ReadModel (`PublicCollectionByNameIndexSchema`)          |
@@ -664,6 +673,7 @@ Integration events are a curated subset of domain events, translated into publis
 | `media-items`            | `MediaItemByFolderIndex`          | `GSI1PK` | `TENANT#{TenantId}#FOLDER#{FolderId}#ITEMS`                 | `GSI1SK` | `{Name}#{MediaItemId}`                  | Catalog.ReadModel (`MediaItemByFolderIndexSchema`)               |
 | `media-items`            | `MediaItemUnassignedByOwnerIndex` | `GSI2PK` | `TENANT#{TenantId}#ITEM#UNASSIGNED`                         | `GSI2SK` | `OWNER#{OwnerId}#{Title}#{MediaItemId}` | Catalog.ReadModel (`MediaItemUnassignedByOwnerIndexSchema`)      |
 | `media-profiles`         | `MediaProfileByNameIndex`         | `GSI1PK` | `TENANT#{TenantId}#PROFILES`                                | `GSI1SK` | `{Name}#{MediaProfileId}`               | Catalog.ReadModel (`MediaProfileByNameIndexSchema`)              |
+| `media-profile-versions` | `MediaProfilesByVersionIndex`     | `GSI1PK` | `TENANT#{TenantId}#MEDIAPROFILE#{MediaProfileId}#VERSIONS`  | `GSI1SK` | `VERSION#{version:D10}`                 | Catalog.ReadModel (`MediaProfileByVersionIndexSchema`)           |
 | `media-change-requests`  | `ChangeRequestByMediaItemIndex`   | `GSI1PK` | `TENANT#{TenantId}#ITEM#{MediaItemId}#CHANGE_REQUESTS`      | —        | —                                       | ChangeRequests.ReadModel (`ChangeRequestByMediaItemIndexSchema`) |
 | `media-change-requests`  | `ChangeRequestByOwnerIndex`       | `GSI2PK` | `TENANT#{TenantId}#OWNER#{OwnerId}#CHANGE_REQUESTS`         | —        | —                                       | ChangeRequests.ReadModel (`ChangeRequestByOwnerIndexSchema`)     |
 | `media-record-types`     | `RecordTypeByNameIndex`           | `GSI1PK` | `TENANT#{TenantId}#RECORD_TYPES`                            | `GSI1SK` | `{Name}#{RecordTypeId}`                 | Metadata.ReadModel (`RecordTypeByNameIndexSchema`)               |
@@ -864,7 +874,7 @@ Each saga type has its own configurable TTL — asset processing defaults to 4 h
 | Query API | Lambda / ECS (ASP.NET, FastEndpoints) | Serves all read traffic |
 | Command Handler | Lambda (MediatR) | Aggregate lifecycle, event store writes, SNS publish |
 | Projectors (13) | Lambda (SQS-triggered) | Maintain DynamoDB and OpenSearch read models |
-| Processing Worker | Lambda (SQS-triggered) | Rendition generation; metadata extraction |
+| Processing Worker | Lambda (SQS-triggered) | Receives `AssetUploadConfirmedIntegrationEvent`; creates `ProcessingJob`; runs virus scan; publishes `ProcessingJobScanResultIntegrationEvent`. Stateless executor — saga routing owned by SagaOrchestrator. |
 | SagaOrchestrator | Lambda (SQS-triggered) | Cross-aggregate coordination |
 | SagaTimeoutScanner | Lambda (CloudWatch scheduled) | Processing timeout enforcement |
 | SecuredSigning Adapter | Lambda (SQS + webhook) | SecuredSigning API integration |
@@ -900,7 +910,9 @@ All projectors subscribe to the `media-projector` SQS queue and run as a single 
 | `RecordTypeVersionProjector` | Metadata | `media-record-types` |
 
 **Write-side reference index projectors** (see `system-architecture.md` for full table list and gap status):
-`FolderChildIndexProjector`, `FolderMediaItemsIndexProjector`, `RegistrationCountIndexProjector`, `FolderActiveItemCountIndexProjector`, `MediaProfileIndexProjector`, `RecordTypeVersionDetailIndexProjector`
+`FolderChildIndexProjector`, `FolderMediaItemsIndexProjector`, `RegistrationCountIndexProjector`, `MediaProfileIndexProjector`, `RecordTypeVersionDetailIndexProjector`
+
+> Correction (2026-06-17): `FolderActiveItemCountIndexProjector` was previously listed here but was never implemented (zero hits in `magiq-media`) and has been removed from this list. The CDK table backing it has been removed; see [ADR-006](../../adrs/ADR-006-uniqueness-registry-hierarchy-invariants.md) for the counter-based replacement.
 
 ### OpenSearch Indexes
 
@@ -1113,37 +1125,4 @@ Rate limit thresholds are configurable per environment via SSM Parameter Store (
    ```
    Repeat for `Media.QueryApi`, `Media.Projectors.Lambda`, `Media.SagaOrchestrator.Lambda`, `Media.Processing.Lambda` if affected.
 4. **Verify.** Check CloudWatch error rate metrics. Confirm alarm clears within 2 minutes.
-5. **Drain in-flight messages.** If projectors or consumers were rolled back, check DLQ depths. Redriving the DLQ after rollback is safe — the projector `ProjectedVersion` guard makes re-processing idempotent.
-6. **Post-incident.** File a post-mortem. Do not re-deploy the bad version until root cause is confirmed.
-
-### DR Runbook — DynamoDB Table Recovery
-
-**Trigger:** Accidental data deletion, corruption, or table-level failure.
-
-**RPO target:** < 1 minute (PITR continuous backup).
-
-1. **Stop writes.** Take the affected Lambda(s) out of service by setting reserved concurrency to 0 in the AWS Console (prevents further writes during recovery).
-2. **Identify restore point.** Determine the last known-good timestamp from CloudWatch logs or incident timeline.
-3. **Restore table to a new table.** In AWS Console → DynamoDB → `{affected-table}` → Backups → Restore. Select point-in-time restore. Name the restored table `{affected-table}-restored-{date}`.
-4. **Validate data.** Spot-check key rows in the restored table against expected event log.
-5. **Swap table.** Update the SSM Parameter Store key `/magiq-media/{env}/dynamodb/{table-name}` to the restored table name. Restart Lambda functions (update reserved concurrency back to normal).
-6. **Rebuild projections if needed.** If a read model table was the victim, run projection rebuild: `dotnet replay --context={context} --from-version=0` (see OBS-5 for tooling spec).
-7. **Re-enable writes.** Restore Lambda reserved concurrency.
-8. **Post-incident.** File a post-mortem. Delete the old corrupt table only after 7-day observation period.
-
-### DR Runbook — Full Region Failure
-
-Not currently implemented. Cross-region strategy is deferred to SPEC-19. In the event of an AWS region outage:
-
-1. Declare a maintenance window (static error page via CloudFront).
-2. Contact AWS support to determine ETA for region recovery.
-3. If region ETA > 4 hours, escalate to cross-region failover decision (manual process — see SPEC-19 when implemented).
-
-### Backup Verification Schedule
-
-| Resource | Backup mechanism | Verification cadence |
-|---|---|---|
-| All DynamoDB read model tables | PITR (continuous) | Monthly restore test to `{table}-verify` table |
-| `media-events` event store | PITR (continuous) | Quarterly full restore + projection rebuild test |
-| `media-sagas` | PITR (continuous) | Monthly |
-| S3 buckets (`media-source`, `media-renditions`, `media-documents`) | S3 Versioning + replication (future) | Quarterly |
+5. **Drain in-flight messages.** If projectors or consumers were rolled back, check DLQ depths. Redriving 

@@ -426,16 +426,17 @@ sequenceDiagram
 
 **Steps:**
 
-1. `POST /catalog/items/bulk/metadata` — body: `{ "itemIds": ["mi-01", "mi-02", "mi-03"], "fields": { "campaign": "Q1-2026" }, "onError": "ContinueOnError" }`
+1. `POST /catalog/items/bulk/metadata` — body: `{ "itemIds": ["mi-01", "mi-02", "mi-03"], "fields": [{ "fieldName": "campaign", "value": "Q1-2026", "origin": "General" }], "onError": "ContinueOnError" }`
 2. Handler processes in parallel:
    - mi-01, mi-02: field resolved → `MediaItemMetadataBatchSet` × 2
-   - mi-03: `campaign` not in schema → `BulkItemError { errorCode: "FieldNotFound" }`
+   - mi-03: `campaign` not in schema and collides with no Governed name, but item's profile attaches a RecordType that itself defines a `campaign` field — `General`-origin entry rejected as reserved → `BulkItemError { errorCode: "FieldNotFound" }` (bulk path does not split this into a distinct `MetadataFieldNameReserved` code — see [mediaitem.api.md](./mediaitem.api.md#post-v1catalogitemsbulkmetadata))
 3. `207 Multi-Status`
 
 **Key invariants:**
 - Full-replace semantics per item — omitting a field clears it.
 - Each item independent with `ContinueOnError`.
 - Max 100 items per request.
+- `origin` is required per entry — resolved independently against each item's own `SnapshotFields`, same algorithm as the single-item endpoints (see [Metadata Field Origin Resolution](./mediaitem.write-model.md#metadata-field-origin-resolution)).
 
 ---
 

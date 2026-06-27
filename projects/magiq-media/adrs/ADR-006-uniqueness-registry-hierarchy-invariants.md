@@ -13,9 +13,9 @@
 1. The folder has no active child folders.
 2. The folder has no active media items.
 
-The existing implementation delegates this to `IFolderDomainService.HasActiveChildrenAsync`, which reads from two projection indexes — `FolderChildCountIndex` and `FolderActiveItemCountIndex` — maintained by event-driven projectors. These indexes are **eventually consistent**: they are updated asynchronously after the domain event lands in SQS and the projector Lambda processes it. Between the command being issued and the projectors catching up, the indexes may be stale.
+The originally specified design called for `IFolderDomainService.HasActiveChildrenAsync` to read from two projection indexes — `FolderChildCountIndex` and `FolderActiveItemCountIndex` — maintained by event-driven projectors. **Correction (2026-06-17): these two projectors were never implemented.** A repo-wide grep of `magiq-media` finds zero hits for either name; the corresponding CDK table (`media-catalog-folder-active-item-count-index`) was provisioned but never registered via `AddProjectionSchema<T>` and has since been removed as dead infrastructure. The risk described below — eventual-consistency lag between a projector and a concurrent `ArchiveFolder` read — was therefore a design-time concern, not an observed production gap; the counter-based design in this ADR was implemented directly, and the projection-based path was superseded before it was ever built.
 
-This creates a window where a concurrent `CreateFolder` or `AssignMediaItemToFolder` command can succeed, the projector has not yet incremented the count, and a concurrent `ArchiveFolder` reads zero and incorrectly proceeds. The result is a folder archived with active children — a hierarchy corruption that cannot be self-healed because the child events still exist in the event store but the parent is now archived.
+Had the projection-based design been implemented, it would have created a window where a concurrent `CreateFolder` or `AssignMediaItemToFolder` command could succeed, the projector had not yet incremented the count, and a concurrent `ArchiveFolder` read zero and incorrectly proceeded — a folder archived with active children, a hierarchy corruption that cannot be self-healed because the child events still exist in the event store but the parent is now archived. This risk motivates the strongly-consistent counter design below.
 
 The Catalog write model already uses `Magiq.Platform.UniquenessRegistry` (via `INameReservationService`) for strongly-consistent name uniqueness enforcement on the same DynamoDB table. Version 1.1.0 of the platform package extends this with `IUniquenessCounterService`, which provides atomic counter operations backed by DynamoDB `UpdateItem` with ADD expressions — the same underlying table, different sort-key prefix (`counter#` vs `reservation#`).
 
@@ -62,7 +62,7 @@ Both checks are strongly consistent — they are point reads against DynamoDB, w
 
 ### `IFolderDomainService.HasActiveChildrenAsync`
 
-Removed from the interface. The implementation is retained on `FolderDomainService` as an advisory/diagnostic method backed by the projection indexes, but it is no longer called on any command path. It remains available for admin tooling and can be used to validate counter correctness during the bootstrap period.
+Never added to the interface — the projection-backed implementation described in Context was superseded before it was built (see correction above). There is no advisory/diagnostic `HasActiveChildrenAsync` available on `FolderDomainService` today; admin tooling and bootstrap-period validation against legacy projections are not currently possible and would require building that read path from scratch if needed.
 
 ### Registration counters
 
@@ -74,9 +74,9 @@ Counter increments run sequentially after the name reservation call and before t
 
 DynamoDB ADD on a missing numeric attribute initialises it to 0 before adding, so counters do not require explicit bootstrap for new resources. Existing resources require a one-off bootstrap (see consequences).
 
-### Projector indexes retained as advisory
+### Projector indexes — correction: not implemented
 
-`FolderChildCountIndex`, `FolderActiveItemCountIndex`, and `MediaItemRegistrationCountIndex` continue to be maintained by projectors and are available for read-model queries, diagnostics, and the BFS traversal in `HasActiveRegistrationsInSubtreeAsync`. They are no longer on the command-side enforcement path.
+This ADR originally claimed `FolderChildCountIndex`, `FolderActiveItemCountIndex`, and `MediaItemRegistrationCountIndex` "continue to be maintained by projectors" and back the BFS traversal in `HasActiveRegistrationsInSubtreeAsync`. **None of the three exist in `magiq-media`** — confirmed by repo-wide grep, zero hits for all three names. `HasActiveRegistrationsInSubtreeAsync` is implemented and does run a BFS traversal, but it is backed by `catalogFolderRegistrationIndex` (`media-catalog-folder-registration-index`, maintained by the real `RegistrationCountIndexProjector` registered in `Catalog.WriteModel.Infrastructure`) — a different, genuinely-implemented index, not the three named above. There is no separate advisory/diagnostic read path for child-folder or active-item counts; the counters in this ADR are the only mechanism enforcing those two invariants.
 
 ---
 

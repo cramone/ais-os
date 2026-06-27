@@ -32,13 +32,11 @@ Primary list table. Powers all filtered queries.
 | `ProjectedVersion` | `long`     |                                                                             |
 | `EventId`                   | `string`   |                                                                             |
 
-**GSIs:**
-- `FolderItemsIndex` (FolderId + MediaItemId) — sparse; assigned media-items only
-- `UnassignedIndex` (OwnerId + CreatedAt) — sparse; null-FolderId media-items; removed on first assignment
-- `OwnerStatusIndex` (OwnerId + Status + CreatedAt) — all media-items
-- `ProfileIndex` (MediaProfileId + Status)
+**GSIs** (corrected 2026-06-17 — matches CDK `read-models.construct.ts`; `OwnerStatusIndex` and `ProfileIndex` did not exist in CDK and have been removed):
+- `MediaItemByFolderIndex` (`GSI1PK`/`GSI1SK`) — sparse; assigned media-items only (populated when `FolderId` is set). `GSI1PK` = `TENANT#{TenantId}#FOLDER#{FolderId}#ITEMS`, `GSI1SK` = `{Title}#{MediaItemId}`. Powers `ListMediaItemsByFolderQuery`, alphabetical by title.
+- **`MediaItemUnassignedByOwnerIndex` removed 2026-06-17:** CDK provisioned this GSI (`GSI2PK`/`GSI2SK`), but no corresponding `MediaItemUnassignedByOwnerIndexSchema` or `ListUnassignedMediaItemsQuery`/handler exists in `develop` — only found in a stale, prunable, never-merged agent worktree. Dropped from CDK as orphaned infra; `media-items` now has exactly one GSI. `ListUnassignedMediaItemsQuery` below is therefore an unimplemented/aspirational query, not a live one — flagged for Karen/Chase to either build it for real or remove it from the spec.
 
-### `media-item-detail` (DynamoDB)
+### `media-item` (DynamoDB)
 
 Full detail. Powers `GET /media-items/{mediaItemId}`.
 
@@ -93,7 +91,7 @@ Per-MediaItem snapshot of its published MediaProfile's capability set and upload
 | Event | Write |
 |---|---|
 | `MediaItemCreated` | INSERT. Reads `PublishedMediaProfileIndex` + `MediaProfileIndex` for capabilities + computed `MaxFileSizeBytes`. |
-| `MediaProfilePublished` | UPDATE all `MediaItemCapabilityIndex` rows pinned to that media-profile id (fan-out via `ProfileIndex` GSI on `media-items`) — refreshes `Capabilities`, `MaxFileSizeBytes`. |
+| `MediaProfilePublished` | UPDATE all `MediaItemCapabilityIndex` rows pinned to that media-profile id (fan-out via the `media-catalog-item-profile-index` write-side reference table, not a GSI on `media-items` — corrected 2026-06-17) — refreshes `Capabilities`, `MaxFileSizeBytes`. |
 | `MediaItemArchived` | UPDATE `IsArchived = true`. |
 
 ### `media-catalog-version-asset-ref` (DynamoDB, write-side reference model)
@@ -136,18 +134,18 @@ Full-text and faceted search.
 
 ### `MediaItemProjector`
 
-> **Note:** In the repo this is split into `MediaItemSummaryProjector` (targets `media-items`) and `MediaItemDetailProjector` (targets `media-item-detail` + OpenSearch). Both handle the same event set; the split is a performance optimisation documented as a known spec gap in the alignment report.
+> **Note:** In the repo this is split into `MediaItemSummaryProjector` (targets `media-items`) and `MediaItemDetailProjector` (targets `media-item` + OpenSearch). Both handle the same event set; the split is a performance optimisation documented as a known spec gap in the alignment report.
 
 **Trigger:** `media-projector` SQS queue
-**Targets:** `media-items` (all GSIs), `media-item-detail`, OpenSearch `media-items`
+**Targets:** `media-items` (all GSIs), `media-item`, OpenSearch `media-items`
 
 | Event | Write |
 |---|---|
-| `MediaItemCreated` | INSERT all targets; `UnassignedIndex` entry if FolderId null |
-| `MediaItemAssignedToFolder` | UPDATE `FolderId`, `CollectionId`; remove `UnassignedIndex` entry |
+| `MediaItemCreated` | INSERT all targets |
+| `MediaItemAssignedToFolder` | UPDATE `FolderId`, `CollectionId` |
 | `MediaItemMoved` | UPDATE `FolderId`, `CollectionId` |
 | `MediaItemTitleUpdated` | UPDATE `Title`; OpenSearch UPDATE |
-| `MediaItemDescriptionUpdated` | UPDATE `Description` on `media-item-detail` only (not in summary). `MediaItemCurrentDraftVersionDetailProjector` also handles this event, updating `Description` on the current-draft version row. No OpenSearch update (description is not indexed). |
+| `MediaItemDescriptionUpdated` | UPDATE `Description` on `media-item` only (not in summary). `MediaItemCurrentDraftVersionDetailProjector` also handles this event, updating `Description` on the current-draft version row. No OpenSearch update (description is not indexed). |
 | `MediaItemTagged` | UPDATE `Tags`; OpenSearch UPDATE |
 | `MediaItemRevertedToDraft` | UPDATE `Status = Draft`; OpenSearch UPDATE |
 | `MediaItemMetadataFieldSet` | UPDATE `Metadata.Draft.{fieldName}` in detail; OpenSearch UPDATE (if `IsSearchable`) |
@@ -168,7 +166,7 @@ Full-text and faceted search.
 | `MediaItemSigningSessionUnlinked` | UPDATE clear `ActiveSigningSessionId` |
 | `RegistrationRefAdded` | UPDATE `RegistrationIds` append — detail only |
 | `RegistrationRefRemoved` | UPDATE `RegistrationIds` remove — detail only. Summary projector bumps `ProjectedVersion` only (no visible field changes on summary read model). |
-| `MediaItemConformanceStatusChanged` | UPDATE `ConformanceStatus` on `media-items` (summary); UPDATE `ConformanceStatus` + `ConformanceGaps` on `media-item-detail`. No OpenSearch update — conformance is not a search facet. |
+| `MediaItemConformanceStatusChanged` | UPDATE `ConformanceStatus` on `media-items` (summary); UPDATE `ConformanceStatus` + `ConformanceGaps` on `media-item`. No OpenSearch update — conformance is not a search facet. |
 
 ### `MediaItemVersionDetailProjector`
 
@@ -244,7 +242,7 @@ record MediaItemSummaryReadModel(
 
 ### `MediaItemDetailReadModel`
 
-Targets `media-item-detail` (DynamoDB). Powers `GetMediaItemById`.
+Targets `media-item` (DynamoDB). Powers `GetMediaItemById`.
 
 ```csharp
 record MediaItemDetailReadModel(
@@ -340,4 +338,3 @@ public enum MediaItemStatus
 - [MediaItem Write Model](./mediaitem.write-model.md)
 - [MediaItem API](./mediaitem.api.md)
 - [System Spec — Storage Boundaries](../../../../shared/system-spec.md#storage-boundaries)
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         

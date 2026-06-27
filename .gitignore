@@ -1,5 +1,7 @@
 .env
 .env.local
+.mcp.json
+gitignored/
 .DS_Store
 *.log
 __pycache__/

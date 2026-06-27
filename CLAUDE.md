@@ -48,9 +48,14 @@ Use this when running `/level-up`.
 
 ## Your skills
 
+Recurring thinking loop:
 - `/onboard` — initialise or refresh from `aios-intake.md`
 - `/audit` — weekly gap analysis (Four Cs)
 - `/level-up` — weekly improvement loop
+
+Helpers (project-local):
+- `agenda-generator` — meeting agendas per project/meeting type
+- `note-capture` — free-form notes to `context/adhoc-notes.md`
 
 ### `/level-up` rule
 
@@ -114,6 +119,7 @@ This system grows over time. Start lean.
 - `decisions/log.md` — append-only decision history
 - `connections.md` — systems you interact with
 - `archives/` — old or unused content
+- `security-incidents/` — security event records per customer and date
 
 ---
 
@@ -168,6 +174,17 @@ Add these only when repeated use justifies them.
   - `retros/`
   - `experiments/`
   - `optimisations/`
+
+---
+
+## Security incident logging rules
+
+- All security events go in `security-incidents/{customerName}/{dd-mm-yyyy}/`
+- Each incident folder contains at minimum `security-incident-report.md`
+- Report covers: threat, attack vectors, exploitation method, resolution, outstanding recommendations
+- Additional artifacts (test scripts, code diffs, evidence) go in the same folder
+- Use the report as source for generating formal documents (Word, PDF) when required
+- Incidents involving the RDP/machine access investigation should include event log evidence
 
 ---
 

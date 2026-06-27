@@ -35,6 +35,10 @@ Owner-scoped. Use `OwnerId = "owner_system"` for platform-level schemas. Query p
 | Capability-contributed fields with `IsImmutable = true` cannot be removed | `CannotRemoveImmutableField` | `RemoveCapabilityFromRecordType` |
 | Total field count (draft + contributed) must not exceed 100 | `RecordTypeFieldLimitReached` | `AddFieldToRecordType`, `AddCapabilityToRecordType` |
 | `IsImmutable` may only tighten (`false → true`), never relax | `CannotRelaxImmutability` | `UpdateFieldInRecordType` |
+| `Aliases[i]` must match the alias format (lowercase, 1-32 chars, `[a-z0-9_-]`, no `.`) | Rejected client-side by the `RecordTypeAlias` value object before the command is built | `SetRecordTypeAliasesCommand` |
+| No duplicate values within a single `SetRecordTypeAliasesCommand.Aliases` payload | `DuplicateAliasInRequest` | `SetRecordTypeAliasesCommand` |
+| `Aliases[i]` unique **tenant-wide** (not just within this RecordType) — enforced handler-side via `INameReservationService` against the `record-type-aliases` scope | `EntityAlreadyExists` | `SetRecordTypeAliasesCommand` |
+| `Aliases` mutation is rejected once deprecated, same as `Rename` | `RecordTypeDeprecated` | `SetRecordTypeAliasesCommand` |
 
 ---
 
@@ -47,6 +51,7 @@ Owner-scoped. Use `OwnerId = "owner_system"` for platform-level schemas. Query p
 | `Name` | `NonEmptyString` | Unique within owner scope |
 | `DisplayName` | `string?` | Human-readable label; separate from the unique `Name`; updated independently via `UpdateRecordTypeDisplayNameCommand` |
 | `Description` | `string?` | |
+| `Aliases` | `IReadOnlyList<RecordTypeAlias>` | Zero or more. Unique **tenant-wide** (not owner-scoped). Root-level — **not draft-gated**; mutated immediately via `SetRecordTypeAliasesCommand`, same as `Rename`. Used by `MediaProfile.CompileTemplateAsync` to qualify field names that collide across the profile's attached RecordTypes (`{alias}.{fieldName}`). Pinned into `RecordTypePublished.Aliases` at `Publish()` time — a later `SetRecordTypeAliasesCommand` only affects *future* publishes, never an already-published version's pinned aliases. |
 | `OwnerId` | `OwnerId` | Non-nullable |
 | `Version` | `int` | Current published version; `0` before first publish |
 | `PublishedAt` | `DateTimeOffset?` | Null before first publish |
@@ -129,6 +134,7 @@ Deprecated RecordTypes remain accessible to MediaProfiles already pinned to thei
 | `Publish()` | Publishes the draft as the next version. Guard: draft non-null and non-empty. Raises `RecordTypePublished({newVersion, fieldSnapshot, capabilities})`. |
 | `Rename(newName)` | Renames the RecordType. |
 | `UpdateDisplayName(displayName, updatedAt)` | Updates the human-readable display name. Guard: not deprecated. No-op if the new value equals the current value. Applies immediately regardless of draft state. |
+| `SetAliases(newAliases, updatedAt)` | Full-list replace of `Aliases`. Guards: not deprecated; no duplicate values within the new list (`DuplicateAliasInRequest`). No-op (no event) if the new list is set-equal to the current one. Cross-tenant uniqueness of the *added* aliases is enforced handler-side, not by the aggregate. Not draft-gated — applies immediately regardless of draft state, same as `Rename`. |
 | `Deprecate()` | Marks as deprecated. Guard: must be published at least once. |
 
 ---
@@ -147,7 +153,8 @@ Deprecated RecordTypes remain accessible to MediaProfiles already pinned to thei
 | `CapabilityAddedToRecordType` | `RecordTypeId`, `CapabilityType`, `ContributedFields[]`, `OccurredAt` | Appends capability and its contributed fields to the draft |
 | `CapabilityRemovedFromRecordType` | `RecordTypeId`, `CapabilityType`, `OccurredAt` | Removes capability and all fields where `SourceCapability == CapabilityType` from the draft |
 | `RecordTypeDraftDiscarded` | `RecordTypeId`, `DiscardedAt` | |
-| `RecordTypePublished` | `RecordTypeId`, `NewVersion`, `FieldSnapshot[]`, `Capabilities[]`, `PublishedAt` | Immutable snapshot; increments `Version`; `Capabilities` carries the capability type names active at publish time |
+| `RecordTypePublished` | `RecordTypeId`, `NewVersion`, `FieldSnapshot[]`, `Capabilities[]`, `Aliases[]`, `PublishedAt` | Immutable snapshot; increments `Version`; `Capabilities` carries the capability type names active at publish time; `Aliases` carries the alias set active at publish time (root-level, not draft state — pinned regardless of whether it changed since the last publish) |
+| `RecordTypeAliasesUpdated` | `RecordTypeId`, `OldAliases[]`, `NewAliases[]`, `UpdatedAt` | Root-level mutation, not draft-gated; not emitted if the new list is set-equal to the current one |
 | `RecordTypeDisplayNameUpdated` | `TenantId`, `RecordTypeId`, `DisplayName`, `OccurredAt` | Applies regardless of draft state; not emitted if value unchanged |
 | `RecordTypeRenamed` | `RecordTypeId`, `OldName`, `NewName`, `RenamedAt` | |
 | `RecordTypeDeprecated` | `RecordTypeId`, `DeprecatedAt` | |
@@ -173,6 +180,7 @@ Deprecated RecordTypes remain accessible to MediaProfiles already pinned to thei
 | `PublishRecordTypeCommand(RecordTypeId)` | |
 | `RenameRecordTypeCommand(RecordTypeId, NewName)` | |
 | `UpdateRecordTypeDisplayNameCommand(RecordTypeId, DisplayName)` | Updates the human-readable display name. Precondition: not deprecated (`RecordTypeDeprecated`). No-op if value unchanged. Applies regardless of draft state — no external services required. |
+| `SetRecordTypeAliasesCommand(RecordTypeId, Aliases: RecordTypeAlias[])` | Full-list replace. Handler diffs against the current alias list, validates the *added* entries are available in the `record-type-aliases` tenant-wide name scope via `INameReservationService`, applies the aggregate mutation, then reserves the added aliases and releases the removed ones (reservation happens after the aggregate mutation succeeds but before persistence, so a reservation conflict aborts the whole operation with nothing written). |
 | `DeprecateRecordTypeCommand(RecordTypeId)` | |
 
 ---
@@ -188,6 +196,8 @@ Deprecated RecordTypes remain accessible to MediaProfiles already pinned to thei
 | `UpdateFieldInRecordTypeHandler` | `IFieldConstraintValidator.Validate` | Blocking — `InvalidRegexPattern` / `RegexPatternTooComplex` | Before loading aggregate; validates `command.NewField` |
 | `RenameRecordTypeHandler` | `IRecordTypeUnicityService.NameExistsAsync` | Blocking — `EntityAlreadyExists` | Before loading aggregate; blocks if new name already in use within tenant scope |
 | `AddCapabilityToRecordTypeHandler` | `ICapabilityRegistry.GetContributedFields` | Blocking — delegates from registry `Result` | Before loading aggregate; resolves `IReadOnlyList<FieldDefinition>` contributed by the capability; result passed to `recordType.AddCapability(capabilityType, fields, addedAt)` |
+| `SetRecordTypeAliasesHandler` | `INameReservationService.IsNameAvailableAsync` (per added alias, scope `record-type-aliases`) | Blocking — `EntityAlreadyExists` | After loading aggregate, before `recordType.SetAliases(...)`; diffs requested aliases against `recordType.Aliases` to isolate the *added* set, then checks each added alias's availability in the tenant-wide `record-type-aliases` scope — note this is `INameReservationService`, the platform-shared reservation service, **not** `IRecordTypeUnicityService` (which only covers RecordType names) |
+| `SetRecordTypeAliasesHandler` | `INameReservationService.ReserveManyAsync` / `ReleaseManyAcrossScopesAsync` | Non-blocking, post-mutation | After `recordType.SetAliases(...)` succeeds but before `repository.SaveAsync(...)`: reserves the added aliases (a `NameReservationConflictException` here aborts the whole operation — nothing is persisted) and releases the removed aliases |
 
 ---
 
@@ -269,6 +279,16 @@ enum MetadataFieldType {
 | Handler | Method | When |
 |---|---|---|
 | `AddCapabilityToRecordTypeHandler` | `GetContributedFields` | Before loading aggregate; resolved fields passed to `recordType.AddCapability(...)` |
+
+### `INameReservationService` — usage (RecordType aliases)
+
+`INameReservationService` is a platform-shared service (`Magiq.Platform.UniquenessRegistry`), distinct from the Metadata-module-local `IRecordTypeUnicityService`. RecordType aliases use it directly against the `ScopeKeys.RecordTypeAliases` (`"record-type-aliases"`) scope, which is independent of the `ScopeKeys.RecordTypes` (`"record-types"`) scope used for RecordType name uniqueness.
+
+| Handler | Method | When |
+|---|---|---|
+| `SetRecordTypeAliasesHandler` | `IsNameAvailableAsync` | Per added alias, after loading aggregate and diffing against `recordType.Aliases`; any unavailable alias → `EntityAlreadyExists` before the aggregate is mutated |
+| `SetRecordTypeAliasesHandler` | `ReserveManyAsync` | After `recordType.SetAliases(...)` succeeds, before `repository.SaveAsync(...)`; reserves all added aliases under the RecordType's id; a conflict here aborts the operation with nothing persisted |
+| `SetRecordTypeAliasesHandler` | `ReleaseManyAcrossScopesAsync` | Same point as above; releases all removed aliases so they become available to other RecordTypes |
 
 ---
 

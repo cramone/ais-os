@@ -53,42 +53,6 @@ def test_read_decisions_missing_file(tmp_path, monkeypatch):
     assert result == []
 
 
-def test_read_ado_pending(tmp_hermes, monkeypatch):
-    from tower.readers.hermes import read_ado_pending
-    import tower.config as cfg
-    monkeypatch.setattr(cfg, "ADO_PENDING", tmp_hermes / "ado-pending.json")
-    result = read_ado_pending()
-    assert len(result) == 1
-    assert result[0]["title"] == "Test item"
-    assert result[0]["status"] == "pending"
-
-
-def test_read_ado_pending_missing(tmp_path, monkeypatch):
-    from tower.readers.hermes import read_ado_pending
-    import tower.config as cfg
-    monkeypatch.setattr(cfg, "ADO_PENDING", tmp_path / "missing.json")
-    assert read_ado_pending() == []
-
-
-def test_read_adhoc_notes(tmp_hermes, monkeypatch):
-    from tower.readers.hermes import read_adhoc_notes
-    import tower.config as cfg
-    monkeypatch.setattr(cfg, "ADHOC_NOTES", tmp_hermes / "adhoc-notes.md")
-    result = read_adhoc_notes()
-    assert len(result) == 1
-    assert result[0]["title"] == "Test note"
-    assert "Remember this thing" in result[0]["text"]
-
-
-def test_read_hermes_project_captures(tmp_hermes, monkeypatch):
-    from tower.readers.hermes import read_hermes_project_captures
-    import tower.config as cfg
-    monkeypatch.setattr(cfg, "HERMES_PROJECTS", tmp_hermes / "projects")
-    result = read_hermes_project_captures()
-    assert "magiq-media" in result
-    assert result["magiq-media"]["ideas"]
-
-
 import json as _json2
 from unittest.mock import patch
 from tower.readers.ado import read_ado_sprint
