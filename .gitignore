@@ -12,5 +12,7 @@ audits/
 nul
 *.pyc
 .pytest_cache/
-.env
-.env.local
+
+# Large data exports — keep on disk, never commit (GitHub 100MB limit)
+projects/magiq-media/files/export/MAGIQ_DOCS_export.json
+projects/magiq-media/files/export/*-data.7z
