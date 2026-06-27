@@ -9,12 +9,14 @@ Usage: python scripts/devops_summary.py [--all] [--sprint] [--json]
 
 import urllib.request
 import urllib.parse
+import urllib.error
 import json
 import base64
 import os
 import sys
 import datetime
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -45,6 +47,13 @@ ARGS = sys.argv[1:]
 SHOW_ALL = "--all" in ARGS
 SPRINT_ONLY = "--sprint" in ARGS
 JSON_OUT = "--json" in ARGS
+CROSS_PROJECT = "--cross-project" in ARGS
+PR_THREADS = "--pr-threads" in ARGS
+WITH_COMMENTS = "--comments" in ARGS
+
+# Only fetch comments for items touched within this window, capped, to bound API cost
+_COMMENT_WINDOW_DAYS = 21
+_COMMENT_MAX_ITEMS = 60
 
 
 def api_get(path):
@@ -62,6 +71,86 @@ def api_post(path, body):
     )
     with urllib.request.urlopen(req) as r:
         return json.loads(r.read())
+
+
+# --- Org-level variants (no project scope) — for cross-project queries ---
+
+def org_api_get(path):
+    req = urllib.request.Request(f"https://dev.azure.com/{ORG}/_apis{path}", headers=HEADERS)
+    with urllib.request.urlopen(req) as r:
+        return json.loads(r.read())
+
+
+def org_api_post(path, body):
+    data = json.dumps(body).encode()
+    req = urllib.request.Request(f"https://dev.azure.com/{ORG}/_apis{path}", data=data, headers=HEADERS)
+    with urllib.request.urlopen(req) as r:
+        return json.loads(r.read())
+
+
+def org_get_work_items(ids, fields):
+    if not ids:
+        return []
+    results = []
+    field_list = ",".join(fields)
+    for i in range(0, len(ids), 200):
+        chunk = ids[i:i + 200]
+        id_str = ",".join(str(x) for x in chunk)
+        data = org_api_get(f"/wit/workitems?ids={id_str}&fields={field_list}&api-version=7.1")
+        results.extend(data.get("value", []))
+    return results
+
+
+import re
+import html as _html
+
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _strip_html(s):
+    """Collapse ADO rich-text comment HTML to plain text."""
+    s = _TAG_RE.sub(" ", s)
+    s = _html.unescape(s)
+    return " ".join(s.split()).strip()
+
+
+def authenticated_user_id():
+    """My ADO identity id — used to tell my own comments from others'."""
+    try:
+        data = org_api_get("/connectionData?api-version=7.1")
+        return data.get("authenticatedUser", {}).get("id", "")
+    except Exception:
+        return ""
+
+
+def get_item_comments(project, item_id, my_id):
+    """Fetch comments for one work item; return (total, last_comment_dict|None, awaiting_me).
+    awaiting_me = newest comment exists and was NOT authored by me."""
+    url = (f"https://dev.azure.com/{ORG}/{urllib.parse.quote(project)}"
+           f"/_apis/wit/workItems/{item_id}/comments?api-version=7.1-preview.4")
+    try:
+        req = urllib.request.Request(url, headers=HEADERS)
+        with urllib.request.urlopen(req) as r:
+            data = json.loads(r.read())
+    except Exception:
+        return 0, None, False
+    comments = data.get("comments", [])
+    if not comments:
+        return 0, None, False
+    comments.sort(key=lambda c: c.get("createdDate", ""))
+    last = comments[-1]
+    author = last.get("createdBy", {}) or {}
+    is_mine = author.get("id", "") == my_id
+    text = _strip_html(last.get("text", "") or "")
+    if len(text) > 140:
+        text = text[:137] + "..."
+    last_comment = {
+        "author": author.get("displayName", ""),
+        "date": last.get("createdDate", ""),
+        "text": text,
+        "is_mine": is_mine,
+    }
+    return data.get("totalCount", len(comments)), last_comment, (not is_mine)
 
 
 def wiql(query):
@@ -150,7 +239,221 @@ def main_json():
     }))
 
 
+def main_cross_project():
+    """Org-wide: my open items across ALL projects, grouped by project. JSON only."""
+    query = (
+        "SELECT [System.Id] FROM workitems "
+        "WHERE [System.AssignedTo] = @me "
+        "AND [System.State] NOT IN ('Done', 'Closed', 'Removed', 'Resolved') "
+        "ORDER BY [System.ChangedDate] DESC"
+    )
+    result = org_api_post("/wit/wiql?api-version=7.1", {"query": query})
+    item_ids = [i["id"] for i in result.get("workItems", [])]
+
+    if not item_ids:
+        print(json.dumps({"projects": [], "total": 0, "fetched_at": datetime.datetime.now().isoformat()}))
+        return
+
+    fields = [
+        "System.Id", "System.Title", "System.WorkItemType", "System.State",
+        "System.TeamProject", "System.AreaPath", "System.IterationPath",
+        "Microsoft.VSTS.Common.Priority", "System.Tags", "System.ChangedDate",
+    ]
+    raw_items = org_get_work_items(item_ids, fields)
+
+    projects: dict[str, dict] = {}
+    for item in raw_items:
+        f = item["fields"]
+        proj = f.get("System.TeamProject", "Unknown")
+        area = f.get("System.AreaPath", "")
+        module = area.split("\\")[-1] if "\\" in area else area
+        iteration = f.get("System.IterationPath", "")
+        sprint = iteration.split("\\")[-1] if "\\" in iteration else iteration
+        state = f.get("System.State", "")
+        item_id = f["System.Id"]
+
+        p = projects.setdefault(proj, {"name": proj, "total": 0, "code_review": 0, "states": {}, "items": []})
+        p["total"] += 1
+        p["states"][state] = p["states"].get(state, 0) + 1
+        if state == "Code Review":
+            p["code_review"] += 1
+        item = {
+            "id": item_id,
+            "title": f.get("System.Title", ""),
+            "type": f.get("System.WorkItemType", ""),
+            "state": state,
+            "priority": f.get("Microsoft.VSTS.Common.Priority"),
+            "module": module,
+            "sprint": sprint,
+            "tags": f.get("System.Tags", "") or "",
+            "url": f"https://dev.azure.com/{ORG}/_workitems/edit/{item_id}",
+            "comment_count": 0,
+            "last_comment": None,
+            "awaiting_me": False,
+            "_project": proj,
+            "_changed": f.get("System.ChangedDate", ""),
+        }
+        p["items"].append(item)
+
+    if WITH_COMMENTS:
+        _enrich_comments(projects)
+
+    # Strip internal fields and roll up per-project awaiting_me count
+    ordered = sorted(projects.values(), key=lambda x: x["total"], reverse=True)
+    for p in ordered:
+        p["awaiting_me"] = sum(1 for it in p["items"] if it.get("awaiting_me"))
+        for it in p["items"]:
+            it.pop("_project", None)
+            it.pop("_changed", None)
+
+    print(json.dumps({
+        "projects": ordered,
+        "total": sum(p["total"] for p in ordered),
+        "project_count": len(ordered),
+        "awaiting_me": sum(p["awaiting_me"] for p in ordered),
+        "comments_enriched": WITH_COMMENTS,
+        "fetched_at": datetime.datetime.now().isoformat(),
+    }))
+
+
+def _enrich_comments(projects):
+    """Fetch work-item comments for recently-changed items (bounded) and attach in place."""
+    cutoff = (datetime.datetime.now(datetime.timezone.utc)
+              - datetime.timedelta(days=_COMMENT_WINDOW_DAYS))
+    candidates = []
+    for p in projects.values():
+        for it in p["items"]:
+            changed = it.get("_changed", "")
+            try:
+                cd = datetime.datetime.fromisoformat(changed.replace("Z", "+00:00"))
+            except (ValueError, AttributeError):
+                continue
+            if cd >= cutoff:
+                candidates.append(it)
+    candidates.sort(key=lambda it: it.get("_changed", ""), reverse=True)
+    candidates = candidates[:_COMMENT_MAX_ITEMS]
+    if not candidates:
+        return
+    my_id = authenticated_user_id()
+
+    def work(it):
+        total, last, awaiting = get_item_comments(it["_project"], it["id"], my_id)
+        it["comment_count"] = total
+        it["last_comment"] = last
+        it["awaiting_me"] = awaiting
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(work, candidates))
+
+
+def _org_pr_search(criteria):
+    url = (f"https://dev.azure.com/{ORG}/_apis/git/pullrequests"
+           f"?{criteria}&searchCriteria.status=active&$top=200&api-version=7.1")
+    req = urllib.request.Request(url, headers=HEADERS)
+    with urllib.request.urlopen(req) as r:
+        return json.loads(r.read()).get("value", [])
+
+
+def _pr_active_threads(project, repo_id, pr_id, my_id):
+    """Return (unresolved_count, last_unresolved_dict|None) for a PR.
+    Unresolved = thread.status == 'active' with at least one non-system comment."""
+    url = (f"https://dev.azure.com/{ORG}/{urllib.parse.quote(project)}"
+           f"/_apis/git/repositories/{repo_id}/pullRequests/{pr_id}/threads?api-version=7.1")
+    try:
+        req = urllib.request.Request(url, headers=HEADERS)
+        with urllib.request.urlopen(req) as r:
+            threads = json.loads(r.read()).get("value", [])
+    except Exception:
+        return 0, None
+    open_threads = []
+    for t in threads:
+        if t.get("status") != "active":
+            continue
+        comments = [c for c in t.get("comments", []) if c.get("commentType") != "system"]
+        if not comments:
+            continue
+        last = comments[-1]
+        author = last.get("author", {}) or {}
+        open_threads.append({
+            "author": author.get("displayName", ""),
+            "text": _strip_html(last.get("content", "") or "")[:140],
+            "date": last.get("publishedDate", "") or last.get("lastUpdatedDate", ""),
+            "mine": author.get("id", "") == my_id,
+        })
+    last_unres = max(open_threads, key=lambda x: x["date"]) if open_threads else None
+    return len(open_threads), last_unres
+
+
+def main_pr_threads():
+    """My active ADO Repos PRs across projects + unresolved comment-thread counts.
+    Requires PAT with Code (read) scope; degrades gracefully on 401."""
+    my_id = authenticated_user_id()
+    prs_raw = {}
+    try:
+        for crit, role in [(f"searchCriteria.creatorId={my_id}", "author"),
+                           (f"searchCriteria.reviewerId={my_id}", "reviewer")]:
+            for pr in _org_pr_search(crit):
+                pid = pr["pullRequestId"]
+                if pid not in prs_raw:
+                    prs_raw[pid] = (pr, role)
+    except urllib.error.HTTPError as e:
+        if e.code in (401, 403):
+            print(json.dumps({
+                "prs": [], "total": 0, "total_unresolved": 0,
+                "error": "auth", "scope_hint": "AZURE_DEVOPS_PAT needs 'Code (read)' scope to read pull requests.",
+                "fetched_at": datetime.datetime.now().isoformat(),
+            }))
+            return
+        raise
+    except Exception as e:
+        print(json.dumps({"prs": [], "total": 0, "total_unresolved": 0, "error": str(e),
+                          "fetched_at": datetime.datetime.now().isoformat()}))
+        return
+
+    items = []
+    for pid, (pr, role) in prs_raw.items():
+        repo = pr.get("repository", {}) or {}
+        project = (repo.get("project", {}) or {}).get("name", "")
+        items.append({
+            "id": pid,
+            "title": pr.get("title", ""),
+            "repo": repo.get("name", ""),
+            "project": project,
+            "role": role,
+            "isDraft": pr.get("isDraft", False),
+            "url": f"https://dev.azure.com/{ORG}/{urllib.parse.quote(project)}/_git/{urllib.parse.quote(repo.get('name',''))}/pullrequest/{pid}",
+            "_repo_id": repo.get("id", ""),
+            "_project": project,
+        })
+
+    def work(it):
+        n, last = _pr_active_threads(it["_project"], it["_repo_id"], it["id"], my_id)
+        it["unresolved"] = n
+        it["last_unresolved"] = last
+
+    if items:
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            list(pool.map(work, items))
+
+    for it in items:
+        it.pop("_repo_id", None)
+        it.pop("_project", None)
+    items.sort(key=lambda x: x.get("unresolved", 0), reverse=True)
+    print(json.dumps({
+        "prs": items,
+        "total": len(items),
+        "total_unresolved": sum(it.get("unresolved", 0) for it in items),
+        "fetched_at": datetime.datetime.now().isoformat(),
+    }))
+
+
 def main():
+    if PR_THREADS:
+        main_pr_threads()
+        return
+    if CROSS_PROJECT:
+        main_cross_project()
+        return
     if JSON_OUT:
         main_json()
         return

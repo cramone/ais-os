@@ -721,6 +721,8 @@
     <div class="nav-item" data-nav-view="claudia"><span class="icon">🤖</span> Ask Claudia</div>
     <div class="nav-item" data-nav-view="decisions"><span class="icon">⚖️</span> Decisions</div>
     <div class="nav-item" data-nav-view="sprint"><span class="icon">📊</span> Sprint Board</div>
+    <div class="nav-item" data-nav-view="all-projects"><span class="icon">🌐</span> All Projects <span class="nav-badge" id="badge-all-projects"></span></div>
+    <div class="nav-item" data-nav-view="pr-threads"><span class="icon">💬</span> PR Threads <span class="nav-badge" id="badge-pr-threads"></span></div>
 
     <div class="sidebar-section" style="margin-top:6px">Reference</div>
     <div class="nav-item" data-nav-view="cheatsheet"><span class="icon">📖</span> Cheat Sheet</div>
@@ -886,7 +888,10 @@
               <div class="panel">
                 <div class="panel-header">
                   <div class="panel-title" id="plans-file-title">Select a plan</div>
-                  <button onclick="toggleProjectSection('project-plans-section')" class="section-expand-btn" title="Expand / collapse">⤢</button>
+                  <div style="display:flex;gap:6px;align-items:center">
+                    <button onclick="openPlansReader()" class="section-expand-btn" title="Read full-screen">⛶</button>
+                    <button onclick="toggleProjectSection('project-plans-section')" class="section-expand-btn" title="Expand / collapse">⤢</button>
+                  </div>
                 </div>
                 <div class="panel-body expandable-body" id="plans-file-content" style="max-height:400px;overflow-y:auto">
                   <div style="padding:20px;font-size:12px;color:var(--muted)">Click a plan in the tree to view its content.</div>
@@ -908,7 +913,10 @@
               <div class="panel">
                 <div class="panel-header">
                   <div class="panel-title" id="spec-file-title">Select a file</div>
-                  <button onclick="toggleProjectSection('project-spec-section')" class="section-expand-btn" title="Expand / collapse">⤢</button>
+                  <div style="display:flex;gap:6px;align-items:center">
+                    <button onclick="openSpecReader()" class="section-expand-btn" title="Read full-screen">⛶</button>
+                    <button onclick="toggleProjectSection('project-spec-section')" class="section-expand-btn" title="Expand / collapse">⤢</button>
+                  </div>
                 </div>
                 <div class="panel-body expandable-body" id="spec-file-content" style="max-height:400px;overflow-y:auto">
                   <div style="padding:20px;font-size:12px;color:var(--muted)">Click a file in the tree to view its content.</div>
@@ -1242,6 +1250,28 @@
         </div>
       </div>
 
+      <!-- All Projects (cross-project ADO rollup) -->
+      <div id="all-projects-fullwidth" style="display:none">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">🌐 My Work Across All Projects <span id="xp-updated" style="font-size:10px;font-weight:400;color:var(--muted);margin-left:6px"></span></div>
+            <button class="ado-refresh-btn" onclick="fetchCrossProject(true)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;cursor:pointer;font-size:11px">↻ Refresh</button>
+          </div>
+          <div class="panel-body" id="all-projects-body" style="max-height:none;padding:0"></div>
+        </div>
+      </div>
+
+      <!-- ADO PR Threads (unresolved comment threads on my pull requests) -->
+      <div id="pr-threads-fullwidth" style="display:none">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">💬 ADO PR Threads <span id="prt-updated" style="font-size:10px;font-weight:400;color:var(--muted);margin-left:6px"></span></div>
+            <button class="ado-refresh-btn" onclick="fetchPRThreads(true)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;cursor:pointer;font-size:11px">↻ Refresh</button>
+          </div>
+          <div class="panel-body" id="pr-threads-body" style="max-height:none;padding:0"></div>
+        </div>
+      </div>
+
       <!-- GitHub PRs Fullwidth View -->
       <div id="github-prs-fullwidth" style="display:none">
         <div class="panel" style="margin-bottom:16px">
@@ -1483,6 +1513,20 @@
   </div>
 </div>
 
+<!-- Generic full-screen document reader (plans / notes / spec) -->
+<div id="doc-reader-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:600;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;width:min(960px,92vw);max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div style="font-size:14px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;min-width:0">
+        <span id="doc-reader-icon">📄</span>
+        <span id="doc-reader-title" style="color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span>
+      </div>
+      <button onclick="closeDocReader()" style="background:none;border:1px solid var(--border);color:var(--muted);width:24px;height:24px;border-radius:4px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0">✕</button>
+    </div>
+    <div id="doc-reader-body" style="flex:1;overflow-y:auto;padding:20px 28px"></div>
+  </div>
+</div>
+
 <script>
   // ── Auth: attach Bearer token to every /api call ───────────────────────
   (function () {
@@ -1661,12 +1705,25 @@
               ${snippet ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;font-style:italic">"${snippet}"</div>` : ''}
             </div>`;
           })() : '';
+          const unresolvedBadge = (pr.unresolvedThreads || 0) > 0
+            ? `<span style="color:var(--danger,#e0564a);font-size:11px;font-weight:600;white-space:nowrap">💬 ${pr.unresolvedThreads} unresolved</span>`
+            : '';
+          const lu = pr.lastUnresolved;
+          const unresolvedLine = lu ? (() => {
+            const snip = (lu.body || '').replace(/\s+/g, ' ').trim().slice(0, 90);
+            const file = lu.path ? lu.path.split('/').pop() : '';
+            return `<div style="margin-top:5px;padding:5px 8px;background:rgba(224,86,74,.08);border-radius:4px;border-left:2px solid var(--danger,#e0564a)">
+              <div style="font-size:11px;color:var(--muted)"><span style="color:var(--text);font-weight:600">@${lu.author || 'thread'}</span>${file ? ` · <code style="font-size:10px">${file}</code>` : ''}${lu.outdated ? ' · <span style="font-size:10px">outdated</span>' : ''}</div>
+              ${snip ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;font-style:italic">"${snip}"</div>` : ''}
+            </div>`;
+          })() : '';
           return `<div style="padding:9px 0;border-bottom:1px solid var(--border)">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
               <a href="${pr.url}" target="_blank" style="color:var(--text);text-decoration:none;font-size:13px;line-height:1.4" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">#${pr.number} ${pr.title}${draft}</a>
-              ${decision}
+              <span style="display:flex;align-items:center;gap:8px;flex-shrink:0">${unresolvedBadge}${decision}</span>
             </div>
             ${author}
+            ${unresolvedLine}
             ${lastActivity}
           </div>`;
         }).join('')}
@@ -2234,6 +2291,7 @@
     // Reset + auto-load plans
     if (plansContentEl) plansContentEl.innerHTML = '<div style="padding:20px;font-size:12px;color:var(--muted)">Click a plan to view its content.</div>';
     if (plansTitleEl) plansTitleEl.textContent = 'Select a plan';
+    _lastPlansContent = null; _lastSpecContent = null;
     loadPlansTree(slug);
 
     // Reset + auto-load spec
@@ -2325,6 +2383,8 @@
 
   // ── Project Notes ─────────────────────────────────────────────────────────────
 
+  let _projectNotes = [];
+
   async function loadProjectNotes(slug) {
     const body = document.getElementById('project-detail-notes');
     if (!body) return;
@@ -2332,19 +2392,32 @@
     const r = await fetch(`/api/projects/${slug}/notes`);
     const data = await r.json();
     const notes = data.notes || [];
+    _projectNotes = notes;
     if (!notes.length) {
       body.innerHTML = '<div style="padding:10px;font-size:11px;color:var(--muted);font-style:italic">No notes yet — click + Add to create one.</div>';
       return;
     }
-    body.innerHTML = notes.map((n, i) => `
-      <div class="note-row" data-idx="${i}">
-        <div class="note-title">${n.title.replace(/</g,'&lt;')}</div>
-        <div class="note-actions">
+    const _esc = s => (s || '').replace(/</g,'&lt;');
+    body.innerHTML = notes.map((n, i) => {
+      const preview = (n.content || '').replace(/[#*`>_-]/g,' ').replace(/\s+/g,' ').trim();
+      return `
+      <div class="note-row" data-idx="${i}" onclick="openProjectNote(${i})" style="cursor:pointer" title="Click to read">
+        <div style="flex:1;min-width:0">
+          <div class="note-title">${_esc(n.title)}</div>
+          ${preview ? `<div style="font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(preview).slice(0,120)}</div>` : '<div style="font-size:10px;color:var(--muted);font-style:italic;margin-top:2px">Empty — click to add content</div>'}
+        </div>
+        <div class="note-actions" onclick="event.stopPropagation()">
           <button class="note-action-btn" onclick="renameProjectNote(${i},'${n.title.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">✏️</button>
           <button class="note-action-btn" style="color:var(--danger);border-color:rgba(248,81,73,0.3)" onclick="deleteProjectNote(${i},'${n.title.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">✕</button>
         </div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
+  }
+
+  function openProjectNote(idx) {
+    const n = _projectNotes[idx];
+    if (!n) return;
+    openDocReader(n.title, n.content, '📝');
   }
 
   function showNoteAddInput() {
@@ -2646,7 +2719,14 @@
       return;
     }
 
+    _lastSpecContent = data.content;
+    _lastSpecTitle = path.split('/').pop();
     contentEl.innerHTML = _renderMarkdown(data.content);
+  }
+
+  function openSpecReader() {
+    if (!_lastSpecContent) { alert('Select a file first.'); return; }
+    openDocReader(_lastSpecTitle, _lastSpecContent, '📁');
   }
 
   // ── Plans Viewer ───────────────────────────────────────────────────────────
@@ -2862,7 +2942,14 @@
       return;
     }
 
+    _lastPlansContent = data.content;
+    _lastPlansTitle = path.split('/').pop();
     contentEl.innerHTML = _renderMarkdown(data.content);
+  }
+
+  function openPlansReader() {
+    if (!_lastPlansContent) { alert('Select a plan first.'); return; }
+    openDocReader(_lastPlansTitle, _lastPlansContent, '📋');
   }
 
   // Configure marked.js
@@ -2878,9 +2965,41 @@
     return `<pre style="padding:12px;font-size:12px;white-space:pre-wrap;color:var(--text)">${md.replace(/</g,'&lt;')}</pre>`;
   }
 
+  // ── Full-screen document reader (plans / notes / spec) ──────────────────────
+  function openDocReader(title, md, icon) {
+    const modal = document.getElementById('doc-reader-modal');
+    const titleEl = document.getElementById('doc-reader-title');
+    const iconEl = document.getElementById('doc-reader-icon');
+    const body = document.getElementById('doc-reader-body');
+    if (!modal || !body) return;
+    if (titleEl) titleEl.textContent = title || '';
+    if (iconEl) iconEl.textContent = icon || '📄';
+    body.innerHTML = (md && md.trim())
+      ? _renderMarkdown(md)
+      : '<div style="font-size:12px;color:var(--muted);font-style:italic">Empty.</div>';
+    body.scrollTop = 0;
+    modal.style.display = 'flex';
+  }
+
+  function closeDocReader() {
+    const modal = document.getElementById('doc-reader-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  document.getElementById('doc-reader-modal').addEventListener('click', function (e) {
+    if (e.target === this) closeDocReader();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeDocReader();
+  });
+
   // ── Markdown file viewer/editor ────────────────────────────────────────────
   let _currentSpecPath  = null;
   let _currentPlansPath = null;
+  let _lastSpecContent  = null;
+  let _lastSpecTitle    = '';
+  let _lastPlansContent = null;
+  let _lastPlansTitle   = '';
 
   function _makeEditBtn(type) {
     const btn = document.createElement('button');
@@ -3156,20 +3275,6 @@
         </div>
       </div>
     `);
-  }
-
-  // ── Interrupts filter state ──────────────────────────────────────────────
-  let _interruptSourceFilter = '';
-
-  function _wireInterruptFilterChips() {
-    document.querySelectorAll('.filter-chips .filter-chip').forEach(chip => {
-      chip.onclick = () => {
-        document.querySelectorAll('.filter-chips .filter-chip').forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        _interruptSourceFilter = chip.dataset.filter || '';
-        renderInterruptsSection();
-      };
-    });
   }
 
   // ── Interrupts filter state ──────────────────────────────────────────────
@@ -3728,7 +3833,8 @@
     blocked: 'Blocked Items', team: 'Team Workload',
     'review-queue': 'Review Queue', claudia: 'Ask Claudia', decisions: 'Decisions',
     sprint: 'Sprint Board', cheatsheet: 'Cheat Sheet',
-    'github-prs': 'GitHub PRs',
+    'github-prs': 'GitHub PRs', 'all-projects': 'All Projects',
+    'pr-threads': 'ADO PR Threads',
   };
 
   const ALL_SWITCHABLE = [
@@ -3737,10 +3843,16 @@
     'interrupts-section', 'drilldown-panel',
     'ado-panel-fullwidth', 'decisions-panel-fullwidth',
     'blocked-panel-fullwidth', 'focus-details-section',
-    'github-prs-fullwidth', 'claudia-panel-fullwidth'
+    'github-prs-fullwidth', 'claudia-panel-fullwidth',
+    'all-projects-fullwidth', 'pr-threads-fullwidth'
   ];
 
-  function switchView(view) {
+  function switchView(view, opts) {
+    // Push a history entry so browser/mouse back-forward navigates between views.
+    // Skipped when the change originates from a popstate (back/forward) event.
+    if (!(opts && opts.fromHistory) && view !== currentView) {
+      history.pushState({ view }, '', '#' + view);
+    }
     currentView = view;
 
     // Update nav active state
@@ -3809,6 +3921,16 @@
     if (view === 'sprint') {
       const el = document.getElementById('ado-panel-fullwidth');
       if (el) { el.style.display = ''; _renderADOFullwidth('all'); }
+      return;
+    }
+    if (view === 'all-projects') {
+      const el = document.getElementById('all-projects-fullwidth');
+      if (el) { el.style.display = ''; fetchCrossProject(false); }
+      return;
+    }
+    if (view === 'pr-threads') {
+      const el = document.getElementById('pr-threads-fullwidth');
+      if (el) { el.style.display = ''; fetchPRThreads(false); }
       return;
     }
     if (view === 'focus') {
@@ -3908,6 +4030,209 @@
         ${i.state === 'Code Review' && i.daysInState ? `<div class="review-age ${_ageClass(i.daysInState)}">${i.daysInState}d</div>` : ''}
       </div>
     `);
+  }
+
+  // ── Cross-project rollup (All Projects view) ─────────────────────────────
+  let _xpState = null;
+  let _xpLoading = false;
+  let _xpCollapsed = {};   // projectName -> true when collapsed
+
+  async function fetchCrossProject(force) {
+    if (_xpLoading) return;
+    if (_xpState && !force) { _renderCrossProject(); return; }
+    _xpLoading = true;
+    const body = document.getElementById('all-projects-body');
+    if (body) body.innerHTML = '<div class="empty-state" style="padding:16px;font-size:11px">⟳ Querying all ADO projects…</div>';
+    const upd = document.getElementById('xp-updated');
+    if (upd) upd.textContent = 'fetching…';
+    try {
+      _xpState = await fetch('/api/ado/cross-project').then(r => r.ok ? r.json() : Promise.reject(r.status));
+    } catch (e) {
+      _xpState = { projects: [], error: String(e) };
+    } finally {
+      _xpLoading = false;
+      _renderCrossProject();
+    }
+  }
+
+  function _esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function _xpStateColor(state) {
+    const s = (state || '').toLowerCase();
+    if (s.includes('code review') || s.includes('review')) return 'var(--warn, #d9a441)';
+    if (s.includes('progress') || s === 'active') return 'var(--accent, #4a9eff)';
+    if (s.includes('qa') || s.includes('test')) return '#a76fe0';
+    if (s.includes('blocked')) return 'var(--danger, #e0564a)';
+    return 'var(--muted, #888)';
+  }
+
+  function _renderCrossProject() {
+    const body = document.getElementById('all-projects-body');
+    if (!body) return;
+    const d = _xpState || {};
+    const upd = document.getElementById('xp-updated');
+    if (upd) upd.textContent = d.error ? 'error'
+      : `${d.total || 0} items · ${d.project_count || 0} projects${d.awaiting_me ? ' · 💬 ' + d.awaiting_me + ' awaiting reply' : ''}`;
+
+    const badge = document.getElementById('badge-all-projects');
+    if (badge) {
+      badge.textContent = d.total ? String(d.total) : '';
+      badge.classList.toggle('danger', (d.awaiting_me || 0) > 0);
+    }
+
+    if (d.error) {
+      body.innerHTML = `<div class="empty-state" style="padding:16px;font-size:11px;color:var(--danger)">Error: ${d.error}</div>`;
+      return;
+    }
+    const projects = d.projects || [];
+    if (!projects.length) {
+      body.innerHTML = '<div class="empty-state" style="padding:16px;font-size:11px">No open items assigned to you.</div>';
+      return;
+    }
+
+    body.innerHTML = projects.map(p => {
+      const collapsed = _xpCollapsed[p.name];
+      const pills = Object.entries(p.states || {})
+        .sort((a, b) => b[1] - a[1])
+        .map(([st, n]) => `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);background:var(--surface2);border-radius:4px;padding:1px 6px">
+          <span style="width:7px;height:7px;border-radius:50%;background:${_xpStateColor(st)}"></span>${st} ${n}</span>`).join('');
+      const cr = p.code_review > 0
+        ? `<span style="font-size:10px;color:var(--warn,#d9a441);font-weight:600;margin-left:6px">⚠ ${p.code_review} in review</span>` : '';
+      const aw = p.awaiting_me > 0
+        ? `<span style="font-size:10px;color:var(--danger,#e0564a);font-weight:600;margin-left:6px">💬 ${p.awaiting_me} awaiting reply</span>` : '';
+      const rows = (p.items || []).map(i => {
+        const lc = i.last_comment;
+        const commentLine = i.awaiting_me && lc
+          ? `<div class="ado-meta" style="color:var(--danger,#e0564a);margin-top:2px">💬 ${lc.author || 'someone'}: ${_esc(lc.text || '')}</div>`
+          : ((i.comment_count || 0) > 0 && lc
+              ? `<div class="ado-meta" style="margin-top:2px;opacity:.75">💬 ${i.comment_count} · last ${lc.is_mine ? 'you' : (lc.author || '')}: ${_esc(lc.text || '')}</div>`
+              : '');
+        return `
+        <div class="ado-row" style="padding:6px 14px 6px 28px${i.awaiting_me ? ';background:rgba(224,86,74,.06)' : ''}">
+          <div class="ado-state" style="background:${_xpStateColor(i.state)}"></div>
+          <div class="ado-body">
+            <div class="ado-text"><a href="${i.url}" target="_blank" style="color:inherit;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">#${i.id} ${i.title}</a></div>
+            <div class="ado-meta">${i.type || ''} · ${i.state}${i.module ? ' · ' + i.module : ''}${i.priority ? ' · P' + i.priority : ''}</div>
+            ${commentLine}
+          </div>
+        </div>`;
+      }).join('');
+      return `
+        <div style="border-bottom:1px solid var(--border)">
+          <div onclick="_xpToggle('${p.name.replace(/'/g, "\\'")}')" style="display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;background:var(--surface)">
+            <span style="font-size:10px;color:var(--muted);width:10px">${collapsed ? '▸' : '▾'}</span>
+            <span style="font-weight:600;font-size:12px">${p.name}</span>
+            <span style="font-size:11px;color:var(--muted);background:var(--surface2);border-radius:9px;padding:0 7px">${p.total}</span>
+            ${cr}${aw}
+            <span style="margin-left:auto;display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end">${pills}</span>
+          </div>
+          <div style="display:${collapsed ? 'none' : 'block'}">${rows}</div>
+        </div>`;
+    }).join('');
+  }
+
+  function _xpToggle(name) {
+    _xpCollapsed[name] = !_xpCollapsed[name];
+    _renderCrossProject();
+  }
+
+  // ── ADO PR Threads view ──────────────────────────────────────────────────
+  let _prtState = null;
+  let _prtLoading = false;
+
+  async function fetchPRThreads(force) {
+    if (_prtLoading) return;
+    if (_prtState && !force) { _renderPRThreads(); return; }
+    _prtLoading = true;
+    const body = document.getElementById('pr-threads-body');
+    if (body) body.innerHTML = '<div class="empty-state" style="padding:16px;font-size:11px">⟳ Querying ADO pull requests…</div>';
+    const upd = document.getElementById('prt-updated');
+    if (upd) upd.textContent = 'fetching…';
+    try {
+      _prtState = await fetch('/api/ado/pr-threads').then(r => r.ok ? r.json() : Promise.reject(r.status));
+    } catch (e) {
+      _prtState = { prs: [], error: String(e) };
+    } finally {
+      _prtLoading = false;
+      _renderPRThreads();
+    }
+  }
+
+  function _renderPRThreads() {
+    const body = document.getElementById('pr-threads-body');
+    if (!body) return;
+    const d = _prtState || {};
+    const upd = document.getElementById('prt-updated');
+    const badge = document.getElementById('badge-pr-threads');
+
+    // Auth/scope error — show actionable hint, not a dead error
+    if (d.error === 'auth') {
+      if (upd) upd.textContent = 'PAT scope needed';
+      if (badge) { badge.textContent = '!'; badge.classList.add('warn'); }
+      body.innerHTML = `<div style="padding:16px;font-size:12px;line-height:1.6">
+        <div style="color:var(--warn,#d9a441);font-weight:600;margin-bottom:6px">⚠ Code (read) scope missing</div>
+        <div style="color:var(--muted)">${_esc(d.scope_hint || '')}</div>
+        <div style="color:var(--muted);margin-top:8px">Fix: regenerate <code>AZURE_DEVOPS_PAT</code> in Azure DevOps → User settings → Personal access tokens, add scope <b>Code → Read</b>, update <code>.env</code>, then refresh.</div>
+      </div>`;
+      return;
+    }
+    if (d.error) {
+      if (upd) upd.textContent = 'error';
+      body.innerHTML = `<div class="empty-state" style="padding:16px;font-size:11px;color:var(--danger)">Error: ${_esc(d.error)}</div>`;
+      return;
+    }
+
+    const prs = d.prs || [];
+    if (upd) upd.textContent = `${d.total || 0} PRs · ${d.total_unresolved || 0} unresolved`;
+    if (badge) {
+      badge.classList.remove('warn');
+      badge.textContent = d.total_unresolved ? String(d.total_unresolved) : '';
+      badge.classList.toggle('danger', (d.total_unresolved || 0) > 0);
+    }
+    if (!prs.length) {
+      body.innerHTML = '<div class="empty-state" style="padding:16px;font-size:11px">No active pull requests.</div>';
+      return;
+    }
+
+    // Group by project
+    const byProj = {};
+    prs.forEach(pr => { (byProj[pr.project || 'Unknown'] = byProj[pr.project || 'Unknown'] || []).push(pr); });
+
+    body.innerHTML = Object.entries(byProj).map(([proj, items]) => {
+      const rows = items.map(pr => {
+        const lu = pr.last_unresolved;
+        const badge2 = pr.unresolved > 0
+          ? `<span style="color:var(--danger,#e0564a);font-size:11px;font-weight:600;white-space:nowrap">💬 ${pr.unresolved} unresolved</span>`
+          : `<span style="color:var(--accent2,#6cc070);font-size:11px;white-space:nowrap">✓ clear</span>`;
+        const roleTag = `<span style="font-size:10px;color:var(--muted);background:var(--surface2);border-radius:4px;padding:0 6px">${pr.role}</span>`;
+        const draft = pr.isDraft ? ' <span style="color:var(--muted);font-size:10px">[draft]</span>' : '';
+        const luLine = lu ? `<div style="margin-top:5px;padding:5px 8px;background:rgba(224,86,74,.08);border-radius:4px;border-left:2px solid var(--danger,#e0564a)">
+            <div style="font-size:11px;color:var(--muted)"><span style="color:var(--text);font-weight:600">${_esc(lu.author || '')}</span>${lu.mine ? ' (you)' : ''}</div>
+            ${lu.text ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;font-style:italic">"${_esc(lu.text)}"</div>` : ''}
+          </div>` : '';
+        return `<div style="padding:9px 14px;border-bottom:1px solid var(--border)${pr.unresolved > 0 ? ';background:rgba(224,86,74,.04)' : ''}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <a href="${pr.url}" target="_blank" style="color:var(--text);text-decoration:none;font-size:13px;line-height:1.4" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">!${pr.id} ${_esc(pr.title)}${draft}</a>
+            <span style="display:flex;align-items:center;gap:8px;flex-shrink:0">${roleTag}${badge2}</span>
+          </div>
+          <div class="ado-meta" style="margin-top:2px">${_esc(pr.repo)}</div>
+          ${luLine}
+        </div>`;
+      }).join('');
+      const projUnres = items.reduce((s, p) => s + (p.unresolved || 0), 0);
+      return `<div style="border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface)">
+          <span style="font-weight:600;font-size:12px">${_esc(proj)}</span>
+          <span style="font-size:11px;color:var(--muted);background:var(--surface2);border-radius:9px;padding:0 7px">${items.length} PR${items.length !== 1 ? 's' : ''}</span>
+          ${projUnres > 0 ? `<span style="font-size:10px;color:var(--danger,#e0564a);font-weight:600">💬 ${projUnres}</span>` : ''}
+        </div>
+        ${rows}
+      </div>`;
+    }).join('');
   }
 
   function _renderBlockedFullwidth() {
@@ -4017,6 +4342,18 @@
   document.querySelectorAll('[data-nav-view]').forEach(el => {
     el.addEventListener('click', () => switchView(el.dataset.navView));
   });
+
+  // Back/forward navigation between views (browser buttons + mouse back/forward).
+  window.addEventListener('popstate', (e) => {
+    const view = (e.state && e.state.view) || (location.hash || '').replace(/^#/, '') || 'dashboard';
+    switchView(view, { fromHistory: true });
+  });
+  // Seed the initial history entry + honour a deep-link hash on load.
+  (() => {
+    const initial = (location.hash || '').replace(/^#/, '') || 'dashboard';
+    history.replaceState({ view: initial }, '', '#' + initial);
+    if (initial !== 'dashboard') switchView(initial, { fromHistory: true });
+  })();
 
   // Kick off
   wireInterruptCaptureForm();

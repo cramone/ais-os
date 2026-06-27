@@ -215,3 +215,30 @@ unnecessary complexity for Q2.
 **Why:** InfoXpert incident review produced findings worth retaining for audit, future document generation, and pattern detection across customers. Lean addition — only created when an incident occurs.
 
 **Alternatives considered:** Storing in `projects/` (not right — incidents are cross-project); storing in `references/` (not right — these are time-bound events, not reusable knowledge).
+
+---
+
+## 2026-06-27 — /level-up: ADO standup rollup skill (status reporting automation)
+
+**Decision:** Build an AI-assisted skill `standup-rollup` that turns the current ADO iteration into a stakeholder-ready status draft in Chase's voice.
+
+**Why:** Top weekly pain = ADO task overhead; the specific drain (confirmed via /level-up Mindset interview) is *reporting status up/out* — translating raw ADO items into prose for standup/stakeholders. Data pull is already solved (`scripts/devops_summary.py --all --sprint --json`); the leverage is the prose translation. Automating the draft cuts time-to-report from ~35 min to <5 min review.
+
+**Method spec (3Ms):**
+- Trigger: weekly (Fri / pre-standup) + on-demand
+- Source: ADO current iteration, all assignees — `devops_summary.py --all --sprint --json`
+- Transform: group by area/module theme × state; surface blockers + Code Review queue
+- Decision points: what to surface vs drop; flag risks/blockers
+- Destination: markdown draft → Chase reviews/edits → Teams/email
+- **Autonomy: L2 Drafted** — AI drafts, human edits before send. L4 prohibited: CLAUDE.md forbids external comms in Chase's voice without a draft first.
+- **KPI: Less cost** — time-to-status-report, ~35 min → <5 min.
+
+**EAD:** Not eliminable (lead comms required), not delegable (Chase's voice). Automate, 60/30/10.
+
+**Alternatives considered:** Deterministic-only skill (rejected — produces a raw list, not the prose summary that is the actual pain). Sub-agent (rejected — overkill; single AI draft step suffices). Candidate 1 (daily triage brief) and Candidate 3 (intake formatter) deferred — Chase picked status reporting as the top drain.
+
+**Owner:** Chase Ramone
+
+**Bike Method:** Phase 1 (manual run first).
+
+*Adapted from The Three Ms of AI™ © 2026 Nate Herk.*

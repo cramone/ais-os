@@ -24,7 +24,12 @@ from tower.interrupts.store import (
     update_activity,
     update_interrupt,
 )
-from tower.readers.ado import invalidate_cache as invalidate_ado_cache, read_ado_sprint
+from tower.readers.ado import (
+    invalidate_cache as invalidate_ado_cache,
+    read_ado_sprint,
+    read_ado_cross_project,
+    read_ado_pr_threads,
+)
 from tower.readers.ado_update import update_work_item_state
 from tower.readers.github import read_github_prs, read_github_review_requested
 from tower.readers.decisions import add_decision, delete_decision, read_decisions, rename_decision
@@ -159,6 +164,16 @@ def decision_rename(req: DecisionRenameRequest) -> dict:
 @app.get("/api/ado/sprint")
 def ado_sprint() -> dict[str, Any]:
     return read_ado_sprint()
+
+
+@app.get("/api/ado/cross-project")
+def ado_cross_project() -> dict[str, Any]:
+    return read_ado_cross_project()
+
+
+@app.get("/api/ado/pr-threads")
+def ado_pr_threads() -> dict[str, Any]:
+    return read_ado_pr_threads()
 
 
 class AdoStateUpdate(BaseModel):
