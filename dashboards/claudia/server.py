@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 import subprocess
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -6,12 +7,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-HERMES_HOME = Path.home() / ".hermes"
+HERMES_HOME = Path(os.getenv("HERMES") or (Path.home() / ".hermes"))
 TOKEN_PATH = HERMES_HOME / "google_token.json"
 MEMORY_PATH = HERMES_HOME / "memories" / "USER.md"
 
-DASHBOARD_DIR = "/mnt/c/Users/chase/OneDrive/Magiq/AIS-OS/dashboards/claudia"
-AIOS_ROOT = Path("/mnt/c/Users/chase/OneDrive/Magiq/AIS-OS")
+# Self-locate: this file lives at <root>/dashboards/claudia/server.py
+DASHBOARD_DIR = str(Path(__file__).resolve().parent)
+AIOS_ROOT = Path(os.getenv("AIOS_ROOT") or Path(__file__).resolve().parents[2])
 DEVOPS_SCRIPT = AIOS_ROOT / "scripts" / "devops_summary.py"
 PRIORITIES_PATH = AIOS_ROOT / "context" / "priorities.md"
 

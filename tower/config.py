@@ -7,8 +7,9 @@ _env_file = Path(__file__).parent.parent / ".env"
 if _env_file.exists():
     load_dotenv(_env_file, override=False)
 
-# Resolve AIS-OS root — env override for portability
-AIOS_ROOT = Path(os.getenv("AIOS_ROOT", r"C:\Users\chase\OneDrive\Magiq\AIS-OS"))
+# Resolve AIS-OS root — self-locate from this file; env override wins.
+# config.py lives at <root>/tower/config.py, so parent.parent == root.
+AIOS_ROOT = Path(os.getenv("AIOS_ROOT") or Path(__file__).resolve().parent.parent)
 TOWER_DIR = AIOS_ROOT / "tower"
 PROJECTS_DIR = AIOS_ROOT / "projects"
 DECISIONS_LOG = AIOS_ROOT / "decisions" / "log.md"

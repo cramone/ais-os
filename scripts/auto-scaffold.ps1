@@ -2,10 +2,11 @@
 # Watches Hermes for draft projects not yet scaffolded in AIS-OS.
 # Run by Windows Task Scheduler. No Claude API call needed.
 
-$aiosRoot  = "C:\Users\chase\OneDrive\Magiq\AIS-OS"
+# Self-locate: this script lives at <root>/scripts/auto-scaffold.ps1
+$aiosRoot  = Split-Path -Parent $PSScriptRoot
 $projectsDir = Join-Path $aiosRoot "projects"
-$logFile   = Join-Path $aiosRoot "scripts\auto-scaffold.log"
-$hermesDataPath = "/opt/data/.hermes/data/projects"
+$logFile   = Join-Path $PSScriptRoot "auto-scaffold.log"
+$hermesDataPath = if ($env:HERMES_DATA) { $env:HERMES_DATA } else { "/opt/data/.hermes/data/projects" }
 $telegramSession = "agent:main:telegram:dm:8538216952"
 
 function Log($msg) {

@@ -1,0 +1,16 @@
+{
+  "_comment": "Copy to .mcp.json. Claude Code expands ${VAR} from the shell environment at launch. Set these vars in your shell/profile (or source .env before launching claude). .mcp.json is gitignored — it must be recreated per machine.",
+  "mcpServers": {
+    "azure-devops": {
+      "command": "node",
+      "args": [
+        "${MCP_ADO_SERVER}"
+      ],
+      "env": {
+        "AZURE_DEVOPS_ORG": "${AZURE_DEVOPS_ORG}",
+        "AZURE_DEVOPS_PAT": "${AZURE_DEVOPS_PAT}",
+        "AZURE_DEVOPS_PROJECT_ID": "${AZURE_DEVOPS_PROJECT}"
+      }
+    }
+  }
+}

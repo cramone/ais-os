@@ -1,7 +1,7 @@
 #!/bin/bash
 # Claudia Dashboard startup script
-VENV="$HOME/.hermes/hermes-agent/venv"
-DIR="/mnt/c/Users/chase/OneDrive/Magiq/AIS-OS/dashboards/claudia"
+VENV="${HERMES:-$HOME/.hermes}/hermes-agent/venv"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORT=7842
 cd "$DIR"
 echo "Checking dependencies..."

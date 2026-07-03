@@ -2,7 +2,7 @@
 # Run this once (as your user, no admin needed) to register the scheduled task.
 # Re-run to update it if the script path changes.
 
-$scriptPath = "C:\Users\chase\OneDrive\Magiq\AIS-OS\scripts\auto-scaffold.ps1"
+$scriptPath = Join-Path $PSScriptRoot "auto-scaffold.ps1"
 $taskName   = "AIS-OS Auto Scaffold"
 
 $action  = New-ScheduledTaskAction `
