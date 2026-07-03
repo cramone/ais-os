@@ -105,11 +105,14 @@ Two distinct roles — do not conflate them:
 - **ECR / build-push role** — `AWS_ECR_ROLE_ARN`, repo-level, **always the shared ECR
   account `738608577325`**. Every environment's build pushes images to this one central
   registry. Not overridden per env.
-- **Deploy role** — `AWS_DEPLOY_ROLE_ARN`, **environment-level**, one per env account
-  (`GitHubOidcMagiqMediaRole`). Used by the deploy step to update that account's Lambdas,
-  pulling the image cross-account from the shared ECR. (Deploy step not built yet — item 3.)
+- **Deploy role** — lives in **`cdk-magiq-media`**, not here: per-env secret
+  `AWS_DEPLOY_ROLE_ARN` + var `CDK_DEFAULT_ACCOUNT` on that repo's GitHub environments.
+  magiq-media only builds/pushes + dispatches; the CDK repo assumes the deploy role and
+  updates that account's Lambdas, pulling the image cross-account from the shared ECR.
+  (magiq-media environments carry **no** env-level vars — earlier `AWS_DEPLOY_ROLE_ARN`
+  vars here were redundant and removed.)
 
-| Env     | Account name | Account ID (`AWS_DEPLOY_ROLE_ARN`) | Deploy trigger |
+| Env     | Account name | Account ID (cdk `CDK_DEFAULT_ACCOUNT`) | Deploy trigger |
 |---------|--------------|----------------|----------------|
 | dev     | Development  | 989143135668   | active — push `develop` |
 | qa      | QA           | 835494934465   | active — push `release/**` |
@@ -175,9 +178,35 @@ main=prod:
    **staging** in sequence, gated by an environment approval on staging.)
 4. **Drop `main` → dev** — remove `main` from the `dev` branch policy so an accidental
    push to `main` cannot hit dev.
-5. **Deploy step** — the workflow currently stops at ECR push. Add the CDK/Lambda
-   update-function step (or confirm the separate deploy mechanism) so image push
-   actually rolls the environment.
+5. **Deploy step** — _resolved_: deploy is a **cross-repo dispatch to
+   `cdk-magiq-media`** (see "Deploy handoff" below), not an in-repo step. Outstanding:
+   create the `CDK_DISPATCH_TOKEN` secret and grant cross-account ECR pull.
+
+### Deploy handoff — magiq-media → cdk-magiq-media
+
+After the ECR push, magiq-media dispatches to the CDK repo, which owns the actual deploy:
+
+```
+build-and-push (images → shared ECR 738608577325)
+      │  repository_dispatch  event_type: deploy
+      │  client_payload: { env, imageTag: <git sha> }
+      ▼
+cdk-magiq-media  deploy.yml
+      environment = payload.env          (GitHub required-reviewer gate for staging/prod)
+      role  = env secret AWS_DEPLOY_ROLE_ARN     (that env's own AWS account)
+      cdk deploy --all --context env=… imageTag=… migrationsEnabled=true
+      → pulls <prefix>-<sha> from shared ECR cross-account, updates that account's Lambdas
+```
+
+- **Contract:** `imageTag` is the git SHA — cdk resolves `<prefix>-<sha>` per host, so the
+  same artifact promotes dev → qa → staging → prod (no rebuild).
+- **magiq-media jobs:** `dispatch-deploy` (dev/qa/prod, env from `publish-all`) and
+  `dispatch-staging` (env=staging, `STAGING_ENABLED`-gated). Both skip until repo secret
+  `CDK_DISPATCH_TOKEN` (dispatch rights on cdk-magiq-media) exists.
+- **cdk env config:** `CDK_DEFAULT_ACCOUNT` var + `AWS_DEPLOY_ROLE_ARN` secret per env —
+  dev 989143135668, qa 835494934465, staging 727517389921, prod 614323302920.
+- **Known gap:** cdk deploys 8 hosts; `saga-document-signing` is built but not yet wired
+  in cdk `magiq-media-stack.ts`.
 
 Environment **required-reviewer** protection rules are recommended on `staging` and
 `prod` so promotion needs a human approval, independent of branch policy.
@@ -190,7 +219,7 @@ Environment **required-reviewer** protection rules are recommended on `staging` 
   required-reviewer approval. **Model A** account isolation chosen: staging gets its own
   AWS account. Job is provisioned but **dormant** (`STAGING_ENABLED` flag off) until the
   account exists — see AIS-OS `todos.md` → "Review: enable staging deploy".
-- **Deploy mechanism:** the current workflow pushes images but no visible deploy step;
-  confirm how running Lambdas pick up new images (CDK deploy? separate pipeline?).
+- **Deploy mechanism:** _resolved_ — cross-repo dispatch to `cdk-magiq-media` (see
+  "Deploy handoff"). Blocked only on the `CDK_DISPATCH_TOKEN` secret + cross-account ECR pull.
 - **`main` fast-forward vs merge:** decide merge policy for `release → main` (no-ff
   merge preserves release history; recommended).

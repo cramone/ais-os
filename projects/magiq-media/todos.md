@@ -7,21 +7,34 @@ The bulk delete media item needs to be implemented in the FolderDeleteFoanoutWor
 
 ---
 
-## CI has no deploy step — images pushed but environments not rolled
-_Captured: 2026-07-03_
+## RESOLVED: deploy mechanism = cross-repo dispatch to cdk-magiq-media
+_Captured: 2026-07-03 · Resolved: 2026-07-03_
 
-`.github/workflows/build-and-push.yml` builds and pushes container images to ECR
-(SHA-tagged, plus `-latest` on prod tag builds) but stops there — there is no step
-that updates the running Lambdas/services to the new image. Need to confirm how
-environments actually pick up a new image:
+Deploy is done by **`magiqsoftware/cdk-magiq-media`** (separate CDK/TypeScript repo),
+not a step in magiq-media. `.github/workflows/build-and-push.yml` builds + pushes images
+to the shared ECR (738608577325), then dispatches to the CDK repo.
 
-- CDK deploy step to add to the workflow? or
-- A separate deploy pipeline already handles it? or
-- Manual Lambda `update-function-code`?
+**Integration contract** (implemented):
+- magiq-media `dispatch-deploy` / `dispatch-staging` jobs send `repository_dispatch`
+  (`event_type: deploy`) to cdk-magiq-media with `client_payload = { env, imageTag: <sha> }`.
+- cdk `deploy.yml` listens on that dispatch, resolves `environment` from payload, assumes
+  per-env `AWS_DEPLOY_ROLE_ARN` (secret) + `CDK_DEFAULT_ACCOUNT` (var), runs
+  `cdk deploy --all --context env=… imageTag=… migrationsEnabled=true`.
+- cdk pulls `<prefix>-<sha>` from shared ECR → build-once/deploy-that-artifact holds.
 
-Blocks the branching strategy from being truly end-to-end (push → running env).
-See `spec/architecture/branching-and-deployment.md` → "CI changes required" #5 and
-"Open questions".
+**OUTSTANDING — required before deploys actually run:**
+1. **Create repo secret `CDK_DISPATCH_TOKEN`** in magiq-media — fine-grained PAT or GitHub
+   App token with `contents: write` (dispatch) on cdk-magiq-media. Until set, the dispatch
+   steps are skipped (guarded on token presence) — builds stay green, no deploy fires.
+2. Cross-account ECR pull: each env's deploy role needs pull rights on the 738608577325 ECR.
+3. cdk deploys only **8** hosts — `SagaOrchestrator.DocumentSigning` (`saga-document-signing`)
+   is built by magiq-media but has no `ecrCode(...)` in cdk `magiq-media-stack.ts`. Wire it
+   when the signing host is ready to deploy.
+4. (Done) The per-env `AWS_DEPLOY_ROLE_ARN` **vars** on magiq-media environments were
+   redundant — deploy role lives in cdk-magiq-media (secrets). Removed; magiq-media envs
+   now carry no env-level vars.
+
+See `spec/architecture/branching-and-deployment.md` → "Open questions".
 
 ---
 
