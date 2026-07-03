@@ -48,7 +48,6 @@ SHOW_ALL = "--all" in ARGS
 SPRINT_ONLY = "--sprint" in ARGS
 JSON_OUT = "--json" in ARGS
 CROSS_PROJECT = "--cross-project" in ARGS
-PR_THREADS = "--pr-threads" in ARGS
 WITH_COMMENTS = "--comments" in ARGS
 
 # Only fetch comments for items touched within this window, capped, to bound API cost
@@ -346,111 +345,7 @@ def _enrich_comments(projects):
         list(pool.map(work, candidates))
 
 
-def _org_pr_search(criteria):
-    url = (f"https://dev.azure.com/{ORG}/_apis/git/pullrequests"
-           f"?{criteria}&searchCriteria.status=active&$top=200&api-version=7.1")
-    req = urllib.request.Request(url, headers=HEADERS)
-    with urllib.request.urlopen(req) as r:
-        return json.loads(r.read()).get("value", [])
-
-
-def _pr_active_threads(project, repo_id, pr_id, my_id):
-    """Return (unresolved_count, last_unresolved_dict|None) for a PR.
-    Unresolved = thread.status == 'active' with at least one non-system comment."""
-    url = (f"https://dev.azure.com/{ORG}/{urllib.parse.quote(project)}"
-           f"/_apis/git/repositories/{repo_id}/pullRequests/{pr_id}/threads?api-version=7.1")
-    try:
-        req = urllib.request.Request(url, headers=HEADERS)
-        with urllib.request.urlopen(req) as r:
-            threads = json.loads(r.read()).get("value", [])
-    except Exception:
-        return 0, None
-    open_threads = []
-    for t in threads:
-        if t.get("status") != "active":
-            continue
-        comments = [c for c in t.get("comments", []) if c.get("commentType") != "system"]
-        if not comments:
-            continue
-        last = comments[-1]
-        author = last.get("author", {}) or {}
-        open_threads.append({
-            "author": author.get("displayName", ""),
-            "text": _strip_html(last.get("content", "") or "")[:140],
-            "date": last.get("publishedDate", "") or last.get("lastUpdatedDate", ""),
-            "mine": author.get("id", "") == my_id,
-        })
-    last_unres = max(open_threads, key=lambda x: x["date"]) if open_threads else None
-    return len(open_threads), last_unres
-
-
-def main_pr_threads():
-    """My active ADO Repos PRs across projects + unresolved comment-thread counts.
-    Requires PAT with Code (read) scope; degrades gracefully on 401."""
-    my_id = authenticated_user_id()
-    prs_raw = {}
-    try:
-        for crit, role in [(f"searchCriteria.creatorId={my_id}", "author"),
-                           (f"searchCriteria.reviewerId={my_id}", "reviewer")]:
-            for pr in _org_pr_search(crit):
-                pid = pr["pullRequestId"]
-                if pid not in prs_raw:
-                    prs_raw[pid] = (pr, role)
-    except urllib.error.HTTPError as e:
-        if e.code in (401, 403):
-            print(json.dumps({
-                "prs": [], "total": 0, "total_unresolved": 0,
-                "error": "auth", "scope_hint": "AZURE_DEVOPS_PAT needs 'Code (read)' scope to read pull requests.",
-                "fetched_at": datetime.datetime.now().isoformat(),
-            }))
-            return
-        raise
-    except Exception as e:
-        print(json.dumps({"prs": [], "total": 0, "total_unresolved": 0, "error": str(e),
-                          "fetched_at": datetime.datetime.now().isoformat()}))
-        return
-
-    items = []
-    for pid, (pr, role) in prs_raw.items():
-        repo = pr.get("repository", {}) or {}
-        project = (repo.get("project", {}) or {}).get("name", "")
-        items.append({
-            "id": pid,
-            "title": pr.get("title", ""),
-            "repo": repo.get("name", ""),
-            "project": project,
-            "role": role,
-            "isDraft": pr.get("isDraft", False),
-            "url": f"https://dev.azure.com/{ORG}/{urllib.parse.quote(project)}/_git/{urllib.parse.quote(repo.get('name',''))}/pullrequest/{pid}",
-            "_repo_id": repo.get("id", ""),
-            "_project": project,
-        })
-
-    def work(it):
-        n, last = _pr_active_threads(it["_project"], it["_repo_id"], it["id"], my_id)
-        it["unresolved"] = n
-        it["last_unresolved"] = last
-
-    if items:
-        with ThreadPoolExecutor(max_workers=8) as pool:
-            list(pool.map(work, items))
-
-    for it in items:
-        it.pop("_repo_id", None)
-        it.pop("_project", None)
-    items.sort(key=lambda x: x.get("unresolved", 0), reverse=True)
-    print(json.dumps({
-        "prs": items,
-        "total": len(items),
-        "total_unresolved": sum(it.get("unresolved", 0) for it in items),
-        "fetched_at": datetime.datetime.now().isoformat(),
-    }))
-
-
 def main():
-    if PR_THREADS:
-        main_pr_threads()
-        return
     if CROSS_PROJECT:
         main_cross_project()
         return

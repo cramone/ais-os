@@ -722,7 +722,6 @@
     <div class="nav-item" data-nav-view="decisions"><span class="icon">⚖️</span> Decisions</div>
     <div class="nav-item" data-nav-view="sprint"><span class="icon">📊</span> Sprint Board</div>
     <div class="nav-item" data-nav-view="all-projects"><span class="icon">🌐</span> All Projects <span class="nav-badge" id="badge-all-projects"></span></div>
-    <div class="nav-item" data-nav-view="pr-threads"><span class="icon">💬</span> PR Threads <span class="nav-badge" id="badge-pr-threads"></span></div>
 
     <div class="sidebar-section" style="margin-top:6px">Reference</div>
     <div class="nav-item" data-nav-view="cheatsheet"><span class="icon">📖</span> Cheat Sheet</div>
@@ -1261,17 +1260,6 @@
         </div>
       </div>
 
-      <!-- ADO PR Threads (unresolved comment threads on my pull requests) -->
-      <div id="pr-threads-fullwidth" style="display:none">
-        <div class="panel">
-          <div class="panel-header">
-            <div class="panel-title">💬 ADO PR Threads <span id="prt-updated" style="font-size:10px;font-weight:400;color:var(--muted);margin-left:6px"></span></div>
-            <button class="ado-refresh-btn" onclick="fetchPRThreads(true)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:5px;cursor:pointer;font-size:11px">↻ Refresh</button>
-          </div>
-          <div class="panel-body" id="pr-threads-body" style="max-height:none;padding:0"></div>
-        </div>
-      </div>
-
       <!-- GitHub PRs Fullwidth View -->
       <div id="github-prs-fullwidth" style="display:none">
         <div class="panel" style="margin-bottom:16px">
@@ -1650,8 +1638,11 @@
         <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:4px 0 4px;border-bottom:1px solid var(--border)">${repo}</div>
         ${items.map(pr => {
           const draft = pr.isDraft ? ' <span style="color:var(--muted);font-size:10px">[draft]</span>' : '';
+          const unresolved = (pr.unresolvedThreads || 0) > 0
+            ? ` <span style="color:var(--danger,#e0564a);font-size:10px;font-weight:600;white-space:nowrap">💬 ${pr.unresolvedThreads}</span>`
+            : '';
           return `<div style="padding:5px 0;border-bottom:1px solid var(--border)">
-            <a href="${pr.url}" target="_blank" style="color:var(--text);text-decoration:none;font-size:12px;line-height:1.4" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">#${pr.number} ${pr.title}${draft}</a>
+            <a href="${pr.url}" target="_blank" style="color:var(--text);text-decoration:none;font-size:12px;line-height:1.4" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">#${pr.number} ${pr.title}${draft}${unresolved}</a>
           </div>`;
         }).join('')}
       </div>
@@ -3834,7 +3825,6 @@
     'review-queue': 'Review Queue', claudia: 'Ask Claudia', decisions: 'Decisions',
     sprint: 'Sprint Board', cheatsheet: 'Cheat Sheet',
     'github-prs': 'GitHub PRs', 'all-projects': 'All Projects',
-    'pr-threads': 'ADO PR Threads',
   };
 
   const ALL_SWITCHABLE = [
@@ -3844,7 +3834,7 @@
     'ado-panel-fullwidth', 'decisions-panel-fullwidth',
     'blocked-panel-fullwidth', 'focus-details-section',
     'github-prs-fullwidth', 'claudia-panel-fullwidth',
-    'all-projects-fullwidth', 'pr-threads-fullwidth'
+    'all-projects-fullwidth'
   ];
 
   function switchView(view, opts) {
@@ -3926,11 +3916,6 @@
     if (view === 'all-projects') {
       const el = document.getElementById('all-projects-fullwidth');
       if (el) { el.style.display = ''; fetchCrossProject(false); }
-      return;
-    }
-    if (view === 'pr-threads') {
-      const el = document.getElementById('pr-threads-fullwidth');
-      if (el) { el.style.display = ''; fetchPRThreads(false); }
       return;
     }
     if (view === 'focus') {
@@ -4138,101 +4123,6 @@
   function _xpToggle(name) {
     _xpCollapsed[name] = !_xpCollapsed[name];
     _renderCrossProject();
-  }
-
-  // ── ADO PR Threads view ──────────────────────────────────────────────────
-  let _prtState = null;
-  let _prtLoading = false;
-
-  async function fetchPRThreads(force) {
-    if (_prtLoading) return;
-    if (_prtState && !force) { _renderPRThreads(); return; }
-    _prtLoading = true;
-    const body = document.getElementById('pr-threads-body');
-    if (body) body.innerHTML = '<div class="empty-state" style="padding:16px;font-size:11px">⟳ Querying ADO pull requests…</div>';
-    const upd = document.getElementById('prt-updated');
-    if (upd) upd.textContent = 'fetching…';
-    try {
-      _prtState = await fetch('/api/ado/pr-threads').then(r => r.ok ? r.json() : Promise.reject(r.status));
-    } catch (e) {
-      _prtState = { prs: [], error: String(e) };
-    } finally {
-      _prtLoading = false;
-      _renderPRThreads();
-    }
-  }
-
-  function _renderPRThreads() {
-    const body = document.getElementById('pr-threads-body');
-    if (!body) return;
-    const d = _prtState || {};
-    const upd = document.getElementById('prt-updated');
-    const badge = document.getElementById('badge-pr-threads');
-
-    // Auth/scope error — show actionable hint, not a dead error
-    if (d.error === 'auth') {
-      if (upd) upd.textContent = 'PAT scope needed';
-      if (badge) { badge.textContent = '!'; badge.classList.add('warn'); }
-      body.innerHTML = `<div style="padding:16px;font-size:12px;line-height:1.6">
-        <div style="color:var(--warn,#d9a441);font-weight:600;margin-bottom:6px">⚠ Code (read) scope missing</div>
-        <div style="color:var(--muted)">${_esc(d.scope_hint || '')}</div>
-        <div style="color:var(--muted);margin-top:8px">Fix: regenerate <code>AZURE_DEVOPS_PAT</code> in Azure DevOps → User settings → Personal access tokens, add scope <b>Code → Read</b>, update <code>.env</code>, then refresh.</div>
-      </div>`;
-      return;
-    }
-    if (d.error) {
-      if (upd) upd.textContent = 'error';
-      body.innerHTML = `<div class="empty-state" style="padding:16px;font-size:11px;color:var(--danger)">Error: ${_esc(d.error)}</div>`;
-      return;
-    }
-
-    const prs = d.prs || [];
-    if (upd) upd.textContent = `${d.total || 0} PRs · ${d.total_unresolved || 0} unresolved`;
-    if (badge) {
-      badge.classList.remove('warn');
-      badge.textContent = d.total_unresolved ? String(d.total_unresolved) : '';
-      badge.classList.toggle('danger', (d.total_unresolved || 0) > 0);
-    }
-    if (!prs.length) {
-      body.innerHTML = '<div class="empty-state" style="padding:16px;font-size:11px">No active pull requests.</div>';
-      return;
-    }
-
-    // Group by project
-    const byProj = {};
-    prs.forEach(pr => { (byProj[pr.project || 'Unknown'] = byProj[pr.project || 'Unknown'] || []).push(pr); });
-
-    body.innerHTML = Object.entries(byProj).map(([proj, items]) => {
-      const rows = items.map(pr => {
-        const lu = pr.last_unresolved;
-        const badge2 = pr.unresolved > 0
-          ? `<span style="color:var(--danger,#e0564a);font-size:11px;font-weight:600;white-space:nowrap">💬 ${pr.unresolved} unresolved</span>`
-          : `<span style="color:var(--accent2,#6cc070);font-size:11px;white-space:nowrap">✓ clear</span>`;
-        const roleTag = `<span style="font-size:10px;color:var(--muted);background:var(--surface2);border-radius:4px;padding:0 6px">${pr.role}</span>`;
-        const draft = pr.isDraft ? ' <span style="color:var(--muted);font-size:10px">[draft]</span>' : '';
-        const luLine = lu ? `<div style="margin-top:5px;padding:5px 8px;background:rgba(224,86,74,.08);border-radius:4px;border-left:2px solid var(--danger,#e0564a)">
-            <div style="font-size:11px;color:var(--muted)"><span style="color:var(--text);font-weight:600">${_esc(lu.author || '')}</span>${lu.mine ? ' (you)' : ''}</div>
-            ${lu.text ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;font-style:italic">"${_esc(lu.text)}"</div>` : ''}
-          </div>` : '';
-        return `<div style="padding:9px 14px;border-bottom:1px solid var(--border)${pr.unresolved > 0 ? ';background:rgba(224,86,74,.04)' : ''}">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-            <a href="${pr.url}" target="_blank" style="color:var(--text);text-decoration:none;font-size:13px;line-height:1.4" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text)'">!${pr.id} ${_esc(pr.title)}${draft}</a>
-            <span style="display:flex;align-items:center;gap:8px;flex-shrink:0">${roleTag}${badge2}</span>
-          </div>
-          <div class="ado-meta" style="margin-top:2px">${_esc(pr.repo)}</div>
-          ${luLine}
-        </div>`;
-      }).join('');
-      const projUnres = items.reduce((s, p) => s + (p.unresolved || 0), 0);
-      return `<div style="border-bottom:1px solid var(--border)">
-        <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface)">
-          <span style="font-weight:600;font-size:12px">${_esc(proj)}</span>
-          <span style="font-size:11px;color:var(--muted);background:var(--surface2);border-radius:9px;padding:0 7px">${items.length} PR${items.length !== 1 ? 's' : ''}</span>
-          ${projUnres > 0 ? `<span style="font-size:10px;color:var(--danger,#e0564a);font-weight:600">💬 ${projUnres}</span>` : ''}
-        </div>
-        ${rows}
-      </div>`;
-    }).join('');
   }
 
   function _renderBlockedFullwidth() {

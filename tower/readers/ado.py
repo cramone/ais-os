@@ -12,36 +12,13 @@ _cache_ts: float = 0.0
 _xp_cache: dict[str, Any] | None = None
 _xp_cache_ts: float = 0.0
 
-_pr_cache: dict[str, Any] | None = None
-_pr_cache_ts: float = 0.0
-
 
 def invalidate_cache() -> None:
-    global _cache, _cache_ts, _xp_cache, _xp_cache_ts, _pr_cache, _pr_cache_ts
+    global _cache, _cache_ts, _xp_cache, _xp_cache_ts
     _cache = None
     _cache_ts = 0.0
     _xp_cache = None
     _xp_cache_ts = 0.0
-    _pr_cache = None
-    _pr_cache_ts = 0.0
-
-
-def read_ado_pr_threads() -> dict[str, Any]:
-    """My active ADO Repos PRs across projects + unresolved comment-thread counts."""
-    global _pr_cache, _pr_cache_ts
-    if _pr_cache is not None and (time.monotonic() - _pr_cache_ts) < _TTL:
-        return _pr_cache
-    try:
-        raw = _run_script("--pr-threads", "--json")
-        try:
-            result = json.loads(raw)
-        except json.JSONDecodeError:
-            result = {"prs": [], "error": "bad JSON", "raw_text": raw}
-    except Exception as e:
-        result = {"prs": [], "error": str(e)}
-    _pr_cache = result
-    _pr_cache_ts = time.monotonic()
-    return _pr_cache
 
 
 def read_ado_cross_project() -> dict[str, Any]:

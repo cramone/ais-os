@@ -8,3 +8,4 @@ _Last updated: 2026-05-28_
 - **Q2 priorities**: Complete API, tenant management + auth, user security + policies
 - **"The spec"** refers to the most recent files in `projects/magiq-media/spec/`
 - **Deferred**: DocumentSigningSaga (not registered), SigningSessionSummaryProjector, DocumentSigningTimeoutScanner, MediaItemReviewSaga (partial — missing closing handlers)
+- **magiq-auth repo**: `D:\source\github\magiq-auth` — referenced in this project (likely upstream Identity/auth context)
