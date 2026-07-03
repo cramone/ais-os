@@ -64,7 +64,7 @@ Once the intake is complete, generate these files (or update if re-running). Bac
 3. **`context/priorities.md`** — from Q3. Numbered list, one line per priority.
 4. **`references/voice.md`** — from Q2. Paste samples verbatim with a short header explaining their use ("Match this register when drafting; don't fake voice on external content without showing me first").
 5. **`connections.md`** — populate the 7-row table from Q4-Q7 answers. Each row gets `mechanism: not yet connected`, `auth: —`, `last checked: —`. The user wires connections on Day 2.
-6. **`CLAUDE.md`** — fill all `{{...}}` placeholders. Substitute the user's name, stated priority, voice register summary, and a brief connections summary.
+6. **`aios.config.md`** — write the operator config: name/role/employer/product (Q1), current focus + priorities (Q3), connections table (Q4-Q7), voice pointer (Q2). This is the single per-operator identity file. **Do not edit `CLAUDE.md`** — it is generic and reads identity from `aios.config.md` at session start.
 
 ### Step 4: The closing screen
 
@@ -74,7 +74,7 @@ Print one screen. Three lines max:
 ✓ Day 1 done. Your AIOS knows who you are, what you sell, what matters this quarter, and how you sound.
 
 Today: ask me — "what should I focus on this week?"
-Tomorrow: pick one tool from connections.md and wire it up (manual MCP install or write a small API script + save references/{tool}-api.md).
+Tomorrow: run /configure to set your API keys, tokens, and MCP servers (.env + .mcp.json).
 Day 7: run /audit to see your score.
 ```
 
@@ -94,12 +94,12 @@ The Default Shift question seeds the Mindset framework before `/level-up` formal
 5. **Closing screen is three lines.** Not a menu.
 6. **No extra skills generated.** Don't scaffold `/today`, `/draft`, `/connect`, etc. The kit ships 3 skills; the user authors more via `/level-up`.
 7. **Read-only on `references/3ms-framework.md`.** It already ships in the kit. Don't overwrite.
-8. **No `.env` writes.** Don't ask for API keys on Day 1. Connections come Day 2.
+8. **No `.env` writes.** Don't ask for API keys on Day 1. Secrets, MCP wiring, and connections are Day 2 — handled by `/configure`.
 
 ## Verification (for the implementer)
 
 - Cold-test: clone a fresh kit, run `/onboard`, fill 7 answers, scaffold runs, ask the wow prompt, response cites Q1 + Q3 + Q7 specifically. Generic = fail.
-- Idempotency: re-run `/onboard` with one Q3 priority changed. Expected: only `context/priorities.md` and `CLAUDE.md`'s priority section update; backup created in `archives/intake-{ts}/`.
+- Idempotency: re-run `/onboard` with one Q3 priority changed. Expected: only `context/priorities.md` and `aios.config.md`'s priorities section update; backup created in `archives/intake-{ts}/`.
 - Voice rejection: type a sample mid-chat. Expected: skill refuses, asks for paste.
 
 > *Adapted from The Three Ms of AI™ © 2026 Nate Herk. The Mindset language used in the closing screen comes from `references/3ms-framework.md`.*

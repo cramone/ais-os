@@ -71,28 +71,49 @@ Dependency graph: Context is non-skippable. Connections + Capabilities can build
 
 ---
 
-## What ships — 3 skills
+## What ships — core skills
 
 The kit is intentionally lean. Skills here are ideation prompts and thinking tools, not heavy automations. You hack on top of the structure.
 
+**Setup (one-time, in order):**
+
 | Skill | Type | When to run |
 |---|---|---|
-| `/onboard` | Setup wizard (one-time) | Day 1, immediately after clone. 7-question interview. Generates Day-1 file set + fills `CLAUDE.md`. |
-| `/audit` | Recurring thinking skill | Day 7, then weekly. Four-Cs gap report. Read-only. Watch the score climb. |
-| `/level-up` | Recurring thinking skill | Day 14, then weekly. Three Ms interview (Mindset → Method → Machine). One run = one shipped artifact. |
+| `/onboard` | Setup wizard | Day 1, immediately after clone. 7-question interview. Generates the Day-1 file set + writes `aios.config.md` (operator identity). |
+| `/configure` | Setup wizard | Day 2. Prompts for API keys, tokens, and MCP servers; writes `.env` + `.mcp.json`. Idempotent — re-run to add or rotate. |
 
-`/audit` asks *"is the AIOS built right?"* (form). `/level-up` asks *"what business leverage am I missing?"* (function). They work in series — fix structure first, then capability planning becomes meaningful.
+**Recurring thinking skills:**
+
+| Skill | Type | When to run |
+|---|---|---|
+| `/audit` | Recurring | Day 7, then weekly. Four-Cs gap report. Read-only. Watch the score climb. |
+| `/level-up` | Recurring | Day 14, then weekly. Three Ms interview (Mindset → Method → Machine). One run = one shipped artifact. |
+
+`/onboard` sets *who you are*, `/configure` sets *how the machine runs*. `/audit` asks *"is the AIOS built right?"* (form); `/level-up` asks *"what business leverage am I missing?"* (function). Structure first, then capability.
 
 ---
 
 ## Quick start
 
 1. **Clone the repo** to a working folder on your machine.
-2. **Open it in Claude Code** and run `/onboard`. Answer the 7 questions honestly. Voice samples must be pasted, not described. Takes ~15 minutes. Day-1 file set drops at the end.
-3. **Use it for a week.** Bring real questions. Make real decisions. Log them via `/decision` (or just append to `decisions/log.md`).
-4. **Day 7:** run `/audit`. Read the Four-Cs gap report. Pick one gap to close.
-5. **Day 14:** run `/level-up`. The Three Ms interview surfaces one automation worth building. Build it.
-6. **Week 3+:** weekly `/level-up` ritual. One shipped artifact per week.
+2. **Open it in Claude Code** and run `/onboard`. Answer the 7 questions honestly. Voice samples must be pasted, not described. Takes ~15 minutes. Day-1 file set drops at the end (identity → `aios.config.md`).
+3. **Run `/configure`.** Set your API keys, tokens, and MCP servers. Writes `.env` + `.mcp.json` (both gitignored). See `SETUP.md` for the full variable manifest if you'd rather do it by hand.
+4. **Use it for a week.** Bring real questions. Make real decisions. Append them to `decisions/log.md`.
+5. **Day 7:** run `/audit`. Read the Four-Cs gap report. Pick one gap to close.
+6. **Day 14:** run `/level-up`. The Three Ms interview surfaces one automation worth building. Build it.
+7. **Week 3+:** weekly `/level-up` ritual. One shipped artifact per week.
+
+### Portability & setup
+
+Internal paths self-locate — **move the folder anywhere and nothing breaks, zero edits.** A fresh machine or new operator only fills **three files**:
+
+| File | Tracked? | Holds | How |
+|---|---|---|---|
+| `aios.config.md` | yes | Operator identity, focus, priorities, connections | `/onboard` |
+| `.env` | no (gitignored) | Secrets + external paths | `/configure` |
+| `.mcp.json` | no (gitignored) | MCP server wiring | `/configure` |
+
+Full manifest and manual steps: `SETUP.md`.
 
 ---
 
@@ -101,10 +122,14 @@ The kit is intentionally lean. Skills here are ideation prompts and thinking too
 ```
 AIS-OS/
 ├── README.md
-├── CLAUDE.md                        ← Your operating manual (filled by /onboard)
+├── SETUP.md                         ← Setup checklist + full variable manifest
+├── CLAUDE.md                        ← Generic operating manual. Reads identity from aios.config.md
+├── aios.config.md                   ← Operator identity/focus/priorities (filled by /onboard)
 ├── EXPANSIONS.md                    ← What to add as you grow
 ├── LICENSE
 ├── .gitignore
+├── .env.example                     ← Copy → .env. Secrets + external paths (/configure fills)
+├── .mcp.json.example                ← Copy → .mcp.json. MCP server wiring (/configure fills)
 ├── aios-intake.md                   ← Source-of-truth for /onboard. Edit + re-run any time.
 ├── connections.md                   ← Registry of every system your AIOS can reach
 ├── context/                         ← About you, your business (filled by /onboard)
@@ -112,15 +137,22 @@ AIS-OS/
 │   └── 3ms-framework.md             ← The operator brain
 ├── decisions/
 │   └── log.md                       ← Append-only record of what was decided and why
+├── projects/                        ← Structured initiatives (brief/architecture/decisions/…)
+├── tower/                           ← Control Tower — FastAPI + HTML dev dashboard
+├── scripts/                         ← Automation (self-locating paths)
+├── dashboards/                      ← Claudia dashboard
 ├── archives/                        ← Old stuff. Don't delete. Move here.
 └── .claude/
     └── skills/
         ├── onboard/SKILL.md
+        ├── configure/SKILL.md
         ├── audit/SKILL.md
         └── level-up/SKILL.md
 ```
 
-See `EXPANSIONS.md` for what to add as you grow (`projects/`, `templates/`, `scripts/`, `.claude/agents/`, sub-OS folders, etc.).
+Internal paths self-locate — no absolute paths in code. `.env` and `.mcp.json` are gitignored (secrets); their `.example` templates are tracked.
+
+See `EXPANSIONS.md` for what to add as you grow (`templates/`, `.claude/agents/`, sub-OS folders, etc.).
 
 ---
 
