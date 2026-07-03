@@ -4,6 +4,56 @@ Setting up on a new machine or as a new operator? You edit **three files**. Ever
 
 The fastest path is to let the AIOS walk you through it:
 
+---
+
+## Prerequisite: Network share (WSL)
+
+**Required if running AIS-OS from a NAS/network share** (e.g., `Z:\claudia\magiq\` mapped to `\\ramonenas.tail926842.ts.net\shared`).
+
+WSL does not automatically mount Windows network mapped drives. Without this, Claude Code's bash sessions can't reach the folder.
+
+```bash
+# Install CIFS client
+sudo apt install -y cifs-utils
+
+# Store NAS credentials
+sudo mkdir -p /etc/cifs
+sudo tee /etc/cifs/creds-shared <<'EOF'
+username=svc-shared
+password=YOUR_SYNOLOGY_SMB_PASSWORD
+EOF
+sudo chmod 600 /etc/cifs/creds-shared
+
+# Create mount point and add to fstab
+sudo mkdir -p /mnt/shared
+echo "//ramonenas.tail926842.ts.net/shared /mnt/shared cifs credentials=/etc/cifs/creds-shared,uid=1000,gid=1000,iocharset=utf8,vers=3.0 0 0" | sudo tee -a /etc/fstab
+
+# Mount immediately
+sudo mount -a
+```
+
+Ensure `/etc/wsl.conf` contains:
+
+```ini
+[automount]
+enabled = true
+mountFsTab = true
+```
+
+Restart WSL after any `wsl.conf` change (`wsl --shutdown` from PowerShell).
+
+**Resulting paths:**
+
+| Surface | Path |
+|---|---|
+| Windows (file tools, Explorer) | `Z:\claudia\magiq\` |
+| WSL (Claude Code bash) | `/mnt/shared/claudia/magiq/` |
+| Cortex / Claudia | `/mnt/shared/claudia/magiq/` |
+
+Skip this section if running AIS-OS from a local drive.
+
+---
+
 1. **`/onboard`** — establishes identity: who you are, what you sell, priorities, voice. Writes `aios.config.md` + `context/`.
 2. **`/configure`** — establishes the runtime: API keys, tokens, MCP servers. Writes `.env` + `.mcp.json`. Prompts you for every required variable.
 

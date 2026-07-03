@@ -107,6 +107,8 @@ The kit is intentionally lean. Skills here are ideation prompts and thinking too
 
 Internal paths self-locate — **move the folder anywhere and nothing breaks, zero edits.** A fresh machine or new operator only fills **three files**:
 
+> **Running from a network share?** If AIS-OS lives on a NAS (e.g., `Z:\claudia\magiq\` mapped from `\\ramonenas.tail926842.ts.net\shared`), WSL requires a one-time CIFS mount before Claude Code's bash sessions can reach it. See `SETUP.md` → *Prerequisite: Network share (WSL)*.
+
 | File | Tracked? | Holds | How |
 |---|---|---|---|
 | `aios.config.md` | yes | Operator identity, focus, priorities, connections | `/onboard` |
