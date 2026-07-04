@@ -1,0 +1,22 @@
+# Shared Azure DevOps MCP server — stdio bridged to Streamable HTTP via
+# supergateway, so Claude Code (Windows) and Claudia (Cortex) can both
+# reach ONE running instance instead of each spawning their own.
+#
+# Runs on Cortex only. Tailscale-only reachability (Traefik `tailnet`
+# entrypoint) is the security boundary — supergateway has no documented
+# incoming-auth gate for this direction (stdio->StreamableHttp), so don't
+# expose this beyond the tailnet.
+
+FROM node:22-alpine
+
+RUN npm install -g @azure-devops/mcp@2.7.0 supergateway
+
+EXPOSE 8000
+
+# Domains kept lean on purpose — same token-efficiency principle as Tower
+# staying on REST. Add more (search, pipelines, test-plans,
+# advanced-security) only if something actually needs them.
+ENTRYPOINT ["npx", "supergateway", \
+  "--stdio", "mcp-server-azuredevops MAGIQSoftware --authentication pat -d core work work-items repositories wiki", \
+  "--outputTransport", "streamableHttp", \
+  "--port", "8000"]

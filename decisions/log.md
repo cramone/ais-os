@@ -20,6 +20,48 @@ Keep it terse. Future-you will thank present-you for capturing the *why*, not ju
 
 ---
 
+## 2026-07-03 — Control Tower hosted on Cortex, Tailscale-only
+
+**Decision:** Deploy Control Tower as a Docker container on Cortex behind Traefik at `tower.ramonedevelopment.com`, on the `tailnet` entrypoint (not public). Deploy via manual `git pull && docker compose up -d --build` on Cortex — no registry, no CI. Cortex gets its own `/opt/ais-os` clone as the live-data publisher; Windows stays the interactive editing copy; a systemd timer auto-commits/pushes Tower's writes so Windows can pull them. Full design: `docs/superpowers/specs/2026-07-03-tower-cortex-deployment.md`.
+
+**Why:** Every other Cortex service (Seq, Portainer, Open WebUI) is Tailscale-only despite similar public-looking hostnames — Tower holds ADO/decision/customer data and follows that existing pattern rather than becoming the first public exception. Manual deploy fits homelab scale; CI/registry is deferred until it's actually friction. Cortex-as-publisher mirrors the existing Hermes pattern (writes straight into the git-tracked repo, no JSON handoff).
+
+**Alternatives considered:** Public exposure via the `websecure`/`public` certresolver (rejected — first non-ACME public service, unnecessary given Tailscale already covers phone/remote access). Automatic build-on-push via GitHub Actions + GHCR + Watchtower (rejected for now — adds a registry and a new always-on updater for a single-operator tool; can add later). Baking app code into the image (rejected — bind-mounting `/opt/ais-os` means code changes need only a restart, not a rebuild, and keeps runtime cleanly separated from code/data).
+
+**Owner:** Chase
+
+**Open items:** Claudia chat integration (`docker exec hermes ...`) won't work on Cortex — Hermes runs bare-metal there, not Docker. ADO reachability from Cortex's egress IP is unverified — test before relying on interrupt pushes.
+
+---
+
+## 2026-07-04 — Azure DevOps MCP: migrate to official server, host once on Cortex via supergateway
+
+**Decision:** Replace the `RainyCodeWizard/azure-devops-mcp-server` community fork with Microsoft's official `@azure-devops/mcp` (PAT auth — org blocks Entra app registrations, so the newer Remote MCP Server is unusable anyway, and separately doesn't yet support Claude Code as a client). Host ONE instance on Cortex, stdio bridged to Streamable HTTP via `supergateway`, behind Traefik's `tailnet` entrypoint — Claude Code (Windows) and Claudia (Cortex) both connect to it instead of each spawning a local copy. Tower stays on direct REST, unaffected. Full runbook: `docs/superpowers/specs/2026-07-04-azure-devops-mcp-integration.md`.
+
+**Why:** Single-maintainer community fork was replaced with product-backed tooling for something used daily. Shared hosting avoids running/maintaining two local stdio instances of the same server. Tailscale-only reachability matches every other service on this stack — consistent security model, not a new one.
+
+**Alternatives considered:** Microsoft's Remote MCP Server (rejected — Claude Code/Claude Desktop unsupported due to an Entra/MCP-spec OAuth gap, not just a rollout delay). Per-machine local stdio builds on both Windows and Cortex (rejected as the primary path but kept as a documented fallback if Cortex's ADO reachability turns out not to be allowlisted).
+
+**Owner:** Chase
+
+**Blocking dependency:** Cortex's egress IP must be within the ADO org's IP allowlist, or this entire design fails for both consumers (not just Claudia) — verify before building (Step 0 in the runbook). Also still pending from 2026-07-03: the exposed PAT rotation.
+
+---
+
+## 2026-07-03 — Claudia integration on Cortex: host-side HTTP bridge, not docker.sock
+
+**Decision:** Bridge Tower (containerized) to bare-metal Claudia on Cortex via a small stdlib-only HTTP server (`scripts/claudia-bridge/server.py`) running as its own systemd `--user` service on the host, bound to `127.0.0.1:8901`. Tower reaches it via `host.docker.internal`, mirroring the existing Open WebUI → Ollama pattern. `tower/readers/claudia.py` branches on `CLAUDIA_BRIDGE_URL`: set → bridge (Cortex), unset → original `docker exec hermes ...` (Windows dev).
+
+**Why:** Cortex runs Claudia bare-metal via systemd, not Docker — the original `docker exec hermes ...` call has nothing to attach to. Mounting `docker.sock` into the Tower container was the alternative and was rejected: real privilege escalation (host-level Docker control from inside a container) for a minor chat feature, and it still wouldn't find a `hermes` container on Cortex. SSH-from-container was also considered and rejected in favor of the bridge — avoids managing SSH keys inside the image and duplicating Claudia's environment.
+
+**Alternatives considered:** `docker.sock` mount (rejected — privilege escalation, wrong host model anyway). SSH from container to host (rejected — key management overhead for no real benefit over a plain HTTP bridge). Replicating the Hermes venv inside the Tower image (rejected — duplicates a working install, fragile to keep in sync).
+
+**Owner:** Chase
+
+**Not yet verified:** the bridge assumes `claudia chat -q "<message>" --yolo` is the correct non-interactive CLI invocation. Confirm on Cortex before enabling — see `docs/superpowers/specs/2026-07-03-tower-cortex-deployment.md`.
+
+---
+
 ## 2026-05-03 — Azure DevOps: REST API over MCP server 1
 
 **Decision:** Connect to Azure DevOps via direct REST API calls (PAT auth) rather than an MCP server.

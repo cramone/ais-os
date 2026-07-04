@@ -1,0 +1,21 @@
+{
+  "_comment": "Copy to .mcp.json. Claude Code expands ${VAR} from the shell environment at launch. Set these vars in your shell/profile (or source .env before launching claude). .mcp.json is gitignored — it must be recreated per machine. Requires the azure-devops-mcp:latest image built from mcp/azure-devops/Dockerfile (docker build -t azure-devops-mcp:latest mcp/azure-devops).",
+  "mcpServers": {
+    "azure-devops": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-e", "PERSONAL_ACCESS_TOKEN",
+        "-e", "ado_mcp_project",
+        "azure-devops-mcp:latest",
+        "${AZURE_DEVOPS_ORG}",
+        "--authentication", "pat",
+        "-d", "core", "work", "work-items", "repositories", "wiki"
+      ],
+      "env": {
+        "PERSONAL_ACCESS_TOKEN": "${AZURE_DEVOPS_PAT_B64}",
+        "ado_mcp_project": "${AZURE_DEVOPS_PROJECT}"
+      }
+    }
+  }
+}
