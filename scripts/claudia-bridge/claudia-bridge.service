@@ -1,0 +1,21 @@
+# Reference unit — install as a systemd --user service on Cortex:
+#   mkdir -p ~/.config/systemd/user
+#   cp scripts/claudia-bridge/claudia-bridge.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now claudia-bridge.service
+#
+# loginctl enable-linger chase is already set on Cortex (per the AI-X1-Pro
+# setup guide, needed for the Hermes gateway services) — this service
+# persists after SSH disconnect the same way.
+
+[Unit]
+Description=Claudia HTTP bridge for Control Tower
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/ais-os/scripts/claudia-bridge/server.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

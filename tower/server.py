@@ -48,9 +48,20 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="AIS-OS Control Tower", lifespan=lifespan)
+
+# Wildcard was fine for localhost-only dev. Now that Tower is reachable from
+# other devices on the tailnet, scope it to known origins. Override/extend
+# via TOWER_ALLOWED_ORIGINS (comma-separated) — set to the deployed hostname
+# in Cortex's .env.
+_default_origins = "http://localhost:8765,http://127.0.0.1:8765"
+_allowed_origins = [
+    o.strip()
+    for o in os.getenv("TOWER_ALLOWED_ORIGINS", _default_origins).split(",")
+    if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -79,7 +90,20 @@ async def _token_auth(request: Request, call_next):
 # --- Health ---
 
 def _hermes_container_up() -> bool:
-    """True if docker is on PATH and a container named 'hermes' is running."""
+    """True if Claudia is reachable.
+
+    Cortex: probes the host-side HTTP bridge (CLAUDIA_BRIDGE_URL) fronting
+    the bare-metal `claudia` CLI. Windows dev: falls back to checking for a
+    running Docker container named 'hermes'.
+    """
+    bridge_url = os.getenv("CLAUDIA_BRIDGE_URL", "")
+    if bridge_url:
+        try:
+            import httpx
+            r = httpx.get(f"{bridge_url.rstrip('/')}/health", timeout=3)
+            return r.status_code == 200
+        except Exception:
+            return False
     if not shutil.which("docker"):
         return False
     try:
