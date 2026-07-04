@@ -28,18 +28,18 @@ Check if a known project slug appears in the request or recent conversation:
 
 **Step 2 — Detect note type** (only if project detected):
 
-| Keywords | Route to skill |
+| Keywords | Route to `project-management` section |
 |---|---|
-| "idea", "what if", "thinking about" | `project-idea` |
-| "decided", "going with", "decision" | `project-decision` |
-| "risk", "concern", "worried", "issue" | `project-risk` |
-| "question", "not sure", "need to figure out" | `project-question` |
-| "update", "change", "revise" | `project-update` |
-| anything else | `project-idea` (default for project notes) |
+| "idea", "what if", "thinking about" | § Idea |
+| "decided", "going with", "decision" | § Decision |
+| "risk", "concern", "worried", "issue" | § Risk |
+| "question", "not sure", "need to figure out" | § Question |
+| "update", "change", "revise" | § Update |
+| anything else | § Idea (default for project notes) |
 
 **Step 3 — Execute:**
 
-- **Project detected** → invoke the matching `project-*` skill procedure inline (do not ask user to re-trigger)
+- **Project detected** → invoke the matching `project-management` section inline (do not ask user to re-trigger). `project-idea`/`project-decision`/`project-risk`/`project-question`/`project-update` no longer exist as separate skills — they were folded into `project-management`'s labeled sections.
 - **No project** → write to general adhoc memory (see below)
 
 ---
@@ -50,7 +50,7 @@ When no project context detected:
 
 1. Extract note — preserve Chase's wording exactly.
 2. Derive short title (≤8 words).
-3. Append to `/workspace/ais-os/context/adhoc-notes.md`:
+3. Append to `/mnt/shared/claudia/magiq/context/adhoc-notes.md`:
 
 ```
 ## [YYYY-MM-DDTHH:MM:SSZ] — [title]

@@ -107,3 +107,14 @@ Total: N PRs · M repos · oldest pending: X days
 **Trigger phrase:** "show my open PRs" or "pending PRs"
 
 The skill activates automatically on those phrases. No extra context needed — it reads the authenticated account and scans all repos.
+
+---
+
+## Restore note (2026-07-04)
+
+This skill is **not currently present** in Claudia's live profile (`~/.hermes/profiles/claudia/skills/` only has the generic bundled `github` skill). This reference copy is kept so it can be copied back:
+
+```bash
+cp -r /mnt/shared/claudia/magiq/references/hermes-skills/github-my-prs ~/.hermes/profiles/claudia/skills/
+claudia gateway restart
+```

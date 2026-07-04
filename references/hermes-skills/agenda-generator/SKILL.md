@@ -23,7 +23,7 @@ Generate formatted meeting agendas from per-project config files in the AIS-OS w
 
 ## Workspace Root
 
-`/workspace/ais-os/`
+`/mnt/shared/claudia/magiq/`
 
 ## Project Slugs
 
@@ -35,9 +35,9 @@ Generate formatted meeting agendas from per-project config files in the AIS-OS w
 
 ## Config Locations
 
-- Meeting config: `/workspace/ais-os/projects/{slug}/meetings/config.json`
-- Team registry: `/workspace/ais-os/context/team-members.json`
-- Agenda output: `/workspace/ais-os/projects/{slug}/meetings/agendas/YYYY-MM-DD-{meeting-id}.md`
+- Meeting config: `/mnt/shared/claudia/magiq/projects/{slug}/meetings/config.json`
+- Team registry: `/mnt/shared/claudia/magiq/context/team-members.json`
+- Agenda output: `/mnt/shared/claudia/magiq/projects/{slug}/meetings/agendas/YYYY-MM-DD-{meeting-id}.md`
 
 ---
 
@@ -63,7 +63,7 @@ Reply:
 > - Department
 > - Role"
 
-On receipt → append to `/workspace/ais-os/context/team-members.json` then continue.
+On receipt → append to `/mnt/shared/claudia/magiq/context/team-members.json` then continue.
 
 ### Step 4 — Generate agenda
 
@@ -110,7 +110,7 @@ Template:
 
 ### Step 5 — Save and reply
 
-Write to `/workspace/ais-os/projects/{slug}/meetings/agendas/YYYY-MM-DD-{id}.md`
+Write to `/mnt/shared/claudia/magiq/projects/{slug}/meetings/agendas/YYYY-MM-DD-{id}.md`
 
 Reply with:
 ```

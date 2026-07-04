@@ -7,10 +7,11 @@
   "enabledMcpjsonServers": ["azure-devops"],
   "mcpServers": {
     "hermes": {
-      "command": "docker",
+      "command": "ssh",
       "args": [
-        "exec", "-i", "hermes",
-        "hermes", "mcp", "serve"
+        "-T",
+        "chase@cortex",
+        "claudia", "mcp", "serve"
       ]
     }
   }
