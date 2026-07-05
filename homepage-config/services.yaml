@@ -1,0 +1,11 @@
+# Manual entries only — for anything that ISN'T a Docker container and so can't carry a
+# homepage.* label. Everything else (chat/logs/portainer/redis/tower/sql/status/traefik/
+# mcp-ado/netdata) is label-discovered from docker-compose.yml — don't duplicate those here.
+#
+# Grouping under "Infrastructure" merges this with the label-discovered Infrastructure tiles
+# (Traefik, Portainer, Netdata) into one section on the dashboard.
+- Infrastructure:
+    - Cockpit:
+        href: https://100.90.195.22:9090
+        description: Host system admin (native systemd service, not containerized)
+        icon: cockpit.png

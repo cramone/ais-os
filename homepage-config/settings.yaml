@@ -1,0 +1,23 @@
+title: cortex
+theme: dark
+color: slate
+
+layout:
+  AI:
+    style: row
+    columns: 2
+  Infrastructure:
+    style: row
+    columns: 4
+  Data:
+    style: row
+    columns: 3
+  Ops:
+    style: row
+    columns: 3
+
+# Docker-label discovery does the heavy lifting here — see docker.yaml and the homepage.*
+# labels on each service in ~/stack/docker-compose.yml (same file as the magiq repo's
+# docker-compose.yml, kept in sync per decisions/log.md). Group names above must match the
+# homepage.group label values exactly (case-sensitive) or a service lands in an unstyled
+# default group instead of the intended layout column count.

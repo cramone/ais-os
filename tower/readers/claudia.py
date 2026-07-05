@@ -6,16 +6,26 @@ import httpx
 
 # Set on Cortex only (.env). Points at scripts/claudia-bridge/server.py, a
 # host-side (non-Docker) HTTP wrapper around the bare-metal `claudia` CLI.
-# Unset on Windows dev, where Hermes still runs as a Docker container named
-# 'hermes' — see _send_via_docker below.
+# This is the ONLY working path from inside Cortex's containerized Tower —
+# the container has no SSH client/keys (Dockerfile only adds git/gh), so
+# _send_via_docker's SSH command below can't actually run from there.
+#
+# Single-.env wrinkle (2026-07-05): Windows/WSL and Cortex now share one
+# .env. If CLAUDIA_BRIDGE_URL is set there, a Windows/WSL dev instance of
+# Tower (`python tower/start.py`, not in Docker) will also try the bridge —
+# and host.docker.internal doesn't resolve outside a container, so "Ask
+# Claudia" specifically fails there even though everything else works fine.
 CLAUDIA_BRIDGE_URL = os.getenv("CLAUDIA_BRIDGE_URL", "")
 
-# 2026-07-04: repointed from the retired Windows Docker Hermes container
-# (`docker exec hermes ...`) to Claudia's bare-metal profile on cortex, reached
-# over Tailscale SSH. `cortex` resolves via Tailscale MagicDNS (same alias used
-# throughout the setup guide / migration plan — confirm `ssh chase@cortex` works
-# non-interactively, i.e. key-based auth with no passphrase prompt, from whatever
-# host runs the Tower).
+# Fallback when CLAUDIA_BRIDGE_URL is unset — i.e. Windows/WSL dev today, or
+# a future Cortex path if a way to reach the bridge without it is ever added.
+# NOTE: despite the function name below, this has NOT called `docker exec`
+# since 2026-07-04 — it was repointed from the retired Windows Docker Hermes
+# container to SSH straight into Claudia's bare-metal profile on cortex.
+# `cortex` resolves via Tailscale MagicDNS (same alias used throughout the
+# setup guide / migration plan — confirm `ssh chase@cortex` works
+# non-interactively, i.e. key-based auth with no passphrase prompt, from
+# whatever host runs this).
 CORTEX_HOST = "chase@cortex"
 
 
@@ -26,7 +36,7 @@ def send_to_claudia(message: str) -> dict[str, Any]:
 
 
 def _send_via_bridge(message: str) -> dict[str, Any]:
-    """Cortex: bare-metal Claudia via the host-side HTTP bridge."""
+    """Cortex, containerized Tower: bare-metal Claudia via the host-side HTTP bridge."""
     try:
         r = httpx.post(
             f"{CLAUDIA_BRIDGE_URL.rstrip('/')}/chat",
@@ -47,7 +57,8 @@ def _send_via_bridge(message: str) -> dict[str, Any]:
 
 
 def _send_via_docker(message: str) -> dict[str, Any]:
-    """Windows dev: Hermes runs as a Docker container named 'hermes'."""
+    """Windows/WSL dev fallback (name kept for history — this is an SSH call,
+    not `docker exec`; see the CORTEX_HOST comment above for why)."""
     try:
         result = subprocess.run(
             ["ssh", CORTEX_HOST, "claudia", "chat", "-q", message, "--yolo"],

@@ -1,0 +1,5 @@
+# Docker provider — enables label-based auto-discovery for every container in
+# ~/stack/docker-compose.yml that carries homepage.* labels. No credentials needed for a
+# local socket mount (read-only, see the homepage service's volumes in docker-compose.yml).
+my-docker:
+  socket: /var/run/docker.sock

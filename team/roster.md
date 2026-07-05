@@ -30,3 +30,7 @@
 - Estelle and Akshay are the two devs — update their ownership areas once known
 - Tom Fenton is the go-to for cloud architecture decisions before committing to infrastructure changes
 - Support team (Glen, Dayle, Liam) are the source of production bug reports — check with them before closing support-related items
+
+---
+
+**This is the canonical roster.** The Team section in `context/claude-personal-preferences.md` is a condensed copy (Name + Role only) — it's pasted verbatim into Claude.ai Settings → Personal Preferences, which has no file access, so it has to stay self-contained. Update here first, then regenerate that block if the team changes.

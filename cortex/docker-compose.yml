@@ -1,0 +1,449 @@
+# SECRETS: this file must never contain literal passwords — only ${VAR} references.
+# Real values live in ~/stack/.env on cortex ONLY (never on the /mnt/shared/claudia/magiq NAS
+# share this file is mirrored from/to). Compose auto-substitutes ${VAR} from a .env file in the
+# same directory as this one at parse time — no code change needed beyond keeping that .env
+# populated. Vars used here: MYSQL_ROOT_PASSWORD, MSSQL_SA_PASSWORD, CIFS_SHARED_PASSWORD.
+# Added 2026-07-05 specifically so this file is safe to edit/share with an AI assistant without
+# ever exposing real secrets — see decisions/log.md and setup guide Stage 22.
+x-logging: &default-logging
+  logging:
+   driver: json-file
+   options:
+     max-size: "10m"
+     max-file: "3"
+
+services:
+  cloudbeaver:
+    image: dbeaver/cloudbeaver:latest
+    restart: unless-stopped
+    <<: *default-logging
+    volumes:
+      - cloudbeaver_data:/opt/cloudbeaver/workspace
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cloudbeaver.rule=Host(`sql.ramonedevelopment.com`)"
+      - "traefik.http.routers.cloudbeaver.entrypoints=tailnet"
+      - "traefik.http.routers.cloudbeaver.tls.certresolver=public"
+      - "traefik.http.services.cloudbeaver.loadbalancer.server.port=8978"
+      - "homepage.group=Data"
+      - "homepage.name=CloudBeaver"
+      - "homepage.icon=cloudbeaver.png"
+      - "homepage.href=https://sql.ramonedevelopment.com:8443"
+      - "homepage.description=SQL admin — MySQL + SQL Server"
+    # Web SQL client for mysql + sqlserver. No pre-seeded connections via compose — CE edition
+    # configures connections through the UI on first load (see setup guide Stage 19). Reaches
+    # both databases by Docker service name (mysql:3306, sqlserver:1433) over the default
+    # compose network — no Tailscale hop needed since cloudbeaver, mysql, and sqlserver all
+    # land on the same bridge network (none of the three set network_mode: host).
+
+  dns-internal:
+    image: 4km3/dnsmasq:2.90-r3
+    restart: unless-stopped
+    <<: *default-logging
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    command:
+      - "--listen-address=100.90.195.22"
+      - "--bind-interfaces"
+      - "--no-resolv"
+      - "--no-hosts"
+      - "--address=/ramonedevelopment.com/100.90.195.22"
+      - "--server=1.1.1.1"
+      - "--server=8.8.8.8"
+      - "--log-queries"
+    # Split-DNS resolver for the tailnet (Phase 2 of traefik-internal-tls-implementation-plan.md).
+    # Answers every *.ramonedevelopment.com query with cortex's own tailnet IP so tailnet
+    # devices reach internal Traefik routers without --resolve tricks or hosts-file entries;
+    # forwards every other query upstream. --listen-address + --bind-interfaces restricts
+    # dnsmasq to the tailscale0 IP ONLY — it must never bind :53 on all interfaces, since that
+    # would collide with systemd-resolved's 127.0.0.53 stub listener and/or answer queries from
+    # the LAN/public interface. Wired into Tailscale as a RESTRICTED nameserver (split DNS) for
+    # the ramonedevelopment.com search domain — not a global nameserver — so non-tailnet
+    # clients are completely unaffected. NOT yet empirically verified — confirm nslookup
+    # results from a tailnet client before relying on this.
+
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    restart: unless-stopped
+    <<: *default-logging
+    environment:
+      HOMEPAGE_ALLOWED_HOSTS: "home.ramonedevelopment.com:8443"
+    volumes:
+      - /mnt/shared/claudia/magiq/homepage-config:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.homepage.rule=Host(`home.ramonedevelopment.com`)"
+      - "traefik.http.routers.homepage.entrypoints=tailnet"
+      - "traefik.http.routers.homepage.tls.certresolver=public"
+      - "traefik.http.services.homepage.loadbalancer.server.port=3000"
+    # Landing page for every tailnet admin UI. Config lives in the magiq repo itself
+    # (homepage-config/, bind-mounted, git-trackable — same convention as everything else in
+    # this file) rather than a named volume, so it's editable directly and versioned alongside
+    # the compose file. Docker socket is read-only and used only for label discovery + optional
+    # container stats — Homepage does not need write access to manage containers.
+    # Tile discovery is label-driven: every other service in this file carries homepage.group/
+    # name/icon/href/description labels. Adding a new service's tile is the same edit as adding
+    # its traefik.* labels — no second file to keep in sync. Non-Docker things (Cockpit) are
+    # added manually in homepage-config/services.yaml instead, since there's no container to
+    # attach a label to.
+    # HOMEPAGE_ALLOWED_HOSTS is required as of the Next.js 16 base image — without it every
+    # request 500s with "Host validation failed for: home.ramonedevelopment.com:8443" regardless
+    # of Traefik routing working correctly. Must include the port (:8443, the tailnet
+    # entrypoint), not just the bare hostname. Confirmed 2026-07-05.
+
+  mcp-azure-devops:
+    build:
+      context: /mnt/shared/claudia/magiq/mcp/azure-devops
+      dockerfile: Dockerfile.gateway
+    restart: unless-stopped
+    <<: *default-logging
+    env_file:
+      - /mnt/shared/claudia/magiq/.env
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mcp-ado.rule=Host(`mcp-ado.ramonedevelopment.com`)"
+      - "traefik.http.routers.mcp-ado.entrypoints=tailnet"
+      - "traefik.http.routers.mcp-ado.tls.certresolver=public"
+      - "traefik.http.services.mcp-ado.loadbalancer.server.port=8000"
+      - "homepage.group=Ops"
+      - "homepage.name=Azure DevOps MCP"
+      - "homepage.icon=azure-devops.png"
+      - "homepage.href=https://mcp-ado.ramonedevelopment.com:8443/mcp"
+      - "homepage.description=ADO MCP gateway (API endpoint, not a browser UI)"
+    # Tailnet-only router, but gets a real LE cert via the public HTTP-01 resolver — see
+    # traefik-internal-tls-implementation-plan.md Phase 1. Service itself stays unreachable
+    # from the public internet (entrypoints=tailnet only); only the ACME challenge is public.
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    <<: *default-logging
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - shared_data:/data/shared
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  netdata:
+    image: netdata/netdata:latest
+    restart: unless-stopped
+    <<: *default-logging
+    pid: host
+    network_mode: host
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - apparmor:unconfined
+    volumes:
+      - netdataconfig:/etc/netdata
+      - netdatalib:/var/lib/netdata
+      - netdatacache:/var/cache/netdata
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /etc/os-release:/host/etc/os-release:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      - "homepage.group=Infrastructure"
+      - "homepage.name=Netdata"
+      - "homepage.icon=netdata.png"
+      - "homepage.href=http://100.90.195.22:19999"
+      - "homepage.description=Resource/CPU/RAM monitoring"
+    # network_mode: host bypasses Traefik, binds :19999 to all interfaces — locked to tailscale0 via ufw, see Decision Log
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    restart: unless-stopped
+    <<: *default-logging
+    environment:
+      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
+      WEBUI_AUTH: "true"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - openwebui_data:/app/backend/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.openwebui.rule=Host(`chat.ramonedevelopment.com`)"
+      - "traefik.http.routers.openwebui.entrypoints=tailnet"
+      - "traefik.http.routers.openwebui.tls.certresolver=public"
+      - "homepage.group=AI"
+      - "homepage.name=Open WebUI"
+      - "homepage.icon=open-webui.png"
+      - "homepage.href=https://chat.ramonedevelopment.com:8443"
+      - "homepage.description=Ollama chat frontend"
+    # mem_limit/cpus deferred until post-Stage-12 contention benchmarking
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    restart: unless-stopped
+    <<: *default-logging
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portainer.rule=Host(`portainer.ramonedevelopment.com`)"
+      - "traefik.http.routers.portainer.entrypoints=tailnet"
+      - "traefik.http.routers.portainer.tls.certresolver=public"
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+      - "homepage.group=Infrastructure"
+      - "homepage.name=Portainer"
+      - "homepage.icon=portainer.png"
+      - "homepage.href=https://portainer.ramonedevelopment.com:8443"
+      - "homepage.description=Docker container management"
+    # loadbalancer.server.port=9000 added 2026-07-05 — same class of bug as Seq: Portainer's
+    # image exposes THREE ports (8000 edge agent, 9000 plain HTTP UI, 9443 HTTPS UI). Without an
+    # explicit port, Traefik's docker provider has to guess and may pick the wrong one. 9000 is
+    # the plain-HTTP web UI, matching Traefik's default plain-HTTP backend communication.
+
+  redis-stack:
+    image: redis/redis-stack:latest
+    restart: unless-stopped
+    <<: *default-logging
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.redisinsight.rule=Host(`redis.ramonedevelopment.com`)"
+      - "traefik.http.routers.redisinsight.entrypoints=tailnet"
+      - "traefik.http.routers.redisinsight.tls.certresolver=public"
+      - "traefik.http.services.redisinsight.loadbalancer.server.port=8001"
+      - "homepage.group=Data"
+      - "homepage.name=RedisInsight"
+      - "homepage.icon=redis.png"
+      - "homepage.href=https://redis.ramonedevelopment.com:8443"
+      - "homepage.description=Redis Stack admin UI"
+    # RedisInsight UI bundled on container port 8001. Redis protocol (6379) stays off Traefik —
+    # reach it directly via Tailscale IP + port.
+
+  seq:
+    image: datalust/seq:latest
+    restart: unless-stopped
+    <<: *default-logging
+    environment:
+      ACCEPT_EULA: "Y"
+      SEQ_FIRSTRUN_ADMINPASSWORD: ${SEQ_FIRSTRUN_ADMINPASSWORD}
+    volumes:
+      - seq_data:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.seq.rule=Host(`logs.ramonedevelopment.com`)"
+      - "traefik.http.routers.seq.entrypoints=tailnet"
+      - "traefik.http.routers.seq.tls.certresolver=public"
+      - "traefik.http.services.seq.loadbalancer.server.port=80"
+      - "homepage.group=Data"
+      - "homepage.name=Seq"
+      - "homepage.icon=seq.png"
+      - "homepage.href=https://logs.ramonedevelopment.com:8443"
+      - "homepage.description=Log aggregation"
+    # Renamed from seq.ramonedevelopment.com — that FQDN is already in use by the
+    # Windows Traefik instance for its own Seq. logs.ramonedevelopment.com avoids the collision.
+    # SEQ_FIRSTRUN_ADMINPASSWORD required as of Seq 2025.2.x — confirmed 2026-07-05, container
+    # crash-loops on boot without it ("No default admin password was supplied") and Traefik never
+    # gets a stable container to register a router for, which is what actually caused the
+    # "router not found: seq@docker" symptom, not a labels/routing problem. Log in as admin/
+    # loadbalancer.server.port=80 added same day — Seq's image exposes FOUR ports (80 plain UI,
+    # 443 TLS UI, 5341 plain ingestion, 45341 TLS ingestion). Without an explicit port, Traefik's
+    # docker provider auto-selected one on its own (visible as the "seq-stack" default service
+    # name) and got it wrong, causing a 404 even after the router itself was confirmed correctly
+    # registered. Every other multi-port service in this file (redis-stack, cloudbeaver, tower,
+    # kuma, mcp-azure-devops) already pins this explicitly — Seq was the one gap.
+    # <the password you set> on first load.
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: unless-stopped
+    <<: *default-logging
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Developer"
+      SA_PASSWORD: "${MSSQL_SA_PASSWORD}"
+    volumes:
+      - mssql_data:/var/opt/mssql
+      - shared_data:/data/shared
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # ── AIS-OS Control Tower
+  tower:
+    build:
+      context: /mnt/shared/claudia/magiq
+      dockerfile: tower/Dockerfile
+    restart: unless-stopped
+    <<: *default-logging
+    user: "1000:1000"
+    env_file:
+      - /mnt/shared/claudia/magiq/.env
+    volumes:
+      - /mnt/shared/claudia/magiq:/app
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tower.rule=Host(`tower.ramonedevelopment.com`)"
+      - "traefik.http.routers.tower.entrypoints=tailnet"
+      - "traefik.http.routers.tower.tls.certresolver=public"
+      - "traefik.http.services.tower.loadbalancer.server.port=8765"
+      - "homepage.group=Ops"
+      - "homepage.name=AIS-OS Tower"
+      - "homepage.icon=dashboard.png"
+      - "homepage.href=https://tower.ramonedevelopment.com:8443"
+      - "homepage.description=ADO sprint dashboard, Hermes inbox, decisions, interrupts"
+
+  traefik:
+    image: traefik:v3.6
+    restart: unless-stopped
+    <<: *default-logging
+    network_mode: host
+    # Required for the tailnet entrypoint below: Tailscale creates tailscale0 in the HOST
+    # network namespace. A container on the default bridge network can't see it — binding to
+    # a tailscale IP from inside a bridge-networked container fails with
+    # "bind: cannot assign requested address" even when the IP is correct (confirmed via
+    # `tailscale ip -4` on the host). host networking puts Traefik in the host's namespace,
+    # same fix pattern already used for netdata below. `ports:` is dropped below since it's
+    # meaningless (and ignored) under host networking — the entrypoint addresses in `command`
+    # are what actually bind now.
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.tailnet.address=100.90.195.22:8443"   # must match `tailscale ip -4` on cortex
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.public.acme.httpchallenge=true"
+      - "--certificatesresolvers.public.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.public.acme.email=chase.ramone@magiqsoftware.com"
+      - "--certificatesresolvers.public.acme.storage=/letsencrypt/acme.json"
+      - "--log.level=INFO"
+      - "--api.dashboard=true"
+      # cortex is now sole owner of ramonedevelopment.com's public ACME path.
+      # Windows Traefik box decommissioned 2026-07 — see Decision Log.
+    # NOTE: DOCKER_API_VERSION env var does NOT fix the "client version 1.24 is too old" error —
+    # tried that first, no effect. Root cause: Traefik versions before 3.6.1 hardcode their
+    # Docker SDK client to declare API v1.24 regardless of env vars; Docker Engine 29 raised
+    # its minimum accepted client version to 1.44 and rejects that fallback outright. Fixed
+    # upstream in Traefik 3.6.1 via real auto-negotiation — pinning the image to v3.6 (above)
+    # is the actual fix, not a config workaround. See Decision Log if downgrading Docker
+    # Engine instead is ever considered — not recommended, just documenting the alternative.
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "/var/lib/tailscale/certs:/tailscale-certs:ro"
+      - "traefik_certs:/letsencrypt"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.ramonedevelopment.com`)"
+      - "traefik.http.routers.traefik-dashboard.entrypoints=tailnet"
+      - "traefik.http.routers.traefik-dashboard.tls.certresolver=public"
+      - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      - "traefik.http.services.traefik-stack.loadbalancer.server.port=8080"
+      - "homepage.group=Infrastructure"
+      - "homepage.name=Traefik"
+      - "homepage.icon=traefik.png"
+      - "homepage.href=https://traefik.ramonedevelopment.com:8443"
+      - "homepage.description=Reverse proxy dashboard"
+    # api.dashboard=true turns on the read/write API + UI; api@internal is Traefik's built-in
+    # virtual service for its own API, no separate container needed. Same §10.3b cert pattern
+    # and tailnet-only reachability as every other admin UI here — no extra basic-auth
+    # middleware added since Tailscale-only access is already this stack's security boundary.
+    # traefik.http.services.traefik-stack.loadbalancer.server.port=8080 — Traefik's Docker
+    # provider always attempts to auto-build a default backend service for any container with
+    # traefik.enable=true, independent of whether a router actually uses it. Since this
+    # container runs network_mode: host with no exposed port, that auto-build fails with
+    # "port is missing" (confirmed 2026-07-05, harmless — the traefik-dashboard router above
+    # already overrides its backend to api@internal, so the auto-built service is dead code).
+    # This throwaway port value is never actually dispatched to; it just satisfies Traefik's
+    # internal check so the error stops repeating in the logs.
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    restart: unless-stopped
+    <<: *default-logging
+    volumes:
+      - kuma_data:/app/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kuma.rule=Host(`status.ramonedevelopment.com`)"
+      - "traefik.http.routers.kuma.entrypoints=tailnet"
+      - "traefik.http.routers.kuma.tls.certresolver=public"
+      - "traefik.http.services.kuma.loadbalancer.server.port=3001"
+      - "homepage.group=Ops"
+      - "homepage.name=Uptime Kuma"
+      - "homepage.icon=uptime-kuma.png"
+      - "homepage.href=https://status.ramonedevelopment.com:8443"
+      - "homepage.description=Status/uptime monitoring"
+    # Uptime/status monitor for the tailnet services (chat/logs/portainer/redis/tower/sql/etc).
+    # Distinct from Netdata — Netdata is resource/CPU/RAM pressure, Kuma is availability history
+    # + alerting per monitored URL. Add each Traefik-fronted hostname as an HTTP(s) monitor
+    # after first login (Stage 18).
+
+  whoami-test:
+    image: traefik/whoami
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami-test.rule=Host(`test.ramonedevelopment.com`)"
+      - "traefik.http.routers.whoami-test.entrypoints=websecure"
+      - "traefik.http.routers.whoami-test.tls.certresolver=public"
+
+  # --- FUTURE services to migrate off the Windows Traefik box once decommissioned.
+  #     These currently run elsewhere (host.docker.internal:<port> on Windows) — add real
+  #     service definitions here as each is moved to cortex, then label + uncomment routing.
+  #
+  # magiq-auth:
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.magiq-auth.rule=Host(`auth.ramonedevelopment.com`)"
+  #     - "traefik.http.routers.magiq-auth.entrypoints=websecure"
+  #     - "traefik.http.routers.magiq-auth.tls.certresolver=public"
+  #
+  # media-api:
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.media-api.rule=Host(`media-api.ramonedevelopment.com`)"
+  #     - "traefik.http.routers.media-api.entrypoints=websecure"
+  #     - "traefik.http.routers.media-api.tls.certresolver=public"
+  #
+  # media-ui:
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.media-ui.rule=Host(`media.ramonedevelopment.com`)"
+  #     - "traefik.http.routers.media-ui.entrypoints=websecure"
+  #     - "traefik.http.routers.media-ui.tls.certresolver=public"
+  #
+  # tenant1 / tenant2 / www / traefik-dashboard: same pattern, see legacy Windows dynamic.yml
+  # for the full router/service list to port over.
+
+volumes:
+  cloudbeaver_data:
+  kuma_data:
+  mssql_data:
+  mysql_data:
+  netdatacache:
+  netdataconfig:
+  netdatalib:
+  openwebui_data:
+  portainer_data:
+  redis_data:
+  seq_data:
+  shared_data:
+    driver: local
+    driver_opts:
+      type: cifs
+      o: "username=svc-shared,password=${CIFS_SHARED_PASSWORD},vers=3.0,uid=1000,gid=1000,domain=WORKGROUP"
+      device: "//ramonenas.tail926842.ts.net/shared"
+  traefik_certs:

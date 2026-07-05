@@ -34,6 +34,8 @@ A C# microservices platform for media asset ingestion, processing, storage, cata
 **Known gaps:** DocumentSigningSaga deferred, SigningSessionSummaryProjector deferred, MediaItemReviewSaga partially implemented.
 
 ## Team
+_(Condensed from `team/roster.md` — that's the canonical, fuller record. Update there first, then regenerate this block.)_
+
 | Name | Role |
 |---|---|
 | Chase Ramone | Senior Dev Team Lead — architecture, engineering delivery |

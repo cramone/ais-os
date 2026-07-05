@@ -284,3 +284,79 @@ unnecessary complexity for Q2.
 **Bike Method:** Phase 1 (manual run first).
 
 *Adapted from The Three Ms of AI™ © 2026 Nate Herk.*
+
+---
+
+## 2026-07-05 — Admin-UI gap fill: Uptime Kuma, CloudBeaver, Traefik dashboard, Homepage
+
+**Decision:** Added four services to cortex's `docker-compose.yml` to close gaps found in an audit of tailnet admin UIs: Uptime Kuma (`status.ramonedevelopment.com`) for uptime/availability history, CloudBeaver (`sql.ramonedevelopment.com`) as a web SQL client for MySQL + SQL Server (previously TCP-only), Traefik's built-in dashboard (`traefik.ramonedevelopment.com`, via `--api.dashboard=true` + `api@internal`), and Homepage (`home.ramonedevelopment.com`) as a landing page for all tailnet subdomains.
+
+**Why:** Netdata covers resource pressure but not per-service up/down history (Kuma). MySQL/SQL Server had no browser-based admin tool (CloudBeaver). Traefik's routing table grew past what's easy to reason about from logs alone once ADO MCP, Tower, Kuma, and CloudBeaver all started routing through it (dashboard). Nine-plus tailnet subdomains is past the point of reliably remembering them (Homepage).
+
+**Homepage over Dashy:** both are YAML-config, git-trackable. Homepage supports Docker-label auto-discovery (`homepage.*` labels alongside the `traefik.*` labels already written for routing) — a new service's dashboard tile is the same edit as adding its routing labels, no second file to maintain. Dashy's differentiator is an in-browser drag-and-drop config editor, which doesn't solve a real problem here since direct YAML editing is already this project's norm.
+
+**Pattern followed:** all four use the same tailnet-only Traefik entrypoint + §10.3b real-cert-via-public-ACME pattern as every existing service. No new security model introduced. Homepage's config bind-mounts into the magiq repo itself (`homepage-config/`), same convention as Tower's bind mount — editable directly, versioned with everything else.
+
+**Alternatives considered:** Grafana/Prometheus for monitoring (rejected — Netdata already covers metrics, a second monitoring stack contradicts the resource-contention priority baked into this whole project). Adminer instead of CloudBeaver (rejected — Adminer doesn't support SQL Server, would need two separate tools instead of one).
+
+**Owner:** Chase Ramone
+
+**Full detail:** `AI-X1-Pro-Setup-Guide.md` Stages 18–21.
+
+---
+
+## 2026-07-05 — Secrets extracted from docker-compose.yml to local-only .env
+
+**Decision:** Removed literal password values (`MYSQL_ROOT_PASSWORD`, `SA_PASSWORD`, CIFS `shared_data` password) from `docker-compose.yml` entirely, replaced with `${VAR}` references. Real values now live only in `~/stack/.env` on cortex — never on the `/mnt/shared/claudia/magiq` NAS share, never in anything an AI session reads.
+
+**Why:** The share copy of `docker-compose.yml` had these hand-redacted to `xxxx`/`xxx` specifically to keep secrets away from Claude/Cowork sessions doing routing edits. That redaction was the actual reason `~/stack/docker-compose.yml` and the share copy stayed as two manually-synced files instead of a symlink — and the manual sync silently fell out of date, causing real routing regressions (Seq and Portainer 404s, Traefik dashboard cert failure) after the 2026-07-05 admin-UI additions. Variable substitution removes the reason for the two-copy setup entirely.
+
+**Alternatives considered:** Keep manual copy process but make it more careful (rejected — same single point of failure, just slower to fail). Docker secrets / external secret store (rejected — adds infra for a single-operator box where a local `.env` file already fully satisfies "never exposed to the AI editing the routing file").
+
+**Follow-up enabled:** `~/stack/docker-compose.yml` can now be safely symlinked to the share copy (Stage 22.4) — same "single NAS share, not git-sync between clones" principle already applied to Tower and mcp-azure-devops, now extended to the compose file itself.
+
+**Owner:** Chase Ramone
+
+**Full detail:** `AI-X1-Pro-Setup-Guide.md` Stage 22.
+
+---
+
+## 2026-07-05 — docker-compose.yml relocated to cortex/ subfolder, symlinked from ~/stack
+
+**Decision:** Moved `docker-compose.yml` and `.env.example` out of the magiq repo root into a new `cortex/` subfolder (`/mnt/shared/claudia/magiq/cortex/`). `~/stack/docker-compose.yml` on cortex becomes a symlink to `cortex/docker-compose.yml` on the share instead of a manually-synced copy.
+
+**Why:** Follow-on to the same-day secrets-extraction decision (docker-compose.yml → ${VAR} substitution). With secrets fully out of the compose file, the manual-copy step between `~/stack` and the share was pure liability with no remaining upside — a symlink removes the single point of failure that caused the Seq/Portainer/Traefik-dashboard drift bug. Grouping the file under `cortex/` alongside its own `.env.example` also keeps cortex-Docker-stack-specific files out of the repo root, separate from AIOS's own files.
+
+**Confirmed safe:** every path inside docker-compose.yml is already absolute (`/mnt/shared/claudia/magiq/...`), none relative to the compose file's own location — the move required zero changes to the file's contents.
+
+**Owner:** Chase Ramone
+
+**Full detail:** `AI-X1-Pro-Setup-Guide.md` Stage 22.2–22.5.
+
+---
+
+## 2026-07-05 — Seq requires SEQ_FIRSTRUN_ADMINPASSWORD (Seq 2025.2.x behavior change)
+
+**Decision:** Added `SEQ_FIRSTRUN_ADMINPASSWORD` as a required secret (via `${VAR}` substitution, same pattern as the MySQL/SQL Server/CIFS passwords) to the `seq` service.
+
+**Why:** The `seq` container was crash-looping on boot with `No default admin password was supplied; set firstRun.adminPassword or SEQ_FIRSTRUN_ADMINPASSWORD, or opt out of authentication using firstRun.noAuthentication/SEQ_FIRSTRUN_NOAUTHENTICATION`. Seq 2025.2.x (the current `datalust/seq:latest`) requires this explicitly — the original Stage 10.3 setup never set it because older Seq versions allowed interactive admin account creation via the browser on first load. Because the container never stayed up, Traefik's Docker provider never got a stable container to register a router for, which surfaced as `router not found: seq@docker` — not a routing or labels bug, a downstream symptom of Seq itself failing to start.
+
+**Chose real admin password over `SEQ_FIRSTRUN_NOAUTHENTICATION=true`:** matches the defense-in-depth posture already used for Open WebUI (`WEBUI_AUTH=true`) and Portainer (own admin account) — both already have their own auth layer on top of Tailscale-only reachability, not just Tailscale alone.
+
+**Owner:** Chase Ramone
+
+**Full detail:** `AI-X1-Pro-Setup-Guide.md` Stage 22.1, `cortex/.env.example`.
+
+---
+
+## 2026-07-05 — Explicit loadbalancer port required for multi-port images (Seq, Portainer)
+
+**Decision:** Added `traefik.http.services.<name>.loadbalancer.server.port` labels to `seq` (port 80) and `portainer` (port 9000) — the two services in this file whose images expose multiple ports and had no explicit port label.
+
+**Why:** Seq's router registered correctly in Traefik (confirmed via `/api/http/routers/seq@docker`) but still 404'd. Checking `/api/http/services/seq-stack@docker` would have shown Traefik's auto-selected backend port — Seq's image exposes four ports (80 plain UI, 443 TLS UI, 5341 plain ingestion, 45341 TLS ingestion) and without an explicit label, Traefik's docker provider has to guess which one is the actual web UI, and got it wrong. Portainer has the identical exposure pattern (8000 edge agent, 9000 plain UI, 9443 TLS UI) and was fixed proactively before it caused the same symptom.
+
+**Pattern going forward:** any service whose image `EXPOSE`s more than one port needs an explicit `loadbalancer.server.port` label — don't rely on Traefik's auto-detection for those. Single-port images (Open WebUI, Tower, CloudBeaver, Kuma, mcp-azure-devops — the latter three already had explicit labels anyway) aren't at risk from this specific bug, but there's no real downside to labeling explicitly across the board going forward.
+
+**Owner:** Chase Ramone
+
+**Full detail:** `AI-X1-Pro-Setup-Guide.md` Stage 22.1 area / `cortex/docker-compose.yml` inline comments.

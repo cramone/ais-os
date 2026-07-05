@@ -27,4 +27,4 @@ echo
 echo "Commits since last deploy:"
 git log --oneline deployed-tower..origin/main -- tower/
 echo
-echo "Deploy with: ssh cortex \"cd /opt/ais-os && ./tower/deploy-cortex.sh\""
+echo "Deploy with: ssh cortex \"cd /mnt/shared/claudia/magiq && ./tower/deploy-cortex.sh\""

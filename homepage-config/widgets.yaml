@@ -1,0 +1,4 @@
+# No top-of-page info widgets configured yet. Homepage supports a "resources" widget for
+# live host CPU/RAM/disk here, but that needs the same /proc, /sys, docker.sock mounts Netdata
+# already provides (Stage 10.6) — skipped for now since Netdata already covers that job;
+# revisit only if a single-glance summary widget becomes worth the duplicated mounts.

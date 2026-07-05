@@ -13,7 +13,7 @@ Description=Claudia HTTP bridge for Control Tower
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/python3 /opt/ais-os/scripts/claudia-bridge/server.py
+ExecStart=/usr/bin/python3 /mnt/shared/claudia/magiq/scripts/claudia-bridge/server.py
 Restart=on-failure
 RestartSec=3
 

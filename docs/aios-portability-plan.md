@@ -17,13 +17,13 @@ Every script embeds `C:\Users\chase\OneDrive\Magiq\AIS-OS` or a sibling absolute
 | File | Line | Hardcoded value | Fix |
 |---|---|---|---|
 | `tower/config.py` | 11 | `AIOS_ROOT` default = Chase path | Default to `Path(__file__).resolve().parent.parent` |
-| `dashboards/claudia/server.py` | 13-14 | `DASHBOARD_DIR`, `AIOS_ROOT` (`/mnt/c/...`) | Derive both from `Path(__file__).resolve()` |
-| `dashboards/claudia/start.sh` | 3-4 | `VENV`, `DIR` (`/mnt/c/...`) | Derive `DIR` from `$BASH_SOURCE`; `VENV` from `$HOME`/env |
 | `scripts/auto-scaffold.ps1` | 5, 8 | `$aiosRoot`, `$hermesDataPath` | `$aiosRoot = Split-Path -Parent $PSScriptRoot`; hermes path from env |
 | `scripts/register-auto-scaffold-task.ps1` | 5 | `$scriptPath` | Build from `$PSScriptRoot` |
 | `tower/create-shortcut.ps1` | 5-6 | `TargetPath`, `WorkingDirectory` | Build from `$PSScriptRoot` |
 | `tower/launch.bat` | 3 | `cd /d "C:\...\AIS-OS"` | `cd /d "%~dp0.."` |
-| `.mcp.json` | 6 | `D:\mcp\azure-devops-mcp-server\build\index.js` | Externalize — see Bucket C |
+| ~~`.mcp.json`~~ | ~~6~~ | ~~`D:\mcp\azure-devops-mcp-server\build\index.js`~~ | **Resolved 2026-07-05** — see below |
+
+`dashboards/claudia/` (server.py, start.sh — rows previously here) was removed 2026-07-05 as obsolete; moved to `archives/dashboards-claudia/`. Its portability fixes no longer apply.
 
 **Principle:** internal paths are never config. Each script computes the root from its own file position. Directory layout is fixed inside the repo, so relative-from-self always resolves.
 
@@ -40,8 +40,8 @@ Content files under `projects/`, `security-incidents/`, `decisions/` etc. refere
 Things that genuinely can't self-derive because they point outside the repo or hold secrets. These stay as config, documented in `.env.example`:
 
 - `HERMES` — external Hermes home (default `~/.hermes` if unset)
-- MCP server binary path (currently `D:\mcp\...` in `.mcp.json`)
-- Secrets: `AZURE_DEVOPS_PAT`, `NOTION_TOKEN`, `ANTHROPIC_API_KEY`, `TOWER_TOKEN`
+- MCP server: dockerized in-repo (`mcp/azure-devops/Dockerfile`, image `azure-devops-mcp:latest`) — resolved 2026-07-05, no external binary path anymore
+- Secrets: `AZURE_DEVOPS_PAT` / `PERSONAL_ACCESS_TOKEN`, `NOTION_TOKEN`, `ANTHROPIC_API_KEY`, `TOWER_TOKEN`
 - `AZURE_DEVOPS_ORG` / `AZURE_DEVOPS_PROJECT`
 - `TOWER_PORT`
 
@@ -58,19 +58,7 @@ AIOS_ROOT = Path(os.getenv("AIOS_ROOT") or Path(__file__).resolve().parent.paren
 ```
 `.env` override still honored; default now portable.
 
-### 2. `dashboards/claudia/server.py`
-```python
-AIOS_ROOT = Path(os.getenv("AIOS_ROOT") or Path(__file__).resolve().parents[2])
-DASHBOARD_DIR = Path(__file__).resolve().parent
-HERMES_HOME = Path(os.getenv("HERMES") or (Path.home() / ".hermes"))
-```
-(`server.py` is at `dashboards/claudia/`, so `parents[2]` = repo root.)
-
-### 3. `dashboards/claudia/start.sh`
-```sh
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VENV="${HERMES:-$HOME/.hermes}/hermes-agent/venv"
-```
+### 2. ~~`dashboards/claudia/server.py` + `start.sh`~~ — moot, folder removed 2026-07-05
 
 ### 4. `scripts/auto-scaffold.ps1` + `register-auto-scaffold-task.ps1`
 ```powershell
@@ -89,11 +77,8 @@ $Shortcut.WorkingDirectory = $root
 cd /d "%~dp0.."
 ```
 
-### 6. `.mcp.json`
-Externalize the ADO MCP binary path. Options:
-- **6a** — env expansion: `"args": ["${MCP_ADO_SERVER}"]`, set `MCP_ADO_SERVER` in `.env` / shell. (Confirm this Claude Code / runtime supports `${VAR}` in `.mcp.json` args before relying on it.)
-- **6b** — vendor the server under the repo (`vendor/azure-devops-mcp/`) and use a relative path. Heavier but fully self-contained.
-- Recommend **6a**; document the var in `.env.example`.
+### 6. `.mcp.json` — **Resolved 2026-07-05**
+Went with a third option not originally listed: **6c** — dockerize the ADO MCP server in-repo (`mcp/azure-devops/Dockerfile`, built as `azure-devops-mcp:latest`) and point `.mcp.json` at `docker run` instead of a machine-local binary path. Fully self-contained like 6b, without vendoring the JS source. `.mcp.json` now carries literal secret values (matching the pre-existing working pattern) rather than `${VAR}` expansion — `${VAR}` support in `.mcp.json` args was never confirmed, so this doesn't rely on it. Requires `docker build -t azure-devops-mcp:latest .` once per machine that runs it (Windows + Claudia on cortex).
 
 ### 7. New `aios.config.md` (identity/context extraction)
 Single editable block:

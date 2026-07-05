@@ -142,7 +142,6 @@ AIS-OS/
 ├── projects/                        ← Structured initiatives (brief/architecture/decisions/…)
 ├── tower/                           ← Control Tower — FastAPI + HTML dev dashboard
 ├── scripts/                         ← Automation (self-locating paths)
-├── dashboards/                      ← Claudia dashboard
 ├── archives/                        ← Old stuff. Don't delete. Move here.
 └── .claude/
     └── skills/

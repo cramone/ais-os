@@ -13,7 +13,7 @@
         "-d", "core", "work", "work-items", "repositories", "wiki"
       ],
       "env": {
-        "PERSONAL_ACCESS_TOKEN": "${AZURE_DEVOPS_PAT_B64}",
+        "PERSONAL_ACCESS_TOKEN": "${PERSONAL_ACCESS_TOKEN}",
         "ado_mcp_project": "${AZURE_DEVOPS_PROJECT}"
       }
     }
