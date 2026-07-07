@@ -1,6 +1,10 @@
 # Branching & Deployment Strategy — Media Management
 
-_Last updated: 2026-07-03_
+_Last updated: 2026-07-06_
+
+See also `deploy-runbook.md` (docs project root) for the step-by-step developer
+workflow — everyday feature flow, plus hotfix and brand-new-environment
+scenarios — built on the model described here.
 
 ---
 
@@ -107,10 +111,12 @@ Two distinct roles — do not conflate them:
   registry. Not overridden per env.
 - **Deploy role** — lives in **`cdk-magiq-media`**, not here: per-env secret
   `AWS_DEPLOY_ROLE_ARN` + var `CDK_DEFAULT_ACCOUNT` on that repo's GitHub environments.
-  magiq-media only builds/pushes + dispatches; the CDK repo assumes the deploy role and
-  updates that account's Lambdas, pulling the image cross-account from the shared ECR.
-  (magiq-media environments carry **no** env-level vars — earlier `AWS_DEPLOY_ROLE_ARN`
-  vars here were redundant and removed.)
+  magiq-media only builds/pushes, then commits the new imageTag into
+  `cdk-magiq-media`'s per-environment config file on the matching branch — the CDK repo's
+  own workflow reacts to that push, assumes the deploy role, and updates that account's
+  Lambdas, pulling the image cross-account from the shared ECR. (magiq-media environments
+  carry **no** env-level vars — earlier `AWS_DEPLOY_ROLE_ARN` vars here were redundant and
+  removed.)
 
 | Env     | Account name | Account ID (cdk `CDK_DEFAULT_ACCOUNT`) | Deploy trigger |
 |---------|--------------|----------------|----------------|
@@ -178,48 +184,86 @@ main=prod:
    **staging** in sequence, gated by an environment approval on staging.)
 4. **Drop `main` → dev** — remove `main` from the `dev` branch policy so an accidental
    push to `main` cannot hit dev.
-5. **Deploy step** — _resolved_: deploy is a **cross-repo dispatch to
-   `cdk-magiq-media`** (see "Deploy handoff" below), not an in-repo step. Outstanding:
-   create the `CDK_DISPATCH_TOKEN` secret and grant cross-account ECR pull.
+5. **Deploy step** — _resolved_: deploy is **git-driven, not event-driven** (see
+   "Deploy handoff" below), not an in-repo step. Outstanding: create the
+   `CDK_DISPATCH_TOKEN` secret (now used for a git push rather than a dispatch event) and
+   grant cross-account ECR pull.
 
 ### Deploy handoff — magiq-media → cdk-magiq-media
 
-After the ECR push, magiq-media dispatches to the CDK repo, which owns the actual deploy:
+`cdk-magiq-media` mirrors magiq-media's branch structure (`develop`, `release/x.y`,
+`main`) and carries a per-environment config file — `config/dev.json`, `config/qa.json`,
+`config/prod.json` — holding `{ "imageTag": "<sha>" }`. That file, at a branch's HEAD, is
+the single source of truth for what should be running in that environment: infra shape
+(the CDK code around it) and app version (the tag) together. There is no
+`config/staging.json` — staging always deploys whatever `config/qa.json` currently holds,
+since it validates exactly what QA already proved, never a separate build.
+
+After the ECR push, magiq-media commits the new tag into the matching branch instead of
+firing an event:
 
 ```
 build-and-push (images → shared ECR 738608577325)
-      │  repository_dispatch  event_type: deploy
-      │  client_payload: { env, imageTag: <git sha> }
+      │  git commit + push: config/<env>.json → { imageTag: <git sha> }
+      │  on the matching branch (develop / release/x.y / main)
       ▼
 cdk-magiq-media  deploy.yml
-      environment = payload.env          (GitHub required-reviewer gate for staging/prod)
-      role  = env secret AWS_DEPLOY_ROLE_ARN     (that env's own AWS account)
-      cdk deploy --all --context env=… imageTag=… migrationsEnabled=true
+      triggered by the push itself — reacts the same way whether the commit was
+      this imageTag bump or an unrelated infra PR merge
+      env    = resolved from branch name (develop→dev, release/**→qa, tag v*→prod)
+      role   = env secret AWS_DEPLOY_ROLE_ARN     (that env's own AWS account)
+      cdk deploy --all --context env=… imageTag=<from config file> migrationsEnabled=true
       → pulls <prefix>-<sha> from shared ECR cross-account, updates that account's Lambdas
 ```
 
 - **Contract:** `imageTag` is the git SHA — cdk resolves `<prefix>-<sha>` per host, so the
   same artifact promotes dev → qa → staging → prod (no rebuild).
-- **magiq-media jobs:** `dispatch-deploy` (dev/qa/prod, env from `publish-all`) and
-  `dispatch-staging` (env=staging, `STAGING_ENABLED`-gated). Both skip until repo secret
-  `CDK_DISPATCH_TOKEN` (dispatch rights on cdk-magiq-media) exists.
+- **`main` is deliberately excluded** from cdk-magiq-media's push trigger — prod only
+  deploys on a `v*` tag (tag both repos at the same commit at release time) or a manual
+  `workflow_dispatch`, so an infra-only PR merged to `main` can't accidentally redeploy
+  prod on its own.
+- **magiq-media job:** `update-deploy-config` (dev/qa/prod, env from `publish-all`) —
+  resolves the matching cdk branch, clones cdk-magiq-media, bumps the config file,
+  commits, pushes. Skips until repo secret `CDK_DISPATCH_TOKEN` (`contents: write` on
+  cdk-magiq-media) exists. Staging needs no equivalent job — `cdk-magiq-media`'s own
+  `deploy-staging` job runs automatically off the same qa push, gated by
+  `STAGING_ENABLED` (now required as a repo variable in **both** repos).
+  **No required-reviewer gate** — that protection rule needs GitHub Team or above for
+  private repos, and this org got a 422 confirming it's not on that plan. The practical
+  gate is `STAGING_ENABLED`/`PROD_ENABLED` plus Tom's sign-off as a process convention,
+  not a platform-enforced approval click.
 - **cdk env config:** `CDK_DEFAULT_ACCOUNT` var + `AWS_DEPLOY_ROLE_ARN` secret per env —
   dev 989143135668, qa 835494934465, staging 727517389921, prod 614323302920.
-- **Known gap:** cdk deploys 8 hosts; `saga-document-signing` is built but not yet wired
-  in cdk `magiq-media-stack.ts`.
+- **Known gap:** `ProcessingWorker` exists in the repo (`src/hosts/ProcessingWorker`) but
+  has no corresponding Lambda/event-source wiring in cdk `magiq-media-stack.ts` yet — the
+  `media-processing` queue exists and is subscribed to `media-integration-events`, but has
+  no consumer. (`saga-document-signing` — previously tracked here as unwired — is in fact
+  already wired, both the SQS path and the webhook path.)
 
-Environment **required-reviewer** protection rules are recommended on `staging` and
-`prod` so promotion needs a human approval, independent of branch policy.
+Environment required-reviewer protection rules would be the ideal gate on `staging` and
+`prod`, independent of branch policy — but that feature isn't available on this org's
+GitHub plan for private repos (confirmed via a 422 attempting to set it up). Until/unless
+the org upgrades, promotion is gated by `STAGING_ENABLED`/`PROD_ENABLED` plus Tom's
+sign-off as a process step, not a platform-enforced approval.
 
 ---
 
 ## Open questions
 
-- **Staging:** _decided_ — Model B gated promote from `release/**` after qa, with
-  required-reviewer approval. **Model A** account isolation chosen: staging gets its own
-  AWS account. Job is provisioned but **dormant** (`STAGING_ENABLED` flag off) until the
-  account exists — see AIS-OS `todos.md` → "Review: enable staging deploy".
-- **Deploy mechanism:** _resolved_ — cross-repo dispatch to `cdk-magiq-media` (see
-  "Deploy handoff"). Blocked only on the `CDK_DISPATCH_TOKEN` secret + cross-account ECR pull.
+- **Staging:** _decided_ — Model B gated promote from `release/**` after qa. Intended
+  gate was required-reviewer approval, but that's not available on this org's GitHub
+  plan (private-repo required reviewers need Team+; confirmed via a 422). Gate today is
+  `STAGING_ENABLED` (account readiness) plus Tom's sign-off as a process convention.
+  **Model A** account isolation chosen: staging gets its own AWS account. Job is
+  provisioned but **dormant** (`STAGING_ENABLED` flag off) until the account exists —
+  see AIS-OS `todos.md` → "Review: enable staging deploy". Whether two-person approval
+  before a staging/prod deploy needs to be platform-enforced (vs. process-only) is an
+  open call — would require either upgrading the GitHub plan or an approval mechanism
+  outside GitHub's native environment protection.
+- **Deploy mechanism:** _resolved_ — git-driven reconciliation in `cdk-magiq-media` (see
+  "Deploy handoff"), not a cross-repo dispatch. Blocked only on the `CDK_DISPATCH_TOKEN`
+  secret + cross-account ECR pull. magiq-media's side is merged to `develop`;
+  cdk-magiq-media's side (config files, `deploy.yml`, `ORGANIZATION_ID` fix) is committed
+  locally on `develop` as of 2026-07-06, not yet pushed.
 - **`main` fast-forward vs merge:** decide merge policy for `release → main` (no-ff
   merge preserves release history; recommended).
