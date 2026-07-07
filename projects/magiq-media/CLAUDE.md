@@ -62,13 +62,18 @@ High
 | `use-cases.md` | Use case catalogue |
 | `todos.md` | Active todo items |
 | `MEMORY.md` | External memory — read at session start |
-| `adrs/` | Architecture Decision Records |
-| `spec/` | Full spec — source of truth |
-| `spec/shared/system-spec.md` | System-level spec |
-| `spec/architecture/` | Architecture specs |
-| `spec/contexts/` | Bounded context specs |
-| `plans/` | Implementation plans |
+| `plans/` | Implementation plans (in-flight, pre-decision design work) |
 | `decisions/` | Decision log |
+| `prompts/` | AI prompts used to produce spec content |
+| `reviews/` | Informal spec review artifacts |
+
+> **Spec and ADRs moved 2026-07-07.** `spec/contexts/`, `spec/shared/`,
+> `spec/architecture/`, and `adrs/` now live in
+> `D:\source\github\magiq-media\docs\spec\` and `docs\adrs\` — they're
+> code-reviewed there and publish to the ADO wiki automatically via
+> `.github/workflows/publish-wiki.yml`. Don't recreate them here. This folder
+> is the AI-operating-system layer — memory, todos, meetings, the decision
+> journal, and in-flight plans — not spec custody.
 
 ## Key Conventions
 
@@ -82,7 +87,7 @@ High
 
 ## Decisions
 
-Architecture decisions in `adrs/`. See `brief.md` for ADR summary table.
+Architecture decisions (ADRs) now live in `D:\source\github\magiq-media\docs\adrs\` — see `brief.md` for the ADR summary table.
 
 ---
 
