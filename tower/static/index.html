@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AIS-OS Control Tower</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="mask-icon" href="/favicon.svg" color="#1f6feb">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-title" content="Control Tower">
+<link rel="apple-touch-icon" href="/favicon.svg">
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
   :root {
@@ -326,6 +331,54 @@
   .section-expand-btn:hover { border-color: var(--accent); color: var(--accent); }
   .todo-row:hover .todo-delete-btn { opacity: 1 !important; }
   .todo-row:hover .todo-edit-btn { opacity: 1 !important; }
+  /* Todo cards + kanban */
+  .todo-view-toggle { display: flex; gap: 2px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 2px; }
+  .todo-view-btn { background: none; border: none; color: var(--muted); font-size: 11px; padding: 3px 9px; border-radius: 4px; cursor: pointer; transition: background 0.15s, color 0.15s; }
+  .todo-view-btn.active { background: var(--accent); color: #000; font-weight: 600; }
+  .todo-card {
+    background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--muted);
+    border-radius: 6px; padding: 8px 10px; position: relative; cursor: grab;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    overflow-wrap: anywhere;
+  }
+  .todo-card:hover { border-color: var(--accent); }
+  .todo-card:hover .todo-delete-btn, .todo-card:hover .todo-edit-btn { opacity: 1 !important; }
+  .todo-card.status-todo  { border-left-color: var(--muted); }
+  .todo-card.status-doing { border-left-color: var(--warn); }
+  .todo-card.status-done  { border-left-color: var(--accent); }
+  .todo-card.status-done .todo-heading { text-decoration: line-through; color: var(--muted); }
+  .todo-card.dragging { opacity: 0.4; }
+  .todo-cards-list { display: flex; flex-direction: column; gap: 8px; }
+  .todo-status-chip { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); cursor: pointer; }
+
+  /* Todo list rows (aligned with interrupt rows) */
+  .todo-row .todo-edit-btn, .todo-row .todo-delete-btn { opacity: 0; transition: opacity 0.15s; }
+  .todo-row:hover .todo-edit-btn, .todo-row:hover .todo-delete-btn { opacity: 1; }
+  .todo-row[data-status="done"] .todo-heading { text-decoration: line-through; color: var(--muted); }
+  .td-todo  { background: var(--muted); }
+  .td-doing { background: var(--warn); }
+  .td-done  { background: var(--accent2); }
+  .status-todo  { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+  .status-doing { background: rgba(210,153,34,0.1); color: var(--warn); border: 1px solid rgba(210,153,34,0.2); }
+
+  /* Project detail tabs */
+  .project-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .project-tab {
+    padding: 6px 14px; font-size: 12px; border-radius: 6px; cursor: pointer;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+  }
+  .project-tab.active { background: rgba(88,166,255,0.1); border-color: var(--accent); color: var(--accent); }
+  .project-tab:hover { color: var(--text); }
+  .kanban { display: grid; grid-template-columns: repeat(var(--kanban-cols, 3), minmax(150px, 1fr)); gap: 8px; align-items: start; overflow-x: auto; }
+  .int-card { background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--muted); border-radius: 6px; padding: 8px 10px; cursor: grab; overflow-wrap: anywhere; transition: border-color 0.15s; }
+  .int-card:hover { border-color: var(--accent); }
+  .int-card.dragging { opacity: 0.4; }
+  .int-card.prio-urgent { border-left-color: var(--danger); }
+  .int-card.prio-normal { border-left-color: var(--accent); }
+  .int-card.prio-low    { border-left-color: var(--muted); }
+  .kanban-col { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px; min-height: 80px; display: flex; flex-direction: column; gap: 8px; transition: border-color 0.15s, background 0.15s; }
+  .kanban-col.drop-target { border-color: var(--accent); background: rgba(88,166,255,0.06); }
+  .kanban-col-head { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); display: flex; justify-content: space-between; padding: 0 2px 2px; }
 
   /* DECISIONS + SYNC PANELS */
   .decision-row {
@@ -403,18 +456,18 @@
   .triage-num.accent { color: var(--accent); }
   .triage-num.green { color: var(--accent2); }
 
-  /* INTERRUPT CAPTURE FORM */
-  #interrupt-capture-form {
+  /* INTERRUPT / TODO CAPTURE FORM */
+  #interrupt-capture-form, #todo-capture-form {
     background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
     padding: 12px; margin-bottom: 14px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
   }
   .capture-label { font-size: 11px; color: var(--muted); flex-shrink: 0; }
-  #interrupt-title-input {
+  #interrupt-title-input, #todo-title-input {
     flex: 1; min-width: 200px; background: var(--surface2); border: 1px solid var(--border);
     color: var(--text); padding: 5px 10px; border-radius: 5px; font-size: 12px; outline: none;
   }
-  #interrupt-title-input:focus { border-color: var(--accent); }
-  #interrupt-title-input::placeholder { color: var(--muted); }
+  #interrupt-title-input:focus, #todo-title-input:focus { border-color: var(--accent); }
+  #interrupt-title-input::placeholder, #todo-title-input::placeholder { color: var(--muted); }
   .capture-select {
     background: var(--surface2); border: 1px solid var(--border); color: var(--text);
     padding: 5px 8px; border-radius: 5px; font-size: 11px; outline: none; cursor: pointer;
@@ -450,7 +503,7 @@
   .filter-chip.active { background: rgba(88,166,255,0.1); border-color: var(--accent); color: var(--accent); }
 
   /* INTERRUPTS LIST */
-  #interrupts-list {
+  #interrupts-list, #todos-list {
     background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
   }
   .interrupt-row {
@@ -542,13 +595,27 @@
   .comment-when { color: var(--muted); font-size: 10px; margin-left: 6px; }
   .comment-text { color: var(--text); line-height: 1.5; margin-top: 3px; }
   .comment-empty { color: var(--muted); font-style: italic; font-size: 11px; }
+  /* Rendered markdown inside comments / previews — reuse .md-body but drop its
+     block padding so it sits flush in the narrow comment column. */
+  .comment-text.md-body, .comment-compose-preview.md-body, .comment-preview.md-body {
+    padding: 0; font-size: 12px; line-height: 1.6;
+  }
+  .comment-compose-preview.md-body, .comment-preview.md-body { padding: 8px; }
+  .comment-text.md-body > :first-child,
+  .comment-compose-preview.md-body > :first-child,
+  .comment-preview.md-body > :first-child { margin-top: 0; }
+  .comment-text.md-body > :last-child,
+  .comment-compose-preview.md-body > :last-child,
+  .comment-preview.md-body > :last-child { margin-bottom: 0; }
+  .comment-text.md-body ul, .comment-text.md-body ol { padding-left: 18px; }
+  .comment-text.md-body pre { white-space: pre-wrap; word-break: break-word; }
 
   /* COMMENT FORM */
   .add-comment-form { display: flex; flex-direction: column; gap: 8px; }
   .comment-input {
-    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    width: 100%; box-sizing: border-box; background: var(--surface2); border: 1px solid var(--border);
     color: var(--text); font-size: 12px; padding: 8px 10px; border-radius: 5px;
-    resize: none; min-height: 60px; font-family: inherit; outline: none;
+    resize: vertical; min-height: 120px; font-family: inherit; outline: none; line-height: 1.5;
   }
   .comment-input:focus { border-color: var(--accent); }
   .comment-input::placeholder { color: var(--muted); }
@@ -681,7 +748,6 @@
     <div id="status-pills">
       <div class="status-pill"><div class="dot green"></div> ADO</div>
       <div class="status-pill"><div class="dot green"></div> Hermes</div>
-      <div class="status-pill"><div class="dot yellow"></div> 3 pending</div>
       <div class="status-pill"><div class="dot red"></div> 1 blocked</div>
     </div>
   </div>
@@ -709,9 +775,6 @@
 
     <div class="sidebar-section" style="margin-top:6px">Projects</div>
     <div id="project-nav-items"></div>
-
-    <div class="sidebar-section" style="margin-top:6px">Inbox</div>
-    <div class="nav-item" data-nav-view="blocked"><span class="icon">🚫</span> Blocked <span class="nav-badge danger" id="badge-blocked"></span></div>
 
     <div class="sidebar-section" style="margin-top:6px">Team</div>
     <div class="nav-item" data-nav-view="team"><span class="icon">👥</span> Workload</div>
@@ -826,7 +889,6 @@
               <div class="meta-chip accent">— items</div>
               <div class="meta-chip warn">— in review</div>
               <div class="meta-chip danger">— blocked</div>
-              <div class="meta-chip">— pending flush</div>
             </div>
           </div>
           <div class="project-card">
@@ -841,7 +903,6 @@
             </div>
             <div class="card-meta">
               <div class="meta-chip">No ADO board</div>
-              <div class="meta-chip">0 captures pending</div>
             </div>
           </div>
         </div>
@@ -859,23 +920,65 @@
             </div>
           </div>
 
-          <!-- Todos -->
-          <div id="project-todos-section" style="margin-bottom:16px">
-            <div class="panel">
-              <div class="panel-header">
-                <div class="panel-title">✅ Todos <span style="font-size:10px;font-weight:400;color:var(--muted)" id="todos-count"></span></div>
-                <button onclick="toggleProjectSection('project-todos-section')" class="section-expand-btn" title="Expand / collapse">⤢</button>
+          <!-- Project section tabs -->
+          <div class="project-tabs">
+            <button class="project-tab active" data-ptab="todos" onclick="setProjectTab('todos')">✅ Todos</button>
+            <button class="project-tab" data-ptab="plans" onclick="setProjectTab('plans')">📋 Plans</button>
+            <button class="project-tab" data-ptab="spec" onclick="setProjectTab('spec')">📁 Spec Files</button>
+            <button class="project-tab" data-ptab="notes" onclick="setProjectTab('notes')">📝 Notes</button>
+            <button class="project-tab" data-ptab="decisions" onclick="setProjectTab('decisions')">⚖️ Decisions</button>
+          </div>
+
+          <!-- Todos — same board template as Interrupts -->
+          <div id="project-todos-section" data-ptab-panel="todos" style="margin-bottom:16px">
+            <div class="section-header">
+              <div class="section-title">✅ Todos <span style="font-size:10px;font-weight:400;color:var(--muted)" id="todos-count"></span></div>
+              <div class="todo-view-toggle">
+                <button class="todo-view-btn tdo-view-btn" data-todo-view="list" onclick="setTodoView('list')">List</button>
+                <button class="todo-view-btn tdo-view-btn" data-todo-view="kanban" onclick="setTodoView('kanban')">Kanban</button>
               </div>
-              <div style="padding:6px 8px;border-bottom:1px solid var(--border);display:flex;gap:6px">
-                <input id="todo-add-input" type="text" placeholder="Add todo…" style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px;color:var(--text);outline:none" onkeydown="if(event.key==='Enter')addTodo()">
-                <button onclick="addTodo()" style="background:var(--accent);color:#000;border:none;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600">+</button>
-              </div>
-              <div class="panel-body expandable-body" id="todos-body" style="max-height:300px;overflow-y:auto;padding:8px"></div>
             </div>
+
+            <!-- Triage counts -->
+            <div class="interrupts-triage">
+              <div class="triage-card"><div class="triage-num danger" id="todo-triage-overdue">0</div><div class="triage-label">Overdue</div></div>
+              <div class="triage-card"><div class="triage-num warn" id="todo-triage-today">0</div><div class="triage-label">Due Today</div></div>
+              <div class="triage-card"><div class="triage-num accent" id="todo-triage-open">0</div><div class="triage-label">Open</div></div>
+              <div class="triage-card"><div class="triage-num green" id="todo-triage-done">0</div><div class="triage-label">Done</div></div>
+            </div>
+
+            <!-- Quick capture form -->
+            <form id="todo-capture-form">
+              <div class="capture-label">+ New</div>
+              <input type="text" id="todo-title-input" placeholder="Quick capture todo title..." />
+              <select class="capture-select" id="todo-priority-select">
+                <option value="normal">Normal</option>
+                <option value="urgent">Urgent</option>
+                <option value="high">High</option>
+                <option value="low">Low</option>
+              </select>
+              <input type="date" class="capture-date" id="todo-due-input" />
+              <button type="submit" class="capture-submit">Capture</button>
+            </form>
+
+            <!-- Status tabs -->
+            <div class="interrupts-controls">
+              <div class="interrupt-tabs todo-tabs">
+                <div class="interrupt-tab active" data-tab="open">Open</div>
+                <div class="interrupt-tab" data-tab="in-progress">In Progress</div>
+                <div class="interrupt-tab" data-tab="done">Done</div>
+                <div class="interrupt-tab" data-tab="all">All</div>
+              </div>
+            </div>
+
+            <!-- Todos list -->
+            <div id="todos-list"><div class="empty-state">No todos to show</div></div>
+            <!-- Todos kanban (hidden until toggled) -->
+            <div id="todos-kanban" style="display:none"></div>
           </div>
 
           <!-- Plans -->
-          <div id="project-plans-section" style="margin-bottom:16px">
+          <div id="project-plans-section" data-ptab-panel="plans" style="margin-bottom:16px;display:none">
             <div style="display:grid;grid-template-columns:260px 1fr;gap:12px">
               <div class="panel">
                 <div class="panel-header">
@@ -900,7 +1003,7 @@
           </div>
 
           <!-- Spec -->
-          <div id="project-spec-section" style="margin-bottom:16px">
+          <div id="project-spec-section" data-ptab-panel="spec" style="margin-bottom:16px;display:none">
             <div style="display:grid;grid-template-columns:260px 1fr;gap:12px">
               <div class="panel">
                 <div class="panel-header">
@@ -924,8 +1027,8 @@
             </div>
           </div>
 
-          <!-- Notes + Decisions -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <!-- Notes -->
+          <div id="project-notes-section" data-ptab-panel="notes" style="margin-bottom:16px;display:none">
             <div class="panel">
               <div class="panel-header">
                 <div class="panel-title">📝 Notes</div>
@@ -938,6 +1041,10 @@
               </div>
               <div class="panel-body" id="project-detail-notes" style="max-height:400px;overflow-y:auto"></div>
             </div>
+          </div>
+
+          <!-- Decisions -->
+          <div id="project-decisions-section" data-ptab-panel="decisions" style="margin-bottom:16px;display:none">
             <div class="panel">
               <div class="panel-header">
                 <div class="panel-title">⚖️ Decisions</div>
@@ -1172,7 +1279,10 @@
       <div id="interrupts-section" style="display:none">
         <div class="section-header">
           <div class="section-title">⚡ Interrupts</div>
-          <div class="section-action">view all</div>
+          <div class="todo-view-toggle">
+            <button class="todo-view-btn int-view-btn" data-int-view="list" onclick="setInterruptView('list')">List</button>
+            <button class="todo-view-btn int-view-btn" data-int-view="kanban" onclick="setInterruptView('kanban')">Kanban</button>
+          </div>
         </div>
 
         <!-- Triage counts -->
@@ -1234,6 +1344,8 @@
         <div id="interrupts-list">
           <div class="empty-state">No interrupts to show</div>
         </div>
+        <!-- Interrupts kanban (hidden until toggled) -->
+        <div id="interrupts-kanban" style="display:none"></div>
       </div>
 
       <!-- FULLWIDTH PANELS (shown by view switching) -->
@@ -1294,14 +1406,6 @@
         </div>
       </div>
 
-
-      <!-- Blocked Fullwidth Panel -->
-      <div id="blocked-panel-fullwidth" style="display:none">
-        <div class="panel" style="border-color:rgba(248,81,73,0.3)">
-          <div class="panel-header"><div class="panel-title">🚫 Blocked Items</div></div>
-          <div class="panel-body" id="blocked-fullwidth-body" style="max-height:none"></div>
-        </div>
-      </div>
 
       <!-- Claudia Panel -->
       <div id="claudia-panel-fullwidth" style="display:none">
@@ -1426,10 +1530,12 @@
 
       <!-- Add comment -->
       <form class="add-comment-form">
-        <textarea class="comment-input" placeholder="Add a note or update..."></textarea>
+        <textarea class="comment-input" placeholder="Add a note or update… (Markdown supported)"></textarea>
+        <div class="comment-compose-preview md-body" style="display:none;line-height:1.6;font-size:12px;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:4px;margin-top:4px;min-height:40px"></div>
         <div class="comment-actions">
           <button type="submit" class="btn primary" style="font-size:11px; padding:4px 12px;">Save</button>
-          <button type="button" class="btn" style="font-size:11px; padding:4px 10px;" onclick="this.closest('form').querySelector('textarea').value=''">Cancel</button>
+          <button type="button" class="btn comment-preview-toggle" style="font-size:11px; padding:4px 10px;" onclick="_toggleComposePreview(this)">Preview</button>
+          <button type="button" class="btn" style="font-size:11px; padding:4px 10px;" onclick="_resetCompose(this)">Cancel</button>
         </div>
       </form>
 
@@ -1821,8 +1927,11 @@
 
   function _ago(date) {
     const s = Math.floor((Date.now() - date) / 1000);
+    if (isNaN(s)) return '';
     if (s < 60) return `${s}s ago`;
-    return `${Math.floor(s/60)}m ago`;
+    if (s < 3600) return `${Math.floor(s/60)}m ago`;
+    if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+    return `${Math.floor(s/86400)}d ago`;
   }
 
   function _formatTs(ts) {
@@ -2297,6 +2406,19 @@
 
     // Auto-load notes
     loadProjectNotes(slug);
+
+    // Reset to first tab
+    setProjectTab('todos');
+  }
+
+  // Project detail tab switching
+  let _projectTab = 'todos';
+  function setProjectTab(key) {
+    _projectTab = key;
+    document.querySelectorAll('.project-tab').forEach(b =>
+      b.classList.toggle('active', b.dataset.ptab === key));
+    document.querySelectorAll('[data-ptab-panel]').forEach(p =>
+      p.style.display = p.dataset.ptabPanel === key ? '' : 'none');
   }
 
   // ── Project detail utilities ────────────────────────────────────────────────
@@ -2533,20 +2655,6 @@
     if (e.target === this) closeMemoryModal();
   });
 
-  // Add todo
-  async function addTodo() {
-    const input = document.getElementById('todo-add-input');
-    if (!input || !_currentProjectSlug) return;
-    const text = input.value.trim();
-    if (!text) return;
-    input.value = '';
-    await fetch(`/api/projects/${_currentProjectSlug}/todos`, {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({text})
-    });
-    await loadTodos(_currentProjectSlug);
-  }
-
   // Project decisions render + CRUD
   function renderProjectDecisions(slug) {
     const el = document.getElementById('project-detail-captures');
@@ -2738,118 +2846,33 @@
     if (_specCurrentSlug) await loadPlansTree(_specCurrentSlug);
   }
 
-  // ── Todos ──────────────────────────────────────────────────────────────────
+  // ── Todos (driven by the shared item-board template; see BOARDS.todo) ────────
+  let _todoView = localStorage.getItem('todoView') || 'list';
+  if (_todoView === 'cards') _todoView = 'list';   // migrate legacy value
+  let _todoSlug = null;
+  let _todoCache = [];
+  let _todoTab = 'open';
 
-  async function toggleTodosSection() {
-    const section = document.getElementById('project-todos-section');
-    if (!section) return;
-    const isVisible = section.style.display !== 'none';
-    if (isVisible) {
-      section.style.display = 'none';
-      return;
-    }
-    section.style.display = '';
-    if (_specCurrentSlug) await loadTodos(_specCurrentSlug);
+  function setTodoView(view) {
+    if (view !== 'list' && view !== 'kanban') return;
+    _todoView = view;
+    localStorage.setItem('todoView', view);
+    renderTodos();
+  }
+
+  function renderTodos() {
+    if (typeof _renderItemBoard === 'function') _renderItemBoard(BOARDS.todo);
   }
 
   async function loadTodos(slug) {
-    const body = document.getElementById('todos-body');
-    const countEl = document.getElementById('todos-count');
-    if (!body) return;
-    body.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--muted)">Loading...</div>';
-    const r = await fetch(`/api/projects/${slug}/todos`);
-    const data = await r.json();
-    const todos = data.todos || [];
-    if (countEl) countEl.textContent = todos.length ? `${todos.length} item${todos.length !== 1 ? 's' : ''}` : '';
-    if (!todos.length) {
-      body.innerHTML = '<div style="padding:10px;font-size:11px;color:var(--muted)">No todos yet.</div>';
-      return;
-    }
-    body.innerHTML = todos.map((t, i) => `
-      <div class="todo-row" draggable="true" data-idx="${i}" style="display:flex;align-items:flex-start;gap:8px;padding:8px 6px;border-bottom:1px solid var(--border);position:relative;cursor:grab">
-        <div style="color:var(--muted);font-size:13px;padding-top:1px;flex-shrink:0;cursor:grab" title="Drag to reorder">⠿</div>
-        <div style="flex:1;min-width:0">
-          <div class="todo-heading" data-idx="${i}" style="font-size:12px;font-weight:600;color:var(--text)" title="Double-click to edit">${t.heading}</div>
-          ${t.captured ? `<div style="font-size:10px;color:var(--muted);margin-top:2px">${t.captured}</div>` : ''}
-          ${t.body && t.body !== t.heading ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;white-space:pre-wrap">${t.body}</div>` : ''}
-        </div>
-        <div style="display:flex;gap:3px;flex-shrink:0">
-          <button class="todo-edit-btn" data-idx="${i}" data-heading="${t.heading.replace(/"/g,'&quot;')}" style="opacity:0;font-size:10px;padding:2px 6px;background:none;border:1px solid var(--border);border-radius:3px;color:var(--muted);cursor:pointer;transition:opacity 0.15s" title="Edit">✏️</button>
-          <button class="todo-delete-btn" data-idx="${i}" style="opacity:0;font-size:10px;padding:2px 6px;background:none;border:1px solid var(--border);border-radius:3px;color:var(--muted);cursor:pointer;transition:opacity 0.15s" title="Remove">✕</button>
-        </div>
-      </div>
-    `).join('');
-
-    // Drag-and-drop reorder
-    let _dragSrcIdx = null;
-    body.querySelectorAll('.todo-row').forEach(row => {
-      row.addEventListener('dragstart', e => {
-        _dragSrcIdx = parseInt(row.dataset.idx);
-        row.style.opacity = '0.4';
-        e.dataTransfer.effectAllowed = 'move';
-      });
-      row.addEventListener('dragend', () => { row.style.opacity = ''; });
-      row.addEventListener('dragover', e => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        body.querySelectorAll('.todo-row').forEach(r => r.style.borderTop = '');
-        row.style.borderTop = '2px solid var(--accent)';
-      });
-      row.addEventListener('dragleave', () => { row.style.borderTop = ''; });
-      row.addEventListener('drop', async e => {
-        e.preventDefault();
-        row.style.borderTop = '';
-        const destIdx = parseInt(row.dataset.idx);
-        if (_dragSrcIdx === null || _dragSrcIdx === destIdx) return;
-        const order = Array.from({length: todos.length}, (_, i) => i);
-        order.splice(_dragSrcIdx, 1);
-        order.splice(destIdx, 0, _dragSrcIdx);
-        await fetch(`/api/projects/${slug}/todos/reorder`, {
-          method: 'PUT',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({order})
-        });
-        await loadTodos(slug);
-      });
-    });
-
-    // Hover show/hide action btns + wire edit/delete
-    body.querySelectorAll('.todo-row').forEach(row => {
-      const delBtn  = row.querySelector('.todo-delete-btn');
-      const editBtn = row.querySelector('.todo-edit-btn');
-      row.addEventListener('mouseenter', () => { if (delBtn) delBtn.style.opacity='1'; if (editBtn) editBtn.style.opacity='1'; });
-      row.addEventListener('mouseleave', () => { if (delBtn) delBtn.style.opacity='0'; if (editBtn) editBtn.style.opacity='0'; });
-
-      if (delBtn) delBtn.addEventListener('click', async () => {
-        const idx = parseInt(delBtn.dataset.idx);
-        if (!confirm('Remove this todo?')) return;
-        await fetch(`/api/projects/${slug}/todos/${idx}`, { method: 'DELETE' });
-        await loadTodos(slug);
-      });
-
-      if (editBtn) editBtn.addEventListener('click', () => {
-        const idx = parseInt(editBtn.dataset.idx);
-        const headingEl = row.querySelector('.todo-heading');
-        const current = headingEl ? headingEl.textContent : '';
-        // Replace heading with inline input
-        headingEl.innerHTML = `<input class="todo-inline-edit" value="${current.replace(/"/g,'&quot;')}"
-          style="width:100%;background:var(--surface2);border:1px solid var(--accent);border-radius:3px;padding:2px 6px;font-size:12px;font-weight:600;color:var(--text);outline:none">`;
-        const input = headingEl.querySelector('input');
-        input.focus(); input.select();
-        async function commitEdit() {
-          const newVal = input.value.trim();
-          if (newVal && newVal !== current) {
-            await fetch(`/api/projects/${slug}/todos/${idx}`, {
-              method: 'PATCH', headers: {'Content-Type':'application/json'},
-              body: JSON.stringify({text: newVal})
-            });
-          }
-          await loadTodos(slug);
-        }
-        input.addEventListener('blur', commitEdit);
-        input.addEventListener('keydown', e => { if (e.key==='Enter') { e.preventDefault(); input.blur(); } if (e.key==='Escape') { loadTodos(slug); } });
-      });
-    });
+    _todoSlug = slug;
+    const listEl = document.getElementById('todos-list');
+    if (listEl) listEl.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--muted)">Loading…</div>';
+    try {
+      const r = await fetch(`/api/projects/${slug}/todos`);
+      _todoCache = r.ok ? await r.json() : [];
+    } catch { _todoCache = []; }
+    renderTodos();
   }
 
   async function loadPlansTree(slug) {
@@ -3268,8 +3291,201 @@
     `);
   }
 
-  // ── Interrupts filter state ──────────────────────────────────────────────
+  // ══ Shared item-board template ═══════════════════════════════════════════
+  // Interrupts and project todos share one rendering pipeline. A board config
+  // supplies the data source, endpoints and which features are enabled.
+  const BOARDS = {
+    interrupt: {
+      kind: 'interrupt',
+      all: () => state.interrupts || [],
+      base: id => `/api/interrupts/${id}`,
+      activity: id => `/api/interrupts/${id}/activity`,
+      createUrl: () => '/api/interrupts',
+      refresh: () => fetchAll(),
+      features: { email: true, ado: true, source: true, sourceFilter: true },
+      view: () => _interruptView,
+      tab: () => _interruptTab,
+      filter: () => _interruptSourceFilter,
+      els: {
+        list: 'interrupts-list', kanban: 'interrupts-kanban',
+        viewBtn: '.int-view-btn', viewAttr: 'intView',
+        tabs: '#interrupts-section .interrupt-tabs',
+        triage: { overdue: 'triage-overdue', today: 'triage-today', open: 'triage-open', done: 'triage-done' },
+      },
+    },
+    todo: {
+      kind: 'todo',
+      all: () => _todoCache || [],
+      base: id => `/api/projects/${_todoSlug}/todos/${id}`,
+      activity: id => `/api/projects/${_todoSlug}/todos/${id}/activity`,
+      createUrl: () => `/api/projects/${_todoSlug}/todos`,
+      refresh: () => loadTodos(_todoSlug),
+      features: { email: false, ado: false, source: false, sourceFilter: false },
+      view: () => _todoView,
+      tab: () => _todoTab,
+      filter: () => '',
+      els: {
+        list: 'todos-list', kanban: 'todos-kanban',
+        viewBtn: '#project-todos-section .tdo-view-btn', viewAttr: 'todoView',
+        tabs: '#project-todos-section .interrupt-tabs',
+        triage: { overdue: 'todo-triage-overdue', today: 'todo-triage-today', open: 'todo-triage-open', done: 'todo-triage-done' },
+      },
+    },
+  };
+  function _board(kind) { return BOARDS[kind]; }
+
+  function _renderItemBoard(board) {
+    let pool = board.all();
+    if (board.features.sourceFilter) {
+      const f = board.filter();
+      if (f === 'zendesk') pool = pool.filter(i => i.zendeskTicket);
+      else if (f === 'customer') pool = pool.filter(i => i.customer);
+      else if (f) pool = pool.filter(i => (i.source || '').toLowerCase() === f.toLowerCase());
+    }
+    const open = pool.filter(i => i.status !== 'done');
+    const overdue = open.filter(i => i.dueDate && new Date(i.dueDate) < new Date());
+    const dueToday = open.filter(i => i.dueDate && new Date(i.dueDate).toDateString() === new Date().toDateString());
+    const done = pool.filter(i => i.status === 'done');
+
+    const _set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    _set(board.els.triage.overdue, overdue.length);
+    _set(board.els.triage.today, dueToday.length);
+    _set(board.els.triage.open, open.length);
+    _set(board.els.triage.done, done.length);
+
+    document.querySelectorAll(board.els.viewBtn).forEach(b =>
+      b.classList.toggle('active', b.dataset[board.els.viewAttr] === board.view()));
+    const listEl = document.getElementById(board.els.list);
+    const kbEl = document.getElementById(board.els.kanban);
+    const tabsEl = document.querySelector(board.els.tabs);
+
+    if (board.view() === 'kanban') {
+      if (listEl) listEl.style.display = 'none';
+      if (tabsEl) tabsEl.style.display = 'none';
+      if (kbEl) { kbEl.style.display = ''; _renderItemKanban(board, kbEl, pool); }
+      return;
+    }
+    if (kbEl) kbEl.style.display = 'none';
+    if (tabsEl) tabsEl.style.display = '';
+    if (listEl) listEl.style.display = '';
+
+    // Status tab filtering
+    const tab = board.tab();
+    let rows;
+    if (tab === 'all') rows = pool;
+    else if (tab === 'done') rows = done;
+    else if (tab === 'in-progress') rows = pool.filter(i => i.status === 'in-progress');
+    else rows = open;   // 'open'
+    if (tabsEl) tabsEl.querySelectorAll('.interrupt-tab').forEach(t =>
+      t.classList.toggle('active', t.dataset.tab === tab));
+
+    _renderItemList(board.els.list, rows, i => _itemRowHTML(board, i));
+  }
+
+  function _itemRowHTML(board, i) {
+    const f = board.features;
+    return `
+      <div class="interrupt-row" onclick="openItemDrilldown('${board.kind}','${i.id}')">
+        <div class="priority-dot p-${i.priority || 'normal'}"></div>
+        <div class="interrupt-body">
+          <div class="interrupt-title">${i.title}</div>
+          <div class="interrupt-meta">
+            ${f.source && i.source ? `<span class="source-tag src-${(i.source || '').toLowerCase()}">${i.source}</span>` : ''}
+            ${(i.tags || []).map(t => `<span class="tag tag-${t} active">${_tagLabel(t)}</span>`).join('')}
+            <span class="interrupt-age">${_ago(new Date(i.capturedAt))}</span>
+          </div>
+        </div>
+        ${i.dueDate
+          ? `<div class="due-chip ${_dueClass(i.dueDate)}">${_dueLabel(i.dueDate)}</div>`
+          : '<div class="due-none">No due date</div>'}
+        <div class="status-tag status-${i.status}">${i.status}</div>
+        ${f.ado ? `<button class="action-btn" onclick="event.stopPropagation();pushInterruptToADO('${i.id}')">-&gt; ADO</button>` : ''}
+        <button class="action-btn done" onclick="event.stopPropagation();itemMarkDone('${board.kind}','${i.id}')">Done</button>
+      </div>
+    `;
+  }
+
+  function _itemCardHTML(board, i) {
+    const f = board.features;
+    return `
+      <div class="int-card prio-${i.priority || 'normal'}" draggable="true" data-id="${i.id}" data-status="${i.status}" onclick="openItemDrilldown('${board.kind}','${i.id}')">
+        <div class="interrupt-title" style="white-space:normal">${i.title}</div>
+        <div class="interrupt-meta" style="margin-top:4px">
+          ${f.source && i.source ? `<span class="source-tag src-${(i.source || '').toLowerCase()}">${i.source}</span>` : ''}
+          ${(i.tags || []).map(t => `<span class="tag tag-${t} active">${_tagLabel(t)}</span>`).join('')}
+        </div>
+        <div class="interrupt-meta" style="margin-top:4px;display:flex;gap:6px;align-items:center">
+          ${i.dueDate ? `<span class="due-chip ${_dueClass(i.dueDate)}">${_dueLabel(i.dueDate)}</span>` : ''}
+          <span class="interrupt-age">${_ago(new Date(i.capturedAt))}</span>
+        </div>
+      </div>`;
+  }
+
+  function _renderItemKanban(board, container, pool) {
+    const cols = [
+      { key: 'new', label: 'New' },
+      { key: 'in-progress', label: 'In Progress' },
+      { key: 'deferred', label: 'Deferred' },
+      { key: 'done', label: 'Done' },
+    ];
+    const statusOf = i => cols.some(c => c.key === i.status) ? i.status : 'new';
+    container.style.setProperty('--kanban-cols', cols.length);
+    container.innerHTML = `<div class="kanban" style="--kanban-cols:${cols.length}">${cols.map(col => {
+      const cards = pool.filter(i => statusOf(i) === col.key);
+      return `<div class="kanban-col" data-status="${col.key}">
+        <div class="kanban-col-head"><span>${col.label}</span><span>${cards.length}</span></div>
+        ${cards.map(i => _itemCardHTML(board, i)).join('')}
+      </div>`;
+    }).join('')}</div>`;
+
+    let dragId = null;
+    container.querySelectorAll('.int-card').forEach(card => {
+      card.addEventListener('dragstart', () => { dragId = card.dataset.id; card.classList.add('dragging'); });
+      card.addEventListener('dragend', () => card.classList.remove('dragging'));
+    });
+    container.querySelectorAll('.kanban-col').forEach(col => {
+      col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drop-target'); });
+      col.addEventListener('dragleave', () => col.classList.remove('drop-target'));
+      col.addEventListener('drop', async e => {
+        e.preventDefault();
+        col.classList.remove('drop-target');
+        if (!dragId) return;
+        const newStatus = col.dataset.status;
+        const cur = board.all().find(x => x.id === dragId);
+        if (cur && cur.status === newStatus) return;
+        await _setItemStatus(board.kind, dragId, newStatus);
+      });
+    });
+  }
+
+  async function _setItemStatus(kind, id, status) {
+    const board = _board(kind);
+    await fetch(board.base(id), {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    });
+    await board.refresh();
+  }
+
+  async function itemMarkDone(kind, id) {
+    await _setItemStatus(kind, id, 'done');
+  }
+
+  function _wireItemTabs() {
+    document.querySelectorAll('.interrupt-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const kind = tab.closest('#project-todos-section') ? 'todo' : 'interrupt';
+        _board(kind); // ensure valid
+        if (kind === 'todo') { _todoTab = tab.dataset.tab; renderTodos(); }
+        else { _interruptTab = tab.dataset.tab; renderInterruptsSection(); }
+      });
+    });
+  }
+
+  // ── Interrupts board (thin wrappers over the shared template) ─────────────
   let _interruptSourceFilter = '';
+  let _interruptView = localStorage.getItem('interruptView') || 'list';
+  let _interruptTab = 'open';
 
   function _wireInterruptFilterChips() {
     document.querySelectorAll('.filter-chips .filter-chip').forEach(chip => {
@@ -3282,50 +3498,16 @@
     });
   }
 
-  // ── Interrupts section ───────────────────────────────────────────────────
-  function renderInterruptsSection() {
-    const items = state.interrupts || [];
-    let open = items.filter(i => i.status !== 'done');
-    if (_interruptSourceFilter === 'zendesk') {
-      open = open.filter(i => i.zendeskTicket);
-    } else if (_interruptSourceFilter === 'customer') {
-      open = open.filter(i => i.customer);
-    } else if (_interruptSourceFilter) {
-      open = open.filter(i => (i.source || '').toLowerCase() === _interruptSourceFilter.toLowerCase());
-    }
-    const overdue = open.filter(i => i.dueDate && new Date(i.dueDate) < new Date());
-    const dueToday = open.filter(i => {
-      if (!i.dueDate) return false;
-      return new Date(i.dueDate).toDateString() === new Date().toDateString();
-    });
-    const done = items.filter(i => i.status === 'done');
-
-    const _set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-    _set('triage-overdue', overdue.length);
-    _set('triage-today', dueToday.length);
-    _set('triage-open', open.length);
-    _set('triage-done', done.length);
-
-    _renderItemList('interrupts-list', open, i => `
-      <div class="interrupt-row" onclick="openInterruptDrilldown('${i.id}')">
-        <div class="priority-dot p-${i.priority || 'normal'}"></div>
-        <div class="interrupt-body">
-          <div class="interrupt-title">${i.title}</div>
-          <div class="interrupt-meta">
-            <span class="source-tag src-${(i.source || '').toLowerCase()}">${i.source || ''}</span>
-            ${(i.tags || []).map(t => `<span class="tag tag-${t} active">${_tagLabel(t)}</span>`).join('')}
-            <span class="interrupt-age">${_ago(new Date(i.capturedAt))}</span>
-          </div>
-        </div>
-        ${i.dueDate
-          ? `<div class="due-chip ${_dueClass(i.dueDate)}">${_dueLabel(i.dueDate)}</div>`
-          : '<div class="due-none">No due date</div>'}
-        <div class="status-tag status-${i.status}">${i.status}</div>
-        <button class="action-btn" onclick="event.stopPropagation();pushInterruptToADO('${i.id}')">-&gt; ADO</button>
-        <button class="action-btn done" onclick="event.stopPropagation();markInterruptDone('${i.id}')">Done</button>
-      </div>
-    `);
+  function setInterruptView(v) {
+    if (v !== 'list' && v !== 'kanban') return;
+    _interruptView = v;
+    localStorage.setItem('interruptView', v);
+    renderInterruptsSection();
   }
+
+  function renderInterruptsSection() { _renderItemBoard(BOARDS.interrupt); }
+
+  async function _setInterruptStatus(id, status) { await _setItemStatus('interrupt', id, status); }
 
   function _tagLabel(t) {
     const map = {
@@ -3381,6 +3563,33 @@
     });
   }
 
+  function wireTodoCaptureForm() {
+    const form = document.getElementById('todo-capture-form');
+    if (!form) return;
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      if (!_todoSlug) return;
+      const titleEl = document.getElementById('todo-title-input');
+      const priorityEl = document.getElementById('todo-priority-select');
+      const dueEl = document.getElementById('todo-due-input');
+      const body = {
+        title: titleEl ? titleEl.value.trim() : '',
+        source: '',
+        priority: priorityEl ? priorityEl.value : 'normal',
+        dueDate: dueEl && dueEl.value ? dueEl.value : null,
+      };
+      if (!body.title) return;
+      await fetch(BOARDS.todo.createUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (titleEl) titleEl.value = '';
+      if (dueEl) dueEl.value = '';
+      await loadTodos(_todoSlug);
+    });
+  }
+
   async function markInterruptDone(id) {
     await fetch(`/api/interrupts/${id}`, {
       method: 'PATCH',
@@ -3402,74 +3611,110 @@
 
   const BUILTIN_TAGS = ['blocked', 'waiting-for-feedback', 'requested-review', 'needs-more-info', 'complete'];
 
-  function openInterruptDrilldown(id) {
+  // Inline-editable drill-down title — click to edit, saves on blur / Enter.
+  function _wireInlineTitle(titleEl, board, item) {
+    if (!titleEl) return;
+    titleEl.textContent = item.title;
+    titleEl.style.cursor = 'text';
+    titleEl.title = 'Click to edit title';
+    titleEl.onclick = () => {
+      if (titleEl.querySelector('input')) return;
+      const current = item.title || '';
+      titleEl.innerHTML = `<input class="dd-title-input" value="${current.replace(/"/g, '&quot;')}"
+        style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--accent);border-radius:4px;padding:2px 6px;font-size:14px;font-weight:700;color:var(--text);outline:none">`;
+      const input = titleEl.querySelector('input');
+      input.focus(); input.select();
+      let handled = false;
+      const commit = async (save) => {
+        if (handled) return; handled = true;
+        const val = input.value.trim();
+        if (save && val && val !== current) {
+          await fetch(board.base(item.id), {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: val })
+          });
+          await board.refresh();
+          openItemDrilldown(board.kind, item.id);
+        } else {
+          titleEl.textContent = current;
+        }
+      };
+      input.addEventListener('blur', () => commit(true));
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); commit(true); }
+        else if (e.key === 'Escape') { e.preventDefault(); handled = true; titleEl.textContent = current; }
+      });
+    };
+  }
+
+  function openItemDrilldown(kind, id) {
+    const board = _board(kind);
+    if (!board) return;
     const panel = document.getElementById('drilldown-panel');
     if (!panel) return;
-    const item = (state.interrupts || []).find(i => i.id === id);
+    const item = board.all().find(i => i.id === id);
     if (!item) return;
+    const f = board.features;
 
     panel.style.display = '';
-    panel.dataset.interruptId = id;
+    panel.dataset.board = kind;
+    panel.dataset.itemId = id;
+    panel.dataset.interruptId = id;   // legacy alias
 
     // Header
     const titleEl = panel.querySelector('.dd-title');
     const sourceEl = panel.querySelector('.dd-source');
     const statusEl = panel.querySelector('.dd-status');
     const ageEl = panel.querySelector('.dd-age');
-    if (titleEl) titleEl.textContent = item.title;
-    if (sourceEl) sourceEl.textContent = item.source;
+    _wireInlineTitle(titleEl, board, item);
+    if (sourceEl) { sourceEl.textContent = item.source || ''; sourceEl.style.display = (f.source && item.source) ? '' : 'none'; }
     if (statusEl) statusEl.textContent = item.status;
     if (ageEl) ageEl.textContent = `Captured ${_ago(new Date(item.capturedAt))}`;
 
     // Header action buttons
     const markDoneBtn = panel.querySelector('.dd-mark-done');
-    if (markDoneBtn) markDoneBtn.onclick = () => markInterruptDone(id);
+    if (markDoneBtn) markDoneBtn.onclick = () => itemMarkDone(kind, id);
     const adoBtn = panel.querySelector('.dd-push-ado');
-    if (adoBtn) adoBtn.onclick = () => pushInterruptToADO(id);
+    if (adoBtn) { adoBtn.style.display = f.ado ? '' : 'none'; adoBtn.onclick = () => pushInterruptToADO(id); }
     const editBtn = panel.querySelector('.dd-edit-btn');
-    if (editBtn) editBtn.onclick = () => _toggleEditSection(panel, item);
+    if (editBtn) editBtn.onclick = () => _toggleEditSection(panel, board, item);
 
-    // Zendesk display
+    // Zendesk / customer — interrupt-only fields
     const zendeskEl = panel.querySelector('.dd-zendesk');
     if (zendeskEl) {
-      if (item.zendeskTicket) {
-        zendeskEl.textContent = `ZD #${item.zendeskTicket}`;
-        zendeskEl.style.display = '';
-      } else {
-        zendeskEl.style.display = 'none';
-      }
+      if (f.source && item.zendeskTicket) { zendeskEl.textContent = `ZD #${item.zendeskTicket}`; zendeskEl.style.display = ''; }
+      else zendeskEl.style.display = 'none';
     }
-
-    // Customer display
     const customerEl = panel.querySelector('.dd-customer');
     if (customerEl) {
-      if (item.customer) {
-        customerEl.textContent = `🏢 ${item.customer}`;
-        customerEl.style.display = '';
-      } else {
-        customerEl.style.display = 'none';
-      }
+      if (f.source && item.customer) { customerEl.textContent = `🏢 ${item.customer}`; customerEl.style.display = ''; }
+      else customerEl.style.display = 'none';
     }
 
-    // Tags
-    _renderDrilldownTags(panel, item);
+    // Tags + activity
+    _renderDrilldownTags(panel, board, item);
+    _renderActivityFeed(panel, board, item);
 
-    // Activity feed
-    _renderActivityFeed(panel, item);
-
-    // Email draft — reset to selector state
-    const previewEl = panel.querySelector('.email-preview');
-    const actionsEl = panel.querySelector('.email-actions');
-    if (previewEl) previewEl.style.display = 'none';
-    if (actionsEl) actionsEl.style.display = 'none';
-
-    // Wire email generation
-    _wireEmailDraftPanel(panel, id);
+    // Email draft column — interrupt-only
+    const emailCol = panel.querySelector('.dd-right');
+    const ddBody = panel.querySelector('.dd-body');
+    if (emailCol) emailCol.style.display = f.email ? '' : 'none';
+    if (ddBody) ddBody.style.gridTemplateColumns = f.email ? '1fr 1fr' : '1fr';
+    if (f.email) {
+      const previewEl = panel.querySelector('.email-preview');
+      const actionsEl = panel.querySelector('.email-actions');
+      if (previewEl) previewEl.style.display = 'none';
+      if (actionsEl) actionsEl.style.display = 'none';
+      _wireEmailDraftPanel(panel, id);
+    }
 
     panel.scrollIntoView({ behavior: 'smooth' });
   }
 
-  function _toggleEditSection(panel, item) {
+  // Legacy alias
+  function openInterruptDrilldown(id) { openItemDrilldown('interrupt', id); }
+
+  function _toggleEditSection(panel, board, item) {
     const section = panel.querySelector('.dd-edit-section');
     if (!section) return;
     const isHidden = section.style.display === 'none' || section.style.display === '';
@@ -3479,26 +3724,31 @@
       const sourceSelect = section.querySelector('.dd-edit-source');
       const zendeskInput = section.querySelector('.dd-edit-zendesk');
       const customerInput = section.querySelector('.dd-edit-customer');
+      // Source / zendesk / customer rows apply to interrupts only
+      [sourceSelect, zendeskInput, customerInput].forEach(el => {
+        const row = el && el.closest('div');
+        if (row) row.style.display = board.features.source ? 'flex' : 'none';
+      });
       if (titleInput) titleInput.value = item.title || '';
       if (sourceSelect) sourceSelect.value = item.source || '';
       if (zendeskInput) zendeskInput.value = item.zendeskTicket || '';
       if (customerInput) customerInput.value = item.customer || '';
       const saveBtn = section.querySelector('.dd-edit-save');
       if (saveBtn) saveBtn.onclick = async () => {
-        const updates = {
-          title: titleInput ? titleInput.value.trim() : item.title,
-          source: sourceSelect ? sourceSelect.value : item.source,
-          zendeskTicket: zendeskInput ? (zendeskInput.value.trim() || null) : item.zendeskTicket,
-          customer: customerInput ? (customerInput.value.trim() || null) : item.customer,
-        };
-        await fetch(`/api/interrupts/${item.id}`, {
+        const updates = { title: titleInput ? titleInput.value.trim() : item.title };
+        if (board.features.source) {
+          updates.source = sourceSelect ? sourceSelect.value : item.source;
+          updates.zendeskTicket = zendeskInput ? (zendeskInput.value.trim() || null) : item.zendeskTicket;
+          updates.customer = customerInput ? (customerInput.value.trim() || null) : item.customer;
+        }
+        await fetch(board.base(item.id), {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updates),
         });
         section.style.display = 'none';
-        await fetchAll();
-        openInterruptDrilldown(item.id);
+        await board.refresh();
+        openItemDrilldown(board.kind, item.id);
       };
       const cancelBtn = section.querySelector('.dd-edit-cancel');
       if (cancelBtn) cancelBtn.onclick = () => { section.style.display = 'none'; };
@@ -3507,20 +3757,21 @@
     }
   }
 
-  function _renderDrilldownTags(panel, item) {
+  function _renderDrilldownTags(panel, board, item) {
     const container = panel.querySelector('.tags-row');
     if (!container) return;
     container.innerHTML = BUILTIN_TAGS.map(t => {
       const active = (item.tags || []).includes(t);
       return `<div class="tag tag-${t} ${active ? 'active' : ''}"
-        onclick="toggleInterruptTag('${item.id}', '${t}')">${_tagLabel(t)}</div>`;
+        onclick="toggleItemTag('${board.kind}','${item.id}','${t}')">${_tagLabel(t)}</div>`;
     }).join('') +
       `<div class="tag" style="border-style:dashed;cursor:pointer"
-        onclick="promptCustomTag('${item.id}')">+ add</div>`;
+        onclick="promptItemTag('${board.kind}','${item.id}')">+ add</div>`;
   }
 
-  async function toggleInterruptTag(id, tag) {
-    const item = (state.interrupts || []).find(i => i.id === id);
+  async function toggleItemTag(kind, id, tag) {
+    const board = _board(kind);
+    const item = board.all().find(i => i.id === id);
     if (!item) return;
     const hasTag = (item.tags || []).includes(tag);
     const tags = hasTag
@@ -3528,37 +3779,38 @@
       : [...(item.tags || []), tag];
     const eventText = hasTag ? `Removed tag: ${tag}` : `Added tag: ${tag}`;
 
-    await fetch(`/api/interrupts/${id}`, {
+    await fetch(board.base(id), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tags })
     });
-    await fetch(`/api/interrupts/${id}/activity`, {
+    await fetch(board.activity(id), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'event', text: eventText })
     });
-    await fetchAll();
-    openInterruptDrilldown(id);
+    await board.refresh();
+    openItemDrilldown(kind, id);
   }
 
-  async function promptCustomTag(id) {
+  async function promptItemTag(kind, id) {
     const tag = prompt('Enter custom tag:');
     if (!tag || !tag.trim()) return;
-    const item = (state.interrupts || []).find(i => i.id === id);
+    const board = _board(kind);
+    const item = board.all().find(i => i.id === id);
     if (!item) return;
     const normalised = tag.trim().toLowerCase().replace(/\s+/g, '-');
     const tags = [...(item.tags || []), normalised];
-    await fetch(`/api/interrupts/${id}`, {
+    await fetch(board.base(id), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tags })
     });
-    await fetchAll();
-    openInterruptDrilldown(id);
+    await board.refresh();
+    openItemDrilldown(kind, id);
   }
 
-  function _renderActivityFeed(panel, item) {
+  function _renderActivityFeed(panel, board, item) {
     const feed = panel.querySelector('.comment-feed');
     if (!feed) return;
     const activity = item.activity || [];
@@ -3576,12 +3828,13 @@
                   <div class="comment-header">
                     <span class="comment-author">${e.author || ''}</span>
                     <span class="comment-time">${_formatTs(e.timestamp)}${edited}</span>
-                    <button class="comment-edit-btn" style="margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:0 4px;opacity:0.5" onclick="_startCommentEdit(this,'${item.id}',${idx})">✏️</button>
+                    <button class="comment-edit-btn" style="margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:0 4px;opacity:0.5" onclick="_startCommentEdit(this,${idx})">✏️</button>
+                    <button class="comment-del-btn" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:0 4px;opacity:0.5" title="Delete comment" onclick="_deleteComment(${idx})">🗑</button>
                   </div>
-                  <div class="comment-text" data-raw="${rawEscaped}" style="outline:none;border-radius:4px;line-height:1.6;font-size:12px">${renderedMd}</div>
-                  <div class="comment-preview" style="display:none;line-height:1.6;font-size:12px;padding:6px 8px;background:var(--surface);border-radius:4px;border:1px solid var(--border);margin-top:4px"></div>
+                  <div class="comment-text md-body" data-raw="${rawEscaped}" style="outline:none;border-radius:4px">${renderedMd}</div>
+                  <div class="comment-preview md-body" style="display:none;background:var(--surface);border-radius:4px;border:1px solid var(--border);margin-top:4px"></div>
                   <div class="comment-inline-actions" style="display:none;margin-top:6px;gap:6px;align-items:center">
-                    <button class="btn primary" style="font-size:11px;padding:3px 10px" onclick="_saveCommentEdit(this,'${item.id}',${idx})">Save</button>
+                    <button class="btn primary" style="font-size:11px;padding:3px 10px" onclick="_saveCommentEdit(this,${idx})">Save</button>
                     <button class="btn" style="font-size:11px;padding:3px 8px" onclick="_cancelCommentEdit(this)">Cancel</button>
                     <button class="btn" style="font-size:11px;padding:3px 8px;margin-left:auto" onclick="_toggleCommentPreview(this)">Preview</button>
                   </div>
@@ -3605,18 +3858,24 @@
       const textarea = form.querySelector('textarea');
       const text = textarea ? textarea.value.trim() : '';
       if (!text) return;
-      await fetch(`/api/interrupts/${item.id}/activity`, {
+      await fetch(board.activity(item.id), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'comment', author: 'Chase', text })
       });
       if (textarea) textarea.value = '';
-      await fetchAll();
-      openInterruptDrilldown(item.id);
+      // Reset compose preview state back to edit mode
+      const preview = form.querySelector('.comment-compose-preview');
+      const toggle = form.querySelector('.comment-preview-toggle');
+      if (textarea) textarea.style.display = '';
+      if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
+      if (toggle) toggle.textContent = 'Preview';
+      await board.refresh();
+      openItemDrilldown(board.kind, item.id);
     };
   }
 
-  function _startCommentEdit(btn, itemId, idx) {
+  function _startCommentEdit(btn, idx) {
     const commentItem = btn.closest('.comment-item');
     if (!commentItem) return;
     const textEl = commentItem.querySelector('.comment-text');
@@ -3679,7 +3938,51 @@
     if (previewToggle) previewToggle.textContent = 'Preview';
   }
 
-  async function _saveCommentEdit(btn, itemId, idx) {
+  function _toggleComposePreview(btn) {
+    const form = btn.closest('form');
+    if (!form) return;
+    const ta = form.querySelector('textarea');
+    const preview = form.querySelector('.comment-compose-preview');
+    if (!ta || !preview) return;
+    if (preview.style.display === 'none') {
+      const md = ta.value || '';
+      preview.innerHTML = md.trim()
+        ? (typeof marked !== 'undefined' ? marked.parse(md) : md)
+        : '<span style="color:var(--muted)">Nothing to preview.</span>';
+      preview.style.display = '';
+      ta.style.display = 'none';
+      btn.textContent = 'Edit';
+    } else {
+      preview.style.display = 'none';
+      ta.style.display = '';
+      btn.textContent = 'Preview';
+    }
+  }
+
+  function _resetCompose(btn) {
+    const form = btn.closest('form');
+    if (!form) return;
+    const ta = form.querySelector('textarea');
+    const preview = form.querySelector('.comment-compose-preview');
+    const toggle = form.querySelector('.comment-preview-toggle');
+    if (ta) { ta.value = ''; ta.style.display = ''; }
+    if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
+    if (toggle) toggle.textContent = 'Preview';
+  }
+
+  async function _deleteComment(idx) {
+    if (!confirm('Delete this comment?')) return;
+    const panel = document.getElementById('drilldown-panel');
+    const kind = panel?.dataset?.board;
+    const id = panel?.dataset?.itemId;
+    const board = _board(kind);
+    if (!board || !id) return;
+    await fetch(`${board.activity(id)}/${idx}`, { method: 'DELETE' });
+    await board.refresh();
+    openItemDrilldown(kind, id);
+  }
+
+  async function _saveCommentEdit(btn, idx) {
     const commentItem = btn.closest('.comment-item');
     if (!commentItem) return;
     const textEl = commentItem.querySelector('.comment-text');
@@ -3697,14 +4000,18 @@
     previewEl.style.display = 'none';
     commentItem.querySelector('.comment-inline-actions').style.display = 'none';
     commentItem.querySelector('.comment-edit-btn').style.display = '';
-    await fetch(`/api/interrupts/${itemId}/activity/${idx}`, {
+    const panel = document.getElementById('drilldown-panel');
+    const kind = panel?.dataset?.board;
+    const id = panel?.dataset?.itemId;
+    const board = _board(kind);
+    if (!board || !id) return;
+    await fetch(`${board.activity(id)}/${idx}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
     });
-    await fetchAll();
-    const interruptId = document.getElementById('drilldown-panel')?.dataset?.interruptId;
-    if (interruptId) openInterruptDrilldown(interruptId);
+    await board.refresh();
+    openItemDrilldown(kind, id);
   }
 
   function _wireEmailDraftPanel(panel, itemId) {
@@ -3797,7 +4104,6 @@
       }
     };
     _set('badge-interrupts', (state.interrupts || []).filter(i => i.status !== 'done').length);
-    _set('badge-blocked', (state.ado.items || []).filter(i => _isBlocked(i)).length);
     const overdue = (state.interrupts || []).filter(i =>
       i.dueDate && new Date(i.dueDate) < new Date() && i.status !== 'done').length;
     _set('badge-overdue', overdue);
@@ -3821,7 +4127,7 @@
     dashboard: null, focus: 'Focus Mode', standup: 'Standup Prep',
     interrupts: 'Interrupts', overdue: 'Overdue', 'due-today': 'Due Today',
     'magiq-media': 'magiq-media', 'magiq-auth': 'magiq-auth',
-    blocked: 'Blocked Items', team: 'Team Workload',
+    team: 'Team Workload',
     'review-queue': 'Review Queue', claudia: 'Ask Claudia', decisions: 'Decisions',
     sprint: 'Sprint Board', cheatsheet: 'Cheat Sheet',
     'github-prs': 'GitHub PRs', 'all-projects': 'All Projects',
@@ -3832,7 +4138,7 @@
     'projects-section', 'panel-grid', 'team-section', 'bottom-row', 'cheatsheet',
     'interrupts-section', 'drilldown-panel',
     'ado-panel-fullwidth', 'decisions-panel-fullwidth',
-    'blocked-panel-fullwidth', 'focus-details-section',
+    'focus-details-section',
     'github-prs-fullwidth', 'claudia-panel-fullwidth',
     'all-projects-fullwidth'
   ];
@@ -3932,11 +4238,6 @@
       if (el) el.style.display = '';
       return;
     }
-    if (view === 'blocked') {
-      const el = document.getElementById('blocked-panel-fullwidth');
-      if (el) { el.style.display = ''; _renderBlockedFullwidth(); }
-      return;
-    }
     if (view === 'claudia') {
       const el = document.getElementById('claudia-panel-fullwidth');
       if (el) el.style.display = '';
@@ -3969,33 +4270,30 @@
     const el = document.getElementById('interrupts-section');
     if (el) el.style.display = '';
 
-    const items = state.interrupts || [];
-    let filtered = items.filter(i => i.status !== 'done');
-    if (filter === 'overdue') {
-      filtered = filtered.filter(i => i.dueDate && new Date(i.dueDate) < new Date());
-    } else if (filter === 'due-today') {
-      filtered = filtered.filter(i => {
-        if (!i.dueDate) return false;
-        return new Date(i.dueDate).toDateString() === new Date().toDateString();
-      });
+    // Default interrupts view goes through the shared board (status tabs, etc.)
+    if (!filter || filter === 'all') { renderInterruptsSection(); return; }
+
+    // Overdue / Due-today are due-based views — filter by date, hide status tabs.
+    const board = BOARDS.interrupt;
+    let filtered = board.all().filter(i => i.status !== 'done');
+    if (filter === 'overdue') filtered = filtered.filter(i => i.dueDate && new Date(i.dueDate) < new Date());
+    else if (filter === 'due-today') filtered = filtered.filter(i => i.dueDate && new Date(i.dueDate).toDateString() === new Date().toDateString());
+
+    document.querySelectorAll(board.els.viewBtn).forEach(b =>
+      b.classList.toggle('active', b.dataset[board.els.viewAttr] === board.view()));
+    const listEl = document.getElementById(board.els.list);
+    const kbEl = document.getElementById(board.els.kanban);
+    const tabsEl = document.querySelector(board.els.tabs);
+    if (board.view() === 'kanban') {
+      if (listEl) listEl.style.display = 'none';
+      if (tabsEl) tabsEl.style.display = 'none';
+      if (kbEl) { kbEl.style.display = ''; _renderItemKanban(board, kbEl, filtered); }
+      return;
     }
-    _renderItemList('interrupts-list', filtered, i => `
-      <div class="interrupt-row" onclick="openInterruptDrilldown('${i.id}')">
-        <div class="priority-dot p-${i.priority || 'normal'}"></div>
-        <div class="interrupt-body">
-          <div class="interrupt-title">${i.title}</div>
-          <div class="interrupt-meta">
-            <span class="source-tag src-${(i.source || '').toLowerCase()}">${i.source || ''}</span>
-            ${(i.tags || []).map(t => `<span class="tag tag-${t} active">${_tagLabel(t)}</span>`).join('')}
-            <span class="interrupt-age">${_ago(new Date(i.capturedAt))}</span>
-          </div>
-        </div>
-        ${i.dueDate ? `<div class="due-chip ${_dueClass(i.dueDate)}">${_dueLabel(i.dueDate)}</div>` : '<div class="due-none">No due date</div>'}
-        <div class="status-tag status-${i.status}">${i.status}</div>
-        <button class="action-btn" onclick="event.stopPropagation();pushInterruptToADO('${i.id}')">-&gt; ADO</button>
-        <button class="action-btn done" onclick="event.stopPropagation();markInterruptDone('${i.id}')">Done</button>
-      </div>
-    `);
+    if (kbEl) kbEl.style.display = 'none';
+    if (tabsEl) tabsEl.style.display = 'none';
+    if (listEl) listEl.style.display = '';
+    _renderItemList(board.els.list, filtered, i => _itemRowHTML(board, i));
   }
 
   function _renderADOFullwidth(tab) {
@@ -4125,21 +4423,6 @@
     _renderCrossProject();
   }
 
-  function _renderBlockedFullwidth() {
-    const blocked = (state.ado.items || []).filter(i => _isBlocked(i));
-    _renderItemList('blocked-fullwidth-body', blocked, i => `
-      <div class="ado-row">
-        <div class="ado-state state-blocked"></div>
-        <div class="ado-body">
-          <div class="ado-text">${i.url
-            ? `<a href="${i.url}" target="_blank" style="color:inherit;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${i.title}</a>`
-            : i.title}</div>
-          <div class="ado-meta">${i.sprint || i.module || ''} · ${i.assignee || ''} · blocked ${i.daysInState || 0}d</div>
-        </div>
-      </div>
-    `);
-  }
-
   // Store decisions keyed by DOM index to avoid HTML attribute escaping issues
   let _decisionsIndex = [];
 
@@ -4247,7 +4530,9 @@
 
   // Kick off
   wireInterruptCaptureForm();
+  wireTodoCaptureForm();
   _wireInterruptFilterChips();
+  _wireItemTabs();
   initCheatsheet();
   fetchAll();
   fetchADO();
@@ -4363,20 +4648,8 @@
     });
   });
 
-  // Interrupt tabs
-  document.querySelectorAll('.interrupt-tab').forEach(function(tab) {
-    tab.addEventListener('click', function() {
-      document.querySelectorAll('.interrupt-tab').forEach(function(t) { t.classList.remove('active'); });
-      tab.classList.add('active');
-    });
-  });
-
-  // Filter chips
-  document.querySelectorAll('.filter-chip').forEach(function(chip) {
-    chip.addEventListener('click', function() {
-      chip.classList.toggle('active');
-    });
-  });
+  // Interrupt + todo status tabs are wired via _wireItemTabs(); source filter
+  // chips via _wireInterruptFilterChips(). Both run at kick-off above.
 </script>
 </body>
 </html>

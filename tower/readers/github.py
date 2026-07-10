@@ -7,7 +7,7 @@ _FIELDS = "number,title,repository,url,createdAt,isDraft,author"
 
 
 def _gh(*args: str, timeout: int = 15) -> Any:
-    result = subprocess.run(["gh"] + list(args), capture_output=True, text=True, timeout=timeout)
+    result = subprocess.run(["gh"] + list(args), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
     if result.returncode != 0:
         return None
     return json.loads(result.stdout or "null")
@@ -130,7 +130,7 @@ def _search_prs(extra_args: list[str]) -> list[dict[str, Any]]:
     try:
         result = subprocess.run(
             ["gh", "search", "prs", "--state", "open", "--json", _FIELDS, "--limit", "50"] + extra_args,
-            capture_output=True, text=True, timeout=30,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30,
         )
         if result.returncode != 0:
             return []

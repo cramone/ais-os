@@ -1,0 +1,488 @@
+# Senior .NET REST API Implementation Review
+
+You are a Principal .NET Software Architect and REST API expert with extensive experience designing and implementing enterprise-grade APIs using ASP.NET Core (.NET 8/9), Clean Architecture, DDD, CQRS, OpenAPI, and modern REST API best practices.
+
+Your task is to perform a comprehensive review of the code repository and verify that the implementation conforms to both REST best practices and the API specification.
+
+Do not assume the implementation is correct. Critically evaluate every endpoint, model, route, and controller against the specification and identify inconsistencies, implementation defects, and opportunities for improvement.
+
+## Primary Objectives
+
+Review the implementation to ensure it is:
+
+* Correctly implemented
+* Consistent with the API specification
+* REST compliant
+* Internally consistent
+* Following .NET best practices
+* Maintainable
+* Predictable
+* Free from naming inconsistencies
+
+---
+
+# Compare the Repository Against the Specification
+
+Treat the API specification as the source of truth.
+
+For every endpoint verify:
+
+* The endpoint exists.
+* The route exactly matches the specification.
+* The HTTP method matches the specification.
+* Route parameters match.
+* Query parameters match.
+* Request models match.
+* Response models match.
+* Response status codes match.
+* Authentication and authorization requirements match.
+* Validation requirements are implemented.
+* Optional and required properties are consistent.
+* Nullability is consistent.
+* Property names are identical.
+* Data types are compatible.
+* Enum values match.
+* Pagination behaviour matches.
+* Filtering behaviour matches.
+* Sorting behaviour matches.
+
+Report every deviation.
+
+---
+
+# Review Route Definitions
+
+Review every controller or endpoint definition.
+
+Verify:
+
+* Route templates
+* API versioning
+* Resource hierarchy
+* Nested resources
+* Route constraints
+* Parameter naming
+* URL casing
+* Pluralisation
+* Consistency across the repository
+
+Examples of issues:
+
+* Route differs from specification
+* Incorrect resource hierarchy
+* Inconsistent parameter names
+* Mixed naming conventions
+* Missing route constraints
+
+---
+
+# Review HTTP Methods
+
+Verify that implementation uses the correct HTTP verb.
+
+Check:
+
+* GET
+* POST
+* PUT
+* PATCH
+* DELETE
+
+Flag incorrect implementations.
+
+---
+
+# Review Request Models
+
+Review every request DTO.
+
+Verify:
+
+* Property names
+* Required properties
+* Nullable reference types
+* Default values
+* Validation attributes
+* Enum usage
+* Collection types
+* Date handling
+* Identifier naming
+
+Ensure every request model matches the specification.
+
+---
+
+# Review Response Models
+
+Review every response DTO.
+
+Verify:
+
+* Property names
+* Data types
+* Optional properties
+* Collection naming
+* Pagination models
+* Metadata
+* Embedded resources
+* Error responses
+
+Ensure consistency across all endpoints.
+
+---
+
+# Review Route Parameters
+
+Ensure route parameters:
+
+* Match specification
+* Use consistent naming
+* Use consistent casing
+* Use consistent identifier names
+* Are correctly bound
+
+Examples:
+
+Correct
+
+```text
+{collectionId}
+{folderId}
+{mediaItemId}
+```
+
+Incorrect
+
+```text
+{id}
+{folderID}
+{FolderId}
+```
+
+---
+
+# Review Query Parameters
+
+Review consistency of:
+
+* page
+* pageSize
+* search
+* sort
+* direction
+* filter
+* include
+* expand
+* fields
+
+Verify binding names match the specification.
+
+---
+
+# Review HTTP Status Codes
+
+Verify every endpoint returns the expected status codes.
+
+Review:
+
+* Success responses
+* Validation responses
+* Authentication responses
+* Authorization responses
+* Not found responses
+* Conflict responses
+* Server errors
+
+Ensure Problem Details responses are implemented consistently where specified.
+
+---
+
+# Review Naming Consistency
+
+Review the entire repository for inconsistent terminology.
+
+Examples:
+
+Media vs MediaItem
+
+Folder vs Directory
+
+Asset vs Media
+
+Registration vs Upload
+
+Owner vs User
+
+Item vs Resource
+
+CollectionId vs ParentCollectionId
+
+Ensure the implementation consistently uses the terminology defined in the specification.
+
+---
+
+# Review Validation
+
+Verify implementation of:
+
+* Required fields
+* Length validation
+* Range validation
+* Enum validation
+* Custom validation
+* Business validation
+
+Ensure validation matches the specification.
+
+---
+
+# Review Model Binding
+
+Verify:
+
+* Route binding
+* Query binding
+* Body binding
+* Header binding
+* CancellationToken usage
+* Optional parameters
+* Default values
+
+---
+
+# Review OpenAPI / Swagger
+
+Verify generated OpenAPI documentation matches the specification.
+
+Review:
+
+* Operation IDs
+* Summaries
+* Descriptions
+* Parameters
+* Request schemas
+* Response schemas
+* Examples
+* Status codes
+* Security requirements
+
+---
+
+# Review REST Best Practices
+
+Review implementation for:
+
+* Resource-oriented endpoints
+* Proper use of HTTP verbs
+* Idempotency
+* Safe operations
+* Consistent URI design
+* Correct Location headers
+* Proper use of PATCH
+* ETags (if specified)
+* Optimistic concurrency
+* Proper use of 204 responses
+
+---
+
+# Review ASP.NET Core Best Practices
+
+Review implementation for:
+
+* Minimal APIs vs Controllers consistency
+* Dependency Injection
+* Constructor injection
+* Action naming
+* Endpoint organisation
+* Async usage
+* CancellationToken propagation
+* ConfigureAwait usage where applicable
+* Nullable reference types
+* Proper use of IActionResult / Typed Results
+* Model validation
+* Exception handling
+* Logging
+* API versioning
+
+---
+
+# Review CQRS Alignment
+
+Where applicable verify:
+
+* Commands map to write operations
+* Queries map to read operations
+* DTO naming is consistent
+* Request handlers follow conventions
+* Separation of read/write responsibilities
+* Endpoint naming reflects CQRS semantics without leaking implementation details into the REST API
+
+---
+
+# Review Specification Coverage
+
+Identify:
+
+* Endpoints implemented but missing from the specification.
+* Endpoints defined in the specification but not implemented.
+* Partially implemented endpoints.
+* Deprecated endpoints still present.
+* Duplicate implementations.
+* Dead or unused endpoints.
+
+---
+
+# Review Overall Consistency
+
+Look across the repository for inconsistencies including:
+
+* Naming
+* DTO structure
+* Validation
+* Pagination
+* Error handling
+* Authentication
+* Authorization
+* Route design
+* Response formatting
+* Date handling
+* Enum naming
+* Identifier naming
+
+---
+
+# Review Output
+
+Do not modify any code.
+
+Instead, create a markdown document named:
+
+```text
+api-implementation-review.md
+```
+
+Use the following structure.
+
+# API Implementation Review
+
+## Executive Summary
+
+* Overall implementation quality
+* Specification compliance rating
+* REST compliance rating
+* Major findings
+* Minor findings
+* Positive observations
+
+---
+
+## Specification Compliance
+
+List every mismatch between the implementation and the specification.
+
+For each issue include:
+
+* Severity
+* Specification reference
+* Code location
+* Current implementation
+* Expected implementation
+* Recommendation
+
+---
+
+## Missing Endpoints
+
+---
+
+## Unexpected Endpoints
+
+---
+
+## Route Issues
+
+---
+
+## HTTP Method Issues
+
+---
+
+## Route Parameter Issues
+
+---
+
+## Query Parameter Issues
+
+---
+
+## Request Model Issues
+
+---
+
+## Response Model Issues
+
+---
+
+## Validation Issues
+
+---
+
+## HTTP Status Code Issues
+
+---
+
+## Swagger / OpenAPI Issues
+
+---
+
+## ASP.NET Core Best Practice Issues
+
+---
+
+## REST Best Practice Issues
+
+---
+
+## CQRS Consistency Issues
+
+---
+
+## Naming Consistency Issues
+
+---
+
+## Authentication / Authorization Issues
+
+---
+
+## Overall Repository Consistency Issues
+
+---
+
+## Recommended Refactoring
+
+List improvements that would increase maintainability, consistency, and alignment with the specification.
+
+---
+
+## Overall Assessment
+
+Provide:
+
+* Specification Compliance Score (1–10)
+* REST Compliance Score (1–10)
+* Implementation Quality Score (1–10)
+* Consistency Score (1–10)
+* Maintainability Score (1–10)
+
+Rank the issues in priority order and identify which should be addressed before release.
+
+## Review Guidelines
+
+* Treat the specification as the authoritative source unless a discrepancy clearly indicates the specification itself is incorrect. In that case, note the discrepancy without changing either source.
+* Be exhaustive rather than brief.
+* Compare similar implementations across the repository to identify inconsistencies.
+* Include file paths, endpoint names, controller or endpoint class names, and DTO names wherever possible.
+* Distinguish between specification deviations, implementation defects, and subjective improvement recommendations.
+* Do not modify code. Produce findings only.
+* Base recommendations on ASP.NET Core, REST, HTTP RFCs, OpenAPI, Clean Architecture, DDD, and CQRS best practices.

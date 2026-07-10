@@ -112,9 +112,9 @@ services:
       - "homepage.icon=azure-devops.png"
       - "homepage.href=https://mcp-ado.ramonedevelopment.com:8443/mcp"
       - "homepage.description=ADO MCP gateway (API endpoint, not a browser UI)"
-    # Tailnet-only router, but gets a real LE cert via the public HTTP-01 resolver — see
-    # traefik-internal-tls-implementation-plan.md Phase 1. Service itself stays unreachable
-    # from the public internet (entrypoints=tailnet only); only the ACME challenge is public.
+    # Tailnet-only router, gets a real LE cert via the public `public` resolver — now DNS-01
+    # (Cloudflare), see traefik service. Service stays unreachable from the public internet
+    # (entrypoints=tailnet only); with DNS-01 not even the ACME challenge is public anymore.
 
   mysql:
     image: mysql:8.4
@@ -311,6 +311,10 @@ services:
     image: traefik:v3.6
     restart: unless-stopped
     <<: *default-logging
+    environment:
+      # Scoped Cloudflare token (Zone:Read + DNS:Edit on ramonedevelopment.com) — read by
+      # lego's cloudflare provider for the DNS-01 challenge below. Real value in cortex ~/stack/.env.
+      CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN}
     network_mode: host
     # Required for the tailnet entrypoint below: Tailscale creates tailscale0 in the HOST
     # network namespace. A container on the default bridge network can't see it — binding to
@@ -326,14 +330,22 @@ services:
       - "--entrypoints.tailnet.address=100.90.195.22:8443"   # must match `tailscale ip -4` on cortex
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
-      - "--certificatesresolvers.public.acme.httpchallenge=true"
-      - "--certificatesresolvers.public.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.public.acme.dnschallenge=true"
+      - "--certificatesresolvers.public.acme.dnschallenge.provider=cloudflare"
+      - "--certificatesresolvers.public.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
       - "--certificatesresolvers.public.acme.email=chase.ramone@magiqsoftware.com"
       - "--certificatesresolvers.public.acme.storage=/letsencrypt/acme.json"
       - "--log.level=INFO"
       - "--api.dashboard=true"
       # cortex is now sole owner of ramonedevelopment.com's public ACME path.
       # Windows Traefik box decommissioned 2026-07 — see Decision Log.
+      # ACME switched HTTP-01 -> DNS-01 (Cloudflare) 2026-07-08: No-IP was never a supported lego
+      # DNS provider, and DNS moved to Cloudflare. DNS-01 means the ACME challenge no longer needs
+      # a public :80 — lego writes a _acme-challenge TXT via the Cloudflare API instead. The public
+      # :80 port-forward can (and should) now be closed at the router; nothing here needs it.
+      # Certs stay per-host (each router triggers its own) — no wildcard required. The dns-internal
+      # dnsmasq split-DNS (A records for tailnet clients) is unaffected: LE validates the TXT
+      # against Cloudflare's PUBLIC authoritative zone, independent of the tailnet A answers.
     # NOTE: DOCKER_API_VERSION env var does NOT fix the "client version 1.24 is too old" error —
     # tried that first, no effect. Root cause: Traefik versions before 3.6.1 hardcode their
     # Docker SDK client to declare API v1.24 regardless of env vars; Docker Engine 29 raised

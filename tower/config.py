@@ -15,6 +15,14 @@ PROJECTS_DIR = AIOS_ROOT / "projects"
 DECISIONS_LOG = AIOS_ROOT / "decisions" / "log.md"
 ADO_SCRIPT = AIOS_ROOT / "scripts" / "devops_summary.py"
 INTERRUPTS_FILE = TOWER_DIR / "data" / "interrupts.json"
+TODOS_DATA_DIR = TOWER_DIR / "data" / "todos"
+
+
+def todos_file(slug: str) -> Path:
+    """Per-project todo store (same JSON schema as interrupts)."""
+    return TODOS_DATA_DIR / f"{slug}.json"
+
+
 try:
     PORT = int(os.getenv("TOWER_PORT", "8765"))
 except (ValueError, TypeError):

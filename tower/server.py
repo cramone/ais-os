@@ -19,8 +19,12 @@ from tower.interrupts.email import generate_email_draft
 from tower.interrupts.store import (
     append_activity,
     create_interrupt,
+    create_item,
+    delete_activity,
     delete_interrupt,
     load_interrupts,
+    make_item,
+    save_interrupts,
     update_activity,
     update_interrupt,
 )
@@ -109,7 +113,7 @@ def _hermes_container_up() -> bool:
     try:
         r = subprocess.run(
             ["docker", "ps", "--filter", "name=hermes", "--format", "{{.Names}}"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5,
         )
         return "hermes" in r.stdout
     except Exception:
@@ -342,6 +346,16 @@ def patch_activity(interrupt_id: str, index: int, body: ActivityEdit) -> dict[st
         raise HTTPException(400, str(e))
 
 
+@app.delete("/api/interrupts/{interrupt_id}/activity/{index}")
+def del_activity(interrupt_id: str, index: int) -> dict[str, Any]:
+    try:
+        return delete_activity(config.INTERRUPTS_FILE, interrupt_id, index)
+    except KeyError:
+        raise HTTPException(404, f"Interrupt {interrupt_id!r} not found")
+    except IndexError:
+        raise HTTPException(404, f"Activity index {index} not found")
+
+
 @app.post("/api/interrupts/{interrupt_id}/email-draft")
 def email_draft(interrupt_id: str, body: EmailDraftRequest) -> dict[str, Any]:
     items = load_interrupts(config.INTERRUPTS_FILE)
@@ -462,118 +476,151 @@ def write_plans_file(slug: str, path: str, body: FileWriteRequest) -> dict:
 
 
 # --- Todos ---
+# Todos share the interrupt item schema and are stored per-project as JSON
+# (tower/data/todos/{slug}.json). Legacy projects/{slug}/todos.md is migrated
+# once on first read, then left in place as a human-readable backup.
 
-@app.get("/api/projects/{slug}/todos")
-def project_todos(slug: str) -> dict:
-    """Return parsed todo entries from projects/{slug}/todos.md."""
-    todos_file = config.PROJECTS_DIR / slug / "todos.md"
-    if not todos_file.exists():
-        return {"todos": []}
-    content = todos_file.read_text(encoding="utf-8", errors="replace")
-    todos = []
-    # Split on ## headings
+_TODO_STATUS_MAP = {"todo": "new", "doing": "in-progress", "done": "done"}
+_TODO_STATUSES = {"new", "in-progress", "deferred", "done"}
+
+
+def _migrate_todos_md(slug: str) -> list[dict[str, Any]]:
+    """Parse legacy projects/{slug}/todos.md into the shared item schema."""
+    md = config.PROJECTS_DIR / slug / "todos.md"
+    if not md.exists():
+        return []
     import re
-    blocks = re.split(r'\n(?=## )', content)
-    for block in blocks:
+    content = md.read_text(encoding="utf-8", errors="replace")
+    items: list[dict[str, Any]] = []
+    for block in re.split(r'\n(?=## )', content):
         block = block.strip()
         if not block.startswith('## '):
             continue
         lines = block.split('\n')
         heading = lines[0][3:].strip()
         captured = None
+        status = "todo"
         body_lines = []
         for line in lines[1:]:
             if line.startswith('_Captured:') and captured is None:
                 captured = line.strip('_').replace('Captured:', '').strip()
+            elif line.startswith('_Status:'):
+                status = line.strip('_').replace('Status:', '').strip().lower() or "todo"
             elif line.strip() == '---':
                 break
             else:
                 body_lines.append(line)
         body = '\n'.join(body_lines).strip()
-        todos.append({"heading": heading, "captured": captured, "body": body})
-    return {"todos": todos}
+        activity = []
+        if body:
+            activity.append({
+                "type": "comment", "text": body,
+                "author": "Chase", "timestamp": _now_iso(),
+            })
+        # Normalise the captured date to a bare ISO date when possible.
+        captured_at = _now_iso()
+        if captured:
+            m = re.match(r'\d{4}-\d{2}-\d{2}', captured)
+            if m:
+                captured_at = m.group(0)
+        items.append(make_item(
+            heading,
+            status=_TODO_STATUS_MAP.get(status, "new"),
+            captured_at=captured_at,
+            activity=activity,
+        ))
+    return items
 
 
-@app.delete("/api/projects/{slug}/todos/{index}")
-def delete_todo(slug: str, index: int) -> dict:
-    """Remove a todo entry by index from projects/{slug}/todos.md."""
-    todos_file = config.PROJECTS_DIR / slug / "todos.md"
-    if not todos_file.exists():
-        raise HTTPException(404, "No todos file")
-    content = todos_file.read_text(encoding="utf-8", errors="replace")
-    import re
-    blocks = re.split(r'\n(?=## )', content)
-    header_blocks = [b for b in blocks if not b.strip().startswith('## ')]
-    todo_blocks = [b for b in blocks if b.strip().startswith('## ')]
-    if index < 0 or index >= len(todo_blocks):
-        raise HTTPException(404, "Todo index out of range")
-    todo_blocks.pop(index)
-    new_content = '\n'.join(header_blocks + todo_blocks)
-    todos_file.write_text(new_content, encoding="utf-8")
-    return {"ok": True}
+def _now_iso() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).isoformat()
 
 
-class TodoReorderRequest(BaseModel):
-    order: list[int]
-
-@app.put("/api/projects/{slug}/todos/reorder")
-def reorder_todos(slug: str, body: TodoReorderRequest) -> dict:
-    """Rewrite todos.md with entries in the given index order."""
-    todos_file = config.PROJECTS_DIR / slug / "todos.md"
-    if not todos_file.exists():
-        raise HTTPException(404, "No todos file")
-    content = todos_file.read_text(encoding="utf-8", errors="replace")
-    import re
-    blocks = re.split(r'\n(?=## )', content)
-    header_blocks = [b for b in blocks if not b.strip().startswith('## ')]
-    todo_blocks = [b for b in blocks if b.strip().startswith('## ')]
-    if sorted(body.order) != list(range(len(todo_blocks))):
-        raise HTTPException(400, "Invalid order: must be a permutation of existing indices")
-    reordered = [todo_blocks[i] for i in body.order]
-    new_content = '\n'.join(header_blocks + reordered)
-    todos_file.write_text(new_content, encoding="utf-8")
-    return {"ok": True}
+def _load_todos(slug: str) -> list[dict[str, Any]]:
+    """Load a project's todos, migrating from todos.md on first access."""
+    path = config.todos_file(slug)
+    if not path.exists():
+        migrated = _migrate_todos_md(slug)
+        if migrated:
+            save_interrupts(path, migrated)
+        return migrated
+    return load_interrupts(path)
 
 
-class TodoAddRequest(BaseModel):
-    text: str
+@app.get("/api/projects/{slug}/todos")
+def get_todos(slug: str) -> list[dict[str, Any]]:
+    return _load_todos(slug)
+
 
 @app.post("/api/projects/{slug}/todos", status_code=201)
-def add_todo(slug: str, body: TodoAddRequest) -> dict:
-    """Prepend a new todo entry to projects/{slug}/todos.md."""
-    todos_file = config.PROJECTS_DIR / slug / "todos.md"
-    import datetime, re
-    today = datetime.date.today().isoformat()
-    new_block = f"## {body.text.strip()}\n_Captured: {today}_\n\n"
-    if not todos_file.exists():
-        todos_file.write_text(new_block, encoding="utf-8")
-    else:
-        content = todos_file.read_text(encoding="utf-8", errors="replace")
-        todos_file.write_text(new_block + content, encoding="utf-8")
-    return {"ok": True}
-
-
-class TodoEditRequest(BaseModel):
-    text: str
-
-@app.patch("/api/projects/{slug}/todos/{index}")
-def edit_todo(slug: str, index: int, body: TodoEditRequest) -> dict:
-    """Edit the heading of a todo entry by index."""
-    todos_file = config.PROJECTS_DIR / slug / "todos.md"
-    if not todos_file.exists():
-        raise HTTPException(404, "No todos file")
-    content = todos_file.read_text(encoding="utf-8", errors="replace")
-    import re
-    blocks = re.split(r'\n(?=## )', content)
-    header_blocks = [b for b in blocks if not b.strip().startswith('## ')]
-    todo_blocks = [b for b in blocks if b.strip().startswith('## ')]
-    if index < 0 or index >= len(todo_blocks):
-        raise HTTPException(404, "Todo index out of range")
-    todo_blocks[index] = re.sub(
-        r'^## .+$', f'## {body.text.strip()}', todo_blocks[index], count=1, flags=re.MULTILINE
+def post_todo(slug: str, body: InterruptCreate) -> dict[str, Any]:
+    path = config.todos_file(slug)
+    _load_todos(slug)  # ensure migration has run before appending
+    return create_item(
+        path,
+        title=body.title,
+        due_date=body.dueDate,
+        priority=body.priority,
     )
-    todos_file.write_text('\n'.join(header_blocks + todo_blocks), encoding="utf-8")
-    return {"ok": True}
+
+
+@app.patch("/api/projects/{slug}/todos/{todo_id}")
+def patch_todo(slug: str, todo_id: str, body: InterruptUpdate) -> dict[str, Any]:
+    path = config.todos_file(slug)
+    _load_todos(slug)
+    try:
+        updates = {k: v for k, v in body.model_dump().items() if v is not None}
+        return update_interrupt(path, todo_id, **updates)
+    except KeyError:
+        raise HTTPException(404, f"Todo {todo_id!r} not found")
+
+
+@app.delete("/api/projects/{slug}/todos/{todo_id}", status_code=204)
+def delete_todo(slug: str, todo_id: str) -> Response:
+    path = config.todos_file(slug)
+    _load_todos(slug)
+    delete_interrupt(path, todo_id)
+    return Response(status_code=204)
+
+
+@app.post("/api/projects/{slug}/todos/{todo_id}/activity")
+def post_todo_activity(slug: str, todo_id: str, body: ActivityEntry) -> dict[str, Any]:
+    path = config.todos_file(slug)
+    _load_todos(slug)
+    try:
+        return append_activity(
+            path, todo_id,
+            entry_type=body.type, text=body.text, author=body.author,
+        )
+    except KeyError:
+        raise HTTPException(404, f"Todo {todo_id!r} not found")
+
+
+@app.patch("/api/projects/{slug}/todos/{todo_id}/activity/{index}")
+def patch_todo_activity(slug: str, todo_id: str, index: int, body: ActivityEdit) -> dict[str, Any]:
+    path = config.todos_file(slug)
+    _load_todos(slug)
+    try:
+        return update_activity(path, todo_id, index, body.text)
+    except KeyError:
+        raise HTTPException(404, f"Todo {todo_id!r} not found")
+    except IndexError:
+        raise HTTPException(404, f"Activity index {index} not found")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.delete("/api/projects/{slug}/todos/{todo_id}/activity/{index}")
+def del_todo_activity(slug: str, todo_id: str, index: int) -> dict[str, Any]:
+    path = config.todos_file(slug)
+    _load_todos(slug)
+    try:
+        return delete_activity(path, todo_id, index)
+    except KeyError:
+        raise HTTPException(404, f"Todo {todo_id!r} not found")
+    except IndexError:
+        raise HTTPException(404, f"Activity index {index} not found")
 
 
 class MemoryWriteRequest(BaseModel):

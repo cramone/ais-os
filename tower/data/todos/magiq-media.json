@@ -1,0 +1,112 @@
+[
+  {
+    "id": "1ce64034-6e96-41e4-8e29-633313b2c90e",
+    "title": "deploy mechanism = cross-repo dispatch to cdk-magiq-media",
+    "source": "",
+    "dueDate": null,
+    "priority": "normal",
+    "status": "new",
+    "tags": [],
+    "adoItemId": null,
+    "zendeskTicket": null,
+    "customer": null,
+    "capturedAt": "2026-07-03",
+    "updatedAt": "2026-07-10T08:03:44.945649+00:00",
+    "activity": [
+      {
+        "type": "comment",
+        "text": "Deploy is done by **`magiqsoftware/cdk-magiq-media`** (separate CDK/TypeScript repo),\nnot a step in magiq-media. `.github/workflows/build-and-push.yml` builds + pushes images\nto the shared ECR (738608577325), then dispatches to the CDK repo.\n\n**Integration contract** (implemented):\n- magiq-media `dispatch-deploy` / `dispatch-staging` jobs send `repository_dispatch`\n  (`event_type: deploy`) to cdk-magiq-media with `client_payload = { env, imageTag: <sha> }`.\n- cdk `deploy.yml` listens on that dispatch, resolves `environment` from payload, assumes\n  per-env `AWS_DEPLOY_ROLE_ARN` (secret) + `CDK_DEFAULT_ACCOUNT` (var), runs\n  `cdk deploy --all --context env=… imageTag=… migrationsEnabled=true`.\n- cdk pulls `<prefix>-<sha>` from shared ECR → build-once/deploy-that-artifact holds.\n\n**OUTSTANDING — required before deploys actually run:**\n1. **Create repo secret `CDK_DISPATCH_TOKEN`** in magiq-media — fine-grained PAT or GitHub\n   App token with `contents: write` (dispatch) on cdk-magiq-media. Until set, the dispatch\n   steps are skipped (guarded on token presence) — builds stay green, no deploy fires.\n2. Cross-account ECR pull: each env's deploy role needs pull rights on the 738608577325 ECR.\n3. cdk deploys only **8** hosts — `SagaOrchestrator.DocumentSigning` (`saga-document-signing`)\n   is built by magiq-media but has no `ecrCode(...)` in cdk `magiq-media-stack.ts`. Wire it\n   when the signing host is ready to deploy.\n4. (Done) The per-env `AWS_DEPLOY_ROLE_ARN` **vars** on magiq-media environments were\n   redundant — deploy role lives in cdk-magiq-media (secrets). Removed; magiq-media envs\n   now carry no env-level vars.\n\nSee `spec/architecture/branching-and-deployment.md` → \"Open questions\".",
+        "author": "Chase",
+        "timestamp": "2026-07-10T08:02:38.739266+00:00"
+      }
+    ]
+  },
+  {
+    "id": "157018d6-f7c4-44ae-a327-9b233800f6d5",
+    "title": "Add bulk delete media item command",
+    "source": "",
+    "dueDate": null,
+    "priority": "normal",
+    "status": "new",
+    "tags": [],
+    "adoItemId": null,
+    "zendeskTicket": null,
+    "customer": null,
+    "capturedAt": "2026-06-02",
+    "updatedAt": "2026-07-10T08:02:38.739321+00:00",
+    "activity": [
+      {
+        "type": "comment",
+        "text": "The bulk delete media item needs to be implemented in the FolderDeleteFoanoutWorker.",
+        "author": "Chase",
+        "timestamp": "2026-07-10T08:02:38.739314+00:00"
+      }
+    ]
+  },
+  {
+    "id": "a52112d7-aa74-4309-ad43-6fa3ed79d73d",
+    "title": "Review: enable staging deploy (Model A — dedicated AWS account)",
+    "source": "",
+    "dueDate": null,
+    "priority": "normal",
+    "status": "new",
+    "tags": [],
+    "adoItemId": null,
+    "zendeskTicket": null,
+    "customer": null,
+    "capturedAt": "2026-07-03",
+    "updatedAt": "2026-07-10T08:02:38.739344+00:00",
+    "activity": [
+      {
+        "type": "comment",
+        "text": "Chose **Model A** (one AWS account per environment). Staging AWS account is not\nprovisioned yet, so the `deploy-staging` job in `.github/workflows/build-and-push.yml`\nis provisioned but **dormant** — guarded by `vars.STAGING_ENABLED == 'true'` (unset =\nskipped) and a placeholder step that `exit 1`s if run.\n\nTo enable when the account is ready:\n1. Create staging AWS account + `GitHubOidcMagiqMediaRole` OIDC role in it.\n2. (Done) Env-level `AWS_DEPLOY_ROLE_ARN` on `staging` =\n   `arn:aws:iam::727517389921:role/GitHubOidcMagiqMediaRole`. Grant it cross-account pull\n   on the shared ECR in `738608577325`.\n3. Add required-reviewer protection rule on the `staging` environment (Model B gate).\n4. Implement the real promote-to-staging deploy step (depends on the deploy-step gap above).\n5. Set `STAGING_ENABLED = 'true'`.\n\nNote: Model A implies dedicated accounts for **all** envs — dev/qa/prod still share\n`738608577325` today. Prod-in-shared-account is the higher-risk piece. Worth an ADR +\ndecision-log entry for the full multi-account rollout.",
+        "author": "Chase",
+        "timestamp": "2026-07-10T08:02:38.739339+00:00"
+      }
+    ]
+  },
+  {
+    "id": "39c8bc10-12e6-4b80-a690-2d56411ab7f2",
+    "title": "DISABLED until ready + Tom-approved: prod & staging deploys",
+    "source": "",
+    "dueDate": null,
+    "priority": "normal",
+    "status": "new",
+    "tags": [],
+    "adoItemId": null,
+    "zendeskTicket": null,
+    "customer": null,
+    "capturedAt": "2026-07-03",
+    "updatedAt": "2026-07-10T08:02:38.739366+00:00",
+    "activity": [
+      {
+        "type": "comment",
+        "text": "ECR stays central in account `738608577325` (repo-level `AWS_ECR_ROLE_ARN`) — all envs\npush images there. Per-env account bound as **env-level `AWS_DEPLOY_ROLE_ARN`** (role\n`GitHubOidcMagiqMediaRole`), used by the future deploy step. Each env account's deploy\nrole needs cross-account pull rights on the `738608577325` ECR (repo policy + trust).\n\n| Env     | Account name | Account ID     | Trigger status |\n|---------|--------------|----------------|----------------|\n| dev     | Development  | 989143135668   | **active** (push `develop`) |\n| qa      | QA           | 835494934465   | **active** (push `release/**`) |\n| staging | Demo         | 727517389921   | **DISABLED** (`STAGING_ENABLED=false`) |\n| prod    | Prod         | 614323302920   | **DISABLED** (`PROD_ENABLED=false`) |\n\n**prod** and **staging** deploys are OFF until: (a) their AWS accounts are ready to\naccept deploys, and (b) **Tom approves**.\n\nRe-enable checklist:\n- prod: confirm account 614323302920 has `GitHubOidcMagiqMediaRole` OIDC role + ECR →\n  Tom approval → set repo var `PROD_ENABLED='true'`. Add required-reviewer rule on the\n  `prod` environment.\n- staging: confirm account 727517389921 ready + real deploy step wired → Tom approval →\n  set `STAGING_ENABLED='true'`. Add required-reviewer rule on `staging`.\n\nAssumption to verify: OIDC role name is `GitHubOidcMagiqMediaRole` in every account.\nThe old repo-level default (`738608577325`) is now unused — all envs override per-account.",
+        "author": "Chase",
+        "timestamp": "2026-07-10T08:02:38.739361+00:00"
+      }
+    ]
+  },
+  {
+    "id": "86311881-0392-4a82-9089-43dcba62c267",
+    "title": "RESOLVED: metadata shape breaking-change versioning gate (api-consistency plan Stage 4)",
+    "source": "",
+    "dueDate": null,
+    "priority": "normal",
+    "status": "new",
+    "tags": [],
+    "adoItemId": null,
+    "zendeskTicket": null,
+    "customer": null,
+    "capturedAt": "2026-07-08",
+    "updatedAt": "2026-07-10T08:02:38.739387+00:00",
+    "activity": [
+      {
+        "type": "comment",
+        "text": "Checked before `PUT /v1/catalog/items/{itemId}/metadata` and `POST /v1/catalog/items/bulk/metadata`\nship any further: does the `fields` map→array shape change (`docs/adrs/catalog-domain-invariants.md\n§Metadata Collision Prevention and General Fields`, accepted as a no-migration-path breaking change\non the premise that \"the platform has no released version yet\") still hold that premise, or has a\nclient integrated against the old map shape in the meantime?\n\n**Answer: premise still holds — shipped in place, no `/v2` needed.**\n- Code already implements the array shape (`SetMetadataBatchRequest.Fields`, `SetMetadataFieldRequest.Origin`)\n  and has since commit `e4c8af88` (\"Add MetadataFieldOrigin and RecordTypeAlias options. (#128)\"),\n  merged 2026-06-25 — ~2 weeks before this check. No commit since has touched it or any client\n  consuming it.\n- ADO board (`Media` project) shows no work items indicating a UI/client consumer exists yet for\n  either shape: Akshay Gaikwad's current work is all OpenSearch infra provisioning, unrelated to\n  MediaItem metadata endpoints. Estelle Wu's most recent related item (#33946, \"Add Metadata\n  Validation\") is backend validation work still in Code Review — confirms the endpoint itself is\n  still under active construction, not yet integrated against by any downstream consumer.\n- No action needed. Re-check this if UI/integration work against `PUT/POST .../metadata` starts\n  before the array shape is fully stable.",
+        "author": "Chase",
+        "timestamp": "2026-07-10T08:02:38.739382+00:00"
+      }
+    ]
+  }
+]

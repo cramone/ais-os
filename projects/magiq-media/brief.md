@@ -107,14 +107,14 @@ Host: `src/hosts/Media.Api` — single FastEndpoints host wiring all modules.
 
 ## Decisions
 
-See `decisions/log.md` for architecture decisions.
-Full ADR set at: `C:\Users\chase\OneDrive\CoworkOS\development-projects\projects\media-management\adrs\`
+See `decisions/log.md` for the decision journal (Chase's machine only — in-flight/informal).
 
-| ADR | Decision |
+Architecture decisions (ADRs) live in `D:\source\github\magiq-media\docs\adrs\` and are code-reviewed there — this OneDrive path is stale and no longer used. As of 2026-07-08, the ADRs are organized as five topic documents (not a flat numbered sequence — see `docs/adrs/README.md` in that repo for the full index and the old-number → new-location map if you're looking for a specific former `ADR-0XX`):
+
+| Topic doc | Covers |
 |---|---|
-| ADR-001 | DynamoDB as event store |
-| ADR-002 | SNS → SQS fan-out (not DynamoDB Streams) |
-| ADR-003 | OpenSearch for search read model |
-| ADR-004 | Pre-signed S3 upload (client-direct, no Lambda proxy) |
-| ADR-005 | Integration event publishing inline in Command Handler |
-| ADR-006 | Uniqueness registry + hierarchy invariants |
+| `persistence-and-eventing.md` | Event store (DynamoDB), domain event bus (SNS→SQS), integration events, search read model (OpenSearch) |
+| `asset-storage-and-processing.md` | Pre-signed S3 upload/download, storage tier lifecycle, processing failure taxonomy |
+| `catalog-domain-invariants.md` | Hierarchy invariant counters, MediaProfile publish guard & conformance tracking, metadata collision prevention |
+| `api-http-conventions.md` | Folder assign/move (unified PUT), response identifier naming, cursor-only pagination |
+| `auth-and-security.md` | Service account authentication (client credentials, JTI replay exemption) |

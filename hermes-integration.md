@@ -39,11 +39,11 @@ Reorganized from granular per-action skills into capability umbrellas. Notable o
 > `references/hermes-skills/` in this repo holds reference copies of selected skills — used as the install source for fresh Claudia setups (see the setup guide's §15.3b). **Reconciled 2026-07-04** against the live profile: holds `adhoc-capture`, `agenda-generator`, `morning-digest`, `project-management` (the current umbrella, replacing the old granular per-action skills). `github-my-prs` is also kept here but is restore-only — not currently installed on Claudia. `devops/webhook-subscriptions` is deliberately not tracked here (no path deps, no drift risk).
 
 ## Hermes MCP connection (Claude Code)
-Config in `magiq/.claude/settings.json` — **stale, needs re-verification** now that the Docker Hermes is retired; the below assumed the Docker container:
+Config in `magiq/.claude/settings.json`, already repointed at Claudia's bare-metal profile:
 ```json
-{ "mcpServers": { "hermes": { "command": "docker", "args": ["exec", "-i", "hermes", "hermes", "mcp", "serve"] } } }
+{ "mcpServers": { "hermes": { "command": "ssh", "args": ["-T", "chase@cortex", "claudia", "mcp", "serve"] } } }
 ```
-If Claude Code still needs the messaging bridge (`messages_send`, `conversations_list`, `events_poll`, `events_wait`, …), this needs to be repointed at Claudia's bare-metal gateway on cortex instead of a local Docker exec. Not yet done — flag as an open item.
+**Verified 2026-07-07**: this is intentional, not stale. It's for Claude Code sessions on the Windows/Tower side reaching Claudia on cortex over SSH — not for Claude Code sessions already running on cortex itself (there, SSH-to-self hits host key verification and is unnecessary anyway, since `claudia mcp serve` is just a local command).
 
 ## Retired setup (historical — Windows Docker Hermes, pre-2026-07-04)
 Docker-based background agent (`hermes` + `hermes-dashboard` containers) ran locally on the Windows PC, mounting the old OneDrive AIS-OS folder into the container:
@@ -61,12 +61,12 @@ ADO is **not** captured through Hermes data files anymore. See `connections.md` 
 - Claude Code → `azure-devops` MCP (`.mcp.json`, gitignored)
 - Tower interrupt push → ADO REST (`tower/interrupts/ado_push.py`)
 
-ADO writes originate from the local machine (org IP allowlist). Whether Claudia (running on cortex) can reach ADO is gated by that allowlist — verify before relying on Claudia to create work items directly.
+ADO writes originate from the local machine (org IP allowlist). **Verified 2026-07-07**: cortex is inside the allowlist — `curl -u ":$AZURE_DEVOPS_PAT" https://dev.azure.com/MAGIQSoftware/_apis/projects` returned HTTP 200 from cortex. Claudia can reach ADO directly.
 
 ## Control Tower ↔ Claudia
 - Per-project captures Claudia writes (`projects/[slug]/todos.md`, `notes.md`) surface in the Tower via the project todos/notes panels.
 - The Tower's old Hermes inbox / adhoc / sync views were removed (they read the now-dead `~/.hermes/data` paths).
-- Health: the Tower's `/api/health` "claudia" check needs re-verification — it used to check the `hermes` Docker container (`docker ps`), which no longer exists. Should instead check the bare-metal `hermes-gateway-claudia` systemd service on cortex (`systemctl --user status hermes-gateway-claudia`). Open item — see `tower/readers/claudia.py`.
+- Health: **Verified 2026-07-07** — `tower/server.py`'s `_hermes_container_up()` was already repointed to probe `CLAUDIA_BRIDGE_URL` (the `claudia-bridge` HTTP server on cortex, port 8901) and falls back to `docker ps` only for Windows dev. The bridge was confirmed up and returning HTTP 200 on `/health`. No longer an open item.
 
 ## Constraints
 - Model: Haiku for all Claudia/Hermes cron/background runs.

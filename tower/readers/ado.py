@@ -62,7 +62,7 @@ def _run_script(*args: str) -> str:
     script_args = list(args) if args else ["--sprint", "--all", "--json"]
     result = subprocess.run(
         [sys.executable, str(config.ADO_SCRIPT), *script_args],
-        capture_output=True, text=True, timeout=60
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr or "script exited non-zero")

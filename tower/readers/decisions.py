@@ -68,13 +68,18 @@ def add_decision(date: str, title: str, project: str | None = None) -> bool:
     text = log_path.read_text(encoding="utf-8", errors="replace")
     preamble, blocks = _split_log(text)
     project_line = f"**Project:** {project}\n\n" if project else "**Project:** \n\n"
-    new_block = f"## {date} — {title}\n\n{project_line}**Decision:** \n\n**Why:** \n\n"
-    log_path.write_text(preamble + new_block + "".join(blocks), encoding="utf-8")
+    new_block = f"## {date} — {title}\n\n{project_line}**Decision:** \n\n**Why:** \n"
+    body = (preamble + "".join(blocks)).rstrip()
+    log_path.write_text(body + "\n\n---\n\n" + new_block, encoding="utf-8")
     return True
 
 
 def read_decisions(limit: int = 10) -> list[dict[str, Any]]:
-    """Parse decisions/log.md and return last `limit` entries, newest first."""
+    """Parse decisions/log.md and return the last `limit` entries, newest first.
+
+    The log is chronological (append-only, newest at bottom), so the newest
+    entries are at the end of the file — take the tail and reverse it.
+    """
     from tower import config
     log_path = config.DECISIONS_LOG
     if not log_path.exists():
@@ -95,4 +100,4 @@ def read_decisions(limit: int = 10) -> list[dict[str, Any]]:
             "text": title,
             "project": project_m.group(1).strip() if project_m else "",
         })
-    return entries[:limit]  # newest first (file is written newest-at-top)
+    return entries[-limit:][::-1]  # tail = newest; reverse to newest-first

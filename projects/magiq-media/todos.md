@@ -1,14 +1,8 @@
 # Todos — magiq-media
 
-## Add bulk delete media item command
-_Captured: 2026-06-02T04:52:00Z_
-
-The bulk delete media item needs to be implemented in the FolderDeleteFoanoutWorker.
-
----
-
 ## RESOLVED: deploy mechanism = cross-repo dispatch to cdk-magiq-media
 _Captured: 2026-07-03 · Resolved: 2026-07-03_
+_Status: todo_
 
 Deploy is done by **`magiqsoftware/cdk-magiq-media`** (separate CDK/TypeScript repo),
 not a step in magiq-media. `.github/workflows/build-and-push.yml` builds + pushes images
@@ -35,6 +29,13 @@ to the shared ECR (738608577325), then dispatches to the CDK repo.
    now carry no env-level vars.
 
 See `spec/architecture/branching-and-deployment.md` → "Open questions".
+
+---
+
+## Add bulk delete media item command
+_Captured: 2026-06-02T04:52:00Z_
+
+The bulk delete media item needs to be implemented in the FolderDeleteFoanoutWorker.
 
 ---
 
@@ -88,5 +89,29 @@ Re-enable checklist:
 
 Assumption to verify: OIDC role name is `GitHubOidcMagiqMediaRole` in every account.
 The old repo-level default (`738608577325`) is now unused — all envs override per-account.
+
+---
+
+## RESOLVED: metadata shape breaking-change versioning gate (api-consistency plan Stage 4)
+_Captured: 2026-07-08 · Resolved: 2026-07-08_
+
+Checked before `PUT /v1/catalog/items/{itemId}/metadata` and `POST /v1/catalog/items/bulk/metadata`
+ship any further: does the `fields` map→array shape change (`docs/adrs/catalog-domain-invariants.md
+§Metadata Collision Prevention and General Fields`, accepted as a no-migration-path breaking change
+on the premise that "the platform has no released version yet") still hold that premise, or has a
+client integrated against the old map shape in the meantime?
+
+**Answer: premise still holds — shipped in place, no `/v2` needed.**
+- Code already implements the array shape (`SetMetadataBatchRequest.Fields`, `SetMetadataFieldRequest.Origin`)
+  and has since commit `e4c8af88` ("Add MetadataFieldOrigin and RecordTypeAlias options. (#128)"),
+  merged 2026-06-25 — ~2 weeks before this check. No commit since has touched it or any client
+  consuming it.
+- ADO board (`Media` project) shows no work items indicating a UI/client consumer exists yet for
+  either shape: Akshay Gaikwad's current work is all OpenSearch infra provisioning, unrelated to
+  MediaItem metadata endpoints. Estelle Wu's most recent related item (#33946, "Add Metadata
+  Validation") is backend validation work still in Code Review — confirms the endpoint itself is
+  still under active construction, not yet integrated against by any downstream consumer.
+- No action needed. Re-check this if UI/integration work against `PUT/POST .../metadata` starts
+  before the array shape is fully stable.
 
 ---

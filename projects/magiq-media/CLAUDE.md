@@ -62,7 +62,7 @@ High
 | `use-cases.md` | Use case catalogue |
 | `todos.md` | Active todo items |
 | `MEMORY.md` | External memory — read at session start |
-| `plans/` | Implementation plans (in-flight, pre-decision design work) |
+| `plans/` | All plans — in-flight/pre-decision design work *and* point-in-time, cross-cutting implementation plans (e.g. spec-remediation checklists) |
 | `decisions/` | Decision log |
 | `prompts/` | AI prompts used to produce spec content |
 | `reviews/` | Informal spec review artifacts |

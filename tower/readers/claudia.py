@@ -62,7 +62,7 @@ def _send_via_docker(message: str) -> dict[str, Any]:
     try:
         result = subprocess.run(
             ["ssh", CORTEX_HOST, "claudia", "chat", "-q", message, "--yolo"],
-            capture_output=True, text=True, timeout=120,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120,
         )
         output = result.stdout.strip()
         if result.returncode != 0:

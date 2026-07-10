@@ -23,32 +23,56 @@ def save_interrupts(path: Path, items: list[dict[str, Any]]) -> None:
     path.write_text(json.dumps(items, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
+def make_item(
+    title: str, *,
+    source: str = "",
+    due_date: str | None = None,
+    priority: str = "normal",
+    status: str = "new",
+    tags: list[str] | None = None,
+    zendesk_ticket: str | None = None,
+    customer: str | None = None,
+    captured_at: str | None = None,
+    activity: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Build an item dict with the canonical schema shared by interrupts and todos."""
+    now = _now()
+    return {
+        "id": str(uuid.uuid4()),
+        "title": title,
+        "source": source,
+        "dueDate": due_date,
+        "priority": priority,
+        "status": status,
+        "tags": tags or [],
+        "adoItemId": None,
+        "zendeskTicket": zendesk_ticket,
+        "customer": customer,
+        "capturedAt": captured_at or now,
+        "updatedAt": now,
+        "activity": activity or [],
+    }
+
+
+def create_item(path: Path, **fields: Any) -> dict[str, Any]:
+    """Append a new item (built via make_item) to the store at path."""
+    items = load_interrupts(path)
+    item = make_item(**fields)
+    items.append(item)
+    save_interrupts(path, items)
+    return item
+
+
 def create_interrupt(
     path: Path, title: str, source: str,
     due_date: str | None = None, priority: str = "normal",
     zendesk_ticket: str | None = None,
     customer: str | None = None,
 ) -> dict[str, Any]:
-    items = load_interrupts(path)
-    now = _now()
-    item: dict[str, Any] = {
-        "id": str(uuid.uuid4()),
-        "title": title,
-        "source": source,
-        "dueDate": due_date,
-        "priority": priority,
-        "status": "new",
-        "tags": [],
-        "adoItemId": None,
-        "zendeskTicket": zendesk_ticket,
-        "customer": customer,
-        "capturedAt": now,
-        "updatedAt": now,
-        "activity": [],
-    }
-    items.append(item)
-    save_interrupts(path, items)
-    return item
+    return create_item(
+        path, title=title, source=source, due_date=due_date,
+        priority=priority, zendesk_ticket=zendesk_ticket, customer=customer,
+    )
 
 
 def update_interrupt(path: Path, interrupt_id: str, **kwargs: Any) -> dict[str, Any]:
@@ -84,6 +108,22 @@ def update_activity(
                 raise ValueError("Only comments can be edited")
             activity[index]["text"] = text
             activity[index]["editedAt"] = _now()
+            item["updatedAt"] = _now()
+            save_interrupts(path, items)
+            return item
+    raise KeyError(f"Interrupt {interrupt_id!r} not found")
+
+
+def delete_activity(
+    path: Path, interrupt_id: str, index: int
+) -> dict[str, Any]:
+    items = load_interrupts(path)
+    for item in items:
+        if item["id"] == interrupt_id:
+            activity = item.get("activity", [])
+            if index < 0 or index >= len(activity):
+                raise IndexError(f"Activity index {index} out of range")
+            activity.pop(index)
             item["updatedAt"] = _now()
             save_interrupts(path, items)
             return item
