@@ -38,6 +38,12 @@ triggers:
   - "potential problem with [project]"
   - "flag a risk for [project]"
   - "watch out for [project]"
+  - "todo for [project]"
+  - "add a task to [project]"
+  - "[project] needs to"
+  - "capture a todo for [project]"
+  - "remind me to [x] for [project]"
+  - "mark [todo] done for [project]"
   - "update [project]"
   - "change [project]"
   - "revise [project]"
@@ -60,8 +66,67 @@ A single skill for every AIS-OS project lifecycle action. All operations target
 3. Extract the listed fields from the message. Do not prompt for missing fields unless noted.
 4. Confirm with the exact phrase shown in the section.
 
-## § Todo Capture
-Retired sibling `todo-capture` is archived here. Capture a todo item with a heading and message body. General todos go to AIS-OS context; project-specific todos go to the project folder.
+## § Todo
+
+Project-level todos are the **same feature** as the Control Tower's per-project
+Todos tab. They are **not** markdown — each project's todos live as a JSON array of
+items in `/mnt/shared/claudia/magiq/tower/data/todos/[slug].json`, one file per
+project, using the shared interrupt/todo item schema. The Tower reads this file
+directly, so a captured todo shows in the dashboard on its next poll.
+
+> The legacy `projects/[slug]/todos.md` is migrated into this JSON once on first
+> read, then left in place as a dead backup. **Never** write todos to `todos.md` —
+> always write the JSON store.
+
+**Trigger phrases:** "todo for [project]", "add a task to [project]", "[project] needs to", "capture a todo for [project]", "remind me to [x] for [project]", "mark [todo] done for [project]"
+
+### Extracted fields
+- `title` — one line, verbatim or lightly cleaned — required
+- `priority` — `urgent` · `normal` · `low`, default `normal`
+- `dueDate` — `YYYY-MM-DD` or null
+- `note` — any extra context → becomes the first activity comment, or null
+
+### Capture — append to `tower/data/todos/[slug].json`
+Create the file as a JSON array `[]` first if missing. Append an item that matches
+the schema **exactly** (the Tower and CLI ignore malformed items):
+```json
+{
+  "id": "[uuid]",
+  "title": "[title]",
+  "source": "",
+  "dueDate": [dueDate or null],
+  "priority": "[priority]",
+  "status": "new",
+  "tags": [],
+  "adoItemId": null,
+  "zendeskTicket": null,
+  "customer": null,
+  "capturedAt": "[ISO timestamp]",
+  "updatedAt": "[ISO timestamp]",
+  "activity": [
+    { "type": "comment", "text": "[note]", "author": "Chase", "timestamp": "[ISO timestamp]" }
+  ]
+}
+```
+If no `note`, use `"activity": []`.
+
+### Status change / comment on an existing todo
+Find the item by `id` (or by matching `title`) in the array, then:
+- **Status:** set `status` to one of `new` · `in-progress` · `deferred` · `done` and refresh `updatedAt`.
+- **Comment:** append `{ "type": "comment", "text": "…", "author": "Chase", "timestamp": "[ISO]" }` to its `activity`, refresh `updatedAt`.
+- **Tag:** edit its `tags` array, refresh `updatedAt`.
+
+### Confirmation
+```
+✅ Todo captured for "[slug]": [title]
+```
+(or `Todo updated for "[slug]": [title] → [new status]`)
+
+### Notes
+- One file per slug at `tower/data/todos/[slug].json` — NOT `projects/[slug]/todos.md`.
+- `id` must be a real UUID; timestamps are ISO 8601 UTC.
+- Only append or edit the targeted item — never touch other items in the array.
+- Priority/status vocab matches the Interrupts feature — same schema, different store.
 
 ## § Work Planner
 Retired sibling `work-planner` is archived here. Take an unordered list of work items for a project, order them by dependency, assign branches and PRs, and optionally create Azure DevOps work items.
@@ -365,9 +430,10 @@ Risk captured for "[slug]": [title] ([impact] impact)
 - Confirm: `✅ [field] updated for "[slug]": [new value]`
 
 **Complex change** (description, stack, modules, integrations, or general):
+- If no title is provided, generate a brief title (5 words max) inferred from the content of the note.
 - Append to `notes.md`:
 ```
-## Update — [field]
+## [title — provided or inferred from note content, 5 words max]
 _Captured: [ISO timestamp]_
 
 [change — verbatim]
@@ -378,5 +444,7 @@ _Captured: [ISO timestamp]_
 
 ### Notes
 - One entry per message — if multiple changes, handle each separately.
+- Always write the `_Captured: [ISO timestamp]` line directly under the heading — the
+  Control Tower parses it and shows the capture date on the note in the project Notes panel.
 - Never modify spec files directly.
 - Create `notes.md` first if missing.

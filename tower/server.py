@@ -656,9 +656,14 @@ def project_notes(slug: str) -> dict:
             continue
         lines = block.split('\n')
         title = lines[0][3:].strip()
+        captured = None
+        for l in lines[1:]:
+            if l.startswith('_Captured:'):
+                captured = l[len('_Captured:'):].strip().strip('_').strip()
+                break
         body_lines = [l for l in lines[1:] if not l.startswith('_Captured:')]
         note_content = '\n'.join(body_lines).strip()
-        notes.append({"id": str(i), "title": title, "content": note_content})
+        notes.append({"id": str(i), "title": title, "content": note_content, "captured": captured})
     return {"notes": notes}
 
 
@@ -669,8 +674,8 @@ class NoteAddRequest(BaseModel):
 def add_note(slug: str, body: NoteAddRequest) -> dict:
     """Append a new note to projects/{slug}/notes.md."""
     notes_file = config.PROJECTS_DIR / slug / "notes.md"
-    today = _datetime.date.today().isoformat()
-    new_block = f"\n## {body.title.strip()}\n_Captured: {today}_\n\n"
+    now = _datetime.datetime.now(_datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    new_block = f"\n## {body.title.strip()}\n_Captured: {now}_\n\n"
     if not notes_file.exists():
         notes_file.write_text(f"# Notes\n{new_block}", encoding="utf-8")
     else:
