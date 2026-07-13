@@ -723,6 +723,62 @@ def delete_note(slug: str, index: int) -> Response:
     return Response(status_code=204)
 
 
+class NotePromoteRequest(BaseModel):
+    priority: str = "normal"
+    dueDate: str | None = None
+
+
+@app.post("/api/projects/{slug}/notes/{index}/promote", status_code=201)
+def promote_note(slug: str, index: int, body: NotePromoteRequest = NotePromoteRequest()) -> dict:
+    """Promote a note into a project todo, then remove the note.
+
+    The note title becomes the todo title; the note body (minus the trailing
+    `---` separator) becomes the todo's first activity comment. The note is
+    deleted from notes.md only after the todo is written, so a failure leaves
+    the note intact.
+    """
+    notes_file = config.PROJECTS_DIR / slug / "notes.md"
+    if not notes_file.exists():
+        raise HTTPException(404, "No notes file")
+    content = notes_file.read_text(encoding="utf-8", errors="replace")
+    blocks = _re.split(r'\n(?=## )', content)
+    header_blocks = [b for b in blocks if not b.strip().startswith('## ')]
+    note_blocks = [b for b in blocks if b.strip().startswith('## ')]
+    if index < 0 or index >= len(note_blocks):
+        raise HTTPException(404, "Note index out of range")
+
+    block = note_blocks[index].strip()
+    lines = block.split('\n')
+    title = lines[0][3:].strip()
+    body_lines = [l for l in lines[1:] if not l.startswith('_Captured:')]
+    note_body = '\n'.join(body_lines).strip()
+    # Drop the trailing --- separator the skill appends to each note block.
+    note_body = _re.sub(r'\n*-{3,}\s*$', '', note_body).strip()
+
+    activity = []
+    if note_body:
+        activity.append({
+            "type": "comment", "text": note_body,
+            "author": "Chase", "timestamp": _now_iso(),
+        })
+
+    todos_path = config.todos_file(slug)
+    _load_todos(slug)  # ensure migration has run before appending
+    todo = create_item(
+        todos_path,
+        title=title,
+        due_date=body.dueDate,
+        priority=body.priority,
+        tags=["from-note"],
+        activity=activity,
+    )
+
+    # Remove the note only after the todo is safely written.
+    note_blocks.pop(index)
+    notes_file.write_text('\n'.join(header_blocks + note_blocks), encoding="utf-8")
+    return {"ok": True, "todo": todo}
+
+
 # --- Static (must be last) ---
 
 app.mount(

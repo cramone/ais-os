@@ -56,7 +56,15 @@
     "zendeskTicket": null,
     "customer": null,
     "capturedAt": "2026-06-14T02:25:37.360017+00:00",
-    "updatedAt": "2026-06-14T02:25:37.360017+00:00",
-    "activity": []
+    "updatedAt": "2026-07-12T08:07:54.555387+00:00",
+    "activity": [
+      {
+        "type": "comment",
+        "text": "# Upload \n1. D:\\MAGIQ\\Documents\\tenant1.ramonedevelopment.com\\copl-120726.7z\"\n2.  \"D:\\MAGIQ\\Documents\\tenant1.ramonedevelopment.com\\WH\"\n\naws s3 cp ./WH/ s3://mgq-conversions/COPL/120726/ --recursive",
+        "timestamp": "2026-07-12T08:07:01.157253+00:00",
+        "author": "Chase",
+        "editedAt": "2026-07-12T08:07:54.555369+00:00"
+      }
+    ]
   }
 ]

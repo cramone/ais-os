@@ -44,6 +44,11 @@ triggers:
   - "capture a todo for [project]"
   - "remind me to [x] for [project]"
   - "mark [todo] done for [project]"
+  - "promote note to todo for [project]"
+  - "turn [note] into a todo for [project]"
+  - "make [note] a todo for [project]"
+  - "convert [note] to a task for [project]"
+  - "promote [note] for [project]"
   - "update [project]"
   - "change [project]"
   - "revise [project]"
@@ -127,6 +132,46 @@ Find the item by `id` (or by matching `title`) in the array, then:
 - `id` must be a real UUID; timestamps are ISO 8601 UTC.
 - Only append or edit the targeted item — never touch other items in the array.
 - Priority/status vocab matches the Interrupts feature — same schema, different store.
+
+## § Promote (note → todo)
+
+Turn an existing project **note** (a block in `projects/[slug]/notes.md`) into a
+**todo** item in `tower/data/todos/[slug].json`, then **remove the note**. This is
+the same promote the Control Tower does via the ➡️✅ button on a note — identical
+result whichever surface triggers it.
+
+**Trigger phrases:** "promote note to todo for [project]", "turn [note] into a todo for [project]", "make [note] a todo for [project]", "convert [note] to a task for [project]", "promote [note] for [project]"
+
+### Identify the note
+- Match the note by its heading (title) in `notes.md`. If the phrasing is ambiguous
+  or multiple notes match, list the candidate note titles and ask which one.
+
+### Steps (order matters — write the todo first)
+1. Read the target note block from `notes.md`. Capture:
+   - `title` = the note heading (the `## …` line, minus `## `)
+   - `body` = everything under the heading **except** the `_Captured:` line and the
+     trailing `---` separator
+2. **Append the todo** to `tower/data/todos/[slug].json` (create the file as `[]`
+   first if missing) using the § Todo schema **exactly**, with:
+   - `title` = the note title
+   - `tags` = `["from-note"]`
+   - `activity` = `[ { "type": "comment", "text": "[body]", "author": "Chase", "timestamp": "[ISO]" } ]`
+     (or `[]` if the note body is empty)
+   - everything else as § Todo defaults (`status: "new"`, `priority: "normal"`, real UUID `id`, ISO timestamps)
+3. **Only after** the todo is written, remove the note block from `notes.md` (delete
+   the whole `## …` block including its `_Captured:` line and trailing `---`). Never
+   remove the note before the todo exists — a failure must leave the note intact.
+
+### Confirmation
+```
+✅ Promoted note → todo for "[slug]": [title] (note removed)
+```
+
+### Notes
+- Never touch other note blocks or other todo items — only the one being promoted.
+- One note per request. If asked to promote several, handle each separately.
+- The Tower reads both stores directly, so the moved item shows in the Todos tab and
+  disappears from the Notes panel on the next poll.
 
 ## § Work Planner
 Retired sibling `work-planner` is archived here. Take an unordered list of work items for a project, order them by dependency, assign branches and PRs, and optionally create Azure DevOps work items.

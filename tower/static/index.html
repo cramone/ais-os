@@ -2528,6 +2528,7 @@
           ${preview ? `<div style="font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(preview).slice(0,120)}</div>` : '<div style="font-size:10px;color:var(--muted);font-style:italic;margin-top:2px">Empty — click to add content</div>'}
         </div>
         <div class="note-actions" onclick="event.stopPropagation()">
+          <button class="note-action-btn" title="Promote to todo (removes note)" onclick="promoteProjectNote(${i},'${n.title.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">➡️✅</button>
           <button class="note-action-btn" onclick="renameProjectNote(${i},'${n.title.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">✏️</button>
           <button class="note-action-btn" style="color:var(--danger);border-color:rgba(248,81,73,0.3)" onclick="deleteProjectNote(${i},'${n.title.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">✕</button>
         </div>
@@ -2574,6 +2575,18 @@
     if (!confirm(`Delete note: "${title}"?`)) return;
     await fetch(`/api/projects/${_currentProjectSlug}/notes/${idx}`, { method: 'DELETE' });
     await loadProjectNotes(_currentProjectSlug);
+  }
+
+  async function promoteProjectNote(idx, title) {
+    if (!confirm(`Promote "${title}" to a todo and remove the note?`)) return;
+    const slug = _currentProjectSlug;
+    const r = await fetch(`/api/projects/${slug}/notes/${idx}/promote`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ priority: 'normal' })
+    });
+    if (!r.ok) { alert('Promote failed (' + r.status + ')'); return; }
+    await loadProjectNotes(slug);
+    if (typeof loadTodos === 'function' && _todoSlug === slug) await loadTodos(slug);
   }
 
   async function renameProjectNote(idx, oldTitle) {
