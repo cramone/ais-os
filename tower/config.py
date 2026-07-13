@@ -16,6 +16,7 @@ DECISIONS_LOG = AIOS_ROOT / "decisions" / "log.md"
 ADO_SCRIPT = AIOS_ROOT / "scripts" / "devops_summary.py"
 INTERRUPTS_FILE = TOWER_DIR / "data" / "interrupts.json"
 TODOS_DATA_DIR = TOWER_DIR / "data" / "todos"
+LEVELUP_FILE = TOWER_DIR / "data" / "levelup.json"
 
 
 def todos_file(slug: str) -> Path:

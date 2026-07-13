@@ -779,6 +779,112 @@ def promote_note(slug: str, index: int, body: NotePromoteRequest = NotePromoteRe
     return {"ok": True, "todo": todo}
 
 
+# --- Level Up (3Ms automation pipeline) ---
+# Visibility + management over the /level-up skill. Each item is one automation
+# opportunity tracked candidate → scoped → building → shipped (or eliminated).
+# Stored in tower/data/levelup.json; the skill and the Tower share this file.
+
+_LEVELUP_STATUSES = {"candidate", "scoped", "building", "shipped", "eliminated"}
+_LEVELUP_BUCKETS = {"more-customers", "more-value", "less-cost"}
+
+
+class LevelUpCreate(BaseModel):
+    title: str
+    status: str = "candidate"
+    bucket: str | None = None
+    autonomy: str | None = None
+    kpi: str | None = None
+    artifact: str | None = None
+    note: str | None = None
+
+
+class LevelUpUpdate(BaseModel):
+    title: str | None = None
+    status: str | None = None
+    bucket: str | None = None
+    autonomy: str | None = None
+    kpi: str | None = None
+    artifact: str | None = None
+
+
+def _load_levelup() -> list[dict[str, Any]]:
+    return load_interrupts(config.LEVELUP_FILE)
+
+
+@app.get("/api/levelup")
+def get_levelup() -> list[dict[str, Any]]:
+    return _load_levelup()
+
+
+@app.post("/api/levelup", status_code=201)
+def post_levelup(body: LevelUpCreate) -> dict[str, Any]:
+    import uuid
+    items = _load_levelup()
+    now = _now_iso()
+    status = body.status if body.status in _LEVELUP_STATUSES else "candidate"
+    bucket = body.bucket if body.bucket in _LEVELUP_BUCKETS else None
+    activity = []
+    if body.note:
+        activity.append({"type": "comment", "text": body.note, "author": "Chase", "timestamp": now})
+    item = {
+        "id": str(uuid.uuid4()),
+        "title": body.title,
+        "status": status,
+        "bucket": bucket,
+        "autonomy": body.autonomy,
+        "kpi": body.kpi,
+        "artifact": body.artifact,
+        "capturedAt": now,
+        "updatedAt": now,
+        "activity": activity,
+    }
+    items.append(item)
+    save_interrupts(config.LEVELUP_FILE, items)
+    return item
+
+
+@app.patch("/api/levelup/{item_id}")
+def patch_levelup(item_id: str, body: LevelUpUpdate) -> dict[str, Any]:
+    items = _load_levelup()
+    for item in items:
+        if item["id"] == item_id:
+            updates = {k: v for k, v in body.model_dump().items() if v is not None}
+            if "status" in updates and updates["status"] not in _LEVELUP_STATUSES:
+                raise HTTPException(400, f"Invalid status {updates['status']!r}")
+            if "bucket" in updates and updates["bucket"] not in _LEVELUP_BUCKETS:
+                raise HTTPException(400, f"Invalid bucket {updates['bucket']!r}")
+            item.update(updates)
+            item["updatedAt"] = _now_iso()
+            save_interrupts(config.LEVELUP_FILE, items)
+            return item
+    raise HTTPException(404, f"Level-up item {item_id!r} not found")
+
+
+@app.delete("/api/levelup/{item_id}", status_code=204)
+def delete_levelup(item_id: str) -> Response:
+    items = _load_levelup()
+    remaining = [i for i in items if i["id"] != item_id]
+    if len(remaining) == len(items):
+        raise HTTPException(404, f"Level-up item {item_id!r} not found")
+    save_interrupts(config.LEVELUP_FILE, remaining)
+    return Response(status_code=204)
+
+
+@app.post("/api/levelup/{item_id}/activity")
+def post_levelup_activity(item_id: str, body: ActivityEntry) -> dict[str, Any]:
+    items = _load_levelup()
+    for item in items:
+        if item["id"] == item_id:
+            item.setdefault("activity", []).append({
+                "type": body.type, "text": body.text,
+                "author": body.author or "Chase", "timestamp": _now_iso(),
+            })
+            item["updatedAt"] = _now_iso()
+            save_interrupts(config.LEVELUP_FILE, items)
+            return item
+    raise HTTPException(404, f"Level-up item {item_id!r} not found")
+
+
 # --- Static (must be last) ---
 
 app.mount(

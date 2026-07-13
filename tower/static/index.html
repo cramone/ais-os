@@ -787,6 +787,7 @@
     <div class="nav-item" data-nav-view="all-projects"><span class="icon">🌐</span> All Projects <span class="nav-badge" id="badge-all-projects"></span></div>
 
     <div class="sidebar-section" style="margin-top:6px">Reference</div>
+    <div class="nav-item" data-nav-view="levelup"><span class="icon">🚀</span> Level Up <span class="nav-badge" id="badge-levelup"></span></div>
     <div class="nav-item" data-nav-view="cheatsheet"><span class="icon">📖</span> Cheat Sheet</div>
   </div>
 
@@ -1163,60 +1164,80 @@
         </div>
         <div id="cheatsheet-body">
           <div class="cheatsheet-grid">
-            <!-- Column 1: Hermes Triggers -->
+            <!-- Column 1: Hermes (Claudia) Triggers -->
             <div class="cs-section">
-              <div class="cs-title">Hermes Triggers</div>
+              <div class="cs-title">Hermes (Claudia) Triggers</div>
               <div class="cs-item">
-                <div class="cs-key">"note that..."</div>
-                <div class="cs-desc">Capture ADO work item</div>
+                <div class="cs-key">"remember this" / "note that"</div>
+                <div class="cs-desc">Adhoc note — auto-routes (adhoc-capture)</div>
               </div>
               <div class="cs-item">
-                <div class="cs-key">"idea for [project]"</div>
-                <div class="cs-desc">Project idea</div>
+                <div class="cs-key">"new project"</div>
+                <div class="cs-desc">Scaffold a project (project-management)</div>
               </div>
               <div class="cs-item">
-                <div class="cs-key">"risk for [project]"</div>
-                <div class="cs-desc">Risk capture</div>
+                <div class="cs-key">"idea / risk / decided on [project]"</div>
+                <div class="cs-desc">Idea · risk · decision capture</div>
               </div>
               <div class="cs-item">
-                <div class="cs-key">"decided on [project]"</div>
-                <div class="cs-desc">Decision capture</div>
+                <div class="cs-key">"todo for [project]"</div>
+                <div class="cs-desc">Project todo (project-management)</div>
               </div>
               <div class="cs-item">
-                <div class="cs-key">"remember this"</div>
-                <div class="cs-desc">Adhoc note (auto-routes)</div>
+                <div class="cs-key">"promote note to todo for [project]"</div>
+                <div class="cs-desc">Note → todo, removes note</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">"agenda for [meeting]"</div>
+                <div class="cs-desc">Meeting agenda (agenda-generator)</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">"show my PRs"</div>
+                <div class="cs-desc">Open PR queue (github-my-prs)</div>
               </div>
               <div class="cs-item">
                 <div class="cs-key">"morning digest"</div>
-                <div class="cs-desc">Daily summary</div>
+                <div class="cs-desc">Daily digest (morning-digest)</div>
               </div>
             </div>
-            <!-- Column 2: Claude Code Commands -->
+            <!-- Column 2: Claude Code Commands (.claude/skills) -->
             <div class="cs-section">
               <div class="cs-title">Claude Code Commands</div>
+              <div class="cs-item">
+                <div class="cs-key">/audit</div>
+                <div class="cs-desc">Weekly gap analysis (Four Cs)</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">/configure</div>
+                <div class="cs-desc">Set up env · secrets · MCP servers</div>
+              </div>
               <div class="cs-item">
                 <div class="cs-key">/decision</div>
                 <div class="cs-desc">Log decision → decisions/log.md</div>
               </div>
               <div class="cs-item">
-                <div class="cs-key">/devops</div>
-                <div class="cs-desc">Query ADO sprint (me only)</div>
-              </div>
-              <div class="cs-item">
-                <div class="cs-key">/audit</div>
-                <div class="cs-desc">Weekly gap analysis (Four Cs)</div>
+                <div class="cs-key">/interrupt</div>
+                <div class="cs-desc">Capture an interrupt → Tower</div>
               </div>
               <div class="cs-item">
                 <div class="cs-key">/level-up</div>
                 <div class="cs-desc">Find + ship one automation</div>
               </div>
               <div class="cs-item">
-                <div class="cs-key">/work-planner</div>
-                <div class="cs-desc">Break tasks into branches + PRs</div>
+                <div class="cs-key">/onboard</div>
+                <div class="cs-desc">Day-1 intake + scaffold file set</div>
               </div>
               <div class="cs-item">
-                <div class="cs-key">/onboard</div>
-                <div class="cs-desc">Refresh AIOS from intake file</div>
+                <div class="cs-key">/project-todos</div>
+                <div class="cs-desc">Manage per-project todos</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">/standup-rollup</div>
+                <div class="cs-desc">ADO sprint / standup summary</div>
+              </div>
+              <div class="cs-item">
+                <div class="cs-key">/triage</div>
+                <div class="cs-desc">Work the interrupt queue</div>
               </div>
             </div>
             <!-- Column 3: AIS-OS Workflows -->
@@ -1443,6 +1464,42 @@
         <div class="panel">
           <div class="panel-header"><div class="panel-title">⚖️ All Decisions</div></div>
           <div class="panel-body" id="decisions-fullwidth-body" style="max-height:none"></div>
+        </div>
+      </div>
+
+      <div id="levelup-fullwidth" style="display:none">
+        <div class="panel">
+          <div class="panel-header" style="align-items:flex-start;flex-direction:column;gap:4px">
+            <div class="panel-title">🚀 Level Up — automation pipeline</div>
+            <div style="font-size:11px;color:var(--muted)">
+              Track each automation opportunity candidate → scoped → building → shipped.
+              Run <code style="color:var(--accent)">/level-up</code> (or say “let’s level up”) with Claude/Hermes to
+              conduct the weekly 3Ms interview and add candidates here.
+            </div>
+          </div>
+          <div class="panel-body" style="max-height:none">
+            <!-- Add form -->
+            <form id="levelup-add-form" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px">
+              <input type="text" id="levelup-title-input" placeholder="New automation candidate…" style="flex:1;min-width:180px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:12px" />
+              <select id="levelup-bucket-input" class="capture-select" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px;border-radius:6px;font-size:12px">
+                <option value="">Bucket…</option>
+                <option value="more-customers">More customers</option>
+                <option value="more-value">More value / customer</option>
+                <option value="less-cost">Less cost</option>
+              </select>
+              <select id="levelup-autonomy-input" class="capture-select" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px;border-radius:6px;font-size:12px">
+                <option value="">Autonomy…</option>
+                <option value="L0">L0 Manual</option>
+                <option value="L1">L1 Suggested</option>
+                <option value="L2">L2 Drafted</option>
+                <option value="L3">L3 Supervised</option>
+                <option value="L4">L4 Autonomous</option>
+              </select>
+              <button type="submit" class="btn" style="font-size:12px">+ Add candidate</button>
+            </form>
+            <!-- Kanban columns -->
+            <div id="levelup-board" style="display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:10px;align-items:start"></div>
+          </div>
         </div>
       </div>
 
@@ -4143,6 +4200,104 @@
   const refreshBtn = document.getElementById('refresh-btn');
   if (refreshBtn) refreshBtn.addEventListener('click', fetchAll);
 
+  // ── Level Up (automation pipeline) ────────────────────────────────────────
+  const LEVELUP_COLS = [
+    { key: 'candidate',  label: '🔎 Candidate' },
+    { key: 'scoped',     label: '📐 Scoped' },
+    { key: 'building',   label: '🔧 Building' },
+    { key: 'shipped',    label: '✅ Shipped' },
+    { key: 'eliminated', label: '🗑 Eliminated' },
+  ];
+  const LEVELUP_NEXT = { candidate:'scoped', scoped:'building', building:'shipped', shipped:'shipped', eliminated:'eliminated' };
+  const BUCKET_LABEL = { 'more-customers':'📈 More customers', 'more-value':'💎 More value', 'less-cost':'💰 Less cost' };
+  let _levelup = [];
+
+  async function loadLevelUp() {
+    try {
+      const r = await fetch('/api/levelup');
+      _levelup = r.ok ? await r.json() : [];
+    } catch (e) { _levelup = []; }
+    renderLevelUp();
+    const badge = document.getElementById('badge-levelup');
+    if (badge) {
+      const open = _levelup.filter(i => i.status !== 'shipped' && i.status !== 'eliminated').length;
+      badge.textContent = open ? open : '';
+    }
+  }
+
+  function renderLevelUp() {
+    const board = document.getElementById('levelup-board');
+    if (!board) return;
+    const esc = s => (s || '').replace(/</g,'&lt;');
+    board.innerHTML = LEVELUP_COLS.map(col => {
+      const items = _levelup.filter(i => (i.status || 'candidate') === col.key);
+      const cards = items.map(i => {
+        const bucket = BUCKET_LABEL[i.bucket] || '';
+        const auto = i.autonomy ? `<span style="font-size:9px;border:1px solid var(--border);border-radius:999px;padding:1px 5px;color:var(--muted)">${esc(i.autonomy)}</span>` : '';
+        const kpi = i.kpi ? `<div style="font-size:9px;color:var(--muted);margin-top:3px">🎯 ${esc(i.kpi)}</div>` : '';
+        const artifact = i.artifact ? `<div style="font-size:9px;color:var(--accent);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📦 ${esc(i.artifact)}</div>` : '';
+        const canAdvance = col.key !== 'shipped' && col.key !== 'eliminated';
+        return `
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 8px;margin-bottom:6px">
+            <div style="font-size:11px;color:var(--text);font-weight:500;line-height:1.3">${esc(i.title)}</div>
+            <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:4px">
+              ${bucket ? `<span style="font-size:9px;color:var(--muted)">${bucket}</span>` : ''}
+              ${auto}
+            </div>
+            ${kpi}${artifact}
+            <div style="display:flex;gap:4px;margin-top:6px">
+              ${canAdvance ? `<button class="note-action-btn" title="Advance" onclick="advanceLevelUp('${i.id}')">→ ${LEVELUP_NEXT[col.key]}</button>` : ''}
+              ${col.key !== 'eliminated' && col.key !== 'shipped' ? `<button class="note-action-btn" title="Eliminate — don't automate waste" onclick="setLevelUpStatus('${i.id}','eliminated')">🗑</button>` : ''}
+              <button class="note-action-btn" style="color:var(--danger);border-color:rgba(248,81,73,0.3)" onclick="deleteLevelUp('${i.id}')">✕</button>
+            </div>
+          </div>`;
+      }).join('') || `<div style="font-size:10px;color:var(--muted);font-style:italic;padding:4px">—</div>`;
+      return `
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">${col.label} <span style="opacity:0.6">${items.length}</span></div>
+          ${cards}
+        </div>`;
+    }).join('');
+  }
+
+  async function advanceLevelUp(id) {
+    const item = _levelup.find(i => i.id === id);
+    if (!item) return;
+    await setLevelUpStatus(id, LEVELUP_NEXT[item.status || 'candidate']);
+  }
+
+  async function setLevelUpStatus(id, status) {
+    await fetch(`/api/levelup/${id}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ status })
+    });
+    await loadLevelUp();
+  }
+
+  async function deleteLevelUp(id) {
+    if (!confirm('Delete this level-up item?')) return;
+    await fetch(`/api/levelup/${id}`, { method:'DELETE' });
+    await loadLevelUp();
+  }
+
+  (function wireLevelUpForm() {
+    const form = document.getElementById('levelup-add-form');
+    if (!form) return;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('levelup-title-input').value.trim();
+      if (!title) return;
+      const bucket = document.getElementById('levelup-bucket-input').value || null;
+      const autonomy = document.getElementById('levelup-autonomy-input').value || null;
+      await fetch('/api/levelup', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ title, bucket, autonomy })
+      });
+      form.reset();
+      await loadLevelUp();
+    });
+  })();
+
   // ── Sidebar nav ──────────────────────────────────────────────────────────
   let currentView = 'dashboard';
 
@@ -4152,7 +4307,7 @@
     'magiq-media': 'magiq-media', 'magiq-auth': 'magiq-auth',
     team: 'Team Workload',
     'review-queue': 'Review Queue', claudia: 'Ask Claudia', decisions: 'Decisions',
-    sprint: 'Sprint Board', cheatsheet: 'Cheat Sheet',
+    sprint: 'Sprint Board', cheatsheet: 'Cheat Sheet', levelup: 'Level Up',
     'github-prs': 'GitHub PRs', 'all-projects': 'All Projects',
   };
 
@@ -4163,7 +4318,7 @@
     'ado-panel-fullwidth', 'decisions-panel-fullwidth',
     'focus-details-section',
     'github-prs-fullwidth', 'claudia-panel-fullwidth',
-    'all-projects-fullwidth'
+    'all-projects-fullwidth', 'levelup-fullwidth'
   ];
 
   function switchView(view, opts) {
@@ -4274,6 +4429,11 @@
     if (view === 'standup') {
       const el = document.getElementById('standup-strip');
       if (el) el.style.display = '';
+      return;
+    }
+    if (view === 'levelup') {
+      const el = document.getElementById('levelup-fullwidth');
+      if (el) { el.style.display = ''; loadLevelUp(); }
       return;
     }
     if (view === 'cheatsheet') {
