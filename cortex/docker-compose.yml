@@ -13,6 +13,142 @@ x-logging: &default-logging
      max-file: "3"
 
 services:
+  # ── Authentik — identity provider / SSO ─────────────────────────────────
+  # Single identity for the tailnet admin fleet. Two integration modes:
+  #  1. Forward-auth, DOMAIN-LEVEL (embedded outpost) — a SINGLE Authentik proxy
+  #     provider (Forward auth → domain level, cookie domain ramonedevelopment.com)
+  #     bound to the embedded outpost gates every host carrying the
+  #     `authentik@docker` middleware, with one shared session cookie. Wired
+  #     below on homepage, redis-stack (RedisInsight) and the traefik dashboard —
+  #     the UIs with no login of their own. Add the middleware line to any other
+  #     host to extend the gate. REQUIRES the tailnet entrypoint on :443 (done):
+  #     domain-level is broken on non-443 ports (authentik #12503).
+  #  2. Native OIDC for apps that already have their own user DB (portainer,
+  #     seq, open-webui, cloudbeaver, uptime-kuma) — configured per-app in the
+  #     Authentik UI after first boot, NOT here (needs providers minted first).
+  #     OIDC + the shared domain cookie is what makes those apps seamless (no
+  #     second login) rather than gating them with forward-auth on top.
+  #  3. tower is the exception to the domain-level group: it's forward-auth'd
+  #     SINGLE-APPLICATION (own `tower-fwd` provider + `tower-users` group
+  #     policy) because it's the one host exposed to the PUBLIC internet
+  #     (websecure entrypoint, router-forwarded). See the tower block. authentik
+  #     (login.) is also on websecure so public visitors can reach the login.
+  # Deliberately NOT protected: mcp-azure-devops (machine API — a browser
+  # redirect breaks the MCP client), netdata (network_mode: host, bypasses
+  # Traefik entirely). Everything except tower + login stays tailnet-only.
+  # See decisions/log.md (2026-07-13/14).
+  authentik-postgresql:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    <<: *default-logging
+    environment:
+      POSTGRES_USER: authentik
+      POSTGRES_DB: authentik
+      POSTGRES_PASSWORD: ${AUTHENTIK_PG_PASS}
+    volumes:
+      - authentik_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authentik"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Authentik hard-requires PostgreSQL; the stack had none (only mysql +
+    # mssql), so this is a dedicated instance for Authentik only. Redis is NOT
+    # dedicated — Authentik reuses the existing redis-stack (DB 0), which
+    # nothing else in the stack wires an app to.
+
+  authentik-server:
+    image: ghcr.io/goauthentik/server:${AUTHENTIK_TAG:-2025.12}
+    restart: unless-stopped
+    <<: *default-logging
+    command: server
+    environment:
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgresql
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_PG_PASS}
+      AUTHENTIK_REDIS__HOST: redis-stack
+      AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD}
+      AUTHENTIK_BOOTSTRAP_EMAIL: chase.ramone@magiqsoftware.com
+    volumes:
+      - authentik_media:/media
+      - authentik_certs:/certs
+    ports:
+      # HOST-LOOPBACK ONLY — never tailscale/public. Exists solely so the
+      # forward-auth middleware below can reach the embedded outpost. traefik
+      # runs network_mode: host, so it is NOT on the compose bridge network and
+      # CANNOT resolve `authentik-server` by Docker service name for the
+      # forward-auth sub-request (unlike normal UI routing, where Traefik's
+      # docker provider dials the container's bridge IP directly). Publishing
+      # 9000 on 127.0.0.1 puts it on the host loopback that host-net Traefik
+      # shares, so `http://127.0.0.1:9000/...` resolves. Portainer's 9000 is
+      # container-internal (bridge) and never host-published, so no collision.
+      - "127.0.0.1:9000:9000"
+    depends_on:
+      authentik-postgresql:
+        condition: service_healthy
+      redis-stack:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.authentik.rule=Host(`login.ramonedevelopment.com`)"
+      # tailnet + PUBLIC (websecure): the IdP must be internet-reachable because
+      # public visitors to tower.ramonedevelopment.com get redirected here to log
+      # in. Exposing the login UI publicly is inherent to gating a public app —
+      # harden it (strong akadmin password + MFA, brute-force/reputation policy).
+      - "traefik.http.routers.authentik.entrypoints=tailnet,websecure"
+      - "traefik.http.routers.authentik.tls.certresolver=public"
+      - "traefik.http.services.authentik.loadbalancer.server.port=9000"
+      # ── Reusable forward-auth middleware (embedded outpost). Defined once
+      #    here; attached to protected routers by name `authentik@docker`.
+      #    DOMAIN-LEVEL: one Proxy Provider (Forward auth → domain level, cookie
+      #    domain ramonedevelopment.com, external host https://login.ramonedevelopment.com)
+      #    bound to the embedded outpost covers every host carrying this
+      #    middleware. Works because the tailnet entrypoint is :443 (bare Host
+      #    header, no port) — see #12503 note in the header comment. Inert until
+      #    that provider + application exist in the Authentik UI.
+      - "traefik.http.middlewares.authentik.forwardauth.address=http://127.0.0.1:9000/outpost.goauthentik.io/auth/traefik"
+      - "traefik.http.middlewares.authentik.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.authentik.forwardauth.authResponseHeaders=X-authentik-username,X-authentik-groups,X-authentik-email,X-authentik-name,X-authentik-uid,X-authentik-jwt,X-authentik-meta-jwks,X-authentik-meta-outpost,X-authentik-meta-provider,X-authentik-meta-app,X-authentik-meta-version,X-authentik-entitlements"
+      - "homepage.group=Ops"
+      - "homepage.name=Authentik"
+      - "homepage.icon=authentik.png"
+      - "homepage.href=https://login.ramonedevelopment.com"
+      - "homepage.description=Identity provider / SSO"
+    # login.ramonedevelopment.com — dns-internal dnsmasq already wildcards
+    # *.ramonedevelopment.com to cortex's tailnet IP and DNS-01 mints the cert
+    # on demand, so no DNS/cert change was needed. `auth.` intentionally NOT
+    # used — reserved for the future magiq-auth migration off the Windows box.
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:${AUTHENTIK_TAG:-2025.12}
+    restart: unless-stopped
+    <<: *default-logging
+    command: worker
+    environment:
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgresql
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_PG_PASS}
+      AUTHENTIK_REDIS__HOST: redis-stack
+    volumes:
+      - authentik_media:/media
+      - authentik_certs:/certs
+    depends_on:
+      authentik-postgresql:
+        condition: service_healthy
+      redis-stack:
+        condition: service_healthy
+      authentik-server:
+        condition: service_healthy
+    # No /var/run/docker.sock mount on purpose (least-privilege, matches the
+    # ro-socket / uid-1000 pattern used elsewhere here). The embedded outpost
+    # runs inside authentik-server, so the worker doesn't need Docker access.
+    # Only add the socket if you later run SEPARATE outpost containers that
+    # Authentik should auto-manage.
+
   cloudbeaver:
     image: dbeaver/cloudbeaver:latest
     restart: unless-stopped
@@ -28,13 +164,42 @@ services:
       - "homepage.group=Data"
       - "homepage.name=CloudBeaver"
       - "homepage.icon=cloudbeaver.png"
-      - "homepage.href=https://sql.ramonedevelopment.com:8443"
+      - "homepage.href=https://sql.ramonedevelopment.com"
       - "homepage.description=SQL admin — MySQL + SQL Server"
     # Web SQL client for mysql + sqlserver. No pre-seeded connections via compose — CE edition
     # configures connections through the UI on first load (see setup guide Stage 19). Reaches
     # both databases by Docker service name (mysql:3306, sqlserver:1433) over the default
     # compose network — no Tailscale hop needed since cloudbeaver, mysql, and sqlserver all
     # land on the same bridge network (none of the three set network_mode: host).
+
+  cloudflare-ddns:
+    image: favonia/cloudflare-ddns:latest
+    restart: unless-stopped
+    <<: *default-logging
+    # Keeps the PUBLIC A records for the internet-facing hosts (tower, login)
+    # pointed at cortex's current WAN IP — replaces the old No-IP DDNS now that
+    # DNS is on Cloudflare. Detects the WAN IP via Cloudflare's 1.1.1.1 trace
+    # (no host networking / no port needed) and updates via the API on change,
+    # rechecking on a schedule. Reuses the SAME scoped CF_DNS_API_TOKEN Traefik
+    # already uses for DNS-01 (Zone:Read + DNS:Edit on ramonedevelopment.com) —
+    # no new secret. Rootless + hardened per the image's design.
+    #
+    # PROXIED=true assumes the tower/login records are orange-cloud (recommended
+    # — hides the WAN IP, adds WAF). Set to "false" if you run them DNS-only.
+    # Only the two PUBLIC hosts are listed; every other service is tailnet-only
+    # and resolves via the dns-internal split-DNS, so it needs no public record.
+    # favonia creates the records if missing and manages them thereafter.
+    user: "1000:1000"
+    read_only: true
+    cap_drop:
+      - all
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      CLOUDFLARE_API_TOKEN: ${CF_DNS_API_TOKEN}
+      DOMAINS: tower.ramonedevelopment.com,login.ramonedevelopment.com
+      PROXIED: "true"
+      IP6_PROVIDER: none
 
   dns-internal:
     image: 4km3/dnsmasq:2.90-r3
@@ -68,7 +233,7 @@ services:
     restart: unless-stopped
     <<: *default-logging
     environment:
-      HOMEPAGE_ALLOWED_HOSTS: "home.ramonedevelopment.com:8443"
+      HOMEPAGE_ALLOWED_HOSTS: "home.ramonedevelopment.com"
     volumes:
       - /mnt/shared/claudia/magiq/homepage-config:/app/config
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -78,6 +243,16 @@ services:
       - "traefik.http.routers.homepage.entrypoints=tailnet"
       - "traefik.http.routers.homepage.tls.certresolver=public"
       - "traefik.http.services.homepage.loadbalancer.server.port=3000"
+      # Forward-auth via Authentik — DOMAIN-LEVEL mode. Works now that the
+      # tailnet entrypoint is :443 (default HTTPS port): the browser Host header
+      # is a bare `home.ramonedevelopment.com` with no port, so the outpost's
+      # cookie-domain suffix match against `ramonedevelopment.com` succeeds.
+      # (On :8443 this failed — authentik #12503 — which is why we moved to
+      # :443.) One Authentik proxy provider (Forward auth → domain level, cookie
+      # domain ramonedevelopment.com) bound to the embedded outpost gates every
+      # host carrying this middleware, with one shared session cookie. No
+      # per-host -outpost router needed.
+      - "traefik.http.routers.homepage.middlewares=authentik@docker"
     # Landing page for every tailnet admin UI. Config lives in the magiq repo itself
     # (homepage-config/, bind-mounted, git-trackable — same convention as everything else in
     # this file) rather than a named volume, so it's editable directly and versioned alongside
@@ -89,9 +264,10 @@ services:
     # added manually in homepage-config/services.yaml instead, since there's no container to
     # attach a label to.
     # HOMEPAGE_ALLOWED_HOSTS is required as of the Next.js 16 base image — without it every
-    # request 500s with "Host validation failed for: home.ramonedevelopment.com:8443" regardless
-    # of Traefik routing working correctly. Must include the port (:8443, the tailnet
-    # entrypoint), not just the bare hostname. Confirmed 2026-07-05.
+    # request 500s with "Host validation failed for: home.ramonedevelopment.com" regardless
+    # of Traefik routing working correctly. Value must match the browser Host header exactly.
+    # On the :443 tailnet entrypoint that's the bare hostname (no port) — updated 2026-07-14
+    # when the entrypoint moved 8443→443; it previously had to include ":8443". Confirmed 2026-07-05.
 
   mcp-azure-devops:
     build:
@@ -110,7 +286,7 @@ services:
       - "homepage.group=Ops"
       - "homepage.name=Azure DevOps MCP"
       - "homepage.icon=azure-devops.png"
-      - "homepage.href=https://mcp-ado.ramonedevelopment.com:8443/mcp"
+      - "homepage.href=https://mcp-ado.ramonedevelopment.com/mcp"
       - "homepage.description=ADO MCP gateway (API endpoint, not a browser UI)"
     # Tailnet-only router, gets a real LE cert via the public `public` resolver — now DNS-01
     # (Cloudflare), see traefik service. Service stays unreachable from the public internet
@@ -178,7 +354,7 @@ services:
       - "homepage.group=AI"
       - "homepage.name=Open WebUI"
       - "homepage.icon=open-webui.png"
-      - "homepage.href=https://chat.ramonedevelopment.com:8443"
+      - "homepage.href=https://chat.ramonedevelopment.com"
       - "homepage.description=Ollama chat frontend"
     # mem_limit/cpus deferred until post-Stage-12 contention benchmarking
 
@@ -198,7 +374,7 @@ services:
       - "homepage.group=Infrastructure"
       - "homepage.name=Portainer"
       - "homepage.icon=portainer.png"
-      - "homepage.href=https://portainer.ramonedevelopment.com:8443"
+      - "homepage.href=https://portainer.ramonedevelopment.com"
       - "homepage.description=Docker container management"
     # loadbalancer.server.port=9000 added 2026-07-05 — same class of bug as Seq: Portainer's
     # image exposes THREE ports (8000 edge agent, 9000 plain HTTP UI, 9443 HTTPS UI). Without an
@@ -222,10 +398,12 @@ services:
       - "traefik.http.routers.redisinsight.entrypoints=tailnet"
       - "traefik.http.routers.redisinsight.tls.certresolver=public"
       - "traefik.http.services.redisinsight.loadbalancer.server.port=8001"
+      # Forward-auth via Authentik — domain-level (see homepage). Middleware only.
+      - "traefik.http.routers.redisinsight.middlewares=authentik@docker"
       - "homepage.group=Data"
       - "homepage.name=RedisInsight"
       - "homepage.icon=redis.png"
-      - "homepage.href=https://redis.ramonedevelopment.com:8443"
+      - "homepage.href=https://redis.ramonedevelopment.com"
       - "homepage.description=Redis Stack admin UI"
     # RedisInsight UI bundled on container port 8001. Redis protocol (6379) stays off Traefik —
     # reach it directly via Tailscale IP + port.
@@ -248,7 +426,7 @@ services:
       - "homepage.group=Data"
       - "homepage.name=Seq"
       - "homepage.icon=seq.png"
-      - "homepage.href=https://logs.ramonedevelopment.com:8443"
+      - "homepage.href=https://logs.ramonedevelopment.com"
       - "homepage.description=Log aggregation"
     # Renamed from seq.ramonedevelopment.com — that FQDN is already in use by the
     # Windows Traefik instance for its own Seq. logs.ramonedevelopment.com avoids the collision.
@@ -298,13 +476,30 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.tower.rule=Host(`tower.ramonedevelopment.com`)"
-      - "traefik.http.routers.tower.entrypoints=tailnet"
+      # PUBLIC + tailnet: listens on both the public (websecure, LAN-NIC :443,
+      # router-forwarded from WAN) and tailnet entrypoints. Tailnet clients reach
+      # it via split-DNS→tailscale IP; public clients via Cloudflare/WAN→forward.
+      - "traefik.http.routers.tower.entrypoints=tailnet,websecure"
       - "traefik.http.routers.tower.tls.certresolver=public"
       - "traefik.http.services.tower.loadbalancer.server.port=8765"
+      # Authentik forward-auth — SINGLE-APPLICATION with a group-restricted
+      # policy (only members of the `tower-users` group get in), because this is
+      # the one host reachable from the public internet. Distinct from the
+      # domain-level gate on the tailnet-only UIs: single-app exact-host match
+      # (tower.ramonedevelopment.com) takes precedence over the domain-level
+      # provider, so tower's own restrictive policy applies. Needs the per-host
+      # -outpost router for the /outpost.goauthentik.io/ callback path, on BOTH
+      # entrypoints so the login round-trip completes from public and tailnet.
+      # Tower keeps its own TOWER_TOKEN bearer auth underneath — defense in depth.
+      - "traefik.http.routers.tower.middlewares=authentik@docker"
+      - "traefik.http.routers.tower-outpost.rule=Host(`tower.ramonedevelopment.com`) && PathPrefix(`/outpost.goauthentik.io/`)"
+      - "traefik.http.routers.tower-outpost.entrypoints=tailnet,websecure"
+      - "traefik.http.routers.tower-outpost.tls.certresolver=public"
+      - "traefik.http.routers.tower-outpost.service=authentik@docker"
       - "homepage.group=Ops"
       - "homepage.name=AIS-OS Tower"
       - "homepage.icon=dashboard.png"
-      - "homepage.href=https://tower.ramonedevelopment.com:8443"
+      - "homepage.href=https://tower.ramonedevelopment.com"
       - "homepage.description=ADO sprint dashboard, Hermes inbox, decisions, interrupts"
 
   traefik:
@@ -327,9 +522,9 @@ services:
     command:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.tailnet.address=100.90.195.22:8443"   # must match `tailscale ip -4` on cortex
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.tailnet.address=100.90.195.22:443"    # must match `tailscale ip -4` on cortex; :443 (was :8443) so domain-level forward-auth works — see Authentik block
+      - "--entrypoints.web.address=192.168.0.253:80"         # public HTTP, pinned to the LAN NIC (enp196s0) so tailscale0:80 stays free
+      - "--entrypoints.websecure.address=192.168.0.253:443"  # public HTTPS, pinned to the LAN NIC so tailscale0:443 is free for the tailnet entrypoint above
       - "--certificatesresolvers.public.acme.dnschallenge=true"
       - "--certificatesresolvers.public.acme.dnschallenge.provider=cloudflare"
       - "--certificatesresolvers.public.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
@@ -363,11 +558,13 @@ services:
       - "traefik.http.routers.traefik-dashboard.entrypoints=tailnet"
       - "traefik.http.routers.traefik-dashboard.tls.certresolver=public"
       - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      # Forward-auth via Authentik — domain-level (see homepage). Middleware only.
+      - "traefik.http.routers.traefik-dashboard.middlewares=authentik@docker"
       - "traefik.http.services.traefik-stack.loadbalancer.server.port=8080"
       - "homepage.group=Infrastructure"
       - "homepage.name=Traefik"
       - "homepage.icon=traefik.png"
-      - "homepage.href=https://traefik.ramonedevelopment.com:8443"
+      - "homepage.href=https://traefik.ramonedevelopment.com"
       - "homepage.description=Reverse proxy dashboard"
     # api.dashboard=true turns on the read/write API + UI; api@internal is Traefik's built-in
     # virtual service for its own API, no separate container needed. Same §10.3b cert pattern
@@ -397,7 +594,7 @@ services:
       - "homepage.group=Ops"
       - "homepage.name=Uptime Kuma"
       - "homepage.icon=uptime-kuma.png"
-      - "homepage.href=https://status.ramonedevelopment.com:8443"
+      - "homepage.href=https://status.ramonedevelopment.com"
       - "homepage.description=Status/uptime monitoring"
     # Uptime/status monitor for the tailnet services (chat/logs/portainer/redis/tower/sql/etc).
     # Distinct from Netdata — Netdata is resource/CPU/RAM pressure, Kuma is availability history
@@ -441,6 +638,9 @@ services:
   # for the full router/service list to port over.
 
 volumes:
+  authentik_pg:
+  authentik_media:
+  authentik_certs:
   cloudbeaver_data:
   kuma_data:
   mssql_data:

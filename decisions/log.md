@@ -360,3 +360,53 @@ unnecessary complexity for Q2.
 **Owner:** Chase Ramone
 
 **Full detail:** `AI-X1-Pro-Setup-Guide.md` Stage 22.1 area / `cortex/docker-compose.yml` inline comments.
+
+---
+
+## 2026-07-13 — Authentik added as the identity provider (SSO) for the cortex stack
+
+**Decision:** Added Authentik (`authentik-postgresql` + `authentik-server` + `authentik-worker`) to `cortex/docker-compose.yml` at `login.ramonedevelopment.com`, tailnet-only, `public` cert resolver — same pattern as every other admin UI. Purpose: one identity for the tailnet admin fleet.
+
+**Integration split:**
+- **Forward-auth (embedded outpost)** for the three UIs that had *no login of their own* — `homepage`, `redis-stack` (RedisInsight), and the Traefik dashboard. A reusable `authentik` forwardauth middleware is defined once on `authentik-server`; each protected host gets `middlewares=authentik@docker` plus a sibling `-outpost` router for the `/outpost.goauthentik.io/` callback path.
+- **Native OIDC (follow-up, not in compose)** for the self-login apps — `portainer`, `seq`, `open-webui`, `cloudbeaver`, `uptime-kuma`. Stacking forward-auth on those = double login; OIDC federates the account instead. Configured per-app in the Authentik UI after first boot (needs providers minted first, so it can't live in the compose file).
+
+**Deliberately excluded:** `mcp-azure-devops` (machine API — a browser redirect breaks the MCP client), `netdata` (`network_mode: host`, bypasses Traefik entirely — a Traefik middleware can't reach it; stays ufw+tailnet-locked), `tower` (its own `TOWER_TOKEN` bearer auth + programmatic API), and Authentik itself.
+
+**Redis reused, Postgres new:** Authentik hard-requires PostgreSQL and the stack had none (only mysql + mssql) — hence a dedicated `authentik-postgresql`. Redis is *not* dedicated: Authentik points at the existing `redis-stack` (DB 0), which nothing else in the stack wires an app to. Chose reuse over a dedicated redis container to honor the lean-by-default rule; minor coupling accepted (a manual redis-stack flush would drop Authentik sessions).
+
+**host-net Traefik gotcha (why the loopback publish exists):** `traefik` runs `network_mode: host`, so it is NOT on the compose bridge network and cannot resolve `authentik-server` by Docker service name for the forward-auth sub-request. Fix: publish the server on `127.0.0.1:9000:9000` (host loopback only, never tailscale/public) and point the middleware at `http://127.0.0.1:9000/outpost.goauthentik.io/auth/traefik`. Normal UI routing is unaffected — Traefik's docker provider dials the container's bridge IP directly, same as tower/portainer.
+
+**Hostname:** `login.ramonedevelopment.com`. `auth.` intentionally avoided — reserved for the future `magiq-auth` migration off the Windows box. No DNS/cert change needed: dnsmasq already wildcards `*.ramonedevelopment.com` to cortex and DNS-01 mints the cert on demand.
+
+**Ordering caveat:** the forward-auth labels are inert until a Proxy Provider + Application exist in the Authentik UI for each protected host. Until then that host 302-loops — expected, not a routing bug.
+
+**Secrets added** (`cortex/.env.example`, real values only in `~/stack/.env`): `AUTHENTIK_SECRET_KEY`, `AUTHENTIK_PG_PASS`, `AUTHENTIK_BOOTSTRAP_PASSWORD`, optional `AUTHENTIK_TAG` (default 2025.12).
+
+**Owner:** Chase Ramone
+
+**Full detail:** `cortex/docker-compose.yml` inline comments, `C:\Users\chase\.claude\plans\kind-squishing-bubble.md`.
+
+**Amendment 2026-07-13 (same day):** switched the forward-auth group from single-application to **domain-level** per operator request ("one login for the entire domain and all its apps"). Removed the per-host `homepage-outpost` / `redisinsight-outpost` / `traefik-outpost` routers — domain-level serves `/outpost.goauthentik.io/` centrally on `login.` and shares one `ramonedevelopment.com` session cookie. Each protected host now carries only `middlewares=authentik@docker`. Authentik side = a SINGLE proxy provider (Forward auth → domain level, cookie domain `ramonedevelopment.com`) bound to the embedded outpost. Self-login apps (portainer/seq/open-webui/cloudbeaver) still reach seamless single-login only via native OIDC (phase 2b) — stacking forward-auth on them would double-prompt.
+
+**Amendment 2026-07-13 (same day, #2):** reverted the forward-auth group from domain-level BACK to **single-application**. Domain-level forward auth is broken on non-443 ports (authentik issue #12503): the tailnet entrypoint is `:8443`, so the browser Host header carries `home.ramonedevelopment.com:8443`, which fails the outpost's cookie-domain suffix match against `ramonedevelopment.com` — the request falls through to the authentik core and returns 404 (confirmed via `logger=authentik.asgi ... host=...:8443 ... status=404`). Single-application mode matches by exact `external_host` (including `:8443`), so it works. Restored the per-host `homepage-outpost` / `redisinsight-outpost` / `traefik-outpost` routers. Cost: one Authentik proxy provider + application per protected host (vs. one for the whole domain) and separate per-app cookies — but the UX is still effectively single sign-on (one credential entry at Authentik; subsequent apps pass through the existing Authentik session). "One login for the whole domain" as a single shared proxy cookie is not achievable while everything runs on `:8443`.
+
+**Amendment 2026-07-14:** moved the tailnet Traefik entrypoint from `100.90.195.22:8443` to `100.90.195.22:443` and re-adopted **domain-level** forward auth (reverting the single-app amendment above). Rationale: domain-level forward auth needs the default HTTPS port so the browser Host header has no `:port` (authentik #12503). To free `:443` on the tailscale IP, the public `websecure`/`web` entrypoints were pinned from all-interfaces (`:443`/`:80`) to the LAN NIC IP (`192.168.0.253:443`/`:80`, enp196s0) — transparent to the router's existing port-forward, keeps whoami-test/future magiq-auth public. Tailnet services stay tailnet-only (still bound to the tailscale IP alone), now reached without the `:8443` suffix. Swept `:8443` out of every `homepage.href` tile, the Authentik href, mcp-ado's `/mcp` URL, and `HOMEPAGE_ALLOWED_HOSTS` (now bare `home.ramonedevelopment.com`). Per-host `-outpost` routers removed again; back to one domain-level proxy provider. **Prereq before deploy:** cortex's LAN IP `192.168.0.253` must be DHCP-reserved/static or the public path breaks on lease renewal.
+
+## 2026-07-14 — Control Tower exposed publicly behind Authentik (group-restricted)
+
+**Decision:** `tower.ramonedevelopment.com` is now reachable from the public internet and gated by Authentik forward-auth restricted to a `tower-users` group. It's the first service to leave the all-tailnet posture.
+
+**How:**
+- Tower's router listens on BOTH `tailnet` and `websecure` (public) entrypoints. Public path = router-forward WAN:443 → `192.168.0.253:443` (websecure, pinned to the LAN NIC). Tailnet path unchanged (split-DNS → tailscale IP).
+- **Single-application** proxy provider `tower-fwd` (external host `https://tower.ramonedevelopment.com`) with an Application policy bound to the `tower-users` group — only members get in. Chosen over the domain-level gate because domain-level is all-or-nothing; a public tool needs per-app user restriction. Single-app exact-host match takes precedence over the domain-level provider. Added the per-host `tower-outpost` router (both entrypoints) for the callback path.
+- `login.ramonedevelopment.com` (Authentik) also added to `websecure` — mandatory, since public visitors get redirected there to authenticate. Accepted consequence: the IdP is now internet-facing.
+- Tower keeps its `TOWER_TOKEN` bearer auth underneath — defense in depth.
+
+**Exposure method:** router port-forward (not Cloudflare Tunnel), per operator choice. Recommend the public Cloudflare A records for `tower`/`login` be proxied (orange, SSL Full-Strict) to hide the WAN IP and add WAF/rate-limiting; if the WAN IP is dynamic, the A records need DDNS.
+
+**Hardening required (public IdP):** strong `akadmin` password + MFA, MFA for `tower-users`, Authentik reputation/brute-force policies on, optional Cloudflare WAF. `sqlserver`/`mysql` remain bridge-only (never exposed); `mcp-azure-devops` stays tailnet-only.
+
+**Owner:** Chase Ramone
+
+**Full detail:** `cortex/docker-compose.yml` (tower + authentik-server blocks), this session's plan.

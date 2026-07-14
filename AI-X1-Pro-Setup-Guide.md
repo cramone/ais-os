@@ -16,7 +16,7 @@ Lessons learned the hard way during setup and later hardening — save yourself 
   ```
 - **Tailscale IP is stable across NIC/interface changes** (confirmed empirically during a WiFi→Ethernet swap — IP unchanged). See Stage 5, point 6.
 - **ACME "missing token" errors for hostnames you never deployed are bot noise, not a bug.** `docker compose logs traefik | grep -i err` can show entries like `Cannot retrieve the ACME challenge for media-api.ramonedevelopment.com` even while that service is still commented out under FUTURE. That's a scanner hitting `/.well-known/acme-challenge/` with a bogus token on your public IP — expected background noise once real hostnames under the wildcard domain start appearing in public Certificate Transparency logs (see §10.3b).
-- **When verifying a cert change, test with `curl --resolve` before trusting a browser.** Browsers cache the previous TLS handshake/cert per host and can show a stale failure well after the underlying cert has actually changed. `curl -v https://<host>:8443 --resolve <host>:8443:<tailscale-ip> 2>&1 | grep -i issuer` is the ground truth; only retest the browser (in a fresh incognito window) after curl confirms the new cert.
+- **When verifying a cert change, test with `curl --resolve` before trusting a browser.** Browsers cache the previous TLS handshake/cert per host and can show a stale failure well after the underlying cert has actually changed. `curl -v https://<host> --resolve <host>:443:<tailscale-ip> 2>&1 | grep -i issuer` is the ground truth; only retest the browser (in a fresh incognito window) after curl confirms the new cert.
 
 **This guide references `BENCHMARKS.md` starting in Stage 1 — it doesn't exist yet.** Create it before Stage 1 so the "log this now" instructions have somewhere to go:
 ```bash
@@ -149,23 +149,25 @@ From your main machine or iPhone:
 
 **Why now:** every Traefik stage from Stage 10 onward depends on three things this guide otherwise treats as background facts instead of steps — a domain with dynamic DNS, router ports forwarded to cortex, and a firewall that's default-deny but still lets SSH in. Do all three now, in the order below. **Reversing the two ufw commands in 4.5.3 is the one lockout risk in this entire guide** — Stage 3 was the last point with physical access.
 
-### 4.5.1 — Domain + Dynamic DNS
+### 4.5.1 — Domain + DNS (Cloudflare)
 
-1. Register a domain, or use one you already own. This guide uses `ramonedevelopment.com` as the example throughout — substitute your own domain everywhere that string appears in later stages.
-2. Pick a DDNS provider that supports a wildcard record — No-IP (free tier) is what this guide's live setup uses. Create an account, add the domain.
-3. Add a wildcard A record: `*.<yourdomain>` → your home's current public IP.
-4. Configure the DDNS client to keep that record current as your public IP changes: most consumer/prosumer routers (ASUS, Netgear, pfSense/OPNsense) have a built-in No-IP/DDNS client — enter the credentials and hostname there, enable auto-update. If your router has none, run No-IP's DUC (Dynamic Update Client) as a container on cortex instead.
-5. Verify from any external network: `nslookup anything.<yourdomain>` should resolve to your home's current public IP.
+> **Updated 2026-07.** The original live setup used **No-IP** with a **wildcard** A record and Traefik **HTTP-01** ACME. That has been fully replaced: DNS moved to **Cloudflare**, ACME is now **DNS-01** (Cloudflare API — §10.3b), and there is **no wildcard** record. Reasons: DNS-01 needs a supported DNS provider (No-IP isn't one — Cloudflare is), removes the need for a public `:80` at all, and a wildcard A record was over-exposing (it published the home IP for every tailnet-only subdomain). The steps below are the current model; the migration rationale is in `decisions/log.md`.
 
-**Why wildcard, not one record per subdomain:** every service added in later stages (`redis.`, `seq.`, `portainer.`, etc.) needs a resolvable hostname before Traefik can route to it or request a cert for it. One wildcard record covers all of them permanently — no DNS edit needed per new service. This is also the mechanism §10.3b depends on to issue real certs for tailnet-only (non-public) services.
+1. Register a domain (or use one you own). This guide uses `ramonedevelopment.com` as the example — substitute your own everywhere.
+2. Add the domain to **Cloudflare** and point the registrar's nameservers at Cloudflare's.
+3. Create a **scoped API token** (My Profile → API Tokens): permissions **Zone → DNS → Edit** + **Zone → Read**, scoped to your zone only. This one token is reused by Traefik (DNS-01) *and* the DDNS updater — it lands in `~/stack/.env` as `CF_DNS_API_TOKEN` (Stage 22).
+4. **Public A records — only for the hosts you actually expose to the internet.** In this build that's just `login.` (Authentik) and `tower.` (Control Tower), both added in Stage 23. Every other service is tailnet-only and resolves via Split DNS (Stage 10.8), so it needs **no** public record. **Do not add a wildcard** — it would publish your home IP for every subdomain including the tailnet-only ones.
+5. Keep those public records current as your home IP changes with the **`favonia/cloudflare-ddns`** container (defined in Stage 23) — it reuses `CF_DNS_API_TOKEN`, detects the WAN IP, and creates/updates only the listed hosts. (Router-native Cloudflare DDNS works too if you'd rather keep it off cortex.)
+
+**No public record needed for tailnet certs:** DNS-01 validates by writing a transient `_acme-challenge.<host>` TXT via the Cloudflare API — so a tailnet-only host like `redis.` gets a real Let's Encrypt cert with **no** public A record at all (§10.3b). Public A records exist only for hosts genuinely reachable from the internet.
 
 ### 4.5.2 — Router Port Forwarding
 
-Forward exactly these two ports on your router, both pointing at cortex's LAN IP:
-- External `80` → cortex `80`
-- External `443` → cortex `443`
+Forward **External `443` (TCP) → cortex's LAN IP `:443`** on your router.
 
-This is the **only** router forwarding this whole stack needs — it exists purely so Traefik's ACME HTTP-01 challenge can complete (§10.3b). It does not expose any service publicly by itself; every service's actual reachability is still controlled by which Traefik entrypoint its router binds to (`tailnet` vs `websecure`).
+> **Updated 2026-07.** Originally this forwarded `80` + `443` for Traefik's HTTP-01 ACME challenge. ACME is now **DNS-01** (§10.3b, Cloudflare API) — the challenge is a TXT record written via the API, so **no inbound `:80` is needed and the `:80` forward can be closed.** The `:443` forward stays: it feeds Traefik's public `websecure` entrypoint, which serves the two internet-facing hosts (`login.` + `tower.`, Stage 23). Pin cortex's LAN IP as a **DHCP reservation** first, or the forward breaks on lease renewal.
+
+This is the only router forwarding the stack needs. It does not expose anything by itself — reachability is still governed by which Traefik entrypoint a router binds to (`tailnet` = tailscale-IP-only, `websecure` = public). Only `login.` and `tower.` bind `websecure`.
 
 ### 4.5.3 — Firewall Baseline (ufw)
 
@@ -409,7 +411,7 @@ Per-container `mem_limit`/`cpus` is the more direct lever — add those once Sta
 
 This is the single authoritative `docker-compose.yml`. Don't add service snippets elsewhere — edit this file directly.
 
-**Domain note:** `ramonedevelopment.com` DNS is managed via No-IP on the router. `*.ramonedevelopment.com` is a wildcard A record pointing at the home public IP — this already resolves publicly for **every** subdomain, tailnet-only services included. Public reachability is still controlled entirely by which Traefik `entrypoints` a router is bound to, not by DNS: a hostname resolving publicly does not make the service reachable — a public request to a tailnet-only router's hostname hits no matching router on the public entrypoints and 404s. The wildcard record being public is actually *load-bearing* for §10.3b below (it's what lets tailnet-only routers get real Let's Encrypt certs via the public ACME path). A small explicit set of services also run their actual router on `entrypoints=websecure` and are genuinely public via No-IP → public IP → forwarded 80/443 — that's the scoped exception to the Tailscale-only access rule; §10.3b's pattern is not that, it's a cert-only exception with zero change to reachability.
+**Domain note (updated 2026-07):** `ramonedevelopment.com` DNS is on **Cloudflare**, with **no wildcard** record (§4.5.1). Tailnet-only hostnames (`logs.`, `portainer.`, `chat.`, `redis.`, `mcp-ado.`, …) have **no public DNS record at all** — they resolve only via Split DNS on the tailnet (Stage 10.8). They still get real Let's Encrypt certs because ACME is **DNS-01** (§10.3b): lego proves control by writing a transient TXT via the Cloudflare API, which needs no public A record. Public reachability is controlled entirely by which Traefik `entrypoints` a router binds to. Exactly two hosts run their real router on `entrypoints=websecure` and are genuinely public via Cloudflare → forwarded `:443` — `login.` and `tower.` (Stage 23). Everything else is tailnet-entrypoint-only.
 
 ```bash
 mkdir -p ~/stack && cd ~/stack
@@ -432,15 +434,26 @@ services:
     # below — both are meaningless (and ignored) under host networking; the entrypoint
     # addresses in `command` are what actually bind, and the host's own DNS/hosts resolution
     # applies directly.
+    environment:
+      # Scoped Cloudflare token (Zone:Read + DNS:Edit on your zone) — read by lego's cloudflare
+      # provider for the DNS-01 challenge below. Same token the DDNS updater reuses (Stage 23).
+      CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN}
     command:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      # Replace <tailscale-ip> with output of `tailscale ip -4` (stable across NIC changes — Stage 5, point 6)
-      - "--entrypoints.tailnet.address=<tailscale-ip>:8443"
-      - "--certificatesresolvers.public.acme.httpchallenge=true"
-      - "--certificatesresolvers.public.acme.httpchallenge.entrypoint=web"
+      # Public entrypoints pinned to the LAN NIC IP (run `ip -4 addr show scope global`), NOT
+      # all-interfaces — this frees :443 on the tailscale IP for the tailnet entrypoint below.
+      - "--entrypoints.web.address=<lan-ip>:80"
+      - "--entrypoints.websecure.address=<lan-ip>:443"
+      # Tailnet entrypoint on :443 (was :8443). Replace <tailscale-ip> with `tailscale ip -4`
+      # (stable across NIC changes — Stage 5, point 6). :443 (not :8443) so domain-level
+      # forward-auth works (Stage 23 — authentik #12503) and URLs need no port suffix.
+      - "--entrypoints.tailnet.address=<tailscale-ip>:443"
+      # ACME is DNS-01 via Cloudflare (was HTTP-01). No public :80 needed; lego writes a
+      # _acme-challenge TXT via the API. Works for tailnet-only hosts with no public A record.
+      - "--certificatesresolvers.public.acme.dnschallenge=true"
+      - "--certificatesresolvers.public.acme.dnschallenge.provider=cloudflare"
+      - "--certificatesresolvers.public.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
       - "--certificatesresolvers.public.acme.email=chase.ramone@magiqsoftware.com"
       - "--certificatesresolvers.public.acme.storage=/letsencrypt/acme.json"
       - "--log.level=INFO"
@@ -628,7 +641,7 @@ volumes:
 ```
 `docker compose up -d whoami-test`, then `curl -s https://test.ramonedevelopment.com` — a JSON response with hostname/IP fields confirms the full public path (router forwarding → Traefik → ACME cert → container) works before you point a real service at `entrypoints=websecure`. Leave it running as a permanent canary, or remove it once confirmed — either is fine.
 
-**DNS:** you do NOT need a separate No-IP A record per internal subdomain. `*.ramonedevelopment.com` is already a wildcard A record on No-IP pointing at the home public IP, so `logs.`, `portainer.`, `chat.`, `redis.`, `mcp-ado.`, and any future subdomain already resolve publicly today with zero DNS changes. That's intentional, not a leak — see §10.3b for why it's actually required, and the Domain note above for why public resolution doesn't equal public reachability.
+**DNS (updated 2026-07):** internal subdomains need **no public DNS record at all**. With DNS-01 (§10.3b), Traefik proves control by writing a transient `_acme-challenge.<host>` TXT via the Cloudflare API — so `logs.`, `portainer.`, `chat.`, `redis.`, `mcp-ado.`, and any future tailnet service get a real cert with zero public A record. They resolve only on the tailnet via Split DNS (Stage 10.8). This replaced the old No-IP wildcard, which over-exposed by publishing the home IP for every subdomain — see §4.5.1.
 
 ---
 
@@ -644,14 +657,14 @@ Every tailnet-only router above (`redisinsight`, `seq`, `portainer`, `openwebui`
       - "traefik.http.routers.<name>.tls.certresolver=public"
 ```
 
-**Why this works:** Traefik's ACME HTTP-01 challenge handler is bound to the `web` entrypoint at the resolver level, not the individual router level — it answers `/.well-known/acme-challenge/*` for any hostname that resolves to the public IP, regardless of which entrypoint that hostname's *real* router lives on. Because the wildcard No-IP record (above) already makes every subdomain resolve publicly, the challenge succeeds for tailnet-only hostnames too. Once issued, Traefik's cert store is global and does SNI-based matching independent of entrypoint, so the cert obtained via the public `web` entrypoint gets correctly presented when a client connects via the `tailnet` entrypoint requesting that same SNI. The service itself never becomes reachable on the public entrypoints — only the ACME conversation is public.
+**Why this works (DNS-01, updated 2026-07):** the `public` resolver now uses the **DNS-01** challenge via the Cloudflare API (§10.3). lego writes a transient `_acme-challenge.<host>.ramonedevelopment.com` TXT record to Cloudflare's public zone, Let's Encrypt validates it, then lego deletes it. This validates against the **public authoritative zone independent of any A record**, so a tailnet-only hostname with **no public A record at all** still gets a real cert. Once issued, Traefik's cert store is global and does SNI-based matching independent of entrypoint, so the cert is presented correctly when a client connects via the `tailnet` entrypoint. The service never becomes reachable on the public entrypoints — only the (API-based, non-public) ACME conversation happens.
 
 **Tradeoffs, accepted:**
-- HTTP-01 cannot issue wildcard certs (only DNS-01 can) — this means one cert per hostname, not one `*.ramonedevelopment.com` cert covering all of them.
-- Each hostname using this pattern becomes visible in public Certificate Transparency logs once its cert issues — information disclosure only, the service itself stays unreachable (see the Known Gotchas note on ACME scanner noise).
-- Port 80 forwarding is a permanent dependency for renewing these certs too, not just the genuinely-public ones — acceptable since that dependency already exists.
+- Certs stay per-host (each router triggers its own) — no wildcard cert. DNS-01 *could* do a wildcard, but per-host keeps issuance tied to actual routers and needs no wildcard A record.
+- Each hostname becomes visible in public Certificate Transparency logs once its cert issues — information disclosure only, the service stays unreachable (see the Known Gotchas note on ACME scanner noise).
+- Requires a Cloudflare API token (`CF_DNS_API_TOKEN`, §10.3 / Stage 22). No inbound `:80` dependency anymore — DNS-01 removed it.
 
-**Alternatives considered and rejected:** Tailscale-issued certs (`tailscale cert` for `*.tail...ts.net` names) would require renaming every internal hostname off `ramonedevelopment.com`. DNS-01 via migrating off No-IP (which isn't a supported lego DNS-01 provider) to a host like Hurricane Electric was scoped in detail but rejected as unnecessary complexity once the wildcard-record insight above was found.
+**History:** the original build used **HTTP-01** (public `:80` + a wildcard No-IP A record so every subdomain resolved publicly). That was replaced by DNS-01/Cloudflare in 2026-07 — it removes the `:80` forward, removes the over-exposing wildcard, and is what makes the whole zone cleaner (only genuinely-public hosts get A records). Tailscale-issued certs (`tailscale cert` for `*.tail...ts.net`) were rejected — they'd force renaming every hostname off `ramonedevelopment.com`.
 
 ---
 
@@ -674,7 +687,7 @@ docker exec -it stack-traefik-1 wget -qO- http://host.docker.internal:11434/api/
 
 Open WebUI is already defined in the compose file. No extra snippets needed — just first-run config.
 
-**First load:** `https://chat.ramonedevelopment.com:8443`
+**First load:** `https://chat.ramonedevelopment.com`
 
 - `WEBUI_AUTH=true` — first account created becomes admin
 - Confirm Ollama is visible under **Settings → Connections** (should auto-detect via `OLLAMA_BASE_URL`)
@@ -723,7 +736,7 @@ Access at `https://<tailscale-ip>:9090`. Log in with your `chase` Linux credenti
 
 ## Stage 10.8 — Split DNS for the Tailnet
 
-`dns-internal` (Stage 10.3) is already defined in the compose file and running — this stage wires it into Tailscale so tailnet devices actually use it, and verifies end to end. Without this, getting a valid cert (§10.3b) doesn't make `https://portainer.ramonedevelopment.com` resolve to anything useful in a browser — the hostname still publicly resolves to the home IP via the wildcard record, and the real router only answers on the tailnet entrypoint (a different IP, port 8443). This closes that gap: every tailnet device gets the internal IP automatically for anything under `ramonedevelopment.com`; non-tailnet clients are completely unaffected and keep resolving the public IP.
+`dns-internal` (Stage 10.3) is already defined in the compose file and running — this stage wires it into Tailscale so tailnet devices actually use it, and verifies end to end. Without this, getting a valid cert (§10.3b) doesn't make `https://portainer.ramonedevelopment.com` resolve to anything useful in a browser — the real router only answers on the tailnet entrypoint (the tailscale IP, `:443`), and — since the wildcard record was removed (§4.5.1) — tailnet hostnames no longer resolve publicly at all. This closes that gap: every tailnet device gets the internal IP automatically for anything under `ramonedevelopment.com`; non-tailnet clients only resolve the two hosts that have real public records (`login.`, `tower.`).
 
 ### Configure the Tailscale admin console
 
@@ -749,9 +762,9 @@ dscacheutil -q host -a name portainer.ramonedevelopment.com   # macOS
 nslookup portainer.ramonedevelopment.com                       # Linux
 ```
 
-Then a full end-to-end browser test: `https://portainer.ramonedevelopment.com:8443` should load cleanly with a valid padlock — no `--resolve` trick, no hosts-file entry.
+Then a full end-to-end browser test: `https://portainer.ramonedevelopment.com` should load cleanly with a valid padlock — no `--resolve` trick, no hosts-file entry.
 
-**Known unresolved gap (not fixed by this stage):** the tailnet entrypoint binds `:8443`, not `:443`, so even with Split DNS working you still have to type the port. Fixing that would mean a second host-bound entrypoint on `:443` scoped specifically to the Tailscale interface address, separate from the public `websecure` entrypoint (which binds all interfaces) — not implemented, flagging so it isn't forgotten if it becomes annoying enough to fix.
+**~~Known gap~~ — RESOLVED 2026-07:** the tailnet entrypoint used to bind `:8443` (so you had to type the port), because the public `websecure` entrypoint held all-interfaces `:443`. Fixed exactly as this note predicted: `websecure`/`web` were pinned to the **LAN NIC IP** (§10.3), freeing `:443` on the tailscale IP for a `tailnet` entrypoint on **`:443`**. Tailnet URLs now need no port suffix, and it unblocked domain-level forward-auth (Stage 23). No separate entrypoint needed beyond the IP-pinning.
 
 **Gotcha confirmed in practice:** after a cert or DNS change, always retest with `curl --resolve` before trusting a browser result — see Known Gotchas at the top of this guide. A stale cached browser handshake produced a false "not working" read during initial verification of this stage even though the server-side fix was already live.
 
@@ -761,7 +774,7 @@ Then a full end-to-end browser test: `https://portainer.ramonedevelopment.com:84
 
 If the curl in Stage 10.6 fails, add this explicitly per-service (already included in the compose snippet above via `extra_hosts`). On Linux, `host.docker.internal` isn't automatic the way it is on Docker Desktop — the `extra_hosts: host-gateway` line is what makes it resolve.
 
-**Router note:** forwarding ports 80/443 to this box (required only for the public Traefik entrypoint's ACME HTTP-01 challenge) is a scoped, deliberate exception to the Tailscale-only/no-public-ports decision — not a reversal of it. Forward only those two ports, only to the Traefik container, and keep every other service off the public entrypoint by default.
+**Router note (updated 2026-07):** forward only **`:443`** to this box (ACME is DNS-01 now, so the old `:80`/HTTP-01 forward is gone — §4.5.2). That single forward feeds the public `websecure` entrypoint, which serves exactly two internet-facing hosts (`login.` + `tower.`, Stage 23). It's a scoped, deliberate exception to the Tailscale-only default — not a reversal. Every other service stays off `websecure` (tailnet entrypoint only).
 
 ---
 
@@ -1338,11 +1351,11 @@ docker compose -f ~/stack/docker-compose.yml up -d --force-recreate mcp-azure-de
 
 From a tailnet device (e.g. Chase's Windows PC, already on the same Tailscale network it uses for other tailnet-only cortex services):
 ```bash
-curl -s https://mcp-ado.ramonedevelopment.com:8443/mcp \
+curl -s https://mcp-ado.ramonedevelopment.com/mcp \
   -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"smoke-test","version":"0.1"}}}'
 ```
-**Port is required — `:8443`, not 443 or the bare hostname.** The `tailnet` Traefik entrypoint listens on 8443, same as every other tailnet-only cortex service (Seq/Portainer/Open WebUI). A plain `https://mcp-ado.ramonedevelopment.com/mcp` (443) 404s — that's Traefik's default entrypoint saying "no route," not a failure of this service.
+**No port needed — `:443` (updated 2026-07).** The `tailnet` entrypoint now listens on `:443` (was `:8443` — §10.3), so the bare `https://mcp-ado.ramonedevelopment.com/mcp` is correct. If you have an old `:8443` URL cached anywhere (MCP client config, `.mcp.json`), drop the port. mcp-ado stays tailnet-only — reachable over Tailscale, never on the public entrypoint.
 
 **`Accept` header is required** — a request without `-H "Accept: application/json, text/event-stream"` gets back `{"error":{"code":-32000,"message":"Not Acceptable..."}}`. Expected Streamable HTTP behavior; real MCP clients (Claude Code, `mcp-remote`) send this automatically.
 
@@ -1351,19 +1364,19 @@ Expect a JSON-RPC `result` containing `protocolVersion`/`capabilities`/`serverIn
 ### 16.6 — Wire up Claude Code (Windows)
 
 ```bash
-claude mcp add --transport http azure-devops https://mcp-ado.ramonedevelopment.com:8443/mcp
+claude mcp add --transport http azure-devops https://mcp-ado.ramonedevelopment.com/mcp
 ```
 Or edit `AIS-OS/.mcp.json` (gitignored, machine-local) directly:
 ```json
-{ "mcpServers": { "azure-devops": { "type": "http", "url": "https://mcp-ado.ramonedevelopment.com:8443/mcp" } } }
+{ "mcpServers": { "azure-devops": { "type": "http", "url": "https://mcp-ado.ramonedevelopment.com/mcp" } } }
 ```
-Note the `:8443` — see 16.5.
+No port needed (`:443`) — see 16.5.
 
 Test: ask Claude Code to list ADO projects. ✅ Verified working 2026-07-04.
 
 ### 16.7 — Wire up Claude Desktop (Windows)
 
-**Different mechanism from Claude Code, not just a different config file.** Settings → Connectors → "Add custom connector" in Claude Desktop is a dead end for this setup: per Anthropic's own docs, custom connectors added that way connect to the remote MCP server **from Anthropic's cloud infrastructure**, not from the local machine — true across claude.ai, Cowork, and Desktop alike. Anthropic's servers aren't on the tailnet, so they can't reach a Tailscale-only host like `mcp-ado.ramonedevelopment.com:8443`, and there's no way to allowlist around that without exposing the endpoint publicly — which defeats the point of the `tailnet`-only entrypoint. Don't use the Connectors UI for this.
+**Different mechanism from Claude Code, not just a different config file.** Settings → Connectors → "Add custom connector" in Claude Desktop is a dead end for this setup: per Anthropic's own docs, custom connectors added that way connect to the remote MCP server **from Anthropic's cloud infrastructure**, not from the local machine — true across claude.ai, Cowork, and Desktop alike. Anthropic's servers aren't on the tailnet, so they can't reach a Tailscale-only host like `mcp-ado.ramonedevelopment.com`, and there's no way to allowlist around that without exposing the endpoint publicly — which defeats the point of the `tailnet`-only entrypoint. Don't use the Connectors UI for this.
 
 The working path is Desktop's legacy local-stdio config (`claude_desktop_config.json`), paired with `mcp-remote` — a small Node package bridging stdio (what Desktop speaks) to a remote Streamable HTTP endpoint. Requires Node.js on Windows (`npx`).
 
@@ -1373,7 +1386,7 @@ The working path is Desktop's legacy local-stdio config (`claude_desktop_config.
   "mcpServers": {
     "azure-devops": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "https://mcp-ado.ramonedevelopment.com:8443/mcp"]
+      "args": ["-y", "mcp-remote", "https://mcp-ado.ramonedevelopment.com/mcp"]
     }
   }
 }
@@ -1387,7 +1400,7 @@ Test: ask "list my ADO projects" in a new Desktop chat. ✅ Verified working 202
 
 Claudia runs on the same host as `mcp-azure-devops`, so in principle she can hit `http://localhost:8000/mcp` directly — no tailnet/Traefik hop, no TLS involved at all.
 
-**Second unconfirmed item, don't skip this one:** per 16.4, the compose service has no `ports:`/`expose:` mapping — Traefik reaches it over the internal Docker network only, not a published host port. Since Claudia is a bare-metal systemd process (not a container on that same Docker network), `localhost:8000` may not actually be reachable from her either, for the same reason the direct cortex-host curl test doesn't work. Verify with a plain `curl http://localhost:8000/mcp` from cortex's shell before wiring Claudia's config — if it hangs/fails, either add a `ports: ["127.0.0.1:8000:8000"]` line to the service (loopback-only, safe) or have Claudia go through the tailnet hostname (`https://mcp-ado.ramonedevelopment.com:8443/mcp`) like every other consumer instead.
+**Second unconfirmed item, don't skip this one:** per 16.4, the compose service has no `ports:`/`expose:` mapping — Traefik reaches it over the internal Docker network only, not a published host port. Since Claudia is a bare-metal systemd process (not a container on that same Docker network), `localhost:8000` may not actually be reachable from her either, for the same reason the direct cortex-host curl test doesn't work. Verify with a plain `curl http://localhost:8000/mcp` from cortex's shell before wiring Claudia's config — if it hangs/fails, either add a `ports: ["127.0.0.1:8000:8000"]` line to the service (loopback-only, safe) or have Claudia go through the tailnet hostname (`https://mcp-ado.ramonedevelopment.com/mcp`) like every other consumer instead.
 
 **Unconfirmed:** whether Hermes' MCP config schema supports an HTTP-transport entry analogous to Claude Code's `"type": "http"`, or stdio-only. Check before wiring — Hermes' own docs/schema for `config.yaml`'s `mcp_servers` block. If supported, conceptually:
 ```yaml
@@ -1461,10 +1474,10 @@ docker compose up -d --build tower
 
 ```bash
 TOKEN=$(grep '^TOWER_TOKEN=' /mnt/shared/claudia/magiq/.env | cut -d= -f2)
-curl -s https://tower.ramonedevelopment.com:8443/api/health \
+curl -s https://tower.ramonedevelopment.com/api/health \
   -H "Accept: application/json" -H "Authorization: Bearer $TOKEN"
 ```
-Same port rule as Stage 16.5 — `:8443`, not 443 or the bare hostname. Expect `{"status":"ok","sources":{...}}` with `projects`/`decisions`/`interrupts` all `true`. `ado`/`github` being `true` here only means the credentials/CLI are present, not that a live connection succeeded — those aren't real connectivity probes (see `tower/server.py`'s `health()`).
+No port needed — `:443`, the bare hostname (see 16.5; the tailnet entrypoint moved off `:8443` in §10.3). Expect `{"status":"ok","sources":{...}}` with `projects`/`decisions`/`interrupts` all `true`. `ado`/`github` being `true` here only means the credentials/CLI are present, not that a live connection succeeded — those aren't real connectivity probes (see `tower/server.py`'s `health()`).
 
 ### 17.4 — Claudia bridge (for the "Ask Claudia" feature)
 
@@ -1538,11 +1551,11 @@ docker compose up -d uptime-kuma
 
 ### 18.3 — First-run setup
 
-`https://status.ramonedevelopment.com:8443` — first account created becomes admin (same pattern as Open WebUI/Seq).
+`https://status.ramonedevelopment.com` — first account created becomes admin (same pattern as Open WebUI/Seq).
 
 ### 18.4 — Adding monitors: bridge network vs host network matters here
 
-**Gotcha to plan around, not hit by surprise:** Kuma's container is on the default Docker bridge network, not `network_mode: host`. If you add a monitor pointing at a tailnet hostname like `https://chat.ramonedevelopment.com:8443`, it will fail — Kuma's container resolves that hostname via normal outbound DNS (not `dns-internal`, which only binds the `tailscale0` interface), gets back the **public** home IP from the wildcard No-IP record, and then tries to hit port `8443` on the WAN side, which is never forwarded (only 80/443 are, per Stage 11's router note). It'll look like every monitor is down when the services are actually fine.
+**Gotcha to plan around, not hit by surprise:** Kuma's container is on the default Docker bridge network, not `network_mode: host`. If you add a monitor pointing at a tailnet hostname like `https://chat.ramonedevelopment.com`, it will fail — Kuma's container resolves that hostname via normal outbound DNS (not `dns-internal`, which only binds the `tailscale0` interface). Since the wildcard record was removed (§4.5.1), public DNS returns **no record** for tailnet-only hosts, so the monitor can't even resolve them. It'll look like every monitor is down when the services are actually fine. Fix: point Kuma monitors at the tailscale IP directly, or at the container over the compose bridge network — not the public hostname.
 
 Two correct patterns instead:
 
@@ -1585,7 +1598,7 @@ docker compose up -d cloudbeaver
 
 ### 19.3 — First-run setup
 
-`https://sql.ramonedevelopment.com:8443` — CloudBeaver CE prompts you to create the admin account and a workspace on first load (no pre-seeded connections via compose; the CE edition doesn't support that without the enterprise config API).
+`https://sql.ramonedevelopment.com` — CloudBeaver CE prompts you to create the admin account and a workspace on first load (no pre-seeded connections via compose; the CE edition doesn't support that without the enterprise config API).
 
 ### 19.4 — Add the two database connections
 
@@ -1636,11 +1649,11 @@ docker compose up -d --force-recreate traefik
 ### 20.3 — Verify
 
 ```bash
-curl -s https://traefik.ramonedevelopment.com:8443/api/overview \
+curl -s https://traefik.ramonedevelopment.com/api/overview \
   -H "Host: traefik.ramonedevelopment.com" | jq .
 ```
 
-Expect JSON with router/service/middleware counts. Then load `https://traefik.ramonedevelopment.com:8443` in a browser for the visual dashboard.
+Expect JSON with router/service/middleware counts. Then load `https://traefik.ramonedevelopment.com` in a browser for the visual dashboard.
 
 ---
 
@@ -1658,7 +1671,7 @@ Already added to `~/stack/docker-compose.yml`:
     restart: unless-stopped
     <<: *default-logging
     environment:
-      HOMEPAGE_ALLOWED_HOSTS: "home.ramonedevelopment.com:8443"
+      HOMEPAGE_ALLOWED_HOSTS: "home.ramonedevelopment.com"
     volumes:
       - /mnt/shared/claudia/magiq/homepage-config:/app/config
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -1672,7 +1685,7 @@ Already added to `~/stack/docker-compose.yml`:
 
 Config is a **bind mount into the magiq repo** (`homepage-config/`), not a named volume — same reasoning as Tower's bind mount (Stage 17): it's editable directly and versioned alongside `docker-compose.yml`, no `docker exec` needed to change a tile. The `docker.sock` mount is read-only — Homepage only needs it to read labels and (optionally) container stats, never to manage containers.
 
-**Gotcha confirmed 2026-07-05:** Homepage's base image ships on Next.js 16, which added its own Host-header validation independent of Traefik. Without `HOMEPAGE_ALLOWED_HOSTS`, every request 500s with `Host validation failed for: home.ramonedevelopment.com:8443` in the container logs even though Traefik routing, the cert, and the container itself are all fine — easy to misdiagnose as a Traefik problem. The value must include the port (`:8443`, the tailnet entrypoint), not just the bare hostname, since that's the literal `Host` header Traefik forwards through unchanged. If you ever add a second hostname pointing at this container, comma-separate both in the same env var.
+**Gotcha confirmed 2026-07-05:** Homepage's base image ships on Next.js 16, which added its own Host-header validation independent of Traefik. Without `HOMEPAGE_ALLOWED_HOSTS`, every request 500s with `Host validation failed for: home.ramonedevelopment.com` in the container logs even though Traefik routing, the cert, and the container itself are all fine — easy to misdiagnose as a Traefik problem. The value must be the literal `Host` header Traefik forwards through unchanged — on the `:443` tailnet entrypoint (§10.3) that's the **bare hostname, no port** (`home.ramonedevelopment.com`). (It used to require `:8443` when the entrypoint was on that port.) If you ever add a second hostname pointing at this container, comma-separate both in the same env var.
 
 ### 21.2 — Config files
 
@@ -1691,7 +1704,7 @@ Four files now live in `/mnt/shared/claudia/magiq/homepage-config/` (== `Z:\clau
       - "homepage.group=<AI|Infrastructure|Data|Ops>"
       - "homepage.name=<Display Name>"
       - "homepage.icon=<icon-slug>.png"
-      - "homepage.href=https://<subdomain>.ramonedevelopment.com:8443"
+      - "homepage.href=https://<subdomain>.ramonedevelopment.com"
       - "homepage.description=<one line>"
 ```
 
@@ -1707,7 +1720,7 @@ docker compose up -d homepage
 
 ### 21.5 — Verify
 
-`https://home.ramonedevelopment.com:8443` — expect four grouped sections (AI, Infrastructure, Data, Ops) with all ten labeled tiles plus the manually-added Cockpit tile under Infrastructure. If a tile is missing, check its container's labels landed correctly (`docker inspect <container> --format '{{json .Config.Labels}}'`) and that `homepage.group` matches a `layout:` key in `settings.yaml` exactly.
+`https://home.ramonedevelopment.com` — expect four grouped sections (AI, Infrastructure, Data, Ops) with all ten labeled tiles plus the manually-added Cockpit tile under Infrastructure. If a tile is missing, check its container's labels landed correctly (`docker inspect <container> --format '{{json .Config.Labels}}'`) and that `homepage.group` matches a `layout:` key in `settings.yaml` exactly.
 
 ---
 
@@ -1729,6 +1742,10 @@ docker compose up -d homepage
 - `MSSQL_SA_PASSWORD` — sqlserver service (note: different name from the container's own runtime env var `SA_PASSWORD` used inside the healthcheck's `$$SA_PASSWORD` — that's the container's internal env, unrelated to compose-level substitution, no collision)
 - `CIFS_SHARED_PASSWORD` — the `shared_data` volume's CIFS mount options
 - `SEQ_FIRSTRUN_ADMINPASSWORD` — seq service. Added 2026-07-05: Seq 2025.2.x requires an explicit first-run admin password (or an explicit no-auth opt-out) and crash-loops on boot without one — this wasn't a secret in the original Stage 10.3 setup because older Seq versions allowed interactive account creation in the browser on first load. Log in as `admin` with this password.
+- `CF_DNS_API_TOKEN` — Traefik's DNS-01 resolver **and** the DDNS updater (Stage 23). Scoped Cloudflare token, `Zone:Read` + `DNS:Edit` on your zone only (§4.5.1). Added when ACME moved HTTP-01→DNS-01.
+- `AUTHENTIK_SECRET_KEY`, `AUTHENTIK_PG_PASS`, `AUTHENTIK_BOOTSTRAP_PASSWORD` — the Authentik identity stack (Stage 23). Generate with `openssl rand`; `AUTHENTIK_PG_PASS` is shared by the `authentik-postgresql` container and the Authentik server/worker. Optional `AUTHENTIK_TAG` pins the image version.
+
+> Full annotated placeholders for every variable above live in `cortex/.env.example` — copy that, don't hand-write the list.
 
 ### 22.2 — `cortex/` subfolder in the repo
 
@@ -1749,7 +1766,7 @@ Use `cortex/.env.example` as the template, but land the filled-in version direct
 # on cortex:
 cd ~/stack
 scp <your-machine>:/path/to/magiq/cortex/.env.example .env   # or paste manually via nano — either way, land it directly on cortex
-nano .env   # fill in the three real values
+nano .env   # fill in every real value (DB passwords, CIFS, Seq, CF_DNS_API_TOKEN, AUTHENTIK_*)
 chmod 600 .env
 ```
 
@@ -1782,6 +1799,211 @@ docker compose ps
 
 ---
 
+## Stage 23 — Authentik (Identity Provider / SSO)
+
+**Added 2026-07-14.** One identity for the tailnet admin fleet, and the mechanism that lets Control Tower go public safely. Depends on the `:443` tailnet entrypoint and Cloudflare DNS-01 from §10.3 (both updated 2026-07) — do those first.
+
+Two integration modes, both driven by a single reusable Traefik middleware defined on the Authentik server:
+- **Forward-auth, domain-level** — one Authentik proxy provider gates every tailnet UI that has no login of its own (`home.`, `redis.`, `traefik.`) with one shared `ramonedevelopment.com` cookie. Anyone who can authenticate gets in (fine for tailnet-only admin UIs).
+- **Forward-auth, single-application** — a dedicated provider + group policy per host, used for anything **public** or anything that must be **restricted to specific users**. Control Tower uses this.
+- **Native OIDC** (not covered step-by-step here) — the right integration for apps that have their own user DB (`portainer.`, `open-webui`, `seq.`, `cloudbeaver`) so they don't double-prompt. Configure per-app in the Authentik UI after this stage.
+
+Deliberately **not** gated: `mcp-azure-devops` (machine API — a browser redirect breaks the MCP client) and `netdata` (host-network, bypasses Traefik).
+
+### 23.1 — Services (authentik-postgresql, authentik-server, authentik-worker)
+
+Authentik hard-requires PostgreSQL (the stack had none — only mysql/mssql), so this adds a dedicated Postgres. Redis is **reused** from the existing `redis-stack` (DB 0 — nothing else uses it). Add to `docker-compose.yml`:
+
+```yaml
+  authentik-postgresql:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: authentik
+      POSTGRES_DB: authentik
+      POSTGRES_PASSWORD: ${AUTHENTIK_PG_PASS}
+    volumes: [ authentik_pg:/var/lib/postgresql/data ]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authentik"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  authentik-server:
+    image: ghcr.io/goauthentik/server:${AUTHENTIK_TAG:-2025.12}
+    restart: unless-stopped
+    command: server
+    environment:
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgresql
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_PG_PASS}
+      AUTHENTIK_REDIS__HOST: redis-stack
+      AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD}
+      AUTHENTIK_BOOTSTRAP_EMAIL: <your-email>
+    volumes: [ authentik_media:/media, authentik_certs:/certs ]
+    ports:
+      # HOST-LOOPBACK ONLY. Traefik runs network_mode: host and can't resolve the
+      # container by service name for the forward-auth sub-request, so it hits the
+      # embedded outpost at 127.0.0.1:9000 instead. Never bind this to tailscale/public.
+      - "127.0.0.1:9000:9000"
+    depends_on:
+      authentik-postgresql: { condition: service_healthy }
+      redis-stack: { condition: service_healthy }
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.authentik.rule=Host(`login.ramonedevelopment.com`)"
+      # tailnet + PUBLIC: public visitors to tower get redirected here to log in (23.6).
+      - "traefik.http.routers.authentik.entrypoints=tailnet,websecure"
+      - "traefik.http.routers.authentik.tls.certresolver=public"
+      - "traefik.http.services.authentik.loadbalancer.server.port=9000"
+      # Reusable forward-auth middleware (embedded outpost), referenced as authentik@docker:
+      - "traefik.http.middlewares.authentik.forwardauth.address=http://127.0.0.1:9000/outpost.goauthentik.io/auth/traefik"
+      - "traefik.http.middlewares.authentik.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.authentik.forwardauth.authResponseHeaders=X-authentik-username,X-authentik-groups,X-authentik-email,X-authentik-name,X-authentik-uid,X-authentik-jwt,X-authentik-meta-jwks,X-authentik-meta-outpost,X-authentik-meta-provider,X-authentik-meta-app,X-authentik-meta-version,X-authentik-entitlements"
+      - "homepage.group=Ops"
+      - "homepage.name=Authentik"
+      - "homepage.icon=authentik.png"
+      - "homepage.href=https://login.ramonedevelopment.com"
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:${AUTHENTIK_TAG:-2025.12}
+    restart: unless-stopped
+    command: worker
+    environment:
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgresql
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_PG_PASS}
+      AUTHENTIK_REDIS__HOST: redis-stack
+    volumes: [ authentik_media:/media, authentik_certs:/certs ]
+    depends_on:
+      authentik-postgresql: { condition: service_healthy }
+      redis-stack: { condition: service_healthy }
+      authentik-server: { condition: service_healthy }
+    # No docker.sock mount (least-privilege). The embedded outpost runs inside
+    # authentik-server; the worker only needs Docker if you run SEPARATE outposts.
+```
+
+Add the named volumes: `authentik_pg`, `authentik_media`, `authentik_certs`.
+
+Secrets in `~/stack/.env` (generate on cortex, never over the share):
+```bash
+echo "AUTHENTIK_SECRET_KEY=$(openssl rand -base64 60 | tr -d '\n')" >> ~/stack/.env
+echo "AUTHENTIK_PG_PASS=$(openssl rand -base64 36 | tr -d '\n')"    >> ~/stack/.env   # Postgres caps at 99 chars
+echo "AUTHENTIK_BOOTSTRAP_PASSWORD=<pick a strong one>"             >> ~/stack/.env
+```
+
+### 23.2 — Bring it up + first boot
+
+```bash
+cd ~/stack && docker compose up -d authentik-postgresql authentik-server authentik-worker
+docker compose ps            # postgres healthy; server/worker go healthy after first-boot migrations (1-3 min)
+```
+
+**Gotchas seen during the real build:**
+- A blank `AUTHENTIK_PG_PASS` makes Postgres refuse to init ("superuser password not specified") → unhealthy → server/worker blocked. Fill the secrets *before* `up`.
+- **Traefik hides unhealthy containers** — until `authentik-server` is `(healthy)`, Traefik builds no router/service/middleware for it, so `login.` serves the default self-signed cert and every `authentik@docker` reference logs "does not exist". This clears the moment it's healthy. First boot just takes a few minutes for migrations.
+- The `POSTGRES_PASSWORD ... using fallback` warning in the server log is benign — `AUTHENTIK_POSTGRESQL__PASSWORD` is what connects (`PostgreSQL connection successful` on the next line).
+
+Then open **`https://login.ramonedevelopment.com/if/flow/initial-setup/`** from a tailnet device and set the `akadmin` password (or log in with `AUTHENTIK_BOOTSTRAP_PASSWORD`).
+
+### 23.3 — Domain-level gate for the tailnet UIs (home / redis / traefik)
+
+On each of those three routers in `docker-compose.yml`, add just the middleware:
+```yaml
+      - "traefik.http.routers.<name>.middlewares=authentik@docker"
+```
+Then in the Authentik UI:
+1. **Providers → Create → Proxy Provider** `ramonedev-fwd`: Mode **Forward auth (domain level)**, External host `https://login.ramonedevelopment.com` (no port), **Cookie domain `ramonedevelopment.com`**.
+2. **Applications → Create** `Ramone Dev SSO`, provider `ramonedev-fwd`.
+3. **Outposts → edit the embedded outpost → add the application.**
+
+> **Critical: domain-level forward auth requires `:443` (authentik #12503).** On a non-443 port the browser Host header carries the port (`home.ramonedevelopment.com:8443`), which fails the outpost's cookie-domain suffix match → the request falls through to authentik core and 404s (`logger=authentik.asgi ... status=404`). This is the whole reason §10.3's tailnet entrypoint was moved to `:443`. Single-application mode (23.6) matches by exact host and works on any port, but domain-level does not.
+
+### 23.4 — Public Control Tower, restricted to a group (single-application)
+
+Tower is the one host exposed to the internet, so it gets its own provider + a group policy instead of riding the domain-level gate (which can't restrict per-app). Tower's router (Stage 17) becomes:
+```yaml
+      - "traefik.http.routers.tower.entrypoints=tailnet,websecure"   # public + tailnet
+      - "traefik.http.routers.tower.middlewares=authentik@docker"
+      # per-host outpost router for the login callback (single-app needs this; domain-level doesn't):
+      - "traefik.http.routers.tower-outpost.rule=Host(`tower.ramonedevelopment.com`) && PathPrefix(`/outpost.goauthentik.io/`)"
+      - "traefik.http.routers.tower-outpost.entrypoints=tailnet,websecure"
+      - "traefik.http.routers.tower-outpost.tls.certresolver=public"
+      - "traefik.http.routers.tower-outpost.service=authentik@docker"
+```
+Tower keeps its own `TOWER_TOKEN` bearer auth underneath — defense in depth.
+
+Authentik UI:
+1. **Directory → Groups → Create** `tower-users`; add the users allowed in. **Superuser does not bypass this** — even `akadmin` must be a member (or bound) to get through.
+2. **Providers → Create → Proxy Provider** `tower-fwd`: Mode **Forward auth (single application)**, External host **`https://tower.ramonedevelopment.com`** (the app's own URL — *not* `login.`; getting this wrong is a 404).
+3. **Applications → Create** `Tower`, provider `tower-fwd` → **Bindings** tab → **bind the `tower-users` group** (this is the access restriction).
+4. **Outposts → embedded → add `Tower`.**
+
+Exact-host (`tower-fwd`) beats domain-level (`ramonedev-fwd`), so Tower's restrictive policy wins even though it's under the same domain.
+
+**Expose it (public path in):**
+- **Cloudflare → SSL/TLS → Overview → Full (Strict)** (Traefik serves a valid LE cert). Never Flexible.
+- **Router:** forward WAN `:443` → cortex LAN IP `:443` (§4.5.2).
+- **cortex firewall:** `sudo ufw allow in on <lan-nic> to any port 443 proto tcp`.
+- **Public DNS + DDNS:** handled by the `cloudflare-ddns` service (23.5) — it creates/maintains `login.` and `tower.` A records (proxied) at the current WAN IP.
+
+### 23.5 — Dynamic DNS (favonia/cloudflare-ddns)
+
+Replaces the old No-IP DDNS. Reuses the same `CF_DNS_API_TOKEN` as Traefik's DNS-01. Add:
+```yaml
+  cloudflare-ddns:
+    image: favonia/cloudflare-ddns:latest
+    restart: unless-stopped
+    user: "1000:1000"
+    read_only: true
+    cap_drop: [ all ]
+    security_opt: [ "no-new-privileges:true" ]
+    environment:
+      CLOUDFLARE_API_TOKEN: ${CF_DNS_API_TOKEN}
+      DOMAINS: tower.ramonedevelopment.com,login.ramonedevelopment.com   # the ONLY public hosts
+      PROXIED: "true"          # orange-cloud — hides WAN IP, adds WAF. "false" for DNS-only.
+      IP6_PROVIDER: none
+```
+`docker compose up -d cloudflare-ddns` → it detects the WAN IP via Cloudflare's trace, **creates** the two records if missing, and rechecks every 5 min. Because they're proxied, a public `nslookup` returns Cloudflare edge IPs, not your WAN IP — verify the origin in the Cloudflare dashboard, not via nslookup.
+
+### 23.6 — MFA + hardening (the login is now internet-facing)
+
+1. **Enroll first, enforce second** (or you risk a broken enrollment loop). As each user: **Settings (`/if/user/`) → MFA Devices → Enroll** a TOTP or WebAuthn/passkey, plus **Static** recovery codes. Do this for your own user *and* `akadmin`.
+2. **Enforce:** Flows → Stages → the authenticator-validate stage in the default auth flow (`default-authentication-mfa-validation`) → set **Not configured action = "Force the user to configure an authenticator"**, check device classes, and add a TOTP/WebAuthn setup stage under Configuration stages.
+3. Create a **personal admin user** (add to `authentik Admins` + `tower-users`) and use it daily; keep `akadmin` as break-glass only — strong password + MFA + recovery codes, don't disable it.
+4. Confirm the default auth flow keeps its reputation/brute-force policies (ships by default).
+
+### 23.7 — Known gotcha: the embedded outpost caches
+
+The embedded outpost keeps its provider list in memory. **After any provider/binding change it won't take effect until `authentik-server` restarts:**
+```bash
+docker compose restart authentik-server
+```
+If a host still 404s after that, dump the live state — this is the fastest diagnostic:
+```bash
+docker compose exec authentik-server ak shell -c "
+from authentik.outposts.models import Outpost
+from authentik.providers.proxy.models import ProxyProvider
+o=Outpost.objects.get(managed='goauthentik.io/outposts/embedded')
+print('OUTPOST PROVIDERS:', [p.name for p in o.providers.all()])
+for p in ProxyProvider.objects.all():
+    print(p.name,'| mode=',p.mode,'| ext=',p.external_host,'| cookie=',repr(p.cookie_domain))
+"
+```
+Correct end state: `ramonedev-fwd | forward_domain | ext=https://login... | cookie='ramonedevelopment.com'` and `tower-fwd | forward_single | ext=https://tower... | cookie=''`, both bound to the outpost. A single-app provider whose `ext` points at `login.` instead of its own host is the classic 404.
+
+### 23.8 — Verify
+
+- Tailnet: `https://home.ramonedevelopment.com` → Authentik login → back to Homepage; `redis.`/`traefik.` then pass with no second login (shared cookie).
+- Public (phone on cellular): `https://tower.ramonedevelopment.com` → Authentik login → a `tower-users` member gets in, a non-member is denied ("Permission denied, Policy binding returned False" = the restriction working).
+- Watch the flow: `docker compose logs -f authentik-server 2>&1 | grep auth/traefik` — want `302` then `200`, not `404`.
+
+---
+
 ## Windows PC Checklist — Consolidated
 
 Every item below is already covered inline at the stage listed — this section just collects them into one pass so nothing on the Windows side gets missed. Work top to bottom; each depends on the one above it being done.
@@ -1797,10 +2019,12 @@ Every item below is already covered inline at the stage listed — this section 
 | 7 | In WSL: mount the same share via CIFS, add `git config --global --add safe.directory /mnt/shared/claudia/magiq`, and create any Python venvs on local disk (not on the CIFS mount) | Working on the magiq repo from WSL without the dubious-ownership or symlink-venv failures | 14.3 |
 | 8 | Clone or scaffold the magiq repo onto `Z:\claudia\magiq` (from Windows/WSL, not from cortex) | cortex sees it automatically via the same share — no separate clone step on cortex | 15.5 |
 | 9 | Install Node.js on Windows (needed for `npx`) | Running `mcp-remote` for Claude Desktop's MCP bridge | 16.7 |
-| 10 | Wire Claude Code: `claude mcp add --transport http azure-devops https://mcp-ado.ramonedevelopment.com:8443/mcp` (or edit `.mcp.json`) | ADO tools inside Claude Code | 16.6 |
+| 10 | Wire Claude Code: `claude mcp add --transport http azure-devops https://mcp-ado.ramonedevelopment.com/mcp` (or edit `.mcp.json`) | ADO tools inside Claude Code | 16.6 |
 | 11 | Wire Claude Desktop: edit `%APPDATA%\Claude\claude_desktop_config.json`, fully quit + reopen Desktop after | ADO tools inside Claude Desktop (Connectors UI does **not** work here — see 16.7 for why) | 16.7 |
 
 **Optional (phone, not PC):** Tailscale + Termius app, for SSH access from an iPhone (Stage 4).
+
+**Migration note (existing installs, 2026-07):** when the tailnet entrypoint moved `:8443`→`:443` (§10.3), any Windows-side config with a cached `:8443` URL must drop the port — `.mcp.json`, `%APPDATA%\Claude\claude_desktop_config.json` (the `mcp-ado` URL), and any browser bookmarks. Fresh setups following items 10-11 above already use the no-port form.
 
 ---
 
@@ -1812,6 +2036,6 @@ Every item below is already covered inline at the stage listed — this section 
 | 1. BIOS config | **Yes** |
 | 2. USB prep | No (separate machine) |
 | 3. Ubuntu install | **Yes** (last physical step) |
-| 4-22. Everything else (incl. 4.5 network/firewall baseline, 5.5 dual-NIC priority) | No — fully remote via Tailscale + SSH |
+| 4-23. Everything else (incl. 4.5 network/firewall baseline, 5.5 dual-NIC priority, 23 Authentik/SSO) | No — fully remote via Tailscale + SSH, plus a browser for the Authentik UI + Cloudflare/router config in Stage 23 |
 
 Total physical time: roughly 20-30 minutes across Stages 0-3, all up front.

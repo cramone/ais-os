@@ -4,10 +4,10 @@
 
 Yearly automated process to cull documents and folders from MAGIQ Documents based on a calendar year-end cutoff date. Targets a specific facility identified by folder naming conventions (acronyms). Client: NATA.
 
-**Current status:** Spec v0.3 in progress (markdown). All blocking questions resolved 2026-05-05. Ready for architecture. Two non-blocking UI questions remain open (see notes.md).
+**Current status:** Spec v0.4 baseline (markdown). All blocking questions resolved; architecture and infrastructure settled 2026-07-13 (see `decisions/log.md`). Ready for delivery planning and implementation. Two non-blocking details deferred to implementation: exact review-UI column set (UI design) and second archive library name (TBC).
 
 ## ADO Board
-_Not yet assigned_
+Project: **Documents** (MAGIQSoftware org). Epic **#34120** — *Document Lifecycle Cleaner — NATA* (8 Features, 17 User Stories, 49 Tasks; created 2026-07-13). Repo: `DocumentLifecycleCleaner`. Work items tagged `document-lifecycle-cleaner` and per-branch tags.
 
 ## Stack
 
@@ -46,7 +46,8 @@ Resolve open questions → finalise spec → design React UI → design .NET API
 | `risks.md` | Risk register |
 | `tasks.md` | Task tracking |
 | `decisions/log.md` | Architecture and design decisions (append-only log) |
-| `spec/NATA_Document_Lifecycle_Cleaner_Spec_v0.3.md` | Spec — source of truth (active, markdown) |
+| `spec/NATA_Document_Lifecycle_Cleaner_Spec_v0.4.md` | Spec — source of truth (active, markdown) |
+| `spec/NATA_Document_Lifecycle_Cleaner_Spec_v0.3.md` | Spec — previous version (archived, markdown) |
 | `spec/NATA_Document_Lifecycle_Cleaner_Spec_v0.2.docx` | Spec — previous version (archived) |
 
 ## Decisions

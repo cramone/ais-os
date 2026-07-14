@@ -8,7 +8,6 @@
 |---|---|---|
 | Chase Ramone *(me)* | Senior Development Team Lead | Engineering delivery, architecture decisions, team direction |
 | Karen Barton | Product Owner | Requirements, backlog prioritisation, acceptance criteria |
-| Estelle Wu | Developer | Full API layer — works directly with Chase on backend delivery |
 | Akshay Gaikwad | Developer | UI and integrations |
 
 ---
@@ -27,7 +26,7 @@
 
 ## Notes
 
-- Estelle and Akshay are the two devs — update their ownership areas once known
+- Chase owns the full API layer (backend delivery); Akshay owns UI and integrations
 - Tom Fenton is the go-to for cloud architecture decisions before committing to infrastructure changes
 - Support team (Glen, Dayle, Liam) are the source of production bug reports — check with them before closing support-related items
 

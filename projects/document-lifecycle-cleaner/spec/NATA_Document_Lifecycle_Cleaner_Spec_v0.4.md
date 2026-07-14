@@ -1,9 +1,11 @@
 # NATA — Document Lifecycle Cleaner
-### Specification v0.3
+### Specification v0.4
 
-_Last updated: 2026-05-05_
+_Last updated: 2026-07-13_
 
-> **Status:** Draft — all questions resolved. Ready for architecture.
+> **Status:** Baseline — architecture and infrastructure settled (see [Infrastructure & Technology](#infrastructure--technology) and `decisions/log.md`). All blocking questions resolved. Ready for delivery planning and implementation.
+>
+> Two non-blocking details are deferred to implementation, neither blocks build: the exact minimum review-UI column set (to be finalised during UI design) and the name of the second archive library (TBC).
 
 ---
 

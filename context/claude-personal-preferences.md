@@ -40,7 +40,6 @@ _(Condensed from `team/roster.md` — that's the canonical, fuller record. Updat
 |---|---|
 | Chase Ramone | Senior Dev Team Lead — architecture, engineering delivery |
 | Karen Barton | Product Owner — requirements, backlog, acceptance criteria |
-| Estelle Wu | Developer — API layer backend |
 | Akshay Gaikwad | Developer — UI and integrations |
 | Tom Fenton | Cloud Solution Architect — infra, AWS/Azure decisions |
 | Nick Parnham | Chase's manager — escalations, resourcing |

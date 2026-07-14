@@ -9,7 +9,7 @@ Serves government agencies and large enterprises managing regulated records. Mul
 **Current status:** Active — API layer, tenant management, auth, and user security in progress (Q2 2026).
 
 **Owner:** Chase Ramone
-**Team:** Estelle Wu (API layer), Akshay Gaikwad (UI/integrations)
+**Team:** Chase Ramone (API layer), Akshay Gaikwad (UI/integrations)
 **Source code:** `D:\source\github\magiq-media`
 
 ## Stack

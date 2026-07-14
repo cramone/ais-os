@@ -1111,16 +1111,6 @@
             <div class="team-wip">WIP: <strong>Loading...</strong></div>
           </div>
           <div class="team-card">
-            <div class="team-name">Estelle Wu</div>
-            <div class="team-role">API Layer</div>
-            <div class="team-stats">
-              <div class="team-stat stat-blue">— active</div>
-              <div class="team-stat stat-warn">— in review</div>
-              <div class="team-stat stat-green">— blocked</div>
-            </div>
-            <div class="team-wip">WIP: <strong>—</strong></div>
-          </div>
-          <div class="team-card">
             <div class="team-name">Akshay Gaikwad</div>
             <div class="team-role">UI / Integrations</div>
             <div class="team-stats">
@@ -3269,7 +3259,6 @@
     } else if (adoPanelTab === 'team') {
       const members = [
         { name: 'Chase Ramone', match: 'Chase' },
-        { name: 'Estelle Wu', match: 'Estelle' },
         { name: 'Akshay Gaikwad', match: 'Akshay' },
       ];
       body.innerHTML = members.map(m => {
@@ -3315,7 +3304,6 @@
     const items = state.ado.items || [];
     const members = [
       { name: 'Chase Ramone', role: 'Team Lead + Developer', match: 'Chase' },
-      { name: 'Estelle Wu', role: 'API Layer', match: 'Estelle' },
       { name: 'Akshay Gaikwad', role: 'UI / Integrations', match: 'Akshay' },
     ];
     el.innerHTML = members.map(m => {
