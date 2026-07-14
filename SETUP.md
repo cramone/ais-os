@@ -84,7 +84,6 @@ Copy `.env.example` → `.env` and fill:
 - `ANTHROPIC_API_KEY` — required for brief / email draft generation
 
 **Optional:**
-- `TOWER_TOKEN` — Control Tower `/api` auth. Blank = open (localhost dev).
 - `NOTION_TOKEN` — only if Notion is wired
 - `MCP_ADO_SERVER` — path to azure-devops MCP server entry (only if using `${VAR}` form of `.mcp.json`)
 - `TOWER_PORT` — default `8765`

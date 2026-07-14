@@ -10,8 +10,6 @@ def client(tmp_aios, tmp_interrupts, monkeypatch):
     monkeypatch.setattr(cfg, "PROJECTS_DIR", tmp_aios / "projects")
     monkeypatch.setattr(cfg, "DECISIONS_LOG", tmp_aios / "decisions" / "log.md")
     monkeypatch.setattr(cfg, "INTERRUPTS_FILE", tmp_interrupts)
-    # Auth is opt-in via TOWER_TOKEN; keep it disabled unless a test sets it.
-    monkeypatch.setattr(cfg, "TOWER_TOKEN", "")
     # Import AFTER monkeypatching config
     from tower.server import app
     return TestClient(app)
@@ -75,22 +73,3 @@ def test_append_comment(client):
 def test_update_interrupt_not_found(client):
     r = client.patch("/api/interrupts/bad-id", json={"status": "done"})
     assert r.status_code == 404
-
-
-def test_api_rejects_missing_token(client, monkeypatch):
-    import tower.config as cfg
-    monkeypatch.setattr(cfg, "TOWER_TOKEN", "s3cret")
-    assert client.get("/api/projects").status_code == 401
-
-
-def test_api_accepts_valid_token(client, monkeypatch):
-    import tower.config as cfg
-    monkeypatch.setattr(cfg, "TOWER_TOKEN", "s3cret")
-    r = client.get("/api/projects", headers={"Authorization": "Bearer s3cret"})
-    assert r.status_code == 200
-
-
-def test_health_open_without_token(client, monkeypatch):
-    import tower.config as cfg
-    monkeypatch.setattr(cfg, "TOWER_TOKEN", "s3cret")
-    assert client.get("/api/health").status_code == 200

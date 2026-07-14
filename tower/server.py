@@ -1,4 +1,3 @@
-import hmac
 import os
 import shutil
 import subprocess
@@ -69,26 +68,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.middleware("http")
-async def _token_auth(request: Request, call_next):
-    """Gate /api/* with a shared bearer token when TOWER_TOKEN is set.
-
-    Leaves /api/health open (proxy healthchecks) and lets CORS preflight through.
-    """
-    token = config.TOWER_TOKEN
-    path = request.url.path
-    if (
-        token
-        and request.method != "OPTIONS"
-        and path.startswith("/api")
-        and path != "/api/health"
-    ):
-        provided = request.headers.get("authorization", "")
-        if not hmac.compare_digest(provided, f"Bearer {token}"):
-            return JSONResponse({"detail": "unauthorized"}, status_code=401)
-    return await call_next(request)
 
 
 # --- Health ---

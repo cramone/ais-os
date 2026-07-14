@@ -29,6 +29,3 @@ try:
 except (ValueError, TypeError):
     PORT = 8765
 
-# Shared access token. When set, /api requests must send `Authorization: Bearer <token>`.
-# Empty = open (localhost dev).
-TOWER_TOKEN = os.getenv("TOWER_TOKEN", "")

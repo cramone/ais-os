@@ -1669,34 +1669,6 @@
 </div>
 
 <script>
-  // ── Auth: attach Bearer token to every /api call ───────────────────────
-  (function () {
-    const _fetch = window.fetch.bind(window);
-    const KEY = 'tower-token';
-    let prompting = false;
-    function getToken() { return localStorage.getItem(KEY) || ''; }
-    window.towerSetToken = function () {
-      const t = window.prompt('Control Tower access token:', getToken());
-      if (t !== null) { localStorage.setItem(KEY, t.trim()); location.reload(); }
-    };
-    window.fetch = function (url, opts) {
-      opts = opts || {};
-      const u = (typeof url === 'string') ? url : ((url && url.url) || '');
-      if (u.includes('/api')) {
-        const tok = getToken();
-        if (tok) opts.headers = Object.assign({}, opts.headers || {}, { 'Authorization': 'Bearer ' + tok });
-      }
-      return _fetch(url, opts).then(function (r) {
-        if (r.status === 401 && !prompting) {
-          prompting = true;
-          alert('Control Tower: access token required or invalid.');
-          window.towerSetToken();
-        }
-        return r;
-      });
-    };
-  })();
-
   // ── State ──────────────────────────────────────────────────────────────
   const state = {
     projects: [], ado: {items:[]},
