@@ -1,0 +1,17 @@
+# Build context is the repo root (see cortex/docker-compose.yml tower.build.context).
+# Docker only honors the .dockerignore at the context root, so it lives here.
+
+# Python / pytest litter (root-owned temp dirs break `xattr` during context load)
+__pycache__/
+*.pyc
+.pytest_cache/
+pytest-cache-files-*
+
+# VCS / tooling
+.git/
+.github/
+.claude/
+
+# Local secrets & data (tower reads these from mounts, not the image)
+.env
+data/interrupts.json
