@@ -410,3 +410,20 @@ unnecessary complexity for Q2.
 **Owner:** Chase Ramone
 
 **Full detail:** `cortex/docker-compose.yml` (tower + authentik-server blocks), this session's plan.
+
+---
+
+## 2026-07-14 — magiq-media per-branch dev hosts: public, DNS-only, dual-entrypoint
+
+**Decision:** The per-branch media dev environments (`media-api-{akshay,damian}`, `dynamodb-admin-{akshay,damian}`) are public, **unproxied (grey-cloud) DNS**, and `media-api` routes on BOTH `tailnet` and `websecure`. No Authentik on any of them.
+
+**How:**
+- `media-api` router entrypoints changed `websecure` → `tailnet,websecure` (magiq-media repo `docker-compose.cortex.yml:74`). It was public-only by design (Akshay/Damian aren't tailnet members), but that meant Chase's own tailnet machine hit the `tailnet` entrypoint via split-DNS and got a Traefik 404. Dual entrypoint serves external devs (websecure/WAN) AND tailnet (Chase) off the same backend. Mirrors `tower`.
+- Public DNS: No-IP is decommissioned and there is **no wildcard** record anymore, so each public host needs its own A record. Added a **second** `cloudflare-ddns` instance `cloudflare-ddns-media` (`PROXIED=false`) managing the four `media-api-*` + `dynamodb-admin-*` hostnames → cortex WAN IP. Kept separate from the main DDNS (which is `PROXIED=true` for tower/login) to avoid mixing proxied modes in one container.
+- **DNS-only (grey) chosen over proxied** because media-api handles large media payloads and Cloudflare's free proxy caps request bodies at 100MB + buffers streaming. Accepted tradeoff: exposes cortex's WAN IP and skips the CF WAF for these hosts. `media-api` carries no auth (public dev API); `dynamodb-admin` is Traefik basicauth-gated; `media-dynamodb-local` stays tailnet-only (no public record).
+
+**Alternatives considered:** Proxied/orange DNS (rejected — 100MB body cap + streaming buffering breaks a media API). Per-domain `PROXIED` expression on the single DDNS instance (rejected — a second flat-`false` instance is unambiguous, no expression-syntax risk). Traefik file-provider router for the tailnet path (rejected — needs hardcoded container bridge IPs, fragile across recreates; the label change is the clean fix).
+
+**Owner:** Chase Ramone
+
+**Full detail:** magiq-media `docker-compose.cortex.yml` (media-api block), `cortex/docker-compose.yml` (`cloudflare-ddns-media` block). Also swept stale `:8443` / No-IP-wildcard comments out of the media compose header this session.

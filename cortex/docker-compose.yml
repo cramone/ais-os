@@ -201,6 +201,37 @@ services:
       PROXIED: "true"
       IP6_PROVIDER: none
 
+  cloudflare-ddns-media:
+    image: favonia/cloudflare-ddns:latest
+    restart: unless-stopped
+    <<: *default-logging
+    # Second DDNS instance for the magiq-media per-branch dev hosts (defined in
+    # that repo's docker-compose.cortex.yml, deployed to cortex separately, NOT
+    # in this stack). Separate from the main cloudflare-ddns above ONLY because
+    # these must be DNS-only (grey cloud): media-api-{akshay,damian} handle large
+    # media payloads, and Cloudflare's free proxy caps request bodies at 100MB +
+    # buffers streaming. Grey-cloud A records point straight at cortex's WAN IP
+    # (no Cloudflare in the path), avoiding both limits. Tradeoff accepted
+    # 2026-07-14: exposes the WAN IP and skips the CF WAF for these hosts.
+    # media-api-* carry NO auth by design (public API for external devs);
+    # dynamodb-admin-* are Traefik basicauth-gated in the media compose, so
+    # grey-cloud is fine for them too. Replaces the old No-IP wildcard record
+    # (decommissioned) — with no wildcard, each public host needs its own record.
+    # media-dynamodb-local stays tailnet-only, so it's NOT listed here (the
+    # dns-internal split-DNS answers it). Same scoped CF_DNS_API_TOKEN as the
+    # main instance; the two instances manage disjoint DOMAINS so never collide.
+    user: "1000:1000"
+    read_only: true
+    cap_drop:
+      - all
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      CLOUDFLARE_API_TOKEN: ${CF_DNS_API_TOKEN}
+      DOMAINS: media-api-akshay.ramonedevelopment.com,media-api-damian.ramonedevelopment.com,dynamodb-admin-akshay.ramonedevelopment.com,dynamodb-admin-damian.ramonedevelopment.com
+      PROXIED: "false"
+      IP6_PROVIDER: none
+
   dns-internal:
     image: 4km3/dnsmasq:2.90-r3
     restart: unless-stopped
