@@ -1,5 +1,32 @@
 [
   {
+    "id": "b7f3a1c2-4d5e-4a6b-9c8d-1e2f3a4b5c6d",
+    "title": "Architecture-review remediation — execute via IMPLEMENTATION-PLAN.md (ADO Media board)",
+    "source": "projects/magiq-media/plans/IMPLEMENTATION-PLAN.md",
+    "dueDate": null,
+    "priority": "high",
+    "status": "in-progress",
+    "tags": [
+      "architecture-review",
+      "remediation",
+      "ado",
+      "multi-pr"
+    ],
+    "adoItemId": "34275",
+    "zendeskTicket": null,
+    "customer": null,
+    "capturedAt": "2026-07-20",
+    "updatedAt": "2026-07-20T23:57:43.866975+00:00",
+    "activity": [
+      {
+        "type": "comment",
+        "text": "**Unit of work:** Remediate the magiq-media architecture review across all modules. ~169 ADO work items already created on the **Media** board (Epics A/B/D/E/F/G, Features per module, Stories/Bugs/Tasks/Spikes). ~57 branches across 3 repos (app / cdk / platform).\n\n**Source of truth for execution:** `projects/magiq-media/plans/IMPLEMENTATION-PLAN.md`. Read it FIRST every session — especially the Status column in the §5 master tables and the §9 session log. Companion docs same folder: `architecture-review-remediation-pr-plan.md` (rationale), `architecture-review-ado-workitems.md` (WI ID index), `architecture-review-authz-and-outbox-deferred-plan.md` (deferred).\n\n**How to use the plan:**\n- `Story/Bug = one PR`. Epics + Features group work, are NOT PRs.\n- Chase creates branches from `develop` (names in §8, grouped by repo); Claude does code+spec on the branch, opens PR into `develop` titled `AB#<id> <KEY> — <title>` citing the finding IDs it closes.\n- Execution order = waves in §3. Two hard gates: **A1 (34301)** unblocks all async work; **A5 (34397)** gates deploy re-enable. Wave 1 = INV spikes → A1 → the ★ trivials (34319, 34304, 34340, 34324, 34300).\n- Cross-repo Stories (A2/A4a/A4d) = two branches / two PRs, see §6.\n- Spikes (§7, INV-1/3/4/5) = no branch; record findings in the WI + plan. **INV-4 is a product decision** (build vs defer review saga + signing) that gates Epic F + A4d.\n\n**How it relates to ADO (protocol §4):**\n- Board = **Media** project. Assignee = Chase Ramone (chase.ramone@magiqsoftware.com), set on Story/Bug + its Task(s) when work starts.\n- State flow: `New` → `In Progress` (start) → `Code Review` (PR open) → `Ready for QA` → `QA Testing` → `Ready for Release` → `Done`. Claude drives **New → In Progress → Code Review** and stops; QA/release/Done = team flow.\n- Feature completed = `Closed`; Epic completed = `Done`. Roll up when children complete.\n- Transitions via `wit_update_work_item` (op `Replace`, `/fields/System.State`); AssignedTo via `Replace` (clear with `\"\"`, Remove op rejected). Comment PR URL at Code Review. Link PR↔WI via `AB#<id>` + `wit_link_work_item_to_pull_request` (needs Azure Boards GitHub app installed).\n- Update the plan's Status column in the same session as any ADO state change; append a §9 session-log line.\n\n**Status:** Plan created 2026-07-20. All 169 items + links exist on board. Nothing started; all Stories New/To Do.",
+        "author": "Chase",
+        "timestamp": "2026-07-20T00:00:00.000000+00:00"
+      }
+    ]
+  },
+  {
     "id": "1ce64034-6e96-41e4-8e29-633313b2c90e",
     "title": "deploy mechanism = cross-repo dispatch to cdk-magiq-media",
     "source": "",
@@ -67,17 +94,17 @@
   },
   {
     "id": "39c8bc10-12e6-4b80-a690-2d56411ab7f2",
-    "title": "DISABLED until ready + Tom-approved: prod & staging deploys",
+    "title": "prod & staging deploys",
     "source": "",
     "dueDate": null,
     "priority": "normal",
-    "status": "new",
+    "status": "deferred",
     "tags": [],
     "adoItemId": null,
     "zendeskTicket": null,
     "customer": null,
     "capturedAt": "2026-07-03",
-    "updatedAt": "2026-07-10T08:02:38.739366+00:00",
+    "updatedAt": "2026-07-20T23:58:53.172649+00:00",
     "activity": [
       {
         "type": "comment",
@@ -106,6 +133,28 @@
         "text": "Checked before `PUT /v1/catalog/items/{itemId}/metadata` and `POST /v1/catalog/items/bulk/metadata`\nship any further: does the `fields` map→array shape change (`docs/adrs/catalog-domain-invariants.md\n§Metadata Collision Prevention and General Fields`, accepted as a no-migration-path breaking change\non the premise that \"the platform has no released version yet\") still hold that premise, or has a\nclient integrated against the old map shape in the meantime?\n\n**Answer: premise still holds — shipped in place, no `/v2` needed.**\n- Code already implements the array shape (`SetMetadataBatchRequest.Fields`, `SetMetadataFieldRequest.Origin`)\n  and has since commit `e4c8af88` (\"Add MetadataFieldOrigin and RecordTypeAlias options. (#128)\"),\n  merged 2026-06-25 — ~2 weeks before this check. No commit since has touched it or any client\n  consuming it.\n- ADO board (`Media` project) shows no work items indicating a UI/client consumer exists yet for\n  either shape: Akshay Gaikwad's current work is all OpenSearch infra provisioning, unrelated to\n  MediaItem metadata endpoints. Estelle Wu's most recent related item (#33946, \"Add Metadata\n  Validation\") is backend validation work still in Code Review — confirms the endpoint itself is\n  still under active construction, not yet integrated against by any downstream consumer.\n- No action needed. Re-check this if UI/integration work against `PUT/POST .../metadata` starts\n  before the array shape is fully stable.",
         "author": "Chase",
         "timestamp": "2026-07-10T08:02:38.739382+00:00"
+      }
+    ]
+  },
+  {
+    "id": "127ff0c5-f719-40ac-9f58-ec4abc5c0b2e",
+    "title": "Create PR for feature/chase/jti-removal — offload JTI to magiq-auth",
+    "source": "",
+    "dueDate": null,
+    "priority": "normal",
+    "status": "done",
+    "tags": [],
+    "adoItemId": null,
+    "zendeskTicket": null,
+    "customer": null,
+    "capturedAt": "2026-07-17T04:24:51.365068+00:00",
+    "updatedAt": "2026-07-20T23:58:07.615227+00:00",
+    "activity": [
+      {
+        "type": "comment",
+        "text": "Create a pull request for branch `feature/chase/jti-removal`. This branch offloads all JTI (JWT ID) requirements to magiq-auth.",
+        "author": "Chase",
+        "timestamp": "2026-07-17T04:24:51.365068+00:00"
       }
     ]
   }

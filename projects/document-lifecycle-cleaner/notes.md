@@ -1,6 +1,18 @@
 # Notes
 
-_Last updated: 2026-05-05_
+_Last updated: 2026-07-21_
+
+---
+
+## Resolved — 2026-07-21
+
+| Question | Resolution |
+|---|---|
+| Step 6 display columns | Folder path, document count, folder count, size |
+| Step 8 archive library | Operator selects existing or creates new; optional subfolder in either case. No auto-naming convention. |
+| Step 12 Robocopy confirmation | UI checkbox; confirming user + timestamp logged. No automated verification. |
+| Step 6 document preservation sentence | Removed — contradicted OQ-2. OQ-2 stands: no unconditional preservation rules. |
+| Process ticket expiry recovery | App auto-obtains new ticket on behalf of authenticated user if stored ticket has expired. |
 
 ---
 
