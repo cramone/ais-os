@@ -17,8 +17,18 @@ echo "==> docker compose up -d --build tower"
 (cd ~/stack && docker compose up -d --build tower)
 
 echo "==> health check"
-sleep 2
-if curl -sf http://localhost:8765/api/health >/dev/null; then
+# Probe INSIDE the container: tower publishes no host port (Traefik-only,
+# behind Authentik auth), so the host's localhost:8765 has nothing to hit.
+# Retry a few times to allow uvicorn startup.
+health_ok=false
+for _ in 1 2 3 4 5; do
+  if (cd ~/stack && docker compose exec -T tower curl -sf http://localhost:8765/api/health >/dev/null 2>&1); then
+    health_ok=true
+    break
+  fi
+  sleep 2
+done
+if $health_ok; then
   echo "OK"
 else
   echo "FAILED — check: docker compose logs tower" >&2
