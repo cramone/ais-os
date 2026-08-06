@@ -4152,13 +4152,14 @@
       return new Date(i.dueDate).toDateString() === new Date().toDateString();
     }).length);
     _set('badge-review-queue', (state.githubReviewRequested || []).length);
+    _set('badge-github-prs', (state.githubPrs || []).length);
   }
 
   // ── Auto-refresh (clock only — ADO is manual) ────────────────────────────
   setInterval(renderClock, 10000);
 
   const refreshBtn = document.getElementById('refresh-btn');
-  if (refreshBtn) refreshBtn.addEventListener('click', fetchAll);
+  if (refreshBtn) refreshBtn.addEventListener('click', () => { fetchAll(); fetchCrossProject(true); });
 
   // ── Level Up (automation pipeline) ────────────────────────────────────────
   const LEVELUP_COLS = [
@@ -4461,7 +4462,8 @@
   // ── Cross-project rollup (All Projects view) ─────────────────────────────
   let _xpState = null;
   let _xpLoading = false;
-  let _xpCollapsed = {};   // projectName -> true when collapsed
+  let _xpCollapsed = {};       // projectName -> true when collapsed
+  let _xpNodeCollapsed = {};   // work-item id -> true when its subtree is collapsed
 
   async function fetchCrossProject(force) {
     if (_xpLoading) return;
@@ -4577,6 +4579,11 @@
     _renderCrossProject();
   }
 
+  function _xpNodeToggle(id) {
+    _xpNodeCollapsed[id] = !_xpNodeCollapsed[id];
+    _renderCrossProject();
+  }
+
   // Build the Epic→Feature→Story→Task/Bug tree for one project and return row HTML.
   // Items assigned to me are the leaves we care about; ancestors come along as scaffolding.
   function _xpTreeRows(items) {
@@ -4597,6 +4604,9 @@
     function renderNode(i, depth) {
       const indent = 14 + depth * 16;
       const mine = i.assigned_to_me;
+      const kidList = sortSibs(children[i.id] || []);
+      const hasKids = kidList.length > 0;
+      const collapsed = !!_xpNodeCollapsed[i.id];
       const lc = i.last_comment;
       const commentLine = mine && i.awaiting_me && lc
         ? `<div class="ado-meta" style="color:var(--danger,#e0564a);margin-top:2px">💬 ${lc.author || 'someone'}: ${_esc(lc.text || '')}</div>`
@@ -4606,19 +4616,26 @@
       const meBadge = mine
         ? `<span title="Assigned to you" style="font-size:9px;line-height:1;margin-left:5px;padding:1px 4px;border-radius:6px;background:var(--accent,#4a9eff);color:#fff;vertical-align:middle">👤</span>`
         : '';
+      // Chevron for nodes with children; fixed-width spacer otherwise so titles line up.
+      const chevron = hasKids
+        ? `<span onclick="event.stopPropagation();_xpNodeToggle(${i.id})" title="${collapsed ? 'Expand' : 'Collapse'}" style="display:inline-block;width:12px;font-size:10px;color:var(--muted);cursor:pointer;user-select:none">${collapsed ? '▸' : '▾'}</span>`
+        : `<span style="display:inline-block;width:12px"></span>`;
+      const kidCount = hasKids && collapsed
+        ? `<span style="font-size:10px;color:var(--muted);margin-left:6px">(${kidList.length})</span>`
+        : '';
       const dim = mine ? '' : 'opacity:.62;';
       const row = `
         <div class="ado-row" style="padding:6px 14px 6px ${indent}px${mine && i.awaiting_me ? ';background:rgba(224,86,74,.06)' : ''};${dim}">
           <div class="ado-state" style="background:${_xpStateColor(i.state)}"></div>
           <div class="ado-body">
             <div class="ado-text">
-              <span title="${_esc(i.type || '')}" style="margin-right:5px">${_witIcon(i.type)}</span><a href="${i.url}" target="_blank" style="color:inherit;text-decoration:none;border-left:2px solid ${_witColor(i.type)};padding-left:6px" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">#${i.id} ${i.title}</a>${meBadge}
+              ${chevron}<span title="${_esc(i.type || '')}" style="margin:0 5px">${_witIcon(i.type)}</span><a href="${i.url}" target="_blank" style="color:inherit;text-decoration:none;border-left:2px solid ${_witColor(i.type)};padding-left:6px" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">#${i.id} ${i.title}</a>${meBadge}${kidCount}
             </div>
             <div class="ado-meta">${i.type || ''} · ${i.state}${i.module ? ' · ' + i.module : ''}${i.priority ? ' · P' + i.priority : ''}</div>
             ${commentLine}
           </div>
         </div>`;
-      const kids = sortSibs(children[i.id] || []).map(k => renderNode(k, depth + 1)).join('');
+      const kids = collapsed ? '' : kidList.map(k => renderNode(k, depth + 1)).join('');
       return row + kids;
     }
 
@@ -4739,6 +4756,7 @@
   fetchAll();
   fetchADO();
   fetchGitHub();
+  fetchCrossProject();   // populate All Projects tree + nav badge up front, no visit needed
 
   // Cheat sheet toggle with localStorage persistence
   function initCheatsheet() {
