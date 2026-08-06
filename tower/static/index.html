@@ -235,6 +235,11 @@
   .panel-title { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
   .panel-count { font-size: 10px; color: var(--muted); }
   .panel-body { padding: 8px; max-height: 260px; overflow-y: auto; }
+  /* Plans / Spec Files: two-pane layout fills the viewport, panes scroll internally */
+  .filepage-grid { display: grid; grid-template-columns: 280px 1fr; gap: 12px; height: calc(100vh - 250px); min-height: 420px; }
+  /* height is refined at runtime by _sizeFilePage() from the grid's actual top */
+  .filepage-grid .panel { display: flex; flex-direction: column; min-height: 0; }
+  .filepage-grid .panel-body { flex: 1; min-height: 0; max-height: none; overflow-y: auto; }
   .panel-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--surface2); }
   .panel-tab {
     padding: 6px 12px; font-size: 11px; color: var(--muted); cursor: pointer;
@@ -701,6 +706,7 @@
   }
   .action-btn:hover { border-color: var(--accent); color: var(--accent); }
   .action-btn.done { color: var(--accent2); border-color: rgba(63,185,80,0.3); }
+  .action-btn.danger:hover { color: var(--danger); border-color: var(--danger); }
 
   /* Comment/event styles (drill-down activity) */
   .comment-avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; background: var(--surface2); border: 1px solid var(--border); }
@@ -980,23 +986,22 @@
 
           <!-- Plans -->
           <div id="project-plans-section" data-ptab-panel="plans" style="margin-bottom:16px;display:none">
-            <div style="display:grid;grid-template-columns:260px 1fr;gap:12px">
+            <div class="filepage-grid">
               <div class="panel">
                 <div class="panel-header">
                   <div class="panel-title">📋 Plans</div>
                   <div style="font-size:10px;color:var(--muted)" id="plans-file-count"></div>
                 </div>
-                <div class="panel-body expandable-body" id="plans-file-tree" style="max-height:400px;overflow-y:auto;padding:6px 8px"></div>
+                <div class="panel-body expandable-body" id="plans-file-tree" style="padding:6px 8px"></div>
               </div>
               <div class="panel">
                 <div class="panel-header">
                   <div class="panel-title" id="plans-file-title">Select a plan</div>
                   <div style="display:flex;gap:6px;align-items:center">
                     <button onclick="openPlansReader()" class="section-expand-btn" title="Read full-screen">⛶</button>
-                    <button onclick="toggleProjectSection('project-plans-section')" class="section-expand-btn" title="Expand / collapse">⤢</button>
                   </div>
                 </div>
-                <div class="panel-body expandable-body" id="plans-file-content" style="max-height:400px;overflow-y:auto">
+                <div class="panel-body expandable-body" id="plans-file-content">
                   <div style="padding:20px;font-size:12px;color:var(--muted)">Click a plan in the tree to view its content.</div>
                 </div>
               </div>
@@ -1005,23 +1010,22 @@
 
           <!-- Spec -->
           <div id="project-spec-section" data-ptab-panel="spec" style="margin-bottom:16px;display:none">
-            <div style="display:grid;grid-template-columns:260px 1fr;gap:12px">
+            <div class="filepage-grid">
               <div class="panel">
                 <div class="panel-header">
                   <div class="panel-title">📁 Spec Files</div>
                   <div style="font-size:10px;color:var(--muted)" id="spec-file-count"></div>
                 </div>
-                <div class="panel-body expandable-body" id="spec-file-tree" style="max-height:400px;overflow-y:auto;padding:6px 8px"></div>
+                <div class="panel-body expandable-body" id="spec-file-tree" style="padding:6px 8px"></div>
               </div>
               <div class="panel">
                 <div class="panel-header">
                   <div class="panel-title" id="spec-file-title">Select a file</div>
                   <div style="display:flex;gap:6px;align-items:center">
                     <button onclick="openSpecReader()" class="section-expand-btn" title="Read full-screen">⛶</button>
-                    <button onclick="toggleProjectSection('project-spec-section')" class="section-expand-btn" title="Expand / collapse">⤢</button>
                   </div>
                 </div>
-                <div class="panel-body expandable-body" id="spec-file-content" style="max-height:400px;overflow-y:auto">
+                <div class="panel-body expandable-body" id="spec-file-content">
                   <div style="padding:20px;font-size:12px;color:var(--muted)">Click a file in the tree to view its content.</div>
                 </div>
               </div>
@@ -2438,7 +2442,29 @@
       b.classList.toggle('active', b.dataset.ptab === key));
     document.querySelectorAll('[data-ptab-panel]').forEach(p =>
       p.style.display = p.dataset.ptabPanel === key ? '' : 'none');
+    if (key === 'plans' || key === 'spec') _sizeFilePage();
   }
+
+  // Make the visible Plans/Spec two-pane grid fill from its own top to the
+  // viewport bottom. The top varies (project header/overview height), so it's
+  // computed at runtime rather than a fixed CSS offset.
+  function _sizeFilePageOnce() {
+    document.querySelectorAll('[data-ptab-panel] .filepage-grid').forEach(grid => {
+      if (!grid.offsetParent) return;   // skip hidden panels
+      const top = grid.getBoundingClientRect().top;
+      const h = Math.max(420, Math.round(window.innerHeight - top - 16));
+      grid.style.height = h + 'px';
+    });
+  }
+  // Header/overview above the grid can still be settling (async render), which
+  // shifts the grid's top — re-measure over a few frames so the final height
+  // matches the settled layout, not an intermediate one.
+  function _sizeFilePage() {
+    requestAnimationFrame(_sizeFilePageOnce);
+    setTimeout(_sizeFilePageOnce, 150);
+    setTimeout(_sizeFilePageOnce, 400);
+  }
+  window.addEventListener('resize', _sizeFilePageOnce);
 
   // ── Project detail utilities ────────────────────────────────────────────────
   let _currentProjectSlug = null;
@@ -3360,7 +3386,7 @@
       activity: id => `/api/projects/${_todoSlug}/todos/${id}/activity`,
       createUrl: () => `/api/projects/${_todoSlug}/todos`,
       refresh: () => loadTodos(_todoSlug),
-      features: { email: false, ado: false, source: false, sourceFilter: false },
+      features: { email: false, ado: false, source: false, sourceFilter: false, delete: true },
       view: () => _todoView,
       tab: () => _todoTab,
       filter: () => '',
@@ -3441,6 +3467,7 @@
         <div class="status-tag status-${i.status}">${i.status}</div>
         ${f.ado ? `<button class="action-btn" onclick="event.stopPropagation();pushInterruptToADO('${i.id}')">-&gt; ADO</button>` : ''}
         <button class="action-btn done" onclick="event.stopPropagation();itemMarkDone('${board.kind}','${i.id}')">Done</button>
+        ${f.delete ? `<button class="action-btn danger" title="Delete" onclick="event.stopPropagation();itemDelete('${board.kind}','${i.id}')">✕</button>` : ''}
       </div>
     `;
   }
@@ -3457,6 +3484,7 @@
         <div class="interrupt-meta" style="margin-top:4px;display:flex;gap:6px;align-items:center">
           ${i.dueDate ? `<span class="due-chip ${_dueClass(i.dueDate)}">${_dueLabel(i.dueDate)}</span>` : ''}
           <span class="interrupt-age">${_ago(new Date(i.capturedAt))}</span>
+          ${f.delete ? `<button class="action-btn danger todo-delete-btn" title="Delete" style="margin-left:auto" onclick="event.stopPropagation();itemDelete('${board.kind}','${i.id}')">✕</button>` : ''}
         </div>
       </div>`;
   }
@@ -3509,6 +3537,19 @@
 
   async function itemMarkDone(kind, id) {
     await _setItemStatus(kind, id, 'done');
+  }
+
+  async function itemDelete(kind, id) {
+    const board = _board(kind);
+    if (!board) return;
+    const item = board.all().find(i => i.id === id);
+    if (!confirm(`Delete "${item ? item.title : id}"? This cannot be undone.`)) return;
+    const res = await fetch(board.base(id), { method: 'DELETE' });
+    if (!res.ok && res.status !== 204) { alert(`Delete failed (${res.status})`); return; }
+    // Close the drilldown if it was showing the deleted item.
+    const panel = document.getElementById('drilldown-panel');
+    if (panel && panel.dataset.itemId === id) panel.style.display = 'none';
+    await board.refresh();
   }
 
   function _wireItemTabs() {
