@@ -443,3 +443,31 @@ unnecessary complexity for Q2.
 **Supersedes:** the in-repo stdio image approach described in `docs/aios-portability-plan.md` (option 6c, 2026-07-05) for the Claude Code client.
 
 **ADR:** references/adrs/0001-ado-mcp-cortex-gateway-transport.md
+
+## 2026-08-06 — Control Tower "All Projects" grouped by ADO parent hierarchy
+
+**Project:** (cross-cutting — AIS-OS tooling / Control Tower)
+
+**Decision:** The cross-project "All Projects" view now nests my assigned work items under their real ADO parent chain (Epic → Feature → User Story → Task/Bug) instead of a flat per-project list. Ancestors not assigned to me are pulled in as dimmed scaffolding so every item shows its lineage; each row carries a work-item-type icon + accent colour, and items assigned directly to me get a 👤 badge. Nodes with children collapse/expand. Data (cross-project ADO) plus the GitHub-PRs count are prefetched on page load and header Refresh, so both left-nav badges are populated without visiting the views.
+
+**Why:** A flat list of 97 items across 3 projects gave no sense of what larger effort each item belonged to. Walking `System.Parent` server-side (in `scripts/devops_summary.py main_cross_project`) and building the tree client-side keeps counts/pills scoped to my items while still showing context. Prefetching makes the badges a reliable at-a-glance signal. What would change my mind: if ancestor fetching balloons ADO API cost, cap the walk depth or fetch parents lazily.
+
+**Alternatives considered:** Keep the flat list (rejected — no hierarchy context). Build the tree server-side and ship nested JSON (rejected — the per-project state pills already key off a flat item list; flat + parent_id is a smaller change). Only fetch on view-visit (rejected — badges stayed empty until you opened each view).
+
+**Owner:** Chase Ramone
+
+**Full detail:** `scripts/devops_summary.py` (`main_cross_project`), `tower/static/index.html` (`_xpTreeRows`, `_witIcon/_witColor/_witRank`, `_xpNodeToggle`, `updateBadges`). Commits cd29598, b88b16a.
+
+## 2026-08-06 — Tower deploy: in-container health probe + untrack runtime data
+
+**Project:** (cross-cutting — AIS-OS tooling / Control Tower)
+
+**Decision:** `tower/deploy-cortex.sh` now health-checks Tower with `docker compose exec -T tower curl -sf http://localhost:8765/api/health` (5× retry) instead of curling the Cortex host's `localhost:8765`. And `tower/data/` (interrupts, todos, levelup — runtime state) is now gitignored and untracked.
+
+**Why:** Tower publishes NO host port — it's Traefik-only (label `traefik.http.services.tower.loadbalancer.server.port=8765`) behind Authentik, and has no Docker `HEALTHCHECK` defined. So the host-side curl always returned `000`/FAILED and the script exited before moving the `deployed-tower` tag — every deploy looked broken and left the tag stale. Probing inside the container hits the app directly (returns 200). Separately, the app writes runtime data into git-tracked files, so any Todos/interrupt edit dirtied the working tree and aborted `git pull --rebase` on the next deploy. Untracking `tower/data/` (kept on disk) makes the tree stay clean. Full deploy now runs end-to-end unattended: pull → rebuild → health OK → auto-tag.
+
+**Alternatives considered:** Add a Docker `HEALTHCHECK` to the Dockerfile/compose (viable future improvement, larger change; the script-level probe was the minimal fix). Publish 8765 to the host (rejected — defeats the Traefik+Authentik gate; this is the one public-reachable host). Commit the runtime data on each deploy (rejected — pollutes history with churn; it's state, not source).
+
+**Owner:** Chase Ramone
+
+**Full detail:** `tower/deploy-cortex.sh` (health-check block), `.gitignore` (`tower/data/`). Commits be1be89, de26439. Related topology: 2026-07-05 Cortex bind-mount deploy model.
