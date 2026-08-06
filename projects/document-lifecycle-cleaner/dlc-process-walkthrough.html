@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Document Lifecycle Cleaner — How It Works</title>
+<style>
+  :root{
+    --bg:#0b1020; --bg2:#0f1730; --panel:#141d38; --panel2:#1a2647;
+    --ink:#e8ecf7; --muted:#9aa6c7; --line:#293458;
+    --accent:#4ea8ff; --accent2:#7c5cff; --green:#3ddc97; --amber:#ffcf5c;
+    --red:#ff6b6b; --pink:#ff8ccf; --cyan:#43e5d6;
+    --phase1:#4ea8ff; --phase2:#7c5cff; --phase3:#3ddc97; --phase4:#ff6b6b;
+    --shadow:0 10px 40px rgba(0,0,0,.45);
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(124,92,255,.18), transparent 60%),
+      radial-gradient(1000px 500px at -10% 20%, rgba(78,168,255,.15), transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif;
+    line-height:1.55; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1120px; margin:0 auto; padding:0 24px}
+  a{color:var(--accent)}
+
+  /* ---------- Hero ---------- */
+  header.hero{padding:70px 0 30px; text-align:center}
+  .eyebrow{display:inline-block; letter-spacing:.22em; text-transform:uppercase;
+    font-size:12px; color:var(--muted); border:1px solid var(--line);
+    padding:6px 14px; border-radius:999px; background:rgba(255,255,255,.02)}
+  h1{font-size:clamp(30px,5vw,52px); margin:18px 0 10px; line-height:1.08;
+    background:linear-gradient(90deg,#fff, #b9c6ff 55%, #7c5cff);
+    -webkit-background-clip:text; background-clip:text; color:transparent}
+  .sub{color:var(--muted); max-width:720px; margin:0 auto; font-size:18px}
+  .tags{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:22px}
+  .tag{font-size:12.5px; color:var(--muted); border:1px solid var(--line);
+    padding:5px 11px; border-radius:8px; background:var(--panel)}
+
+  /* ---------- Section scaffolding ---------- */
+  section{padding:46px 0}
+  .kicker{display:flex; align-items:center; gap:12px; margin-bottom:6px}
+  .kicker .dot{width:10px;height:10px;border-radius:50%}
+  .kicker h2{font-size:26px; margin:0}
+  .lead{color:var(--muted); max-width:760px; margin:2px 0 26px}
+
+  /* reveal on scroll */
+  .reveal{opacity:0; transform:translateY(22px); transition:opacity .7s ease, transform .7s ease}
+  .reveal.in{opacity:1; transform:none}
+
+  /* ---------- Legend / actors ---------- */
+  .actors{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px}
+  .actor{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 18px;
+    display:flex; gap:13px; align-items:flex-start}
+  .actor .ic{width:40px;height:40px;flex:0 0 40px;border-radius:11px;display:grid;place-items:center;
+    font-size:20px; background:rgba(255,255,255,.05)}
+  .actor h4{margin:0 0 3px; font-size:15px}
+  .actor p{margin:0; color:var(--muted); font-size:13px}
+
+  /* ---------- Auth flow ---------- */
+  .authgrid{display:grid; grid-template-columns:1fr 1fr; gap:18px}
+  @media(max-width:760px){.authgrid{grid-template-columns:1fr}}
+  .ticket{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px; position:relative; overflow:hidden}
+  .ticket:before{content:""; position:absolute; inset:0; opacity:.12;
+    background:radial-gradient(400px 120px at 20% 0, currentColor, transparent 70%)}
+  .ticket.ui{color:var(--accent)} .ticket.proc{color:var(--green)}
+  .ticket h4{margin:0 0 6px; color:var(--ink); display:flex; align-items:center; gap:8px}
+  .ticket .badge{font-size:11px; color:#0b1020; padding:2px 9px; border-radius:999px; font-weight:700; background:currentColor}
+  .ticket p{color:var(--muted); font-size:13.5px; margin:8px 0 0}
+  .heartbeat{display:inline-block; width:9px;height:9px;border-radius:50%;background:var(--green);
+    box-shadow:0 0 0 0 rgba(61,220,151,.6); animation:pulse 1.6s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(61,220,151,.55)}70%{box-shadow:0 0 0 12px rgba(61,220,151,0)}100%{box-shadow:0 0 0 0 rgba(61,220,151,0)}}
+
+  /* ---------- Phase rail ---------- */
+  .phases{display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:8px}
+  @media(max-width:860px){.phases{grid-template-columns:repeat(2,1fr)}}
+  .phase{border-radius:14px; padding:14px 16px; border:1px solid var(--line); background:var(--panel);
+    position:relative}
+  .phase .n{font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+  .phase h4{margin:4px 0 4px; font-size:16px}
+  .phase small{color:var(--muted)}
+  .phase .bar{height:4px; border-radius:4px; margin-top:12px; background:var(--barcol); opacity:.9}
+
+  /* ---------- Pipeline ---------- */
+  .pipeline{position:relative; margin-top:8px}
+  .step{display:grid; grid-template-columns:64px 1fr; gap:18px; position:relative; padding:10px 0}
+  .rail{position:relative; display:flex; flex-direction:column; align-items:center}
+  .node{width:52px;height:52px;border-radius:15px;display:grid;place-items:center;font-weight:700;
+    font-size:18px; color:#0b1020; background:var(--nodecol);
+    box-shadow:0 6px 18px rgba(0,0,0,.4); z-index:2; position:relative}
+  .node.small{font-size:20px}
+  .connector{flex:1 0 auto; width:3px; min-height:26px; margin:2px 0;
+    background:linear-gradient(var(--nodecol), var(--nextcol));
+    position:relative; overflow:hidden}
+  .connector:after{content:""; position:absolute; left:-1px; right:-1px; top:-40%; height:40%;
+    background:linear-gradient(rgba(255,255,255,0), rgba(255,255,255,.85), rgba(255,255,255,0));
+    animation:flow 2.4s linear infinite}
+  @keyframes flow{0%{top:-45%}100%{top:105%}}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 18px;
+    box-shadow:var(--shadow)}
+  .card .top{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .card h3{margin:0; font-size:17px}
+  .pill{font-size:11px; padding:3px 10px; border-radius:999px; border:1px solid var(--line);
+    color:var(--muted); background:rgba(255,255,255,.03); white-space:nowrap}
+  .pill.auto{color:var(--phase1); border-color:rgba(78,168,255,.4)}
+  .pill.ui{color:var(--phase2); border-color:rgba(124,92,255,.4)}
+  .pill.op{color:var(--phase3); border-color:rgba(61,220,151,.4)}
+  .pill.sys{color:var(--phase4); border-color:rgba(255,107,107,.4)}
+  .card p{margin:9px 0 0; color:var(--muted); font-size:14px}
+  .meta{display:flex; gap:8px; flex-wrap:wrap; margin-top:11px}
+  .chip{font-size:11.5px; color:var(--ink); background:var(--panel2); border:1px solid var(--line);
+    padding:4px 9px; border-radius:8px}
+  .chip b{color:var(--accent)}
+
+  /* decision diamond block */
+  .decision{grid-column:2; margin:2px 0 2px; display:flex; gap:12px; align-items:stretch}
+  .diamond{flex:0 0 46px; align-self:center; width:46px;height:46px; transform:rotate(45deg);
+    background:linear-gradient(135deg,#2b2140,#3a2a5e); border:1.5px solid var(--amber);
+    display:grid; place-items:center; border-radius:8px}
+  .diamond span{transform:rotate(-45deg); font-size:18px}
+  .branches{flex:1; display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  @media(max-width:640px){.branches{grid-template-columns:1fr}}
+  .branch{border:1px dashed var(--line); border-radius:12px; padding:11px 13px; background:rgba(255,255,255,.02)}
+  .branch h5{margin:0 0 4px; font-size:13px; display:flex; align-items:center; gap:7px}
+  .branch.yes h5{color:var(--green)} .branch.no h5{color:var(--red)}
+  .branch p{margin:0; color:var(--muted); font-size:12.5px}
+
+  /* ---------- State machine ---------- */
+  .states{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px}
+  .state{border-radius:12px; padding:13px 15px; border:1px solid var(--line); background:var(--panel)}
+  .state .lbl{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px; font-weight:700}
+  .state p{margin:6px 0 0; font-size:12.5px; color:var(--muted)}
+  .state.running{border-color:rgba(78,168,255,.5)} .state.await{border-color:rgba(255,207,92,.5)}
+  .state.failed{border-color:rgba(255,107,107,.5)} .state.done{border-color:rgba(61,220,151,.5)}
+  .recovery{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:14px}
+  @media(max-width:640px){.recovery{grid-template-columns:1fr}}
+  .recovery .r{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:13px 15px}
+  .recovery .r h5{margin:0 0 4px}
+  .recovery .r p{margin:0; font-size:12.5px; color:var(--muted)}
+
+  /* ---------- Rules ---------- */
+  .rules{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px}
+  .rule{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 18px;
+    border-left:4px solid var(--accent)}
+  .rule h4{margin:0 0 6px; font-size:15px}
+  .rule p{margin:0; color:var(--muted); font-size:13px}
+  .acr{display:flex; flex-wrap:wrap; gap:7px; margin-top:12px}
+  .acr .a{font-family:ui-monospace,Menlo,monospace; font-size:12px; padding:4px 9px; border-radius:7px;
+    background:var(--panel2); border:1px solid var(--line); color:var(--pink)}
+
+  /* protection tree mini-diagram */
+  .tree{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px 20px; margin-top:16px}
+  .tree .row{display:flex; align-items:center; gap:10px; padding:5px 0; font-size:14px}
+  .tree .lvl0{margin-left:0} .tree .lvl1{margin-left:26px} .tree .lvl2{margin-left:52px} .tree .lvl3{margin-left:78px}
+  .tree .fld{padding:4px 11px; border-radius:8px; border:1px solid var(--line); background:var(--panel2)}
+  .tree .fld.prot{border-color:var(--green); color:var(--green); box-shadow:0 0 0 1px rgba(61,220,151,.25)}
+  .tree .fld.del{border-color:var(--red); color:var(--red)}
+  .tree .doc{font-size:12px; color:var(--muted)}
+  .tree .doc.keep{color:var(--green)} .tree .doc.old{color:var(--muted)}
+  .tree .note{font-size:12px; color:var(--muted); margin-left:8px}
+
+  footer{padding:40px 0 60px; text-align:center; color:var(--muted); font-size:13px; border-top:1px solid var(--line); margin-top:30px}
+
+  .legendbar{display:flex; gap:16px; flex-wrap:wrap; justify-content:center; margin:26px 0 4px}
+  .legendbar .li{display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--muted)}
+  .legendbar .sw{width:13px;height:13px;border-radius:4px}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">MAGIQ Documents · NATA</span>
+    <h1>Document Lifecycle Cleaner</h1>
+    <p class="sub">A once-a-year, operator-driven pipeline that safely culls aged documents and empty folders — from first candidate query to permanent purge. Follow the flow end to end.</p>
+    <div class="tags">
+      <span class="tag">.NET 8 · FastEndpoints</span>
+      <span class="tag">React SPA</span>
+      <span class="tag">Hangfire background pipeline</span>
+      <span class="tag">SQL Server + Dapper</span>
+      <span class="tag">MAGIQ SOAP integration</span>
+      <span class="tag">SignalR live progress</span>
+    </div>
+    <div class="legendbar">
+      <div class="li"><span class="sw" style="background:var(--phase1)"></span>Automated</div>
+      <div class="li"><span class="sw" style="background:var(--phase2)"></span>Interactive (UI)</div>
+      <div class="li"><span class="sw" style="background:var(--phase3)"></span>Operational</div>
+      <div class="li"><span class="sw" style="background:var(--phase4)"></span>System / background</div>
+      <div class="li"><span class="sw" style="background:var(--amber); transform:rotate(45deg)"></span>Decision point</div>
+    </div>
+  </div>
+</header>
+
+<!-- ACTORS -->
+<section>
+  <div class="wrap reveal">
+    <div class="kicker"><span class="dot" style="background:var(--cyan)"></span><h2>Who &amp; what is involved</h2></div>
+    <p class="lead">Four players drive the run. The operator never talks to MAGIQ directly — the app holds two authentication tickets and does the work on their behalf.</p>
+    <div class="actors">
+      <div class="actor"><div class="ic">🧑‍💼</div><div><h4>Operator</h4><p>MAGIQ system admin or power user. Signs in, reviews folders, and authorises deletion &amp; purge.</p></div></div>
+      <div class="actor"><div class="ic">🗓️</div><div><h4>Records manager</h4><p>Sets the specified cutoff date (e.g. Madhuri) inside MAGIQ Documents — the year-end line.</p></div></div>
+      <div class="actor"><div class="ic">⚙️</div><div><h4>DLC application</h4><p>.NET API + React SPA + Hangfire engine. Runs the pipeline, tracks state, reports live progress.</p></div></div>
+      <div class="actor"><div class="ic">🗄️</div><div><h4>MAGIQ Documents</h4><p>The source system. Reached via direct SQL (queries) and the <code>srv.asmx</code> SOAP API (operations).</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- AUTH -->
+<section>
+  <div class="wrap reveal">
+    <div class="kicker"><span class="dot" style="background:var(--accent)"></span><h2>Login — the two-ticket model</h2></div>
+    <p class="lead">At sign-in the app calls <code>AuthenticateUser</code> <b>twice</b>, getting two independent tickets. This decouples the operator's screen from the long-running job, so logging out never kills a run in progress. Access is limited to an admin allowlist.</p>
+    <div class="authgrid">
+      <div class="ticket ui">
+        <h4><span class="badge">UI</span> UI session ticket</h4>
+        <p>Backs the operator's browser session. <b>Not persisted.</b> If the app restarts, the operator simply signs in again. Sliding 20-minute timeout, refreshed on each call.</p>
+      </div>
+      <div class="ticket proc">
+        <h4><span class="badge">PROC</span> Process ticket <span class="heartbeat" title="keep-alive heartbeat"></span></h4>
+        <p>Dedicated to the background pipeline. <b>Persisted in the app DB</b> against the CleanupRun, so it survives an IIS recycle. A heartbeat keeps its 20-min window open during lulls; if it ever expires, the app silently re-obtains one — no manual re-auth.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PHASE RAIL -->
+<section>
+  <div class="wrap reveal">
+    <div class="kicker"><span class="dot" style="background:var(--accent2)"></span><h2>The five phases at a glance</h2></div>
+    <p class="lead">Twelve steps grouped into five phases. Phase 1 finds candidates, Phase 2 lets the operator review and select, Phase 3 normalizes source names to work around a MAGIQ whitespace bug, Phase 4 archives, Phase 5 cleans up and purges.</p>
+    <div class="phases">
+      <div class="phase" style="--barcol:var(--phase1)"><div class="n">Phase 1</div><h4>Identification</h4><small>Steps 1–5 · Automated</small><div class="bar"></div></div>
+      <div class="phase" style="--barcol:var(--phase2)"><div class="n">Phase 2</div><h4>Review &amp; Selection</h4><small>Steps 6–7 · Interactive</small><div class="bar"></div></div>
+      <div class="phase" style="--barcol:var(--cyan)"><div class="n">Phase 3</div><h4>Name Normalization</h4><small>Step 8 · Background</small><div class="bar"></div></div>
+      <div class="phase" style="--barcol:var(--phase3)"><div class="n">Phase 4</div><h4>Archival</h4><small>Steps 9–10 · Operational</small><div class="bar"></div></div>
+      <div class="phase" style="--barcol:var(--phase4)"><div class="n">Phase 5</div><h4>Cleanup</h4><small>Steps 11–12 · System</small><div class="bar"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PIPELINE -->
+<section>
+  <div class="wrap">
+    <div class="kicker reveal"><span class="dot" style="background:var(--green)"></span><h2>The pipeline, step by step</h2></div>
+    <p class="lead reveal">Data flows top to bottom. Diamonds mark where the run branches on a rule or an operator decision.</p>
+
+    <div class="pipeline">
+
+      <!-- STEP 1 -->
+      <div class="step reveal">
+        <div class="rail"><div class="node" style="--nodecol:var(--phase1)">1</div><div class="connector" style="--nodecol:var(--phase1);--nextcol:var(--phase1)"></div></div>
+        <div class="card">
+          <div class="top"><h3>Retrieve candidate documents</h3><span class="pill auto">Automated · SQL</span></div>
+          <p>Run the pre-configured SQL query against MAGIQ Documents for every document whose <b>modification date ≤ the specified cutoff</b>. The query lives in <code>appsettings.json</code>, so it changes with the schema without a redeploy.</p>
+          <div class="meta"><span class="chip">Cutoff: <b>≤ calendar year-end</b></span><span class="chip">Volume: <b>tens of thousands</b></span><span class="chip">Source: <b>direct SQL / Dapper</b></span></div>
+        </div>
+      </div>
+
+      <!-- STEP 2 -->
+      <div class="step reveal">
+        <div class="rail"><div class="node" style="--nodecol:var(--phase1)">2</div><div class="connector" style="--nodecol:var(--phase1);--nextcol:var(--phase1)"></div></div>
+        <div class="card">
+          <div class="top"><h3>Apply the Document Register query</h3><span class="pill auto">Automated · SQL</span></div>
+          <p>Enrich the candidate set using the existing Document Register report query as the base. No extra fields are needed — the output is exactly what the query returns.</p>
+          <div class="meta"><span class="chip">Config-driven · <b>appsettings.json</b></span><span class="chip">Phase 1 complete → candidate list ready</span></div>
+        </div>
+      </div>
+
+      <!-- STEP 4 -->
+      <div class="step reveal">
+        <div class="rail"><div class="node" style="--nodecol:var(--phase1)">4</div><div class="connector" style="--nodecol:var(--phase1);--nextcol:var(--phase1)"></div></div>
+        <div class="card">
+          <div class="top"><h3>Produce candidate folders</h3><span class="pill ui">Phase 2</span></div>
+          <p>From the candidate documents, derive every containing folder. This is where the <b>protection rule</b> bites: any folder holding even one document <i>newer</i> than the cutoff is protected — and so is its entire ancestor chain up the tree.</p>
+          <div class="meta"><span class="chip">Rule 2 · <b>full ancestor protection</b></span><span class="chip">Empty parents may cascade-delete</span></div>
+        </div>
+      </div>
+
+      <!-- DECISION: protection -->
+      <div class="decision reveal">
+        <div class="diamond"><span>🛡️</span></div>
+        <div class="branches">
+          <div class="branch yes"><h5>▲ Folder has a newer doc</h5><p>Protected. The folder <b>and every ancestor above it</b> are locked and retained — maximum protection.</p></div>
+          <div class="branch no"><h5>▼ All docs ≤ cutoff</h5><p>Eligible. Folder stays a deletion candidate and moves forward to review.</p></div>
+        </div>
+      </div>
+
+      <!-- STEP 5 -->
+      <div class="step reveal">
+        <div class="rail"><div class="node" style="--nodecol:var(--phase1)">5</div><div class="connector" style="--nodecol:var(--phase1);--nextcol:var(--phase2)"></div></div>
+        <div class="card">
+          <div class="top"><h3>Resolve full folder paths</h3><span class="pill ui">Automated · SQL</span></div>
+          <p>Using the folder IDs from Step 4, run the configured path query to get human-readable full paths. These feed straight into the review screen.</p>
+          <div class="meta"><span class="chip">Config-driven · <b>appsettings.json</b></span></div>
+        </div>
+      </div>
+
+      <!-- STEP 6 -->
+      <div class="step reveal">
+        <div class="rail"><div class="node" style="--nodecol:var(--phase2)">6</div><div class="connector" style="--nodecol:var(--phase2);--nextcol:var(--phase2)"></div></div>
+        <div class="card">
+          <div class="top"><h3>Review &amp; select folders</h3><span class="pill ui">Interactive · React</span></div>
+          <p>The operator sees every candidate folder in a virtual-scrolling table and chooses what to delete or keep. Folders whose names match the <b>acronym list</b> are pre-selected, but the operator can deliberately override an individual folder to keep it. Protected folders (Rule 2) are never selectable.</p>
+          <div class="meta"><span class="chip">Columns: <b>path · docs · folders · size</b></span><span class="chip">Free-text filter</span><span class="chip">☑ Pre-selected = acronym match</span></div>
+        </div>
+      </div>
+
+      <!-- STEP 7 -->
+      <div class="step reveal">
+        <div class="rail"><div class="node" style="--nodecol:var(--phase2)">7</div><div class="connector" style="--nodecol:var(--phase2);--nextcol:var(--cyan)"></div></div>
+        <div class="card">
+          <div class="top"><h3>Confirm selections &amp; archive choices</h3><span class="pill ui">Interactive · React</span></div>
+          <p>Confirming submits the selections and captures the archive choices — it does <b>not</b> delete anything yet (that's Step 11). Before advancing, the system <b>validates every selected folder against the delete constraint</b>: any protected folder is flagged inline and blocks the run until deselected. An optional checkbox here can <b>pre-authorise the final purge</b>.</p>
+          <div class="meta"><span class="chip">Explicit approval required</span><span class="chip">Back-nav to Step 6 allowed</span><span class="chip">☑ Optional: auto-proceed to purge</span></div>
+        </div>
+      </div>
+
+      <!-- DECISION: delete constraint -->
+      <div class="decision reveal">
+        <div class="diamond" style="border-color:var(--red)"><span>⛔</span></div>
+        <div class="branches">
+          <div class="branch no"><h5>▲ Any folder still protected</h5><p>Run halts. Blocking rows are shown inline — no deletion proceeds until they're resolved or deselected.</p></div>
+          <div class="branch yes"><h5>▼ All selected folders clear</h5><p>Constraint satisfied. Operator confirms and the run advances to name normalization, then archival.</p></div>
+        </div>
+      </div>
+
+      <!-- STEP 8 — NAME NORMALIZATION -->
+      <div class="step reveal">
+        <div class="rail"><div class="node" style="--nodecol:var(--cyan)">8</div><div class="connector" style="--nodecol:var(--cyan);--nextcol:var(--phase3)"></div></div>
+        <div class="card">
+          <div class="top"><h3>Normalize source names</h3><span class="pill" style="color:var(--cyan);border-color:rgba(67,229,214,.4)">Background · SOAP</span></div>
+          <p>Works around a MAGIQ bug: the desktop UI lets a document or folder be named with a <b>double space</b>, but the SOAP <code>Move</code> / <code>CreateFolder</code> ops collapse whitespace and can't move such an item. Before archiving, this phase renames the offending <b>source</b> items in place — folder levels first (top-down), then documents — via <code>UpdateFolderProperties</code> / <code>UpdateDocumentProperties</code>, collapsing each run of whitespace to a single space.</p>
+          <div class="meta"><span class="chip">Every rename <b>recorded</b> (audit)</span><span class="chip">⚠ Once begun, the run can't be deleted — only archived</span><span class="chip">Idempotent · resume-safe</span></div>
+        </div>
+      </div>
+
+      <!-- STEP 9 -->
+      <div class="step reveal">
+        <div class="rail"><div class="node" style="--nodecol:var(--phase3)">9</div><div class="connector" style="--nodecol:var(--phase3);--nextcol:var(--phase3)"></div></div>
+        <div class="card">
+          <div class="top"><h3>Select or create the archive library</h3><span class="pill op">Interactive · SOAP</span></div>
+          <p>In a modal, the operator picks a destination: create a new library (prefilled <code>Archive NATA - Dec 2024</code>) or choose an existing one — optionally with a subfolder. Creation uses the SOAP <code>CreateDomain</code> operation.</p>
+          <div class="meta"><span class="chip">Prefill: <b>Archive {Library} - {Date}</b></span><span class="chip">On-demand subfolder browsing</span></div>
+        </div>
+      </div>
+
+      <!-- STEP 10 -->
+      <div class="step reveal">
+        <div class="rail"><div class="node" style="--nodecol:var(--phase3)">10</div><div class="connector" style="--nodecol:var(--phase3);--nextcol:var(--phase4)"></div></div>
+        <div class="card">
+          <div class="top"><h3>Move documents to the archive</h3><span class="pill op">Background · Hangfire + SignalR</span></div>
+          <p>Every candidate document is moved into the archive library in batches via SOAP <code>Move</code>. Live progress streams to the job details view; the dashboard polls every 30s. <b>No rollback</b> — failed docs are recorded, the rest continue, and the run returns to the failures afterward.</p>
+          <div class="meta"><span class="chip">% bar · count · path · ETA</span><span class="chip">Failures surfaced live</span><span class="chip">Resume from point of failure</span></div>
+        </div>
+      </div>
+
+      <!-- STEP 11 -->
+      <div class="step reveal">
+        <div class="rail"><div class="node" style="--nodecol:var(--phase4)">11</div><div class="connector" style="--nodecol:var(--phase4);--nextcol:var(--phase4)"></div></div>
+        <div class="card">
+          <div class="top"><h3>Delete empty folders</h3><span class="pill sys">Background · SOAP</span></div>
+          <p>Once <b>all</b> moves in Step 10 are confirmed complete, folders left empty are removed via SOAP <code>DeleteFolder</code>. This step cannot start early.</p>
+          <div class="meta"><span class="chip">Gate: <b>Step 10 fully complete</b></span><span class="chip">Same progress display as Step 10</span></div>
+        </div>
+      </div>
+
+      <!-- DECISION: purge auth -->
+      <div class="decision reveal">
+        <div class="diamond"><span>🔑</span></div>
+        <div class="branches">
+          <div class="branch yes"><h5>Path A · Pre-authorised in Step 7</h5><p>Purge proceeds automatically. The Step 7 username + timestamp are recorded as the authorisation.</p></div>
+          <div class="branch no"><h5>Path B · Manual (default)</h5><p>Dashboard shows <b>“Ready for purge.”</b> Operator opens the red Purge button and types <code>permanently delete</code> to confirm.</p></div>
+        </div>
+      </div>
+
+      <!-- STEP 12 -->
+      <div class="step reveal">
+        <div class="rail"><div class="node" style="--nodecol:var(--phase4)">12</div></div>
+        <div class="card">
+          <div class="top"><h3>Delete &amp; purge the archive library</h3><span class="pill sys">Background · SOAP</span></div>
+          <p>After authorisation, a three-call sequence permanently removes the library: <code>DeleteDomain</code> sends it to the recycle bin → <code>GetRecycleBinContent</code> lists the items → <code>PurgeRecycleBinItem</code> wipes each one. No holding period — purge starts immediately, and user + timestamp are logged.</p>
+          <div class="meta"><span class="chip">DeleteDomain → GetRecycleBinContent → PurgeRecycleBinItem</span><span class="chip">Run → <b>Completed</b></span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- PROTECTION TREE -->
+<section>
+  <div class="wrap reveal">
+    <div class="kicker"><span class="dot" style="background:var(--green)"></span><h2>Why folder protection matters</h2></div>
+    <p class="lead">One recent document doesn't just save its own folder — it shields the whole path above it. Here, a 2025 file keeps four folders alive even though everything else is old.</p>
+    <div class="tree">
+      <div class="row lvl0"><span class="fld prot">📁 NATA</span><span class="note">protected (ancestor)</span></div>
+      <div class="row lvl1"><span class="fld prot">📁 Finance</span><span class="note">protected (ancestor)</span></div>
+      <div class="row lvl2"><span class="fld prot">📁 2024 Reports</span><span class="note">protected (ancestor)</span></div>
+      <div class="row lvl3"><span class="fld prot">📁 Q4</span><span class="doc keep">contains a doc modified <b>2025-03-01</b> → newer than cutoff</span></div>
+      <div class="row lvl1"><span class="fld del">📁 ARE-Archive</span><span class="note">acronym match + all docs old → <b>deleted</b></span></div>
+      <div class="row lvl2"><span class="fld del">📁 Old Drafts</span><span class="doc old">all docs ≤ cutoff, becomes empty → <b>deleted</b></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- STATE MACHINE -->
+<section>
+  <div class="wrap reveal">
+    <div class="kicker"><span class="dot" style="background:var(--amber)"></span><h2>Run lifecycle &amp; recovery</h2></div>
+    <p class="lead">Every execution is one <code>CleanupRun</code> state machine. Only one run may be active at a time. Background phases are resumable — there is no rollback, only resume.</p>
+    <div class="states">
+      <div class="state"><div class="lbl">NotStarted</div><p>Run created; Phase 1 not yet triggered.</p></div>
+      <div class="state running"><div class="lbl">Running</div><p>A background phase is actively executing.</p></div>
+      <div class="state await"><div class="lbl">AwaitingInput</div><p>Paused at an interactive step; operator action required.</p></div>
+      <div class="state failed"><div class="lbl">Failed</div><p>Unrecoverable error halted the run; recovery needed.</p></div>
+      <div class="state"><div class="lbl">Cancelled</div><p>Operator cancelled mid-phase. Cannot resume — start a new run.</p></div>
+      <div class="state done"><div class="lbl">Completed</div><p>All phases finished. Final — a new year needs a new run.</p></div>
+      <div class="state"><div class="lbl">Abandoned</div><p>Operator wrote off a failed run; unblocks a new one.</p></div>
+    </div>
+    <div class="recovery">
+      <div class="r"><h5 style="color:var(--accent)">Reset</h5><p>Restart the current phase from the beginning.</p></div>
+      <div class="r"><h5 style="color:var(--green)">Retry</h5><p>Resume the current phase from the point of failure, skipping completed work.</p></div>
+      <div class="r"><h5 style="color:var(--amber)">Abandon</h5><p>Mark the run Abandoned (simple confirm) and unblock a new run.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- RULES -->
+<section>
+  <div class="wrap reveal">
+    <div class="kicker"><span class="dot" style="background:var(--red)"></span><h2>The five governing rules</h2></div>
+    <p class="lead">Everything the pipeline does reduces to these. They're what make an automated bulk delete safe.</p>
+    <div class="rules">
+      <div class="rule" style="border-left-color:var(--phase1)"><h4>1 · Date cutoff</h4><p>Documents modified on or before the specified year-end date are deletion candidates.</p></div>
+      <div class="rule" style="border-left-color:var(--green)"><h4>2 · Folder protection</h4><p>A folder with any newer document is retained — and so is its full ancestor hierarchy.</p></div>
+      <div class="rule" style="border-left-color:var(--accent2)"><h4>3 · Empty folders</h4><p>Folders left empty after the cull must be deleted.</p></div>
+      <div class="rule" style="border-left-color:var(--amber)"><h4>4 · Delete constraint</h4><p>No deletion runs while any selected folder is protected. Validate all first; report blockers.</p></div>
+      <div class="rule" style="border-left-color:var(--red)"><h4>5 · Confirm before purge</h4><p>The archive library is never purged without authorisation — pre-granted or typed — with user + timestamp logged.</p></div>
+    </div>
+    <div class="tree" style="margin-top:16px">
+      <h4 style="margin:0 0 4px">Deletable folder acronyms <span class="note" style="font-weight:400">— contains-match, case-sensitive, configurable</span></h4>
+      <div class="acr">
+        <span class="a">ADV</span><span class="a">ARE</span><span class="a">ASS</span><span class="a">CEA</span><span class="a">CGA</span><span class="a">CRE</span><span class="a">DCR</span><span class="a">DEL</span><span class="a">DFS</span><span class="a">DRV</span><span class="a">DTV</span><span class="a">FAS</span><span class="a">FES</span><span class="a">OLC</span><span class="a">OLN</span><span class="a">REI</span><span class="a">RES</span><span class="a">SRE</span><span class="a">SRV</span><span class="a">STF</span><span class="a">STI</span><span class="a">VAR</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    Document Lifecycle Cleaner · NATA · Based on Spec v0.6 (baseline). Automated → Interactive → Operational → System. One run per calendar year.
+  </div>
+</footer>
+
+<script>
+  // Scroll reveal
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, {threshold:0.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>

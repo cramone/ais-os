@@ -28,8 +28,8 @@ Your goals are to determine:
 
 Review exactly ONE aggregate per run.
 
-> **Context:** Processing
-> **Aggregate:** {{AGGREGATE}}   ← ProcessingJob
+> **Context:** Catalog
+> **Aggregate:** {{AGGREGATE}}   ← Collection | Folder | MediaItem | MediaProfile
 
 Do not review any other aggregate in this run. Pull in another aggregate or
 context ONLY where {{AGGREGATE}} directly references it, and only far enough to
@@ -39,10 +39,10 @@ file — before starting the next.
 Read first: D:\source\github\magiq-media\CLAUDE.md (conventions, hosts, key rules).
 
 Inputs for this run:
-- Spec:   docs/spec/contexts/Processing/aggregates/{{AGGREGATE}}/**
-          + docs/spec/contexts/Processing/context-overview.md
-          + docs/spec/contexts/Processing/business-scenarios.md
-- Code:   src/modules/Processing/** — the {{AGGREGATE}} slice only:
+- Spec:   docs/spec/contexts/Catalog/aggregates/{{AGGREGATE}}/**
+          + docs/spec/contexts/Catalog/context-overview.md
+          + docs/spec/contexts/Catalog/business-scenarios.md
+- Code:   src/modules/Catalog/** — the {{AGGREGATE}} slice only:
           Domain/Aggregates/{{AGGREGATE}}s/**
           Contracts/Events/{{AGGREGATE}}s/**
           WriteModel{,.Endpoints,.Infrastructure}/**/{{AGGREGATE}}s/**

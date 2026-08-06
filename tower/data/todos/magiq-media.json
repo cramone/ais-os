@@ -32,13 +32,13 @@
     "source": "",
     "dueDate": null,
     "priority": "normal",
-    "status": "new",
+    "status": "done",
     "tags": [],
     "adoItemId": null,
     "zendeskTicket": null,
     "customer": null,
     "capturedAt": "2026-07-03",
-    "updatedAt": "2026-07-10T08:03:44.945649+00:00",
+    "updatedAt": "2026-07-24T08:03:59.461745+00:00",
     "activity": [
       {
         "type": "comment",
@@ -76,13 +76,13 @@
     "source": "",
     "dueDate": null,
     "priority": "normal",
-    "status": "new",
+    "status": "deferred",
     "tags": [],
     "adoItemId": null,
     "zendeskTicket": null,
     "customer": null,
     "capturedAt": "2026-07-03",
-    "updatedAt": "2026-07-10T08:02:38.739344+00:00",
+    "updatedAt": "2026-07-24T08:04:08.849619+00:00",
     "activity": [
       {
         "type": "comment",
@@ -155,6 +155,50 @@
         "text": "Create a pull request for branch `feature/chase/jti-removal`. This branch offloads all JTI (JWT ID) requirements to magiq-auth.",
         "author": "Chase",
         "timestamp": "2026-07-17T04:24:51.365068+00:00"
+      }
+    ]
+  },
+  {
+    "id": "e3757b6b-b637-49fa-95fc-53222bfe8f90",
+    "title": "Follow up PR #162 — content-type validation on confirm asset endpoint",
+    "source": "",
+    "dueDate": null,
+    "priority": "normal",
+    "status": "done",
+    "tags": [],
+    "adoItemId": null,
+    "zendeskTicket": null,
+    "customer": null,
+    "capturedAt": "2026-07-24T00:47:58.720750+00:00",
+    "updatedAt": "2026-07-29T04:11:55.565491+00:00",
+    "activity": [
+      {
+        "type": "comment",
+        "text": "Check whether the changes in PR #162 (content-type validation on the confirm asset endpoint) tested ok so that it can be merged.",
+        "author": "Chase",
+        "timestamp": "2026-07-24T00:47:58.720750+00:00"
+      }
+    ]
+  },
+  {
+    "id": "f5da1f0b-cfa8-4502-9269-a266ded07094",
+    "title": "Implement versioned projection tables (hot-swappable blue-green rotation)",
+    "source": "",
+    "dueDate": null,
+    "priority": "normal",
+    "status": "done",
+    "tags": [],
+    "adoItemId": null,
+    "zendeskTicket": null,
+    "customer": null,
+    "capturedAt": "2026-07-24T08:05:28.715883+00:00",
+    "updatedAt": "2026-07-29T04:11:33.914560+00:00",
+    "activity": [
+      {
+        "type": "comment",
+        "text": "Implement versioned projection tables as detailed in `plans/hot-swappable-projection-rotation-plan.md`.\n\nGoal: Rebuild a read-model (projection) DynamoDB table into a new versioned table and cut live reads/writes over to it without redeploying the application — with atomic cutover and instant rollback.\n\nScope: `aspnetcore-platform` (platform SDK) + `magiq-media` (app + CLI). Key work: make `ProjectionTableNameResolver.Resolve()` rotation-aware, fix 3 bugs in `ReadModelTableMetadataStore`, wire metadata/rotation services into hosts, and replace the destructive in-place CLI rebuild with a blue-green rotation command.",
+        "author": "Chase",
+        "timestamp": "2026-07-24T08:05:28.715883+00:00"
       }
     ]
   }

@@ -4,7 +4,7 @@
 
 Yearly automated process to cull documents and folders from MAGIQ Documents based on a calendar year-end cutoff date. Targets a specific facility identified by folder naming conventions (acronyms). Client: NATA.
 
-**Current status:** Spec v0.4 baseline (markdown). All blocking questions resolved; architecture and infrastructure settled 2026-07-13 (see `decisions/log.md`). Ready for delivery planning and implementation. Two non-blocking details deferred to implementation: exact review-UI column set (UI design) and second archive library name (TBC).
+**Current status:** As-built, plus one specified-not-yet-built phase. Epic 34120 is implemented and merged — the archival/cleanup pipeline, the React SPA, dual IIS/Docker hosting, and the operator/admin surfaces. The spec (`spec/NATA_Document_Lifecycle_Cleaner_Spec_v0.6.md`, aligned to the repo 2026-08-05) describes the system as built. The **Phase 3 — Name Normalization (Step 8)** phase is now implemented in the working tree (`decisions/log.md` [2026-08-05]): SOAP Get/Update Folder+Document ops, `RunPhase.Normalization`, `dbo.CleanupRunRename` + `EnteredNormalization` audit-lock (migration `0004`), the `RenamePlanner` + `ExecuteNormalizationAsync` phase, and confirm→normalization→archival chaining. **Step numbering:** renumbered so nothing collides with Normalization — Normalization = Step 8, Archival = Steps 9–10, Cleanup = Steps 11–12 (`decisions/log.md` [2026-08-05]). Renames address items by their current (raw) path and repath pending descendants after each folder rename. Active work is the deferred/post-MVP backlog (`deferred-work-plan.md`), the folder delete-rule handling, the name-normalization phase, and the **operation audit trail + before/during/after Document Register (CSV)** (all `decisions/log.md` [2026-08-05]).
 
 ## ADO Board
 Project: **Documents** (MAGIQSoftware org). Epic **#34120** — *Document Lifecycle Cleaner — NATA* (8 Features, 17 User Stories, 49 Tasks; created 2026-07-13). Repo: `DocumentLifecycleCleaner`. Work items tagged `document-lifecycle-cleaner` and per-branch tags.
@@ -18,24 +18,25 @@ Project: **Documents** (MAGIQSoftware org). Epic **#34120** — *Document Lifecy
 
 ## Key Constraints
 
-- SQL queries must be configurable at the system level (no hardcoded schema)
-- Deletable folder acronyms are pre-locked in the UI — NATA cannot override them
+- SQL queries must be configurable at the system level (DB-backed `ConfiguredQuery` store, no hardcoded schema)
+- Deletable folder acronyms **pre-select** folders for deletion in the UI; the operator may deliberately override an individual pre-selection. Folder **protection (a post-cutoff document) always wins** — a protected folder is never deletable
 - Deletion is blocked until folder validation passes (delete constraint rule)
-- Robocopy (Step 11) is out of scope — NATA performs manually; verification gate removed from automated flow
 - Purge is a background system process, not a direct user action
+- A folder rule that disallows deletes (a `Move` is a copy + delete) is handled reactively — read the live rule, temporarily relax it on the one folder, retry, then restore it (`decisions/log.md` [2026-08-05])
+- **Name normalization (Step 8, specified/not-yet-built):** the SOAP `Move`/`CreateFolder` can't handle names with a double space (which the desktop UI allows), so a pre-archival phase renames the offending **source** docs/folders in place (doubled whitespace → single space) via `UpdateFolderProperties`/`UpdateDocumentProperties`. Every rename is recorded, and **once the phase begins the run becomes an audit — it can no longer be deleted, only archived** (spec Rule 7; `decisions/log.md` [2026-08-05])
 
-## Blocking Open Questions
+## Blocking Open Questions (all resolved — historical)
 
-These must be resolved before architecture begins:
+Both were resolved long ago; architecture and implementation are complete. Retained for the record:
 
-1. ~~**Who sets the specified date and how?**~~ — ✅ Resolved: records manager / system admin (e.g. Madhuri)
+1. ~~**Who sets the specified date and how?**~~ — ✅ Resolved: the operator picks the cutoff date **and** source library at run creation (per-run inputs on the `CleanupRun`).
 2. ~~**Does folder protection extend to the full ancestor hierarchy or immediate parent only?**~~ — ✅ Resolved: full ancestor hierarchy protected (maximum protection).
 
-Track all question resolutions in `notes.md`.
+Full resolution history is in `notes.md` and `decisions/log.md`.
 
-## Scope (Q2)
+## Scope
 
-Resolve open questions → finalise spec → design React UI → design .NET API surface → implement.
+Delivered: spec finalised → React UI + .NET API implemented → Epic 34120 shipped (as-built Steps 1–11). Current focus: the deferred/post-MVP backlog (`deferred-work-plan.md`), the folder delete-rule handling, and the specified-not-yet-built **Name Normalization** phase (Step 8; renumbers the spec to 12 steps).
 
 ## File Map
 
@@ -45,8 +46,20 @@ Resolve open questions → finalise spec → design React UI → design .NET API
 | `notes.md` | Open question resolutions and session notes |
 | `risks.md` | Risk register |
 | `tasks.md` | Task tracking |
+| `dev-context.md` | Cross-project working context: 3-repo topology, settled architecture, the FastEndpoints→command/query→context pattern, branch/PR protocol |
+| `delivery-plan.md` | Epic 34120 ordered branch plan — 17 stories → branches, per-branch scope, dependencies |
 | `decisions/log.md` | Architecture and design decisions (append-only log) |
-| `spec/NATA_Document_Lifecycle_Cleaner_Spec_v0.4.md` | Spec — source of truth (active, markdown) |
+| `spec/NATA_Document_Lifecycle_Cleaner_Spec_v0.6.md` | Spec — source of truth (active, markdown) |
+| `spec/dev-spec.md` | Developer specification — API catalogue, data model, config schema, SignalR contract, component map, sequence flows, error contracts |
+| `references/adrs/ADR-001-hangfire-background-engine.md` | ADR: Hangfire as pipeline engine |
+| `references/adrs/ADR-002-cleanup-run-state-machine.md` | ADR: CleanupRun persisted state machine |
+| `references/adrs/ADR-003-multi-target-hosting.md` | ADR: IIS default + Docker supported |
+| `references/adrs/ADR-004-magiq-integration-soap-dapper.md` | ADR: MAGIQ integration via SOAP + Dapper |
+| `references/adrs/ADR-005-single-application-database.md` | ADR: Single dedicated app database |
+| `references/adrs/ADR-006-authentication-two-ticket-model.md` | ADR: MAGIQ auth piggybacking + two-ticket model |
+| `references/adrs/ADR-007-process-ticket-persistence.md` | ADR: Process ticket persisted in app DB |
+| `references/adrs/ADR-008-react-spa-from-wwwroot.md` | ADR: React SPA served from API wwwroot |
+| `references/adrs/ADR-009-command-query-dispatch.md` | ADR: Command/query dispatch via FastEndpoints built-in bus |
 | `spec/NATA_Document_Lifecycle_Cleaner_Spec_v0.3.md` | Spec — previous version (archived, markdown) |
 | `spec/NATA_Document_Lifecycle_Cleaner_Spec_v0.2.docx` | Spec — previous version (archived) |
 

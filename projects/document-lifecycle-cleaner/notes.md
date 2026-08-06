@@ -1,6 +1,13 @@
 # Notes
 
-_Last updated: 2026-07-21_
+_Last updated: 2026-07-12_
+
+---
+
+## Update dlc-process-walkthrough.html Step 9 Rollback
+_Captured: 2026-07-12T00:00:00Z_
+
+Update `dlc-process-walkthrough.html` to show Step 9 as allowing a rollback.
 
 ---
 

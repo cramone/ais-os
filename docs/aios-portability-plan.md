@@ -40,7 +40,7 @@ Content files under `projects/`, `security-incidents/`, `decisions/` etc. refere
 Things that genuinely can't self-derive because they point outside the repo or hold secrets. These stay as config, documented in `.env.example`:
 
 - `HERMES` — external Hermes home (default `~/.hermes` if unset)
-- MCP server: dockerized in-repo (`mcp/azure-devops/Dockerfile`, image `azure-devops-mcp:latest`) — resolved 2026-07-05, no external binary path anymore
+- MCP server: ~~dockerized in-repo stdio (`mcp/azure-devops/Dockerfile`, image `azure-devops-mcp:latest`), resolved 2026-07-05~~ — **superseded 2026-08-06**: `.mcp.json` now points at the Cortex-hosted supergateway over HTTP (`https://mcp-ado.ramonedevelopment.com/mcp`), no local image or PAT in-file. See ADR 0001 and the 2026-08-06 decision-log entry.
 - Secrets: `AZURE_DEVOPS_PAT` / `PERSONAL_ACCESS_TOKEN`, `NOTION_TOKEN`, `ANTHROPIC_API_KEY`, `TOWER_TOKEN`
 - `AZURE_DEVOPS_ORG` / `AZURE_DEVOPS_PROJECT`
 - `TOWER_PORT`
@@ -77,8 +77,11 @@ $Shortcut.WorkingDirectory = $root
 cd /d "%~dp0.."
 ```
 
-### 6. `.mcp.json` — **Resolved 2026-07-05**
-Went with a third option not originally listed: **6c** — dockerize the ADO MCP server in-repo (`mcp/azure-devops/Dockerfile`, built as `azure-devops-mcp:latest`) and point `.mcp.json` at `docker run` instead of a machine-local binary path. Fully self-contained like 6b, without vendoring the JS source. `.mcp.json` now carries literal secret values (matching the pre-existing working pattern) rather than `${VAR}` expansion — `${VAR}` support in `.mcp.json` args was never confirmed, so this doesn't rely on it. Requires `docker build -t azure-devops-mcp:latest .` once per machine that runs it (Windows + Claudia on cortex).
+### 6. `.mcp.json` — ~~Resolved 2026-07-05~~ **Superseded 2026-08-06**
+
+> **Superseded 2026-08-06 (ADR 0001).** `.mcp.json` no longer does `docker run` a local stdio image. It connects over HTTP to the single Cortex-hosted supergateway (`https://mcp-ado.ramonedevelopment.com/mcp`, tailnet-only via Traefik). No per-machine `docker build`, no PAT in the file — the gateway holds the credential. The local stdio path failed on Claudia because `azure-devops-mcp:latest` was never built there. Original 6c note retained below for history.
+
+~~Went with a third option not originally listed: **6c** — dockerize the ADO MCP server in-repo (`mcp/azure-devops/Dockerfile`, built as `azure-devops-mcp:latest`) and point `.mcp.json` at `docker run` instead of a machine-local binary path. Fully self-contained like 6b, without vendoring the JS source. `.mcp.json` now carries literal secret values (matching the pre-existing working pattern) rather than `${VAR}` expansion — `${VAR}` support in `.mcp.json` args was never confirmed, so this doesn't rely on it. Requires `docker build -t azure-devops-mcp:latest .` once per machine that runs it (Windows + Claudia on cortex).~~
 
 ### 7. New `aios.config.md` (identity/context extraction)
 Single editable block:

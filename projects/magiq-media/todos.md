@@ -115,3 +115,33 @@ client integrated against the old map shape in the meantime?
   before the array shape is fully stable.
 
 ---
+
+## Remove environment-name suffix from resource naming
+_Captured: 2026-07-21_
+_Status: todo — plan drafted, awaiting go-ahead_
+
+Treat every deploy as prod-named: drop the `-{env}` suffix from all resource names so the
+"environment" is just the AWS account+region it lands in, with per-env differences delivered
+as host config (not name suffixes). Naming-only — `Media:Environment` / `ASPNETCORE_ENVIRONMENT`
+behaviour is retained.
+
+**Plan:** `plans/remove-env-suffix-plan.md` — full change inventory across `cdk-magiq-media`
+(`lib/config.ts` `resourceName`/`bucketName`, `magiq-media-stack.ts` `TableSuffix`), the
+`magiq-media` app (`MediaResourceNaming`, `MediaConfigurationExtensions`, host bootstrap),
+spec/docs, plus sequencing, the destructive non-prod cutover, and verification steps.
+
+**Decision (2026-07-21):** naming-only + ADR-first. ADR is the new "Deployment & Resource
+Naming" topic: `D:\source\github\magiq-media\docs\adrs\deployment-and-resource-naming.md`
+(README index updated).
+
+**Confirm 4 open decisions before coding (top of the plan):**
+1. API Gateway stage segment (`stageName: config.env`) — keep env-named (recommended) or uniform?
+2. Inject `Platform__DynamoDB__TableSuffix: ''` explicitly (recommended) vs stop injecting?
+3. OK to discard dev/qa data on cutover + reseed/replay (recommended)?
+4. Remove vestigial `ENVIRONMENT_NAME` plumbing, or leave inert?
+
+**Key risk:** removing the suffix renames every non-prod stateful resource → CloudFormation
+*replace* (data loss on dev/qa/staging; prod unaffected — already unsuffixed). Safe only while
+no two environments share one AWS account+region.
+
+---

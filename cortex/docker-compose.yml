@@ -304,6 +304,7 @@ services:
     build:
       context: /mnt/shared/claudia/magiq/mcp/azure-devops
       dockerfile: Dockerfile.gateway
+    mem_limit: 1g
     restart: unless-stopped
     <<: *default-logging
     env_file:

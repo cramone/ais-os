@@ -427,3 +427,19 @@ unnecessary complexity for Q2.
 **Owner:** Chase Ramone
 
 **Full detail:** magiq-media `docker-compose.cortex.yml` (media-api block), `cortex/docker-compose.yml` (`cloudflare-ddns-media` block). Also swept stale `:8443` / No-IP-wildcard comments out of the media compose header this session.
+
+## 2026-08-06 — ADO MCP in Claude Code: repoint .mcp.json at the Cortex gateway
+
+**Project:** (cross-cutting — AIS-OS tooling)
+
+**Decision:** `.mcp.json` now connects Claude Code's `azure-devops` MCP over HTTP to the Cortex-hosted supergateway at `https://mcp-ado.ramonedevelopment.com/mcp`, replacing the local `docker run azure-devops-mcp:latest` stdio invocation. This completes the 2026-07-04 "host once on Cortex" migration for the Claude Code client, which had still been pointing at the retired per-machine stdio image.
+
+**Why:** The stdio config depended on a local image (`azure-devops-mcp:latest`) that was never built on Claudia, so the MCP failed with `Connection closed` — the image doesn't exist; only the gateway image `stack-mcp-azure-devops` does. The gateway (built from `mcp/azure-devops/Dockerfile.gateway`, exposed by Traefik on the `tailnet` entrypoint) was already running and healthy — an `initialize` handshake against it returned ADO MCP Server v2.7.0. Repointing also removes the plaintext PAT that was living in `.mcp.json`; the gateway holds the credential and tailnet reachability is the security boundary. What would change my mind: if a consumer needs ADO MCP off-tailnet, or the single gateway becomes a reliability bottleneck, revisit per-machine stdio.
+
+**Alternatives considered:** Build the stdio image locally (`docker build -t azure-devops-mcp:latest mcp/azure-devops/`) to make the existing config work as-is — rejected: it revives the per-machine model the 2026-07-04 decision explicitly retired and keeps the PAT in the file.
+
+**Owner:** Chase Ramone
+
+**Supersedes:** the in-repo stdio image approach described in `docs/aios-portability-plan.md` (option 6c, 2026-07-05) for the Claude Code client.
+
+**ADR:** references/adrs/0001-ado-mcp-cortex-gateway-transport.md

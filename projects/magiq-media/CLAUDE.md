@@ -47,12 +47,6 @@ Media
 ## Priority
 High
 
-## Q2 2026 Priorities
-
-1. Complete magiq-media API — API layer, query endpoints, write endpoints, FastEndpoints wiring
-2. Implement tenant management and authentication — JWT, `IExecutionContext`, `TenantId` isolation, token replay detection
-3. Implement user security and policies — command-level authorisation, actor types (System/User/Guest), role-based access
-
 ## File Map
 
 | File | Purpose |
