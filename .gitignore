@@ -16,3 +16,7 @@ nul
 # Large data exports — keep on disk, never commit (GitHub 100MB limit)
 projects/magiq-media/files/export/MAGIQ_DOCS_export.json
 projects/magiq-media/files/export/*-data.7z
+
+# Tower runtime state (interrupts, todos, levelup) — written by the app at
+# runtime; tracking it dirties the tree and blocks deploy-cortex.sh's pull.
+tower/data/
