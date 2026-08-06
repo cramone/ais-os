@@ -4496,6 +4496,33 @@
     return 'var(--muted, #888)';
   }
 
+  // ADO work-item-type → icon + accent colour (mirrors ADO's Epic/Feature/Story/Task/Bug hierarchy)
+  function _witIcon(type) {
+    const t = (type || '').toLowerCase();
+    if (t === 'epic') return '👑';
+    if (t === 'feature') return '🏆';
+    if (t.includes('user story') || t === 'product backlog item' || t === 'story') return '📗';
+    if (t === 'bug') return '🐞';
+    if (t === 'task') return '☑️';
+    if (t === 'issue' || t === 'impediment') return '⚠️';
+    if (t === 'test case') return '🧪';
+    return '📄';
+  }
+  function _witColor(type) {
+    const t = (type || '').toLowerCase();
+    if (t === 'epic') return '#e8a33d';
+    if (t === 'feature') return '#8a5cf0';
+    if (t.includes('user story') || t === 'product backlog item' || t === 'story') return '#4a9eff';
+    if (t === 'bug') return '#e0564a';
+    if (t === 'task') return '#d9c441';
+    return 'var(--muted, #888)';
+  }
+  const _WIT_RANK = { epic: 0, feature: 1, 'user story': 2, 'product backlog item': 2, story: 2, bug: 3, task: 4 };
+  function _witRank(type) {
+    const r = _WIT_RANK[(type || '').toLowerCase()];
+    return r == null ? 5 : r;
+  }
+
   function _renderCrossProject() {
     const body = document.getElementById('all-projects-body');
     if (!body) return;
@@ -4530,23 +4557,7 @@
         ? `<span style="font-size:10px;color:var(--warn,#d9a441);font-weight:600;margin-left:6px">⚠ ${p.code_review} in review</span>` : '';
       const aw = p.awaiting_me > 0
         ? `<span style="font-size:10px;color:var(--danger,#e0564a);font-weight:600;margin-left:6px">💬 ${p.awaiting_me} awaiting reply</span>` : '';
-      const rows = (p.items || []).map(i => {
-        const lc = i.last_comment;
-        const commentLine = i.awaiting_me && lc
-          ? `<div class="ado-meta" style="color:var(--danger,#e0564a);margin-top:2px">💬 ${lc.author || 'someone'}: ${_esc(lc.text || '')}</div>`
-          : ((i.comment_count || 0) > 0 && lc
-              ? `<div class="ado-meta" style="margin-top:2px;opacity:.75">💬 ${i.comment_count} · last ${lc.is_mine ? 'you' : (lc.author || '')}: ${_esc(lc.text || '')}</div>`
-              : '');
-        return `
-        <div class="ado-row" style="padding:6px 14px 6px 28px${i.awaiting_me ? ';background:rgba(224,86,74,.06)' : ''}">
-          <div class="ado-state" style="background:${_xpStateColor(i.state)}"></div>
-          <div class="ado-body">
-            <div class="ado-text"><a href="${i.url}" target="_blank" style="color:inherit;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">#${i.id} ${i.title}</a></div>
-            <div class="ado-meta">${i.type || ''} · ${i.state}${i.module ? ' · ' + i.module : ''}${i.priority ? ' · P' + i.priority : ''}</div>
-            ${commentLine}
-          </div>
-        </div>`;
-      }).join('');
+      const rows = _xpTreeRows(p.items || []);
       return `
         <div style="border-bottom:1px solid var(--border)">
           <div onclick="_xpToggle('${p.name.replace(/'/g, "\\'")}')" style="display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;background:var(--surface)">
@@ -4564,6 +4575,54 @@
   function _xpToggle(name) {
     _xpCollapsed[name] = !_xpCollapsed[name];
     _renderCrossProject();
+  }
+
+  // Build the Epic→Feature→Story→Task/Bug tree for one project and return row HTML.
+  // Items assigned to me are the leaves we care about; ancestors come along as scaffolding.
+  function _xpTreeRows(items) {
+    const byId = {};
+    items.forEach(i => { byId[i.id] = i; });
+    const children = {};
+    const roots = [];
+    items.forEach(i => {
+      const pid = i.parent_id;
+      if (pid != null && byId[pid]) (children[pid] = children[pid] || []).push(i);
+      else roots.push(i);
+    });
+    const sortSibs = a => a.sort((x, y) => {
+      const r = _witRank(x.type) - _witRank(y.type);
+      return r !== 0 ? r : (x.id - y.id);
+    });
+
+    function renderNode(i, depth) {
+      const indent = 14 + depth * 16;
+      const mine = i.assigned_to_me;
+      const lc = i.last_comment;
+      const commentLine = mine && i.awaiting_me && lc
+        ? `<div class="ado-meta" style="color:var(--danger,#e0564a);margin-top:2px">💬 ${lc.author || 'someone'}: ${_esc(lc.text || '')}</div>`
+        : (mine && (i.comment_count || 0) > 0 && lc
+            ? `<div class="ado-meta" style="margin-top:2px;opacity:.75">💬 ${i.comment_count} · last ${lc.is_mine ? 'you' : (lc.author || '')}: ${_esc(lc.text || '')}</div>`
+            : '');
+      const meBadge = mine
+        ? `<span title="Assigned to you" style="font-size:9px;line-height:1;margin-left:5px;padding:1px 4px;border-radius:6px;background:var(--accent,#4a9eff);color:#fff;vertical-align:middle">👤</span>`
+        : '';
+      const dim = mine ? '' : 'opacity:.62;';
+      const row = `
+        <div class="ado-row" style="padding:6px 14px 6px ${indent}px${mine && i.awaiting_me ? ';background:rgba(224,86,74,.06)' : ''};${dim}">
+          <div class="ado-state" style="background:${_xpStateColor(i.state)}"></div>
+          <div class="ado-body">
+            <div class="ado-text">
+              <span title="${_esc(i.type || '')}" style="margin-right:5px">${_witIcon(i.type)}</span><a href="${i.url}" target="_blank" style="color:inherit;text-decoration:none;border-left:2px solid ${_witColor(i.type)};padding-left:6px" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">#${i.id} ${i.title}</a>${meBadge}
+            </div>
+            <div class="ado-meta">${i.type || ''} · ${i.state}${i.module ? ' · ' + i.module : ''}${i.priority ? ' · P' + i.priority : ''}</div>
+            ${commentLine}
+          </div>
+        </div>`;
+      const kids = sortSibs(children[i.id] || []).map(k => renderNode(k, depth + 1)).join('');
+      return row + kids;
+    }
+
+    return sortSibs(roots).map(r => renderNode(r, 0)).join('');
   }
 
   // Store decisions keyed by DOM index to avoid HTML attribute escaping issues

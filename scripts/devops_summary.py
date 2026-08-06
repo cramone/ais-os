@@ -257,11 +257,35 @@ def main_cross_project():
         "System.Id", "System.Title", "System.WorkItemType", "System.State",
         "System.TeamProject", "System.AreaPath", "System.IterationPath",
         "Microsoft.VSTS.Common.Priority", "System.Tags", "System.ChangedDate",
+        "System.Parent",
     ]
     raw_items = org_get_work_items(item_ids, fields)
 
+    # Everything assigned to me, keyed by id.
+    my_ids = set(item_ids)
+    items_by_id = {it["fields"]["System.Id"]: it for it in raw_items}
+
+    # Walk up the Epic → Feature → Story → Task/Bug chain, pulling in any
+    # ancestor not already assigned to me so items nest under their real parents.
+    def _missing_parents():
+        need = set()
+        for it in items_by_id.values():
+            pid = it["fields"].get("System.Parent")
+            if pid and pid not in items_by_id:
+                need.add(pid)
+        return need
+
+    need = _missing_parents()
+    while need:
+        for it in org_get_work_items(list(need), fields):
+            items_by_id[it["fields"]["System.Id"]] = it
+        nxt = _missing_parents()
+        if nxt == need:  # unfetchable (e.g. no access) — stop
+            break
+        need = nxt
+
     projects: dict[str, dict] = {}
-    for item in raw_items:
+    for item_id, item in items_by_id.items():
         f = item["fields"]
         proj = f.get("System.TeamProject", "Unknown")
         area = f.get("System.AreaPath", "")
@@ -269,13 +293,15 @@ def main_cross_project():
         iteration = f.get("System.IterationPath", "")
         sprint = iteration.split("\\")[-1] if "\\" in iteration else iteration
         state = f.get("System.State", "")
-        item_id = f["System.Id"]
+        mine = item_id in my_ids
 
         p = projects.setdefault(proj, {"name": proj, "total": 0, "code_review": 0, "states": {}, "items": []})
-        p["total"] += 1
-        p["states"][state] = p["states"].get(state, 0) + 1
-        if state == "Code Review":
-            p["code_review"] += 1
+        # Counts/pills reflect only work assigned to me; ancestors are scaffolding.
+        if mine:
+            p["total"] += 1
+            p["states"][state] = p["states"].get(state, 0) + 1
+            if state == "Code Review":
+                p["code_review"] += 1
         item = {
             "id": item_id,
             "title": f.get("System.Title", ""),
@@ -285,6 +311,8 @@ def main_cross_project():
             "module": module,
             "sprint": sprint,
             "tags": f.get("System.Tags", "") or "",
+            "parent_id": f.get("System.Parent"),
+            "assigned_to_me": mine,
             "url": f"https://dev.azure.com/{ORG}/_workitems/edit/{item_id}",
             "comment_count": 0,
             "last_comment": None,
@@ -322,6 +350,8 @@ def _enrich_comments(projects):
     candidates = []
     for p in projects.values():
         for it in p["items"]:
+            if not it.get("assigned_to_me"):
+                continue
             changed = it.get("_changed", "")
             try:
                 cd = datetime.datetime.fromisoformat(changed.replace("Z", "+00:00"))
