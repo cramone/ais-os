@@ -1,0 +1,63 @@
+<div style="font-family:var(--font-sans)">
+  <div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:12px;overflow:hidden">
+    <div style="padding:15px 20px;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);margin-bottom:8px"><i class="ti ti-arrow-left" style="font-size:15px" aria-hidden="true"></i><span>Consent DA-2024-0392</span><i class="ti ti-chevron-right" style="font-size:12px" aria-hidden="true"></i><span style="color:var(--text-secondary)">Compare versions</span></div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <h1 style="font-size:19px;margin:0">What changed</h1>
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+          <span style="display:inline-flex;align-items:center;gap:5px;background:var(--surface-2);border:0.5px solid var(--border-strong);border-radius:8px;padding:5px 10px;cursor:pointer"><span style="font-weight:500">v2</span><span style="color:var(--text-muted)">published</span><i class="ti ti-chevron-down" style="font-size:14px;color:var(--text-muted)" aria-hidden="true"></i></span>
+          <i class="ti ti-arrow-right" style="font-size:16px;color:var(--text-muted)" aria-hidden="true"></i>
+          <span style="display:inline-flex;align-items:center;gap:5px;background:var(--bg-accent);border:0.5px solid var(--border-accent);border-radius:8px;padding:5px 10px;cursor:pointer;color:var(--text-accent)"><span style="font-weight:500">v3</span><span>draft · in CR-118</span><i class="ti ti-chevron-down" style="font-size:14px" aria-hidden="true"></i></span>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding:18px 20px">
+      <h3 style="font-size:14px;margin:0 0 12px;display:flex;align-items:center;gap:7px"><i class="ti ti-list-details" style="font-size:17px;color:var(--text-muted)" aria-hidden="true"></i>Metadata <span style="font-size:11px;font-weight:400;color:var(--text-muted)">· 2 changed</span></h3>
+      <div id="meta" style="margin-bottom:24px"></div>
+
+      <h3 style="font-size:14px;margin:0 0 12px;display:flex;align-items:center;gap:7px"><i class="ti ti-stack-2" style="font-size:17px;color:var(--text-muted)" aria-hidden="true"></i>Assets <span style="font-size:11px;font-weight:400;color:var(--text-muted)">· 1 changed</span></h3>
+      <div id="assets"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var meta=[
+    {f:'consent.decision',o:'Governed',from:'Approved',to:'Approved with conditions',kind:'changed'},
+    {f:'consent.expiryDate',o:'Governed',from:'—',to:'2029-03-14',kind:'added'},
+    {f:'applicant',o:'Governed',from:'Meriton Group Pty Ltd',to:'Meriton Group Pty Ltd',kind:'same'},
+    {f:'consent.lodgedDate',o:'Governed',from:'2024-02-11',to:'2024-02-11',kind:'same'}
+  ];
+  var mh=document.getElementById('meta');
+  meta.forEach(function(m){
+    var el=document.createElement('div');
+    el.style.cssText='display:grid;grid-template-columns:170px 1fr 1fr;gap:12px;align-items:start;padding:10px 0;border-bottom:0.5px solid var(--border);font-size:13px';
+    var tag=m.kind==='added'?'<span style="font-size:9px;font-weight:500;color:var(--text-success);background:var(--bg-success);border-radius:4px;padding:0 5px;margin-left:6px">added</span>':(m.kind==='changed'?'<span style="font-size:9px;font-weight:500;color:var(--text-accent);background:var(--bg-accent);border-radius:4px;padding:0 5px;margin-left:6px">changed</span>':'');
+    var fromCell=m.kind==='same'?'<span style="color:var(--text-secondary)">'+m.from+'</span>':'<span style="color:var(--text-muted);text-decoration:'+(m.kind==='changed'?'line-through':'none')+'">'+m.from+'</span>';
+    var toCell=m.kind==='same'?'<span style="color:var(--text-muted)">—</span>':'<span style="color:var(--text-accent);font-weight:500">'+m.to+'</span>';
+    el.innerHTML='<div style="min-width:0"><code style="font-family:var(--font-mono);font-size:12px">'+m.f+'</code>'+tag+'<br><span style="font-size:10px;color:var(--text-muted)">'+m.o+'</span></div>'+
+      '<div>'+fromCell+'</div><div>'+toCell+'</div>';
+    mh.appendChild(el);
+  });
+
+  var assets=[
+    {role:'site-plan',kind:'replaced',from:'kellyville-site-plan-v1.tiff',to:'kellyville-site-plan.tiff'},
+    {role:'consent-document',kind:'same',to:'DA-2024-0392-signed.pdf'},
+    {role:'aerial-photo',kind:'same',to:'aerial-2024-03.jpg'}
+  ];
+  var ah=document.getElementById('assets');
+  assets.forEach(function(a){
+    var el=document.createElement('div');
+    el.style.cssText='display:flex;align-items:center;gap:11px;padding:11px 13px;border:0.5px solid '+(a.kind==='replaced'?'var(--border-accent)':'var(--border)')+';border-radius:10px;margin-bottom:8px;background:var(--surface-2)';
+    var body=a.kind==='replaced'
+      ? '<span style="font-size:12px;color:var(--text-muted);text-decoration:line-through">'+a.from+'</span> <i class="ti ti-arrow-right" style="font-size:12px;color:var(--text-accent);vertical-align:-1px" aria-hidden="true"></i> <span style="font-size:12px;color:var(--text-accent);font-weight:500">'+a.to+'</span>'
+      : '<span style="font-size:12px;color:var(--text-secondary)">'+a.to+'</span>';
+    el.innerHTML='<span style="font-size:10px;font-weight:500;color:var(--text-secondary);background:var(--surface-0);border-radius:5px;padding:2px 8px;flex-shrink:0">'+a.role+'</span>'+
+      '<div style="flex:1;min-width:0">'+body+'</div>'+
+      (a.kind==='replaced'?'<span style="font-size:10px;font-weight:500;color:var(--text-accent);background:var(--bg-accent);border-radius:4px;padding:1px 7px;flex-shrink:0">replaced</span>':'<span style="font-size:11px;color:var(--text-muted);flex-shrink:0">unchanged</span>');
+    ah.appendChild(el);
+  });
+})();
+</script>

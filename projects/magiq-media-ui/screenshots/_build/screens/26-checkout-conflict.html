@@ -1,0 +1,51 @@
+<div style="font-family:var(--font-sans)">
+  <div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:12px;overflow:hidden">
+    <div style="padding:16px 20px 14px;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);margin-bottom:9px"><i class="ti ti-arrow-left" style="font-size:15px" aria-hidden="true"></i><span>Library</span><i class="ti ti-chevron-right" style="font-size:12px" aria-hidden="true"></i><span style="color:var(--text-secondary)">Consent DA-2024-0410</span></div>
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+            <h1 style="font-size:20px;margin:0">Consent DA-2024-0410 — Box Hill industrial</h1>
+            <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;color:var(--text-warning);background:var(--bg-warning);border-radius:6px;padding:3px 9px"><i class="ti ti-lock" style="font-size:13px" aria-hidden="true"></i>Checked out</span>
+          </div>
+          <p style="font-size:12px;color:var(--text-secondary);margin:6px 0 0">Owner J. Ng · Profile: Development consent · v4 · Revising</p>
+        </div>
+        <button disabled style="height:34px;padding:0 13px;border-radius:8px;font-size:13px;display:flex;align-items:center;gap:6px;background:var(--surface-2);border:0.5px solid var(--border);color:var(--text-muted);cursor:not-allowed;flex-shrink:0"><i class="ti ti-edit" style="font-size:15px" aria-hidden="true"></i>Edit</button>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:flex-start;gap:11px;padding:13px 20px;background:var(--bg-warning);border-bottom:0.5px solid var(--border-warning)">
+      <i class="ti ti-lock" style="font-size:19px;color:var(--text-warning);flex-shrink:0;margin-top:1px" aria-hidden="true"></i>
+      <div style="flex:1;min-width:0">
+        <p style="font-size:13px;font-weight:500;margin:0;color:var(--text-warning)">Checked out by J. Ng · 2 hours ago</p>
+        <p style="font-size:12px;color:var(--text-warning);opacity:.9;margin:2px 0 0">You can’t edit while another user has the item checked out. Ask them to check it in, or request an admin force-release.</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-shrink:0">
+        <button style="height:32px;padding:0 12px;border-radius:8px;font-size:12px;cursor:pointer;background:var(--surface-2);border:0.5px solid var(--border-strong);display:flex;align-items:center;gap:6px"><i class="ti ti-bell" style="font-size:14px" aria-hidden="true"></i>Notify owner</button>
+        <button style="height:32px;padding:0 12px;border-radius:8px;font-size:12px;cursor:pointer;background:transparent;border:0.5px solid var(--border-danger);color:var(--text-danger);display:flex;align-items:center;gap:6px"><i class="ti ti-lock-open" style="font-size:14px" aria-hidden="true"></i>Force-release <span style="font-size:9px;font-weight:500;background:var(--bg-purple);color:var(--text-purple);border-radius:4px;padding:0 5px">Admin</span></button>
+      </div>
+    </div>
+
+    <div style="padding:18px 20px">
+      <p style="font-size:12px;color:var(--text-muted);margin:0 0 14px">Read-only view while checked out. Published v3 remains live for readers.</p>
+      <div id="ro"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var rows=[
+    {i:'ti-list-details',l:'Metadata',v:'v3 published values (draft hidden while locked)'},
+    {i:'ti-stack-2',l:'Assets',v:'3 assets · download available'},
+    {i:'ti-history',l:'Versions',v:'v3 current · v1–v2 archived'}
+  ];
+  var rh=document.getElementById('ro');
+  rows.forEach(function(r){
+    var el=document.createElement('div');
+    el.style.cssText='display:flex;align-items:center;gap:11px;padding:12px 13px;border:0.5px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--surface-2);opacity:.85';
+    el.innerHTML='<i class="ti '+r.i+'" style="font-size:18px;color:var(--text-muted);flex-shrink:0" aria-hidden="true"></i><div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:500;margin:0">'+r.l+'</p><p style="font-size:11px;color:var(--text-muted);margin:1px 0 0">'+r.v+'</p></div><i class="ti ti-lock" style="font-size:15px;color:var(--text-muted)" aria-hidden="true"></i>';
+    rh.appendChild(el);
+  });
+})();
+</script>

@@ -230,12 +230,12 @@ If `/mnt/shared/claudia/magiq/projects/[slug]/` already exists, stop:
 ## File Map
 
 | File | Purpose |
-|------|---------|
-| brief.md | Project summary and constraints |
+|------|---------|\n| brief.md | Project summary and constraints |
 | notes.md | Open question resolutions and session notes |
 | risks.md | Risk register |
 | decisions/log.md | Architecture and design decisions (append-only) |
 | adrs/ | Formal ADRs for architectural decisions |
+| plans/ | Project-specific implementation plans |
 | spec/ | Spec files |
 
 ## Decisions
@@ -282,7 +282,7 @@ _Last updated: [YYYY-MM-DD]_
 **notes.md** — empty with `# Notes — [displayName]`
 **risks.md** — empty with `# Risks — [displayName]`
 **decisions/log.md** — empty with `# Decision Log — [displayName]`
-Also create `decisions/` and `adrs/` and `spec/` directories.
+Also create `decisions/` and `adrs/` and `spec/` and `plans/` directories.
 
 ### Confirmation
 ```

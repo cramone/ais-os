@@ -1,0 +1,39 @@
+<div style="font-family:var(--font-sans)">
+  <div id="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px"></div>
+</div>
+
+<script>
+(function(){
+  var states=[
+    {tone:'empty',ic:'ti-folder-open',h:'This folder is empty',b:'Upload media or move items here to get started.',cta:'Upload',cta2:'Move items here'},
+    {tone:'empty',ic:'ti-search-off',h:'No results for “kellyvile”',b:'Check the spelling or clear some filters.',cta:'Clear filters',cta2:null,hint:'Did you mean kellyville?'},
+    {tone:'empty',ic:'ti-cloud-check',h:'No active uploads',b:'Drop files anywhere to start uploading. The queue stays here as you work.',cta:'Browse files',cta2:null},
+    {tone:'empty',ic:'ti-inbox',h:'Nothing to review',b:'Change requests assigned to you will appear here.',cta:null,cta2:null},
+    {tone:'error',ic:'ti-plug-connected-x',h:'Couldn’t load this folder',b:'The connection dropped before the list finished loading.',cta:'Retry',cta2:null},
+    {tone:'error',ic:'ti-wifi-off',h:'You’re offline',b:'Uploads will resume automatically when the connection returns.',cta:'Retry now',cta2:null},
+    {tone:'processing',ic:'ti-loader-2',h:'Still processing',b:'This item is generating renditions. It’ll appear when ready.',cta:null,cta2:null,spin:true},
+    {tone:'error',ic:'ti-shield-x',h:'Some items are hidden',b:'You don’t have access to 3 items in this folder. They’re owned by other users.',cta:null,cta2:null}
+  ];
+  var toneMap={
+    empty:{ic:'var(--text-accent)',bg:'var(--bg-accent)'},
+    error:{ic:'var(--text-danger)',bg:'var(--bg-danger)'},
+    processing:{ic:'var(--text-accent)',bg:'var(--bg-accent)'}
+  };
+  var g=document.getElementById('grid');
+  states.forEach(function(s){
+    var t=toneMap[s.tone];
+    var el=document.createElement('div');
+    el.style.cssText='background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:22px 18px;display:flex;flex-direction:column;align-items:center;text-align:center;min-height:184px;justify-content:center';
+    var buttons='';
+    if(s.cta)buttons+='<button style="height:32px;padding:0 13px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;background:'+(s.tone==='error'?'transparent':'#1D3455')+';border:'+(s.tone==='error'?'0.5px solid var(--border-strong)':'none')+';color:'+(s.tone==='error'?'var(--text-primary)':'#fff')+'">'+s.cta+'</button>';
+    if(s.cta2)buttons+='<button style="height:32px;padding:0 13px;border-radius:8px;font-size:12px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong)">'+s.cta2+'</button>';
+    el.innerHTML=
+      '<div style="width:46px;height:46px;border-radius:11px;background:'+t.bg+';display:flex;align-items:center;justify-content:center;margin-bottom:13px"><i class="ti '+s.ic+'" style="font-size:24px;color:'+t.ic+'" aria-hidden="true"></i></div>'+
+      '<p style="font-size:14px;font-weight:500;margin:0 0 5px">'+s.h+'</p>'+
+      '<p style="font-size:12px;color:var(--text-secondary);margin:0 0 '+(buttons||s.hint?'14px':'0')+';line-height:1.5;max-width:230px">'+s.b+'</p>'+
+      (s.hint?'<p style="font-size:12px;color:var(--text-accent);margin:0 0 12px;cursor:pointer">'+s.hint+'</p>':'')+
+      (buttons?'<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">'+buttons+'</div>':'');
+    g.appendChild(el);
+  });
+})();
+</script>

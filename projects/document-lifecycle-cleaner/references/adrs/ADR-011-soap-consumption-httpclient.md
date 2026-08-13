@@ -100,11 +100,15 @@ rest, no new dependency:
   `FolderRuleSet` (a detached `XElement` clone) so the original can be restored
   byte-for-byte after one rule is relaxed. A success response with no `<Rules>` is a
   `Protocol` error.
-- **`SetFolderRules`** — write path. `xmlRules` is the raw `<Rules>…</Rules>` fragment set
-  as element text, so the envelope builder XML-escapes it to the `&lt;Rules&gt;…` form the
-  service expects; `ApplyToTree` is sent lower-case `false` so only the target folder is
+- **`SetFolderRules`** — write path. `xmlRules` carries the `<Rules>…</Rules>` fragment as
+  **real nested XML** (the `<Rules>` element embedded as a child of `<xmlRules>`, rebuilt into
+  the tempuri namespace so it inherits the operation's default `xmlns` on the wire), **not** as
+  escaped element text; `ApplyToTree` is sent lower-case `false` so only the target folder is
   affected. Outcome read from `success` (ADR-004 cardinal rule), parsed by the shared
-  `ParseAck`.
+  `ParseAck`. _(Amended 2026-08-10: originally sent as escaped element text — MAGIQ silently
+  ignores an escaped payload and returns `success="true"` without applying it, so the reactive
+  relax was a no-op and the retried `Move` kept failing "Folder rules disallow deletions".
+  Verified against training; `SOAP-VERIFICATION-34525.md` op 21, `decisions/log.md` [2026-08-10].)_
 
 Both are built with `System.Xml.Linq` and posted with a quoted `SOAPAction`
 (`"http://tempuri.org/GetFolderRules"` / `SetFolderRules`), exactly as the existing ops.

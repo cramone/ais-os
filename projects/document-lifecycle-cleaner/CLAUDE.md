@@ -4,7 +4,7 @@
 
 Yearly automated process to cull documents and folders from MAGIQ Documents based on a calendar year-end cutoff date. Targets a specific facility identified by folder naming conventions (acronyms). Client: NATA.
 
-**Current status:** As-built, plus one specified-not-yet-built phase. Epic 34120 is implemented and merged — the archival/cleanup pipeline, the React SPA, dual IIS/Docker hosting, and the operator/admin surfaces. The spec (`spec/NATA_Document_Lifecycle_Cleaner_Spec_v0.6.md`, aligned to the repo 2026-08-05) describes the system as built. The **Phase 3 — Name Normalization (Step 8)** phase is now implemented in the working tree (`decisions/log.md` [2026-08-05]): SOAP Get/Update Folder+Document ops, `RunPhase.Normalization`, `dbo.CleanupRunRename` + `EnteredNormalization` audit-lock (migration `0004`), the `RenamePlanner` + `ExecuteNormalizationAsync` phase, and confirm→normalization→archival chaining. **Step numbering:** renumbered so nothing collides with Normalization — Normalization = Step 8, Archival = Steps 9–10, Cleanup = Steps 11–12 (`decisions/log.md` [2026-08-05]). Renames address items by their current (raw) path and repath pending descendants after each folder rename. Active work is the deferred/post-MVP backlog (`deferred-work-plan.md`), the folder delete-rule handling, the name-normalization phase, and the **operation audit trail + before/during/after Document Register (CSV)** (all `decisions/log.md` [2026-08-05]).
+**Current status:** As-built. Epic 34120 is implemented and merged — the archival/cleanup pipeline, the React SPA, dual IIS/Docker hosting, and the operator/admin surfaces. The spec (`spec/NATA_Document_Lifecycle_Cleaner_Spec_v0.6.md`, aligned to the repo 2026-08-07) describes the system as built. The **Phase 3 — Name Normalization (Step 8)** phase is now implemented in the working tree (`decisions/log.md` [2026-08-05]): SOAP Get/Update Folder+Document ops, `RunPhase.Normalization`, `dbo.CleanupRunRename` + `EnteredNormalization` audit-lock (consolidated into `0001_baseline.sql` — the interim `0002–0004` scripts were folded into the single baseline), the `RenamePlanner` + `ExecuteNormalizationAsync` phase, and confirm→normalization→archival chaining. **Step numbering:** renumbered so nothing collides with Normalization — Normalization = Step 8, Archival = Steps 9–10, Cleanup = Steps 11–12; `RunPhaseExecutor` emits exactly these numbers (`decisions/log.md` [2026-08-05]). Renames address items by their current (raw) path and repath pending descendants after each folder rename. **2026-08-10:** the Step 8 gate was widened from conflicts-only to **any name change** — the run pauses at the Normalization Review whenever the plan changes a name, the operator reviews the **full folder/document change list** (now on `GET …/normalization/plan`) and can **download it before → after (CSV/Excel)** via `GET …/normalization/changes/export`, then **confirms** (`POST …/normalization/confirm`) before 8b runs; only a zero-change plan auto-continues, and the audit lock still trips on the first executed 8b change (`decisions/log.md` [2026-08-10]; plan `normalization-change-review-plan.md`). **2026-08-10:** Step 10 gained an operator **move-failure retry** — a Document move failures panel lists unmovable documents and the operator retries them individually/selected/all (`GET`/`POST …/archival/move-failures[/retry]`); clearing the last failure **pauses after archival** (`AwaitingInput`) so the operator proceeds to cleanup explicitly via `POST …/archival/continue` rather than auto-chaining the irreversible purge (`decisions/log.md` [2026-08-10]; plan `move-failure-retry-plan.md`). Active work is the deferred/post-MVP backlog (`deferred-work-plan.md`) and the **operation audit trail + before/during/after Document Register (CSV)** polish (all `decisions/log.md` [2026-08-05]).
 
 ## ADO Board
 Project: **Documents** (MAGIQSoftware org). Epic **#34120** — *Document Lifecycle Cleaner — NATA* (8 Features, 17 User Stories, 49 Tasks; created 2026-07-13). Repo: `DocumentLifecycleCleaner`. Work items tagged `document-lifecycle-cleaner` and per-branch tags.
@@ -23,7 +23,7 @@ Project: **Documents** (MAGIQSoftware org). Epic **#34120** — *Document Lifecy
 - Deletion is blocked until folder validation passes (delete constraint rule)
 - Purge is a background system process, not a direct user action
 - A folder rule that disallows deletes (a `Move` is a copy + delete) is handled reactively — read the live rule, temporarily relax it on the one folder, retry, then restore it (`decisions/log.md` [2026-08-05])
-- **Name normalization (Step 8, specified/not-yet-built):** the SOAP `Move`/`CreateFolder` can't handle names with a double space (which the desktop UI allows), so a pre-archival phase renames the offending **source** docs/folders in place (doubled whitespace → single space) via `UpdateFolderProperties`/`UpdateDocumentProperties`. Every rename is recorded, and **once the phase begins the run becomes an audit — it can no longer be deleted, only archived** (spec Rule 7; `decisions/log.md` [2026-08-05])
+- **Name normalization (Step 8, implemented):** the SOAP `Move`/`CreateFolder` can't handle names carrying whitespace variants (double space, non-breaking `U+00A0`, and other Unicode spaces) or invisible format chars (zero-width, BOM, soft hyphen) — all of which the desktop UI allows and which are easily pasted from other documents. A pre-archival phase renames the offending **source** docs/folders in place (any Unicode whitespace → a single regular space, collapsed/trimmed; invisibles stripped — full lists in spec §"Whitespace normalization scope") via `UpdateFolderProperties`/`UpdateDocumentProperties`. The phase runs **8a dry run → conflict gate → 8b execute**: because normalizing can collapse two names onto one, a non-mutating dry run detects name conflicts, the run pauses (`AwaitingInput`) in the **Normalization Review** view for the operator to resolve each (rename / merge folders / keep-one-delete-other; safe rename pre-selected, destructive options confirmed + audited), re-analyses until clean, then executes. Every rename/merge/delete is recorded, and **once 8b executes its first change the run becomes an audit — no longer deletable, only archived** (spec Rules 7 & 8; `decisions/log.md` [2026-08-05, 2026-08-07])
 
 ## Blocking Open Questions (all resolved — historical)
 
@@ -36,7 +36,7 @@ Full resolution history is in `notes.md` and `decisions/log.md`.
 
 ## Scope
 
-Delivered: spec finalised → React UI + .NET API implemented → Epic 34120 shipped (as-built Steps 1–11). Current focus: the deferred/post-MVP backlog (`deferred-work-plan.md`), the folder delete-rule handling, and the specified-not-yet-built **Name Normalization** phase (Step 8; renumbers the spec to 12 steps).
+Delivered: spec finalised → React UI + .NET API implemented → Epic 34120 shipped (as-built Steps 1–12, including the **Name Normalization** phase at Step 8). Current focus: the deferred/post-MVP backlog (`deferred-work-plan.md`) and audit-trail/register polish.
 
 ## File Map
 
@@ -48,6 +48,7 @@ Delivered: spec finalised → React UI + .NET API implemented → Epic 34120 shi
 | `tasks.md` | Task tracking |
 | `dev-context.md` | Cross-project working context: 3-repo topology, settled architecture, the FastEndpoints→command/query→context pattern, branch/PR protocol |
 | `delivery-plan.md` | Epic 34120 ordered branch plan — 17 stories → branches, per-branch scope, dependencies |
+| `normalization-conflict-gate-plan.md` | Implementation plan for the Step 8 conflict dry-run + resolution gate (API + SPA): current→target, data model, ordered branches B1–B8, test matrix, DoD |
 | `decisions/log.md` | Architecture and design decisions (append-only log) |
 | `spec/NATA_Document_Lifecycle_Cleaner_Spec_v0.6.md` | Spec — source of truth (active, markdown) |
 | `spec/dev-spec.md` | Developer specification — API catalogue, data model, config schema, SignalR contract, component map, sequence flows, error contracts |
@@ -66,6 +67,25 @@ Delivered: spec finalised → React UI + .NET API implemented → Epic 34120 shi
 ## Decisions
 
 All architecture and design decisions go in `decisions/log.md`. Do not duplicate entries in `brief.md` or here.
+
+---
+
+## Spec Alignment — keep the spec in step with the repo
+
+**The spec is the source of truth for *intent*; the repo is the source of truth for *behaviour*. They must not drift.** Whenever work in the `DocumentLifecycleCleaner` product repo changes behaviour that the spec describes — or adds behaviour the spec should describe — **the spec is updated in the same unit of work**, before the change is considered done. Treat a spec update as part of the definition of done, not a follow-up.
+
+**What "the spec" means here:** the business/behaviour spec `spec/NATA_Document_Lifecycle_Cleaner_Spec_v0.6.md` (source of truth) **and** its developer companion `spec/dev-spec.md` (API catalogue, data model, config schema, SignalR contract, sequence flows, step numbers). A change usually touches one or both; check both. Architecture/design *rationale* still goes to `decisions/log.md` + `references/adrs/` — the spec records *what the system does*, the log records *why*.
+
+**When a repo change lands (or is being designed), check it against the spec and reconcile:**
+
+- **New or changed behaviour** — endpoint, pipeline phase/step, run state, rule, SOAP op, query contract, config/setting, UI flow, audit/log surface: update the matching spec section (and dev-spec section) so it describes the built behaviour. Bump the `_Last updated:_` date and add a one-line note under **History**.
+- **Step/phase renumbering or renaming** — update every affected reference in both specs (status banner, phase table, step headings, flow diagrams, endpoint table, `RunPhase`/state tables). Grep for the old numbers so none are left stale.
+- **Something the spec still calls "specified / not-yet-built" that has now shipped** — flip it to as-built and remove the not-implemented caveats.
+- **A repo change that contradicts a spec rule or a decision** — do **not** silently rewrite the spec to match. Flag the conflict (surface it to Chase, and note it against `decisions/log.md`) and reconcile the intent first; only then update the spec.
+
+**Keep this CLAUDE.md and `MEMORY.md` honest too** — if the status/step summaries above no longer match the repo, correct them as part of the same reconciliation.
+
+If in doubt, a quick pass is: *did this change what the system does? → find the spec section that claims otherwise → fix it (or flag it) now.*
 
 ---
 

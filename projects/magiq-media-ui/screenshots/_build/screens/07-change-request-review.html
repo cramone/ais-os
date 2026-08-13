@@ -1,0 +1,96 @@
+<div style="font-family:var(--font-sans)">
+  <div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:12px;overflow:hidden">
+
+    <div style="padding:15px 20px;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);margin-bottom:8px">
+        <i class="ti ti-arrow-left" style="font-size:15px;cursor:pointer" aria-hidden="true"></i><span>Change requests</span><i class="ti ti-chevron-right" style="font-size:12px" aria-hidden="true"></i><span style="color:var(--text-secondary)">CR-118</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+        <h1 style="font-size:19px;margin:0">CR-118</h1>
+        <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;color:#185FA5;background:#E6F1FB;border-radius:6px;padding:3px 9px"><i class="ti ti-users-group" style="font-size:13px" aria-hidden="true"></i>Review active</span>
+        <span style="font-size:11px;color:var(--text-muted)">SubmissionBound · opened 2 days ago</span>
+      </div>
+      <p style="font-size:13px;margin:8px 0 0;color:var(--text-secondary)">Reviewing <a href="#" style="color:var(--text-accent);text-decoration:none">Consent DA-2024-0392 — Kellyville subdivision</a> · v3 by A. Kaur</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 236px">
+
+      <div style="padding:18px 20px;border-right:0.5px solid var(--border);min-width:0">
+        <h3 style="font-size:14px;margin:0 0 14px;display:flex;align-items:center;gap:7px"><i class="ti ti-messages" style="font-size:17px;color:var(--text-muted)" aria-hidden="true"></i>Discussion</h3>
+        <div id="thread"></div>
+
+        <div style="margin-top:16px;border:0.5px solid var(--border);border-radius:10px;padding:11px 13px;background:var(--surface-2)">
+          <textarea placeholder="Add a comment for the owner and reviewers" style="width:100%;min-height:56px;resize:vertical;border:none;background:transparent;font-size:13px;font-family:inherit;color:var(--text-primary)"></textarea>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+            <span style="font-size:11px;color:var(--text-muted);flex:1"><i class="ti ti-corner-down-right" style="font-size:13px;vertical-align:-2px" aria-hidden="true"></i> Replies thread under a comment</span>
+            <button style="height:30px;padding:0 13px;border-radius:8px;font-size:13px;cursor:pointer;background:#1D3455;border:none;color:#fff">Comment</button>
+          </div>
+        </div>
+      </div>
+
+      <aside style="padding:18px 16px;background:var(--surface-2)">
+        <h3 style="font-size:12px;margin:0 0 10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Reviewers</h3>
+        <div id="reviewers" style="margin-bottom:18px"></div>
+
+        <div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:10px;padding:12px;margin-bottom:18px">
+          <p style="font-size:12px;color:var(--text-secondary);margin:0 0 3px">Your decision</p>
+          <p style="font-size:11px;color:var(--text-muted);margin:0 0 10px">1 of 2 approved · yours pending. All must approve to publish; any rejection returns it to draft.</p>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <button style="height:36px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;background:var(--bg-success);border:0.5px solid var(--border-success);color:var(--text-success);display:flex;align-items:center;justify-content:center;gap:7px"><i class="ti ti-check" style="font-size:16px" aria-hidden="true"></i>Approve</button>
+            <button style="height:36px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong);color:var(--text-danger);display:flex;align-items:center;justify-content:center;gap:7px"><i class="ti ti-x" style="font-size:16px" aria-hidden="true"></i>Request changes</button>
+          </div>
+          <p style="font-size:10px;color:var(--text-muted);margin:9px 0 0"><i class="ti ti-info-circle" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> You can’t review an item you published.</p>
+        </div>
+
+        <h3 style="font-size:12px;margin:0 0 8px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">What changed</h3>
+        <a href="#" style="display:flex;align-items:center;gap:9px;padding:9px 11px;border:0.5px solid var(--border);border-radius:9px;text-decoration:none;color:var(--text-primary);background:var(--surface-1)">
+          <i class="ti ti-file-diff" style="font-size:17px;color:var(--text-accent)" aria-hidden="true"></i>
+          <div style="flex:1;min-width:0"><p style="font-size:12px;font-weight:500;margin:0">v3 draft vs v2</p><p style="font-size:11px;color:var(--text-muted);margin:0">2 metadata fields · 1 asset</p></div>
+          <i class="ti ti-external-link" style="font-size:14px;color:var(--text-muted)" aria-hidden="true"></i>
+        </a>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var thread=[
+    {a:'A. Kaur',r:'Owner',t:'2 days ago',init:'AK',c:'#534AB7',body:'Submitting v3 with the corrected decision wording and the updated site plan. Expiry date still being confirmed with the assessor.',replies:[]},
+    {a:'T. Osei',r:'Reviewer',t:'1 day ago',init:'TO',c:'#0F6E56',body:'Decision field should read “Approved with conditions”, not just “Approved” — the consent has conditions attached.',replies:[
+      {a:'A. Kaur',r:'Owner',t:'1 day ago',init:'AK',c:'#534AB7',body:'Good catch, will fix in the draft before you approve.'}
+    ]},
+    {a:'T. Osei',r:'Reviewer',t:'4 hours ago',init:'TO',c:'#0F6E56',approved:true,body:'Wording fixed. Approving.'}
+  ];
+  var th=document.getElementById('thread');
+  function comment(x,reply){
+    var wrap=document.createElement('div');
+    wrap.style.cssText='padding:'+(reply?'10px 0 0 34px':'0 0 14px')+';';
+    wrap.innerHTML='<div style="display:flex;gap:10px">'+
+      '<div style="width:28px;height:28px;border-radius:50%;background:'+x.c+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;flex-shrink:0">'+x.init+'</div>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap"><span style="font-size:13px;font-weight:500">'+x.a+'</span><span style="font-size:10px;color:var(--text-muted);background:var(--surface-1);border:0.5px solid var(--border);border-radius:5px;padding:0 6px">'+x.r+'</span>'+(x.approved?'<span style="font-size:10px;color:var(--text-success);background:var(--bg-success);border-radius:5px;padding:0 6px"><i class="ti ti-check" style="font-size:11px;vertical-align:-1px" aria-hidden="true"></i> approved</span>':'')+'<span style="font-size:11px;color:var(--text-muted)">'+x.t+'</span></div>'+
+        '<p style="font-size:13px;margin:4px 0 0;line-height:1.5;color:var(--text-primary)">'+x.body+'</p>'+
+        '<div style="display:flex;gap:12px;margin-top:5px"><span style="font-size:11px;color:var(--text-muted);cursor:pointer"><i class="ti ti-corner-down-right" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> Reply</span></div>'+
+      '</div></div>';
+    th.appendChild(wrap);
+    (x.replies||[]).forEach(function(rp){comment(rp,true);});
+  }
+  thread.forEach(function(c){comment(c,false);});
+
+  var reviewers=[
+    {n:'T. Osei',init:'TO',c:'#0F6E56',s:'Approved'},
+    {n:'You',init:'AK',c:'#534AB7',s:'Pending'}
+  ];
+  var rst={Approved:{c:'var(--text-success)',ic:'ti-circle-check'},Pending:{c:'var(--text-warning)',ic:'ti-clock'},Rejected:{c:'var(--text-danger)',ic:'ti-circle-x'},Withdrawn:{c:'var(--text-muted)',ic:'ti-circle-minus'}};
+  var rh=document.getElementById('reviewers');
+  reviewers.forEach(function(r){
+    var s=rst[r.s];
+    var el=document.createElement('div');
+    el.style.cssText='display:flex;align-items:center;gap:9px;padding:7px 0';
+    el.innerHTML='<div style="width:26px;height:26px;border-radius:50%;background:'+r.c+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500">'+r.init+'</div>'+
+      '<span style="flex:1;font-size:13px">'+r.n+'</span><span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;color:'+s.c+'"><i class="ti '+s.ic+'" style="font-size:14px" aria-hidden="true"></i>'+r.s+'</span>';
+    rh.appendChild(el);
+  });
+})();
+</script>

@@ -2,7 +2,7 @@
 
 _Reference: [NATA Document Lifecycle Cleaner Spec v0.6](./NATA_Document_Lifecycle_Cleaner_Spec_v0.6.md) — business rules, process phases, and all resolved questions._
 
-> **Step numbering.** This developer spec uses the **as-built** step numbers (Archival: Step 9 move, Cleanup: Step 11 purge) that the shipped code uses. The spec inserts a new **Phase 3 — Name Normalization (Step 8)** ahead of archival (`decisions/log.md` [2026-08-05]) and renumbers the later steps (move → 10, delete-empty → 11, purge → 12). Until that phase is implemented, the flows below keep the pre-insertion numbers; the new phase's technical shape is in [Name Normalization Phase](#name-normalization-phase-step-8--specified-not-yet-built) at the end.
+> **Step numbering.** The shipped code now runs the renumbered pipeline (`decisions/log.md` [2026-08-05]): **Phase 3 — Name Normalization = Step 8**, then Archival = **Step 9** (create library) / **Step 10** (move), Cleanup = **Step 11** (delete empty folders) / **Step 12** (purge). `RunPhaseExecutor` emits exactly these numbers. The flows and section headers below use these built numbers; the Name Normalization phase's technical shape is in [Name Normalization Phase](#name-normalization-phase-step-8--implemented) at the end.
 
 ---
 
@@ -41,6 +41,21 @@ Route prefix: `/api`. FastEndpoints REPR pattern — each endpoint is a self-con
 { "sessionToken": "string", "username": "string" }
 ```
 
+### First-run setup (anonymous; gated to the setup phase)
+
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/api/v1/setup/status` | Where setup stands (database + MAGIQ phases, instance id) |
+| `POST` | `/api/v1/setup/test-connection` | Test a candidate app-database connection string |
+| `POST` | `/api/v1/setup/app-database` | Save the app-database connection string (encrypted) and restart |
+| `POST` | `/api/v1/setup/magiq/test-endpoint` | Test a candidate MAGIQ SOAP endpoint (`ServerInfo`) |
+| `POST` | `/api/v1/setup/magiq/login` | Bootstrap sign-in against the candidate endpoint; writes the UI ticket to the shared httpOnly cookie and returns the resolved username to pin as the first allowlisted admin |
+| `POST` | `/api/v1/setup/magiq/users` | Enabled MAGIQ users for the allowlist typeahead (`GetAllUsers`, using the cookie ticket) |
+| `POST` | `/api/v1/setup/magiq` | Save the SOAP endpoint + admin allowlist to finish setup; re-validates the allowlist against `GetAllUsers` (cookie ticket) |
+
+> `GetAllUsers` is **not anonymous**, so the allowlist can only be populated after the bootstrap sign-in. The
+> earlier anonymous `POST /setup/magiq/validate-user` (`UserExists`) endpoint was **removed** (2026-08-08).
+
 ### Runs
 
 | Method | Route | Description |
@@ -52,9 +67,14 @@ Route prefix: `/api`. FastEndpoints REPR pattern — each endpoint is a self-con
 | `POST` | `/api/runs/{runId}/abandon` | Mark failed run as Abandoned |
 | `POST` | `/api/runs/{runId}/reset` | Restart current failed phase from beginning |
 | `POST` | `/api/runs/{runId}/retry` | Resume current failed phase from point of failure |
-| `POST` | `/api/runs/{runId}/purge` | Trigger Step 11 purge (Path B — manual confirmation) |
+| `POST` | `/api/runs/{runId}/purge` | Trigger Step 12 purge (Path B — manual confirmation) |
+| `GET` | `/api/runs/{runId}/archival/move-failures` | The run's failed Step 10 document moves (id, path, error, attempt count) + `canRetry`/`canContinue` flags |
+| `POST` | `/api/runs/{runId}/archival/move-failures/retry` | Retry failed moves **synchronously** — body `{ documentRowIds?: Guid[] }` (empty/omitted = all failed); returns each targeted doc's outcome (`{ runStatus, allCleared, results: [{ id, status, failureReason, attemptCount }] }`). `409 RunNotRetryable` / `409 NoFailuresToRetry` |
+| `POST` | `/api/runs/{runId}/archival/continue` | Proceed from the post-archival pause into cleanup (Steps 11–12). `409 RunNotAwaitingCleanup` |
 | `GET` | `/api/runs/{runId}/log` | Phase log — the run's `CleanupRunPhaseLog` entries (phase-grain) |
-| `GET` | `/api/runs/{runId}/operations` | Operation audit trail — the run's `CleanupRunOperation` entries (object-grain: every create/move/delete/purge/rename/rule-relax + operator decision) |
+| `GET` | `/api/runs/{runId}/operations` | Operation audit trail — one **page** of the run's `CleanupRunOperation` entries (object-grain: every create/move/delete/purge/rename/rule-relax + operator decision) plus the unpaged `total`. Server-paged, sorted + filtered: `?page=` (default 1), `?pageSize=` (default 50, max 200), `?sort=` (`occurredAt`\|`operationType`\|`targetType`\|`outcome`\|`sourcePath`\|`destinationPath`, default `occurredAt`), `?dir=` (`asc`\|`desc`, default `desc`), `?operationType=`, `?targetType=`, `?outcome=`, `?sourcePath=` (substring), `?destinationPath=` (substring), `?search=` (free text over source/destination/detail/error). Unknown enum/sort values fall back to the default |
+| `GET` | `/api/runs/{runId}/operations/paths` | Distinct paths recorded for the run — the SPA source/destination path-filter typeaheads. `?field=` (`source`\|`destination`, default `source`), `?contains=` (case-insensitive substring), `?take=` (default 20, max 50) |
+| `GET` | `/api/runs/{runId}/operations/export` | Download the operation audit trail as **CSV**, honouring the operator's current filters — the same `?operationType=`/`?targetType=`/`?outcome=`/`?sourcePath=`/`?destinationPath=`/`?search=`/`?sort=`/`?dir=` as `.../operations`, minus paging (the whole filtered set). Streams `text/csv` (UTF-8 BOM, RFC 4180) opening with a `#`-prefixed filter-summary header; rendered synchronously (no background job). `404 RunNotFound` for an unknown run (`decisions/log.md` [2026-08-10]) |
 | `POST` | `/api/runs/{runId}/register/export` | Request an on-demand Document Register export (background render); `?format=xlsx\|csv` (default `xlsx`). Bounded to the latest AdHoc export; the pinned Pre/Post snapshots are retained |
 | `GET` | `/api/runs/{runId}/register/export/{exportId}` | Poll a register export's status |
 | `GET` | `/api/runs/{runId}/register/export/{exportId}/download` | Download a ready register export (content type per format) |
@@ -100,6 +120,19 @@ API rejects if value ≠ `"permanently delete"` (case-sensitive).
 | `GET` | `/api/runs/{runId}/folders` | Candidate folder list with path, counts, lock status |
 | `PUT` | `/api/runs/{runId}/folders` | Submit folder selections; transitions run to Step 7 |
 | `POST` | `/api/runs/{runId}/confirm` | Confirm deletions + archive library; initiates Phase 3 |
+
+### Name Normalization review gate (Step 8)
+
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/api/runs/{runId}/normalization/plan` | Projected archive structure + detected name conflicts **+ the full rename list** (feeds Normalization Review) |
+| `POST` | `/api/runs/{runId}/normalization/conflicts/draft` | Autosave draft conflict resolutions |
+| `POST` | `/api/runs/{runId}/normalization/resolve` | Submit resolutions → re-run 8a; returns remaining conflicts, or "clean" (re-pauses at the review gate — does **not** auto-execute) |
+| `POST` | `/api/runs/{runId}/normalization/confirm` | Confirm the reviewed change list (no conflicts pending) → resume + enqueue 8b execute |
+| `GET` | `/api/runs/{runId}/normalization/changes/export?format=xlsx\|csv` | Download the before → after name-change list (renames + resolved merges/deletes) |
+| `GET` | `/api/runs/{runId}/normalization/failures` | The run's failed Step 8b renames (id, itemType, path, newName, error) + `canRetry`/`canContinue` flags |
+| `POST` | `/api/runs/{runId}/normalization/failures/retry` | Retry failed renames **synchronously** — body `{ renameRowIds?: Guid[] }` (empty/omitted = all failed); returns `{ runStatus, allCleared, items: [still-failed] }`. `409 RunNotRetryable` / `409 NoFailuresToRetry` |
+| `POST` | `/api/runs/{runId}/normalization/continue` | Proceed from the post-normalization pause into archival. `409 RunNotAwaitingArchival` / `409 NormalizationFailuresRemain` |
 
 **Folder item (GET response):**
 ```json
@@ -154,6 +187,7 @@ Locked folders cannot be deselected — API rejects any `selectedForDeletion: fa
 | `GET` | `/api/v1/admin/queries/{key}` | Get one configured query |
 | `PUT` | `/api/v1/admin/queries/{key}` | Replace a query's SQL (optimistic-concurrency checked) |
 | `POST` | `/api/v1/admin/schema/verify` | Verify the configured queries against the live MAGIQ schema (Story 34575) — see contract below |
+| `GET` | `/api/v1/admin/magiq/users` | Enabled MAGIQ users for the System Settings allowlist typeahead (`GetAllUsers`, using the operator's live UI ticket) |
 
 ---
 
@@ -231,7 +265,7 @@ CREATE TABLE CleanupRunPhaseLog (
 
 ### CleanupRunOperation
 
-Append-only, object-level audit of every mutating primitive a run executes against MAGIQ, plus the operator decisions that shape it — the "during" record between the pre-run and post-run register snapshots (`decisions/log.md` [2026-08-05]). Complements `CleanupRunPhaseLog` (phase-grain) and is never updated, only inserted/read. Written at the SOAP call sites in `RunPhaseExecutor` and `ArchiveLibraryTeardown`, and in the review/confirm/purge handlers for the decision rows. Moves are recorded **batch-summary** (one row per batch, counts in `Detail`) to preserve the per-batch move-persistence decision (2026-07-28); creates/deletes/domain/purge/rename/rule-relax+restore and operator decisions are per-op.
+Append-only, object-level audit of every mutating primitive a run executes against MAGIQ, plus the operator decisions that shape it — the "during" record between the pre-run and post-run register snapshots (`decisions/log.md` [2026-08-05]). Complements `CleanupRunPhaseLog` (phase-grain) and is never updated, only inserted/read. Written at the SOAP call sites in `RunPhaseExecutor` and `ArchiveLibraryTeardown`, and in the review/confirm/purge handlers for the decision rows. Moves are recorded **per document** — one row per document (its path, destination, outcome and error), bulk-inserted per batch via `AppendManyAsync` so throughput matches the old batch-summary write (`decisions/log.md` [2026-08-09], reversing the 2026-08-05 batch-summary call); creates/deletes/domain/purge/rename/rule-relax+restore and operator decisions are per-op. The trail is read one **newest-first page** at a time with server-side filters (`GetPageByRunAsync`), so a run with tens of thousands of moves no longer loads whole into the SPA. The same filters drive a **CSV export** (`GetAllByRunAsync` — the unpaged form; `RunOperationsCsvWriter`; `GET .../operations/export`): the operator downloads exactly the rows they've filtered to, in a file that opens with a `#`-prefixed summary of the applied filters (`decisions/log.md` [2026-08-10]).
 
 ```sql
 CREATE TABLE CleanupRunOperation (
@@ -258,24 +292,27 @@ CREATE TABLE CleanupRunOperation (
 
 ### CleanupRunRename _(Step 8 — implemented 2026-08-05)_
 
-Audit record of every source rename made by the Name Normalization phase — the permanent account of the changes the tool made to NATA's live repository. Built alongside a `CleanupRun.EnteredNormalization` bit (in `0001_baseline.sql`) which is the audit-lock signal `DescribeDeletability` consumes. The phase detects what to rename from the **raw** candidate paths (`IMagiqDocumentQueries.GetRawCandidateDocumentPathsAsync`, un-normalized) via the pure `RenamePlanner`, and each rename is a SOAP **Get→Update** pair (re-supplying the read-back `Description`/`UpdateInstructions`; see SOAP-VERIFICATION-34525.md ops 14–17). A rename also writes a `Rename` row to `CleanupRunOperation`.
+Audit record of every source rename made by the Name Normalization phase — the permanent account of the changes the tool made to NATA's live repository. Built alongside a `CleanupRun.EnteredNormalization` bit (in `0001_baseline.sql`) which is the audit-lock signal `DescribeDeletability` consumes. The phase detects what to rename from the **raw** candidate paths (`IMagiqDocumentQueries.GetRawCandidateDocumentPathsAsync`, un-normalized) via the pure `RenamePlanner`, which flags a name needing normalization when it contains **any Unicode whitespace character (`char.IsWhiteSpace`) or any of the invisible format characters** in the strip list, and produces the target by two rules — every whitespace character → a regular space with runs collapsed and ends trimmed; every invisible format character (`U+200B`, `U+200C`, `U+200D`, `U+2060`, `U+FEFF`, `U+00AD`) removed outright (see spec §"Whitespace normalization scope" for the definitive lists). Each rename is a SOAP **Get→Update** pair (re-supplying the read-back `Description`/`UpdateInstructions`; see SOAP-VERIFICATION-34525.md ops 14–17). A rename also writes a `Rename` row to `CleanupRunOperation`.
 
 ```sql
 CREATE TABLE CleanupRunRename (
     Id            UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
     RunId         UNIQUEIDENTIFIER NOT NULL REFERENCES CleanupRun(Id),
+    Seq           BIGINT           NOT NULL,  -- per-run monotonic plan order (folders top-down, then documents); assigned MAX(Seq)+1 in the insert (decisions/log.md [2026-08-11])
     ItemType      NVARCHAR(20)     NOT NULL,  -- Folder|Document
-    OriginalPath  NVARCHAR(2000)   NOT NULL,  -- path as addressed, with the doubled whitespace
+    OriginalPath  NVARCHAR(2000)   NOT NULL,  -- path as addressed, with the original whitespace variant / invisible char
     OriginalName  NVARCHAR(500)    NOT NULL,
-    NewName       NVARCHAR(500)    NOT NULL,  -- whitespace collapsed to single spaces
+    NewName       NVARCHAR(500)    NOT NULL,  -- any whitespace → regular space (collapsed/trimmed); invisibles stripped
     Status        NVARCHAR(20)     NOT NULL DEFAULT 'Pending',  -- Pending|Renamed|Failed
     FailureReason NVARCHAR(1000)   NULL,
     RenamedAt     DATETIME2        NULL,
     RenamedBy     NVARCHAR(100)    NULL       -- operator/process ticket owner
 );
+-- Read ORDER BY Seq (Id is NEWID/random): Step 8b applies — and the retry reconcile replays — renames in Seq
+-- order, so ancestor folders rename before their descendants (decisions/log.md [2026-08-11]).
 ```
 
-> A run also needs a persisted "reached normalization" signal for the audit lock — either the presence of any `CleanupRunRename` row, or a `CurrentPhase`/high-water-mark check (`RunPhase.Normalization` reached). `DescribeDeletability` consumes it (see the phase section below).
+> The audit lock is signalled by `CleanupRun.EnteredNormalization`, **set at the first executed mutation in Step 8b** (not on entering the phase) so a run still in the dry run / conflict gate stays deletable. `DescribeDeletability` consumes it (see the phase section below).
 
 ---
 
@@ -424,9 +461,11 @@ with `passed: false` — not an HTTP error. Enum values are serialised as their 
 
 ---
 
-## Name Normalization Phase (Step 8) — specified, not yet built
+## Name Normalization Phase (Step 8) — implemented
 
-New pipeline phase inserted **between operator confirmation (Step 7) and archival**, working around the MAGIQ double-space bug: the desktop UI allows a document/folder name containing a run of consecutive whitespace, but the SOAP `Move`/`CreateFolder` ops collapse whitespace and cannot create or move such an item, so the archival move fails. This phase renames the offending **source** items in place so the move succeeds. Design → `decisions/log.md` [2026-08-05]; spec §"Phase 3 — Name Normalization"; ADR-002 / ADR-004 amendments.
+Pipeline phase inserted **between operator confirmation (Step 7) and archival**, working around the MAGIQ name-mismatch bug: the desktop UI allows a document/folder name containing whitespace variants (a doubled space, a non-breaking space `U+00A0`, and other Unicode spaces) or invisible format characters, which are easily pasted in from other documents, but the SOAP `Move`/`CreateFolder` ops collapse/trim whitespace and fold those variants, so they cannot create or move such an item and the archival move fails. This phase renames the offending **source** items in place — **every Unicode whitespace character (`char.IsWhiteSpace`) → a regular space, collapsed and trimmed; every invisible format character stripped** — so the move succeeds. See spec §"Whitespace normalization scope" for the definitive character lists. Design → `decisions/log.md` [2026-08-05, 2026-08-07]; spec §"Phase 3 — Name Normalization"; ADR-002 / ADR-004 amendments.
+
+Because normalizing names can collapse two distinct items onto the same name, the phase runs in three parts: **8a dry run** (plan the renames + detect conflicts, no mutation) → **review gate** (`AwaitingInput`; operator resolves any conflicts, then reviews + confirms the full change list — pauses whenever the plan changes any name, per `decisions/log.md` [2026-08-10]) → **8b execute** (apply renames/merges/deletes, mutating). The run is **audit-locked at the first executed mutation in 8b**, not on entering the phase (spec Rule 7, amended 2026-08-07).
 
 ### New SOAP operations (Path 1)
 
@@ -434,46 +473,109 @@ New pipeline phase inserted **between operator confirmation (Step 7) and archiva
 |---|---|---|
 | Rename a folder level | `UpdateFolderProperties` | `AuthenticationTicket`, `Path`, `NewFolderName`, `NewDescription` |
 | Rename a document | `UpdateDocumentProperties` | `AuthenticationTicket`, `Path`, `NewDocumentName`, `NewDescription`, `NewUpdateInstructions` |
+| Delete a document (keep-one/delete-other) | `DeleteDocument` (verified — `SOAP-VERIFICATION-34525.md` op 18) | `AuthenticationTicket`, `Path` (→ recycle bin) |
+| Read a document + version checksums (duplicate identity) | `GetDocument` `withVersions=true` (op 16) | `AuthenticationTicket`, `Path`, `withVersions=true` → `<Versions>`/`CheckSum` |
+| Folder merge (fold one folder into another) | reuses `Move` (children) + `DeleteFolder` (emptied folder) | — |
 
-Same `<response success="…"/>` contract as the other ops (check `success`, not HTTP status). The exact path form these ops accept to address a **still-doubled** source item, and their response shapes, are **to confirm at integration** against training (ADR-011 / Story 34525 class).
+Same `<response success="…"/>` contract as the other ops (check `success`, not HTTP status). The exact path form these ops accept to address a **still-affected** source item (one that still carries a whitespace variant or an invisible format character), and their response shapes, are **to confirm at integration** against training (ADR-011 / Story 34525 class).
+
+### Admin-allowlist SOAP operation
+
+| Purpose | SOAP method | Signature (request parts) |
+|---|---|---|
+| List users for the allowlist typeahead | `GetAllUsers` (verified — `SOAP-VERIFICATION-34525.md` op 19) | `AuthenticationTicket` → `<users><User UserName FirstName LastName Email Enabled …/></users>` |
+
+`GetAllUsers` is **not anonymous** (unlike `UserExists`), so it runs after the first-run bootstrap sign-in or on the operator's live UI ticket. `ParseUserList` reads each `<User>`'s `UserName`/`FirstName`/`LastName`/`Email`/`UserID`/`Enabled`; callers drop `Enabled="FALSE"` accounts. This retires the anonymous `UserExists` allowlist check (2026-08-08).
 
 ### Behaviour
 
-- **Phase model.** New `RunPhase.Normalization`; its own Hangfire job (`ExecuteNormalizationAsync`) that chains to archival on success — resume-safe and idempotent (an item with no doubled whitespace left is skipped). Batched with per-item status and progress via `IRunProgressNotifier`, like the move.
-- **What is renamed.** From the run's candidate documents and their resolved paths, collapse each run of consecutive whitespace to a single space:
-  1. **Folder path levels first, top-down (ancestors before descendants)** so descendant paths stay resolvable, via `UpdateFolderProperties`.
-  2. **Then documents** whose own name contains a double space, via `UpdateDocumentProperties`, addressed by the now-normalized folder path.
-- **Recording (required).** Each rename writes a `CleanupRunRename` row (`Renamed`/`Failed`) and a `CleanupRunPhaseLog` entry. This is the phase's purpose, not incidental logging.
-- **Failure handling.** A rename that can't be completed leaves the item `Failed`; like an unmovable document it blocks the archival move for that item, and the run surfaces the failures. Only once normalization is complete does the pipeline chain to archival.
+- **Phase model.** `RunPhase.Normalization` with two background jobs and an operator gate between them. **8a** `AnalyzeNormalizationAsync` (pure/`RenamePlanner`) builds the plan and conflict set — no SOAP writes. If the plan **changes any name** (a conflict and/or a rename) the run goes `AwaitingInput`; the operator resolves any conflicts and submits (re-runs 8a with resolutions applied — fixpoint loop), then reviews the full change list and **confirms** via `POST …/normalization/confirm`. Only a plan that changes **nothing** skips the gate and enqueues 8b directly. **8b** `ExecuteNormalizationAsync` applies the plan and chains to archival on success — resume-safe and idempotent (an item already at its resolved name / already merged / already deleted is skipped). Batched with per-item status and progress via `IRunProgressNotifier`, like the move.
 
-### Audit lock (spec Rule 7)
+**Normalization execution gate (Branch A).** Step 8b **never auto-advances** to archival. After applying the plan it **always pauses** the run — `PauseAfterNormalizationExecute` (Running → `AwaitingInput` in Normalization) — regardless of whether every rename succeeded or some failed. (Two things make this reliable: the phase body writes each item's outcome to `dbo.CleanupRunRename`, and — crucially — `LoadRunnableAsync` no-ops on any non-`Running` state, so the archival continuation Hangfire chains after the 8b job does nothing while the run is paused/failed. This closes a bug where a failed/paused normalization still ran archival because the guard only excluded Cancelled/Completed/Abandoned.) The details view shows a **Normalization execution** panel (`GET …/normalization/failures`, which now returns the **full** rename list with per-item status) that updates inline as each item completes (`Renamed`) or fails (with reason); the operator retries failures individually or all (`POST …/normalization/failures/retry`, `INormalizationFailureRetryer.RetryRenamesInlineAsync` — re-attempts in Seq order, repathing descendants + candidate docs after a folder succeeds, audits each as a `Rename` row, run stays paused throughout). The run **cannot advance while any rename is Failed or Pending**; once all are `Renamed` the operator confirms via `POST …/normalization/continue` (`ResumeAfterNormalization` + `StartArchival`, guarded `409 NormalizationChangesIncomplete`). `RunSummary.EnteredNormalization` distinguishes this post-8b execution state from the pre-mutation Normalization Review gate (both present as Normalization-phase pauses).
+- **The plan (8a).** From the run's candidate documents and their resolved paths, `RenamePlanner` computes each target name by the two normalization rules — every Unicode whitespace char (`char.IsWhiteSpace`) → a regular space (runs collapsed, ends trimmed); every invisible format char (`U+200B`/`U+200C`/`U+200D`/`U+2060`/`U+FEFF`/`U+00AD`) stripped — and projects the resulting tree. Folder levels are planned top-down (ancestors before descendants). A **conflict** is ≥2 items resolving to the same name under the same parent, evaluated against the **whole projected structure** (including non-candidate siblings), split into `FolderFolder` and `DocumentDocument` kinds.
+- **Conflict resolution (gate).** Each conflict gets a suggested resolution — default is a **non-destructive** disambiguating rename (append `" (2)"`, `" (3)"`, …). Operator options: `RenameFolder`, `RenameDocument`, `MergeFolders` (then any resulting inner document conflicts resolve by `RenameDocument` or `KeepOneDeleteOther`), `KeepOneDeleteOther`. Destructive options require an explicit choice + confirmation. Resolutions are draft-saved (like Step 6 selections) and, on submit, fed back into 8a until zero conflicts.
+- **Duplicate identity (document conflicts).** For a `DocumentDocument` conflict, 8a reads each colliding document with `GetDocument` `withVersions=true` and compares the `<Version>` `CheckSum` set (+ `VersionSize`). All-match ⇒ flag the group **identical** (the gate may pre-note keep-one/delete-other as a safe collapse); any mismatch ⇒ **distinct content**, so keep-one/delete-other is marked lossy and the rename default stands. Persist the verdict on the conflict row so the SPA renders it without re-fetching.
+- **Protection filter (spec Rule 2 wins).** 8a tags each `CleanupRunNameConflictItem` with `Protected` (from the Step 4 protection computation — a folder holding a post-cutoff doc or any ancestor of one; a post-cutoff document itself). The gate then **removes any option that would delete protected content**: a `MergeFolders` must orient so the protected folder is the survivor (never `DeleteFolder`'d); `KeepOneDeleteOther` cannot select a protected/post-cutoff document as the delete target; the default `Rename` targets the non-protected side; and if all members are protected, `RenameFolder`/`RenameDocument` is the only offered `ResolutionType`. `resolve` server-side re-validates this — a client that submits a protection-violating resolution is rejected — so protection can't be bypassed by a crafted request.
+- **Non-candidate filter (Gap 2).** 8a also tags `NonCandidate` on any colliding folder the cull didn't select (no candidate docs beneath it). Such a folder is **survivor-only**: `MergeFolders` may keep it but never `DeleteFolder` it, and the default is `RenameFolder` on the candidate side. A merge whose survivor is `NonCandidate` sets an `outOfScope` flag on the response so the SPA shows the "combining with a folder outside this cull" warning + confirm; `resolve` re-validates that no `NonCandidate` (or `Protected`) item is ever the deleted side.
+- **Execute (8b).** Apply the resolved plan: renames via `UpdateFolderProperties`/`UpdateDocumentProperties`; merges via `Move` (children) + `DeleteFolder` (emptied folder); duplicate deletes via the document-delete op. Top-down for folders. **First executed action sets `CleanupRun.EnteredNormalization` (the audit-lock bit).** **Candidate documents are repathed in lockstep** — after a folder rename (prefix rewrite of documents beneath it), a document rename (its leaf), or a folder merge (loser → survivor) the `CleanupRunDocument.DocumentPath` rows are updated via `ICleanupRunDocumentStore.UpdatePathsAsync`, mirroring the rename-row repath. Without this Step 10 addresses a moved/renamed source by its stale path and the move fails *"source folder not found"* (decisions/log.md [2026-08-11]). A **keep-one/delete-other** resolution additionally marks the deleted duplicate's candidate row `MoveStatus.Deleted` (matched by its raw path) so it is excluded from the Step 10 move set — `GetMovable`/`HasUnmovedDocuments` select `MoveStatus IN ('Pending','Failed')`, so a `Deleted` candidate is neither moved nor counted as a failure, and the row is retained for the register/audit.
+- **Recording (required).** Every executed action writes a `CleanupRunRename` row (renames) or `CleanupRunOperation` row (`Rename`/`FolderMerge`/`DeleteDuplicate`, plus an `OperatorOverride`-style row per resolution decision) and a `CleanupRunPhaseLog` entry. This audit is the phase's purpose, not incidental logging.
+- **Failure handling.** An action that can't be completed leaves the item `Failed`; like an unmovable document it blocks the archival move for that item, and the run surfaces the failures. Only once execution is complete does the pipeline chain to archival.
 
-Normalization is the **first phase that mutates the customer's source repository**, and a rollback does **not** undo a rename. So once a run has entered `RunPhase.Normalization`:
+### Conflict data model & endpoints
+
+`RenamePlanner` output persists conflicts so the gate is resumable and the SPA can render them. New table (add to `0001_baseline.sql`; DB is reset pre-release per `decisions/log.md` [2026-08-06]):
+
+```sql
+CREATE TABLE CleanupRunNameConflict (
+    Id             UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    RunId          UNIQUEIDENTIFIER NOT NULL REFERENCES CleanupRun(Id),
+    Kind           NVARCHAR(20)     NOT NULL,   -- FolderFolder | DocumentDocument
+    ParentPath     NVARCHAR(2000)   NOT NULL,   -- normalized parent under which the collision occurs
+    CollidingName  NVARCHAR(500)    NOT NULL,   -- the shared normalized name
+    Identical      BIT              NULL,       -- DocumentDocument only: all version CheckSums match (GetDocument withVersions)
+    ResolutionType NVARCHAR(30)     NULL,       -- RenameFolder|RenameDocument|MergeFolders|KeepOneDeleteOther
+    Status         NVARCHAR(20)     NOT NULL DEFAULT 'Pending',  -- Pending|Resolved
+    ResolvedBy     NVARCHAR(100)    NULL,
+    ResolvedAt     DATETIME2        NULL
+);
+-- CleanupRunNameConflictItem(ConflictId, ItemType, OriginalPath, OriginalName, NormalizedName,
+--   Protected BIT /* Rule 2: protected folder or post-cutoff doc — never deletable/mergeable-away */,
+--   NonCandidate BIT /* folder outside the cull — survivor-only, never deleted; merge needs out-of-scope warn */,
+--   Action /* Rename|Merge|Keep|Delete */, NewName NULL) lists the members + their per-item action.
+```
+
+`CleanupRunOperation.OperationType` gains `FolderMerge` and `DeleteDuplicate` (existing `Rename` covers renames).
+
+| Method | Route | Purpose |
+|---|---|---|
+| `GET` | `/api/runs/{runId}/normalization/plan` | Projected structure + conflicts **+ `Renames` (the full change list)** (feeds the Normalization Review tree) |
+| `POST` | `/api/runs/{runId}/normalization/conflicts/draft` | Save draft resolutions |
+| `POST` | `/api/runs/{runId}/normalization/resolve` | Commit resolutions (server re-validates Rule 2 / Gap 2), resume the run and re-enqueue the 8a dry run; responds `{ runStatus, message }` — the client polls the plan endpoint for the loop outcome |
+| `POST` | `/api/runs/{runId}/normalization/confirm` | Confirm the reviewed change list — rejects `409 UnresolvedConflicts` if any conflict is still pending, else `ResumeNormalization` + `StartNormalizationExecute` (8b → archival → cleanup) |
+| `GET` | `/api/runs/{runId}/normalization/changes/export?format=xlsx\|csv` | Stream the before → after name-change list (renames + resolved merges/deletes), rendered synchronously via the register CSV/XLSX writers |
+| `GET` | `/api/runs/{runId}/normalization/failures` | Failed Step 8b renames + `canRetry` (Failed in Normalization) / `canContinue` (paused post-8b, `EnteredNormalization`, no failures) — feeds the Normalization Failures panel |
+| `POST` | `/api/runs/{runId}/normalization/failures/retry` | `INormalizationFailureRetryer.RetryRenamesInlineAsync` — re-attempt failed renames (subset via `renameRowIds`, else all) in Seq order with descendant repathing; on clearing the last failure `AwaitNormalizationContinue` (Failed→AwaitingInput) |
+| `POST` | `/api/runs/{runId}/normalization/continue` | Guarded to `AwaitingInput`+Normalization+`EnteredNormalization` with no failed renames → `ResumeAfterNormalization` + `StartArchival` (archival → cleanup) |
+
+`resolve` is asynchronous: it validates every pending conflict is resolved and that no resolution deletes/merges-away a protected or non-candidate item (else `422`), persists the resolutions as `Resolved`, then `ResumeNormalization` + `StartNormalizationAnalysis`. The re-run 8a re-detects (a chosen resolution can create a new collision) and either re-pauses at the gate with the new conflicts **or, when clean, re-pauses at the review gate with the full change list** (it does **not** auto-execute — execution needs an explicit `confirm`). The client polls `GET …/plan` to see remaining conflicts or that the plan is clean and ready to confirm. `confirm` is the only path that starts 8b (except a zero-change plan, which 8a chains directly).
+
+### Audit lock (spec Rule 7, amended 2026-08-07)
+
+Normalization is the **first phase that mutates the customer's source repository**, and a rollback does **not** undo a rename/merge/delete. The lock trips on the **first executed mutation in 8b** — signalled by `CleanupRun.EnteredNormalization` being set — **not** on entering `RunPhase.Normalization`. A run still in the 8a dry run or the review gate (resolving conflicts or reviewing/confirming the change list) has written nothing and stays fully deletable. Once the bit is set:
 
 - `CleanupRun.DescribeDeletability` must **never** return `CanDelete` for it — the tier can be `Reversible`/`Irreversible` but never `NoChanges`, regardless of later progress or a subsequent document rollback.
-- The run is disposed of only by **archive** (retained for the record with its `CleanupRunRename` log); document moves can still be rolled back, but the run row and rename audit persist.
+- The run is disposed of only by **archive** (retained for the record with its `CleanupRunRename` + conflict logs); document moves can still be rolled back, but the run row and audit persist.
+
+> `DescribeDeletability` keys off `EnteredNormalization` (set at first executed change), **not** a `CurrentPhase == Normalization` check — so pre-execution runs remain deletable. (This supersedes the earlier "presence of any `CleanupRunRename` row or `CurrentPhase` reached" note.)
 
 ### Sequence — Name Normalization (Step 8)
 
 ```
-Step 7 confirm succeeds
-  → CleanupRun enters RunPhase.Normalization (new Step 8)  [run is now audit-locked]
-  → Enqueue Hangfire job: ExecuteNormalizationAsync
+Step 7 confirm succeeds → CleanupRun enters RunPhase.Normalization (NOT yet audit-locked)
+  → Enqueue Hangfire job: AnalyzeNormalizationAsync (8a)
 
-Hangfire: ExecuteNormalizationAsync
-  → Build the set of folder levels + documents (from candidate docs + resolved paths)
-      that contain a run of consecutive whitespace
-  → For each folder level, top-down:
-      → UpdateFolderProperties(ticket, path, collapsedName, …)
-      → success → record CleanupRunRename(Renamed);  failure → Failed + ItemFailed
-  → For each document with a doubled name:
-      → UpdateDocumentProperties(ticket, path, collapsedName, …)
-      → success → record CleanupRunRename(Renamed);  failure → Failed + ItemFailed
+8a  Hangfire: AnalyzeNormalizationAsync   [no SOAP writes]
+  → RenamePlanner.Plan(rawPaths, resolutions?) → target names + projected tree
+  → Detect conflicts (≥2 items → same name under same parent, incl. non-candidate siblings)
+  → conflicts.any?          → persist CleanupRunNameConflict rows; Status = AwaitingInput (resolve gate)
+     conflicts.none + renames.any? → persist CleanupRunRename rows; Status = AwaitingInput (review gate)
+     conflicts.none + renames.none? → enqueue ExecuteNormalizationAsync (8b)   // nothing to review
+
+gate  Operator (Normalization Review view)
+  → GET  /normalization/plan            → projected tree + conflicts + full rename list
+  → POST /normalization/conflicts/draft → autosave resolutions
+  → POST /normalization/resolve         → re-enqueue AnalyzeNormalizationAsync with resolutions
+  → loop 8a until conflicts.none (then it re-pauses at the review gate — does NOT auto-execute)
+  → GET  /normalization/changes/export  → download before → after list (CSV/XLSX)  [optional]
+  → POST /normalization/confirm         → ResumeNormalization + enqueue ExecuteNormalizationAsync (8b)
+
+8b  Hangfire: ExecuteNormalizationAsync   [mutating — first action sets EnteredNormalization]
+  → For each folder level, top-down: UpdateFolderProperties(…)  → CleanupRunRename(Renamed)/Failed
+  → For each folder merge:  Move(children) + DeleteFolder(emptied) → CleanupRunOperation(FolderMerge)
+  → For each document:      UpdateDocumentProperties(…) or DeleteDocument(dup) → Rename/DeleteDuplicate
   → Any Failed → CleanupRun.Status = Failed (surfaced; blocks that item's move)
   → All clean  → Hangfire continuation → archival (Step 9 create library → Step 10 move)
 ```
-
-> **Renumber note:** with this phase in place the archival/cleanup flows above shift by one — the "Step 9 Move" flow becomes Step 10, "Step 11 Path B purge" becomes Step 12, etc. The existing flow headers keep the as-built numbers until the phase is implemented.
 
 ## SignalR Hub Contract
 
@@ -513,7 +615,13 @@ AppShell
     │   ├── PhaseTimeline                (visual step progress)
     │   ├── ProgressPanel                (progress bar, processed/total, currentItemPath, elapsed, ETA)
     │   ├── FailedItemsList              (live-updated; persists across Reset/Retry)
-    │   ├── PurgePanel                   (shown when status = AwaitingInput at Step 11)
+    │   ├── NormalizationReview          (shown when status = AwaitingInput at Step 8 conflict gate)
+    │   │   ├── ProjectedStructureTree   (adapted from FolderTable/tree; renders the planned archive outcome)
+    │   │   │   └── ConflictBadge[]      (in-place on colliding nodes)
+    │   │   ├── ConflictResolver[]       (issue + suggested default + options: rename folder/doc, merge, keep-one/delete-other; options gated by protection + out-of-scope, with badges)
+    │   │   ├── ImpactSummary            (counts of renames/merges/deletes; warns on destructive picks)
+    │   │   └── ResolveActions           (Re-check / Continue — autosaves draft; loops until clean)
+    │   ├── PurgePanel                   (shown when status = AwaitingInput at Step 12)
     │   │   └── PurgeConfirmModal        (typed "permanently delete" required)
     │   └── RunActions                   (Reset | Retry | Abandon — shown on Failed)
     │
@@ -584,31 +692,77 @@ Hangfire: ExecutePhase1
   → Emit RunStateChanged via SignalR
 ```
 
-### 3. Step 9 — Move with Retry Loop
+### 3. Step 9 — Create (or adopt) the archive library
 
 ```
-Hangfire: ExecuteStep9
+Hangfire: ExecuteArchivalAsync (Step 9 — create library)
+  → Skip entirely if ArchiveLibraryId already set (operator-chosen existing lib, or a resume that
+    persisted the id) — the id is the idempotency marker.
+  → Else (create mode): GetDomains → find a library whose name == ArchiveLibraryName (case-insensitive)
+      → Match found  → adopt it: SetArchiveLibraryId(match.Id ?? libraryRootPath); DO NOT
+                       MarkArchiveLibraryCreated (not owned → teardown never deletes it);
+                       CleanupRunOperation(CreateDomain, Ok, Detail="…already existed…creation skipped")
+      → No match     → CreateDomain → MarkArchiveLibraryCreated; SetArchiveLibraryId(created.Id);
+                       CleanupRunOperation(CreateDomain, Ok)
+      → GetDomains/CreateDomain fault → CleanupRunOperation(CreateDomain, Failed) + CleanupRun.Status = Failed
+```
+
+This closes the "A library with this name already exists" failure seen when a prior attempt created the
+domain but crashed before persisting `ArchiveLibraryId`, so a resume re-enters create mode.
+
+### 4. Step 10 — Move with Retry Loop
+
+```
+Hangfire: ExecuteArchivalAsync (Step 10 — move)
   → Load CleanupRunDocument where MoveStatus = Pending
-  → Batch documents (batch size TBD)
-  → For each document:
-      → Call SOAP Move(documentId, archiveLibraryId)
-      → Success  → MoveStatus = Moved
-      → Failure  → MoveStatus = Failed, FailureReason, AttemptCount++
-      → Emit ItemFailed / ProgressUpdated via SignalR
+  → Batch documents (ArchivalBatchSize = 25)
+  → Within each batch, GROUP BY source folder (ParentPath):
+      → For each document in the folder: ensure destination folder, then SOAP Move(source, target)
+      → If any of the folder's documents were blocked:
+          → RunFolderGroupAsync → guard.WithRuleRelaxedAsync(sourceFolder, DocumentDeletes):
+              GetFolderRules once → if DocumentDeletes disallows: SetFolderRules(allows) ONCE
+              → retry only the still-failed documents → SetFolderRules(restore) ONCE
+          (rule already allows / unreadable / relax rejected → blocked docs stay Failed)
+      → Success  → MoveStatus = Moved ; one per-document Move audit row (Ok)
+      → Failure  → MoveStatus = Failed, FailureReason ; per-document Move audit row (Failed) ; ItemFailed
   → After full pass: reload all Failed documents
-  → Retry each Failed document once more (AttemptCount++)
+  → Retry pass over the still-Failed set (same per-folder relax-once path)
   → Any still-failed → CleanupRun.Status = Failed
-  → All succeeded  → Hangfire continuation → ExecuteStep10
+  → All succeeded  → Hangfire continuation → ExecuteCleanupAsync (Steps 11–12)
 ```
 
-**Operator Retry:** re-enqueue only documents where `MoveStatus = Failed`. Does not reset `AttemptCount` — history preserved.
+The rule relax/restore is **once per folder**, not once per document (decisions/log.md [2026-08-09]): the
+per-document flip churned the same folder's rule and left later documents in the folder failing. The Step
+11 folder-delete (group by parent, `FolderDeletes`) and the rollback move-back (group by original folder,
+`NewDocuments`) use the same `RunFolderGroupAsync` shape. The per-item audit rows are written from **inside**
+the relaxed scope (after the retries, before the restore), so the operation trail reads
+`RuleRelax → Move/DeleteFolder rows → RuleRestore` in `Seq` order — faithful to the SOAP order, not
+reverted-before-touched (decisions/log.md [2026-08-09]).
+
+**Operator move-failure retry (implemented — decisions/log.md [2026-08-10]).** From the Document move
+failures panel, `POST …/archival/move-failures/retry` re-attempts failed moves — a selected subset (`documentRowIds`)
+or all failed (empty/omitted). It runs **synchronously and silently** via `IMoveFailureRetryer.RetryDocumentMovesInlineAsync`
+(implemented by `RunPhaseExecutor`): it first calls `ReconcileCandidateDocumentPathsAsync` (idempotent — replays
+the completed rename log + resolved merges onto the candidate paths, repairing any left stale by a Step 8 that
+predates the in-line repath), then moves only the targeted documents through the same per-folder
+relax-once machinery **without** flipping the run to Running or emitting run progress (`MoveDocumentsAsync(…,
+emitProgress: false)`), and returns each targeted document's post-retry status so the SPA shows the outcome
+inline in the row. `AttemptCount` is not reset — history is preserved. It is **never chained to cleanup**: if a
+move still fails the run stays `Failed` (for another attempt); when the **last** failure clears
+(`HasUnmovedDocumentsAsync` is false) it pauses the run — `CleanupRun.Retry()` then `PauseAfterArchival()` →
+`AwaitingInput` in the Archival phase — and the operator explicitly proceeds via `POST …/archival/continue`
+(`CleanupRun.ResumeAfterArchival` → `StartCleanup`). The SPA drives Retry-all by calling the endpoint once per
+failed row, so each row shows its own inline progress. The endpoint (and `RetryMoveFailuresHandler`) validates
+the run is `Failed` in the archival phase (`409 RunNotRetryable`) with at least one failure (`409
+NoFailuresToRetry`). This keeps a human checkpoint before the irreversible cleanup/purge (spec §"Working
+through move failures").
 
 **Operator Reset:** set all documents to `MoveStatus = Pending`, re-enqueue full job.
 
-### 4. Step 11 — Path B (Manual Purge)
+### 5. Step 12 — Path B (Manual Purge)
 
 ```
-Phase 3 complete, AutoProceedWithPurge = false
+Empty-folder delete (Step 11) complete, AutoProceedWithPurge = false
   → CleanupRun.Status = AwaitingInput
   → Jobs dashboard: "Ready for purge" badge
 

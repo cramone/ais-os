@@ -1,0 +1,105 @@
+<div style="font-family:var(--font-sans)">
+  <div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:12px;overflow:hidden">
+
+    <div style="padding:15px 20px;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);margin-bottom:8px"><i class="ti ti-arrow-left" style="font-size:15px;cursor:pointer" aria-hidden="true"></i><span>Registrations</span><i class="ti ti-chevron-right" style="font-size:12px" aria-hidden="true"></i><span style="color:var(--text-secondary)">REG-2024-0311</span></div>
+      <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+        <h1 style="font-size:19px;margin:0">REG-2024-0311</h1>
+        <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;color:#854F0B;background:#FAEEDA;border-radius:6px;padding:3px 9px"><i class="ti ti-clock-hour-4" style="font-size:13px" aria-hidden="true"></i>Pending confirmation</span>
+        <span style="font-size:11px;color:var(--text-muted)"><i class="ti ti-bolt" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> Electronic · NSW Land Registry Services</span>
+      </div>
+    </div>
+
+    <div style="padding:20px 20px 16px;border-bottom:0.5px solid var(--border)">
+      <div id="stepper" style="display:flex;align-items:flex-start"></div>
+      <p style="font-size:11px;color:var(--text-muted);margin:12px 0 0"><i class="ti ti-info-circle" style="font-size:13px;vertical-align:-1px" aria-hidden="true"></i> Rejection returns to owner as <strong style="font-weight:500">Resubmit</strong>. Cancel is available from any stage before Confirmed.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 240px">
+
+      <div style="padding:18px 20px;border-right:0.5px solid var(--border);min-width:0">
+        <h3 style="font-size:14px;margin:0 0 14px;display:flex;align-items:center;gap:7px"><i class="ti ti-timeline-event" style="font-size:17px;color:var(--text-muted)" aria-hidden="true"></i>Activity</h3>
+        <div id="events"></div>
+      </div>
+
+      <aside style="padding:18px 16px;background:var(--surface-2)">
+        <h3 style="font-size:12px;margin:0 0 10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Documents · 2</h3>
+        <div id="docs" style="margin-bottom:18px"></div>
+
+        <h3 style="font-size:12px;margin:0 0 10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Details</h3>
+        <div id="details" style="margin-bottom:18px"></div>
+
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button style="height:34px;border-radius:8px;font-size:13px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong);display:flex;align-items:center;justify-content:center;gap:6px"><i class="ti ti-paperclip" style="font-size:15px" aria-hidden="true"></i>Attach document</button>
+          <button style="height:34px;border-radius:8px;font-size:13px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong);color:var(--text-danger);display:flex;align-items:center;justify-content:center;gap:6px"><i class="ti ti-ban" style="font-size:15px" aria-hidden="true"></i>Cancel registration</button>
+        </div>
+        <p style="font-size:10px;color:var(--text-muted);margin:10px 0 0">Submit and Resubmit are owner actions. Confirm and Reject come from the authority.</p>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var steps=[
+    {l:'Initiated',s:'done',who:'Owner'},
+    {l:'Submitted',s:'done',who:'Owner'},
+    {l:'Pending confirmation',s:'current',who:'Authority'},
+    {l:'Confirmed',s:'todo',who:'Authority'}
+  ];
+  var sh=document.getElementById('stepper');
+  steps.forEach(function(st,i){
+    var color=st.s==='done'?'var(--text-success)':(st.s==='current'?'var(--text-accent)':'var(--text-muted)');
+    var bg=st.s==='done'?'var(--bg-success)':(st.s==='current'?'var(--bg-accent)':'var(--surface-2)');
+    var ic=st.s==='done'?'ti-check':(st.s==='current'?'ti-loader-2':'ti-circle');
+    sh.innerHTML+='<div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;width:96px;text-align:center">'+
+        '<div style="width:34px;height:34px;border-radius:50%;background:'+bg+';border:0.5px solid '+(st.s==='todo'?'var(--border)':color)+';display:flex;align-items:center;justify-content:center"><i class="ti '+ic+'" style="font-size:17px;color:'+color+'" aria-hidden="true"></i></div>'+
+        '<p style="font-size:12px;font-weight:500;margin:7px 0 0;color:'+(st.s==='todo'?'var(--text-muted)':'var(--text-primary)')+'">'+st.l+'</p>'+
+        '<p style="font-size:10px;color:var(--text-muted);margin:1px 0 0">'+st.who+'</p>'+
+      '</div>'+
+      (i<steps.length-1?'<div style="flex:1;height:2px;background:'+(steps[i+1].s==='todo'?'var(--border)':'var(--text-success)')+';margin-top:17px;min-width:14px"></div>':'');
+  });
+
+  var events=[
+    {ic:'ti-send',who:'Authority',t:'Submitted to NSW LRS · awaiting confirmation',when:'3 hours ago',sys:true},
+    {ic:'ti-arrow-up',who:'A. Kaur (Owner)',t:'Submitted registration with 2 documents',when:'3 hours ago'},
+    {ic:'ti-paperclip',who:'A. Kaur (Owner)',t:'Attached supporting document — survey plan',when:'yesterday'},
+    {ic:'ti-plus',who:'A. Kaur (Owner)',t:'Initiated electronic registration',when:'yesterday'}
+  ];
+  var eh=document.getElementById('events');
+  events.forEach(function(e,i){
+    var el=document.createElement('div');
+    el.style.cssText='display:flex;gap:12px;padding-bottom:'+(i<events.length-1?'16px':'0')+';position:relative';
+    el.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0"><div style="width:28px;height:28px;border-radius:50%;background:'+(e.sys?'var(--bg-accent)':'var(--surface-2)')+';border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center"><i class="ti '+e.ic+'" style="font-size:14px;color:'+(e.sys?'var(--text-accent)':'var(--text-secondary)')+'" aria-hidden="true"></i></div>'+(i<events.length-1?'<div style="width:2px;flex:1;background:var(--border);margin-top:2px"></div>':'')+'</div>'+
+      '<div style="flex:1;min-width:0;padding-top:3px"><p style="font-size:13px;margin:0;font-weight:500">'+e.t+'</p><p style="font-size:11px;color:var(--text-muted);margin:2px 0 0">'+e.who+' · '+e.when+'</p></div>';
+    eh.appendChild(el);
+  });
+
+  var docs=[
+    {n:'DA-2024-0392 consent',role:'ApplicationForm',ic:'ti-file-star'},
+    {n:'Kellyville survey plan',role:'SupportingEvidence',ic:'ti-file'}
+  ];
+  var dh=document.getElementById('docs');
+  docs.forEach(function(d){
+    var el=document.createElement('div');
+    el.style.cssText='display:flex;align-items:center;gap:9px;padding:8px 10px;background:var(--surface-1);border:0.5px solid var(--border);border-radius:9px;margin-bottom:7px';
+    el.innerHTML='<i class="ti '+d.ic+'" style="font-size:17px;color:var(--text-muted);flex-shrink:0" aria-hidden="true"></i><div style="flex:1;min-width:0"><p style="font-size:12px;font-weight:500;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+d.n+'</p><p style="font-size:10px;color:var(--text-muted);margin:0">'+d.role+'</p></div>';
+    dh.appendChild(el);
+  });
+
+  var details=[
+    {i:'ti-bolt',l:'Type',v:'Electronic'},
+    {i:'ti-building-bank',l:'Authority',v:'NSW LRS'},
+    {i:'ti-hash',l:'Reference',v:'— (on confirm)'},
+    {i:'ti-user',l:'Owner',v:'A. Kaur'},
+    {i:'ti-calendar',l:'Initiated',v:'yesterday'}
+  ];
+  var deh=document.getElementById('details');
+  details.forEach(function(p){
+    var el=document.createElement('div');
+    el.style.cssText='display:flex;align-items:center;gap:9px;padding:6px 0;font-size:12px';
+    el.innerHTML='<i class="ti '+p.i+'" style="font-size:15px;color:var(--text-muted);flex-shrink:0" aria-hidden="true"></i><span style="color:var(--text-secondary);flex:1">'+p.l+'</span><span style="font-weight:500;text-align:right">'+p.v+'</span>';
+    deh.appendChild(el);
+  });
+})();
+</script>

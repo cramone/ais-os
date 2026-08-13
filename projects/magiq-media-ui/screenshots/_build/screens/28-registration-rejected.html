@@ -1,0 +1,56 @@
+<div style="font-family:var(--font-sans)">
+  <div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:12px;overflow:hidden">
+    <div style="padding:15px 20px;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);margin-bottom:8px"><i class="ti ti-arrow-left" style="font-size:15px" aria-hidden="true"></i><span>Registrations</span><i class="ti ti-chevron-right" style="font-size:12px" aria-hidden="true"></i><span style="color:var(--text-secondary)">REG-2024-0288</span></div>
+      <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+        <h1 style="font-size:19px;margin:0">REG-2024-0288</h1>
+        <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;color:var(--text-danger);background:var(--bg-danger);border-radius:6px;padding:3px 9px"><i class="ti ti-circle-x" style="font-size:13px" aria-hidden="true"></i>Rejected</span>
+        <span style="font-size:11px;color:var(--text-muted)"><i class="ti ti-bolt" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> Electronic · NSW Land Registry Services</span>
+      </div>
+    </div>
+
+    <div style="padding:20px 20px 16px;border-bottom:0.5px solid var(--border)">
+      <div id="stepper" style="display:flex;align-items:flex-start"></div>
+    </div>
+
+    <div style="display:flex;align-items:flex-start;gap:11px;padding:13px 20px;background:var(--bg-danger);border-bottom:0.5px solid var(--border-danger)">
+      <i class="ti ti-alert-octagon" style="font-size:19px;color:var(--text-danger);flex-shrink:0;margin-top:1px" aria-hidden="true"></i>
+      <div style="flex:1;min-width:0">
+        <p style="font-size:13px;font-weight:500;margin:0;color:var(--text-danger)">Rejected by authority · 3 hours ago</p>
+        <p style="font-size:12px;color:var(--text-danger);opacity:.9;margin:2px 0 0">“Supporting survey plan is missing the surveyor’s registration number. Re-lodge with a compliant plan.”</p>
+      </div>
+    </div>
+
+    <div style="padding:18px 20px;display:flex;align-items:center;gap:12px">
+      <div style="flex:1">
+        <p style="font-size:13px;font-weight:500;margin:0">Fix and resubmit</p>
+        <p style="font-size:12px;color:var(--text-secondary);margin:2px 0 0">Update the documents, then resubmit to the authority. History is preserved — a new submission attempt is recorded.</p>
+      </div>
+      <button style="height:36px;padding:0 13px;border-radius:8px;font-size:13px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong);display:flex;align-items:center;gap:6px;flex-shrink:0"><i class="ti ti-paperclip" style="font-size:15px" aria-hidden="true"></i>Replace document</button>
+      <button style="height:36px;padding:0 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;background:var(--accent);border:none;color:#fff;display:flex;align-items:center;gap:6px;flex-shrink:0"><i class="ti ti-refresh" style="font-size:15px" aria-hidden="true"></i>Resubmit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var steps=[
+    {l:'Initiated',s:'done'},
+    {l:'Submitted',s:'done'},
+    {l:'Pending confirmation',s:'done'},
+    {l:'Rejected',s:'error'},
+    {l:'Resubmit',s:'next'}
+  ];
+  var sh=document.getElementById('stepper');
+  steps.forEach(function(st,i){
+    var color=st.s==='done'?'var(--text-success)':(st.s==='error'?'var(--text-danger)':(st.s==='next'?'var(--text-accent)':'var(--text-muted)'));
+    var bg=st.s==='done'?'var(--bg-success)':(st.s==='error'?'var(--bg-danger)':(st.s==='next'?'var(--bg-accent)':'var(--surface-2)'));
+    var ic=st.s==='done'?'ti-check':(st.s==='error'?'ti-x':(st.s==='next'?'ti-refresh':'ti-circle'));
+    sh.innerHTML+='<div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;width:92px;text-align:center">'+
+        '<div style="width:34px;height:34px;border-radius:50%;background:'+bg+';border:0.5px solid '+color+';display:flex;align-items:center;justify-content:center"><i class="ti '+ic+'" style="font-size:17px;color:'+color+'" aria-hidden="true"></i></div>'+
+        '<p style="font-size:12px;font-weight:500;margin:7px 0 0;color:'+(st.s==='pending'?'var(--text-muted)':'var(--text-primary)')+'">'+st.l+'</p>'+
+      '</div>'+
+      (i<steps.length-1?'<div style="flex:1;height:2px;background:'+(steps[i+1].s==='next'?'var(--border-accent)':(steps[i+1].s==='error'?'var(--border-danger)':'var(--text-success)'))+';margin-top:17px;min-width:12px"></div>':'');
+  });
+})();
+</script>

@@ -1,0 +1,166 @@
+/* MAGIQ Media — design tokens (light + dark)
+ * Extracted from the 19 mockup screens (2026-08-12).
+ * Single source of truth for mockups AND the eventual React/Tailwind build.
+ *
+ * BRAND VALUES pulled from springbrooksoftware.com (2026-08-12): navy #1D3455, Manrope
+ *   type, cyan/green/teal accents. Still ideal-to-get from marketing: SVG logos (site only
+ *   ships PNG) and a formal palette sign-off. Everything else (neutrals, status, spacing,
+ *   radii) is stable.
+ *
+ * Dark mode is provisional (CLAUDE.md open decision). Values are included so it is not a
+ * retrofit; delete the [data-mode="dark"] / prefers-color-scheme blocks if dark stays out of scope.
+ */
+
+:root {
+  /* ---- Brand chrome (top bar, mobile header) — Springbrook navy ---- */
+  --chrome-bg:            #1D3455;   /* Springbrook primary navy */
+  --chrome-fg:            #ffffff;
+  --chrome-fg-muted:      rgba(255,255,255,0.65);
+  --chrome-line:          rgba(255,255,255,0.18);
+  --chrome-field-bg:      rgba(255,255,255,0.10);
+  --chrome-field-border:  rgba(255,255,255,0.22);
+
+  /* ---- Accent (primary action, active nav, links) — Springbrook navy ---- */
+  /* The site uses navy for primary CTAs + links; cyan/green are secondary pops (below). */
+  --accent:               #1D3455;   /* primary button / active fill */
+  --accent-hover:         #16283F;
+  --on-accent:            #ffffff;
+  --text-accent:          #1D3455;   /* accent text on light (AA on white) */
+  --bg-accent:            #E9EDF3;   /* pale navy tint — active nav / info surface */
+  --border-accent:        #B4C0D2;
+
+  /* ---- Secondary brand accents (highlights, links-hover, charts, badges) ---- */
+  --brand-cyan:           #00A0D2;
+  --brand-green:          #2DCD7C;
+  --brand-teal:           #003B49;
+  --brand-red:            #B80105;
+
+  /* ---- Neutrals / surfaces (warm gray, gov-grade) ---- */
+  --surface-0:            #F4F2EC;   /* page canvas */
+  --surface-1:            #FAF9F5;   /* in-flow card / panel */
+  --surface-2:            #FFFFFF;   /* raised card / popover */
+
+  --text-primary:         #1A1A18;
+  --text-secondary:       #5F5E5A;
+  --text-muted:           #908E86;
+
+  --border:               rgba(20,20,16,0.12);
+  --border-strong:        rgba(20,20,16,0.18);
+  --border-stronger:      rgba(20,20,16,0.30);
+
+  /* ---- Status roles (semantic — used across chips, banners, states) ---- */
+  /* Published / success (teal) */
+  --text-success:         #0F6E56;
+  --bg-success:           #E1F5EE;
+  --border-success:       #5DCAA5;
+  --icon-success:         #1D9E75;
+
+  /* In review / pending / warning (amber) */
+  --text-warning:         #854F0B;
+  --bg-warning:           #FAEEDA;
+  --border-warning:       #EF9F27;
+  --icon-warning:         #BA7517;   /* conformance / lock accents */
+
+  /* Failed / destructive (red) */
+  --text-danger:          #A32D2D;
+  --bg-danger:            #FCEBEB;
+  --border-danger:        #F09595;
+  --icon-danger:          #E24B4A;   /* bright badge dot */
+
+  /* Revising / informational (blue — distinct from accent usage) */
+  --text-info:            #185FA5;
+  --bg-info:              #E6F1FB;
+
+  /* Admin / profile category (purple — also avatar fill) */
+  --text-purple:          #3C3489;
+  --bg-purple:            #EEEDFE;
+  --fill-purple:          #534AB7;   /* avatars */
+
+  /* Search-hit highlight (<mark>) */
+  --mark-bg:              #FAC775;
+  --mark-fg:              #633806;
+
+  /* ---- Typography — Springbrook uses Manrope (OFL, free to self-host) ---- */
+  --font-sans:  'Manrope', 'Segoe UI', ui-sans-serif, system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  --font-display: 'Red Hat Display', var(--font-sans);   /* optional display face */
+  --font-mono:  'Cascadia Code', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  --fs-h1:      22px;   /* page title */
+  --fs-h2:      18px;   /* section header (18–19 in use) */
+  --fs-h3:      14px;   /* sub-section */
+  --fs-body:    13px;   /* default UI text */
+  --fs-sec:     12px;   /* secondary */
+  --fs-cap:     11px;   /* caption / badge / meta */
+  --fs-micro:   10px;   /* dense labels, index tags */
+  --fw-regular: 400;
+  --fw-medium:  500;    /* the only bold weight — never 600/700 */
+  --lh:         1.5;
+
+  /* ---- Spacing (px, component-internal) ---- */
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 14px;
+  --space-7: 16px;
+  --space-8: 18px;
+  --space-9: 20px;
+  --space-10: 22px;
+
+  /* ---- Radii ---- */
+  --radius-sm:   6px;    /* chips, small controls */
+  --radius:      8px;    /* buttons, inputs, default */
+  --radius-lg:   10px;   /* banners, list tiles */
+  --radius-card: 12px;   /* cards, panels */
+  --radius-xl:   14px;   /* device frame / login card */
+  --radius-pill: 20px;   /* filter chips */
+  --radius-full: 9999px; /* avatars, dots */
+
+  /* ---- Elevation ---- */
+  --shadow-md:      0 1px 2px rgba(20,20,16,.06), 0 4px 12px rgba(20,20,16,.08);
+  --shadow-popover: 0 8px 24px rgba(20,20,16,.12), 0 2px 6px rgba(20,20,16,.08);
+
+  /* ---- Control sizing ---- */
+  --h-control-sm: 30px;
+  --h-control:    34px;
+  --h-control-lg: 42px;
+
+  /* ---- Layout ---- */
+  --rail-width:      212px;   /* left nav rail expanded */
+  --rail-collapsed:  56px;
+  --sidebar-width:   232px;   /* detail/context sidebar */
+  --content-max:     720px;   /* single-column content width */
+}
+
+/* Provisional dark mode — delete if dark stays out of scope */
+:root[data-mode="dark"] {
+  --surface-0: #1A1A18;
+  --surface-1: #232320;
+  --surface-2: #2C2C2A;
+  --text-primary: #F1EFE8;
+  --text-secondary: #B4B2A9;
+  --text-muted: #888780;
+  --border: rgba(255,255,255,0.12);
+  --border-strong: rgba(255,255,255,0.18);
+  --border-stronger: rgba(255,255,255,0.30);
+  --text-accent: #85B7EB;
+  --bg-accent: #0C447C;
+  --text-success: #5DCAA5;  --bg-success: #085041;
+  --text-warning: #FAC775;  --bg-warning: #633806;
+  --text-danger:  #F09595;  --bg-danger:  #791F1F;
+  --bg-purple: #26215C; --text-purple: #CECBF6;
+  /* chrome + accent brand tokens intentionally unchanged (navy works in both modes) */
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-mode="light"]) {
+    --surface-0: #1A1A18; --surface-1: #232320; --surface-2: #2C2C2A;
+    --text-primary: #F1EFE8; --text-secondary: #B4B2A9; --text-muted: #888780;
+    --border: rgba(255,255,255,0.12); --border-strong: rgba(255,255,255,0.18); --border-stronger: rgba(255,255,255,0.30);
+    --text-accent: #85B7EB; --bg-accent: #0C447C;
+    --text-success: #5DCAA5; --bg-success: #085041;
+    --text-warning: #FAC775; --bg-warning: #633806;
+    --text-danger: #F09595; --bg-danger: #791F1F;
+    --bg-purple: #26215C; --text-purple: #CECBF6;
+  }
+}

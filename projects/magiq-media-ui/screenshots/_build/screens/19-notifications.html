@@ -1,0 +1,51 @@
+<div style="font-family:var(--font-sans)">
+  <div style="background:var(--surface-1);border-radius:12px;padding:18px 14px;border:0.5px solid var(--border)">
+    <div style="display:flex;align-items:center;gap:12px;height:44px;padding:0 12px;background:#1D3455;border-radius:10px 10px 0 0;position:relative;max-width:400px;margin:0 auto">
+      <span style="font-size:13px;color:rgba(255,255,255,.6)">…top bar</span>
+      <button aria-label="Notifications" style="position:relative;margin-left:auto;background:rgba(255,255,255,.12);border:0.5px solid rgba(255,255,255,.3);border-radius:8px;width:34px;height:34px;color:#fff;cursor:pointer"><i class="ti ti-bell" style="font-size:18px" aria-hidden="true"></i><span style="position:absolute;top:-3px;right:-3px;background:#E24B4A;color:#fff;font-size:10px;font-weight:500;border-radius:9px;padding:0 5px;border:2px solid #1D3455">4</span></button>
+    </div>
+
+    <div style="max-width:400px;margin:0 auto;background:var(--surface-2);border:0.5px solid var(--border);border-top:none;border-radius:0 0 12px 12px;box-shadow:var(--shadow-popover);overflow:hidden">
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 15px;border-bottom:0.5px solid var(--border)">
+        <span style="font-size:14px;font-weight:500">Notifications</span>
+        <span style="font-size:11px;font-weight:500;color:var(--text-accent);background:var(--bg-accent);border-radius:10px;padding:1px 8px">4 new</span>
+        <span style="margin-left:auto;font-size:12px;color:var(--text-accent);cursor:pointer">Mark all read</span>
+      </div>
+      <div id="notifs" role="status" aria-live="polite"></div>
+      <div style="padding:10px;text-align:center;border-top:0.5px solid var(--border)"><span style="font-size:12px;color:var(--text-accent);cursor:pointer">View all notifications</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var groups=[
+    {label:'Today',items:[
+      {ic:'ti-virus',c:'var(--text-danger)',bg:'var(--bg-danger)',t:'Upload blocked — virus scan failed',d:'contractor-upload-88.exe was quarantined',when:'2m',unread:true},
+      {ic:'ti-user-check',c:'var(--text-accent)',bg:'var(--bg-accent)',t:'You’re assigned to review CR-118',d:'DA-2024-0392 — Kellyville subdivision',when:'1h',unread:true},
+      {ic:'ti-circle-check',c:'var(--text-success)',bg:'var(--bg-success)',t:'Review approved — item published',d:'DA-2024-0375 — Riverstone East · v1',when:'2h',unread:true},
+      {ic:'ti-alert-triangle',c:'var(--text-warning)',bg:'var(--bg-warning)',t:'Processing failed',d:'floor-plan-v3.png — retry available',when:'3h',unread:true}
+    ]},
+    {label:'Yesterday',items:[
+      {ic:'ti-signature',c:'#185FA5',bg:'#E6F1FB',t:'Signing completed',d:'All signers done — DA-2024-0410 published',when:'1d',unread:false},
+      {ic:'ti-certificate',c:'var(--text-success)',bg:'var(--bg-success)',t:'Registration confirmed',d:'REG-2024-0298 · ref NSW-LRS-88213',when:'1d',unread:false},
+      {ic:'ti-lock-open',c:'var(--text-warning)',bg:'var(--bg-warning)',t:'Your checkout was force-released',d:'DA-2024-0410 — by admin.lee',when:'1d',unread:false}
+    ]}
+  ];
+  var nh=document.getElementById('notifs');
+  groups.forEach(function(g){
+    var head=document.createElement('p');
+    head.style.cssText='font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin:0;padding:9px 15px 4px;background:var(--surface-1)';
+    head.textContent=g.label;
+    nh.appendChild(head);
+    g.items.forEach(function(n){
+      var el=document.createElement('div');
+      el.style.cssText='display:flex;align-items:flex-start;gap:11px;padding:11px 15px;border-bottom:0.5px solid var(--border);cursor:pointer;'+(n.unread?'background:var(--surface-2);':'opacity:.72;');
+      el.innerHTML='<div style="width:32px;height:32px;border-radius:8px;background:'+n.bg+';display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti '+n.ic+'" style="font-size:17px;color:'+n.c+'" aria-hidden="true"></i></div>'+
+        '<div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:500;margin:0;line-height:1.35">'+n.t+'</p><p style="font-size:11px;color:var(--text-muted);margin:2px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+n.d+'</p></div>'+
+        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0"><span style="font-size:11px;color:var(--text-muted)">'+n.when+'</span>'+(n.unread?'<span style="width:7px;height:7px;border-radius:50%;background:#1D3455"></span>':'')+'</div>';
+      nh.appendChild(el);
+    });
+  });
+})();
+</script>

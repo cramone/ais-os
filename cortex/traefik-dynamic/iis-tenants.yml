@@ -1,0 +1,22 @@
+http:
+  routers:
+    tenant1:
+      rule: "Host(`tenant1.ramonedevelopment.com`)"
+      entryPoints: [websecure, tailnet]
+      tls:
+        certResolver: public
+      service: iis-windows
+
+    tenant2:
+      rule: "Host(`tenant2.ramonedevelopment.com`)"
+      entryPoints: [websecure, tailnet]
+      tls:
+        certResolver: public
+      service: iis-windows
+
+  services:
+    iis-windows:
+      loadBalancer:
+        passHostHeader: true
+        servers:
+          - url: "http://100.80.221.90:80"

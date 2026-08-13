@@ -1,0 +1,50 @@
+<div style="font-family:var(--font-sans)">
+  <div style="min-height:460px;background:rgba(29,52,85,0.28);border-radius:12px;display:flex;align-items:center;justify-content:center;padding:24px">
+    <div style="width:440px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-popover)">
+      <div style="padding:15px 18px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:10px">
+        <i class="ti ti-folder-symlink" style="font-size:19px;color:var(--text-accent)" aria-hidden="true"></i>
+        <div style="flex:1"><h1 style="font-size:16px;margin:0">Move item</h1><p style="font-size:12px;color:var(--text-secondary);margin:2px 0 0">Consent DA-2024-0392 — Kellyville subdivision</p></div>
+        <i class="ti ti-x" style="font-size:18px;color:var(--text-muted);cursor:pointer" aria-hidden="true"></i>
+      </div>
+
+      <div style="padding:12px 14px">
+        <div style="display:flex;align-items:center;gap:8px;background:var(--surface-0);border:0.5px solid var(--border);border-radius:8px;height:34px;padding:0 11px;margin-bottom:10px"><i class="ti ti-search" style="font-size:15px;color:var(--text-muted)" aria-hidden="true"></i><span style="font-size:12px;color:var(--text-muted)">Find a folder…</span></div>
+        <p style="font-size:11px;color:var(--text-muted);margin:0 0 6px">Current: Planning approvals › 2024 development consents</p>
+        <div id="tree" style="max-height:230px;overflow:hidden"></div>
+      </div>
+
+      <div style="padding:12px 18px;border-top:0.5px solid var(--border);display:flex;align-items:center;gap:10px">
+        <span style="flex:1;font-size:12px;color:var(--text-secondary)">Move to <strong style="font-weight:500;color:var(--text-primary)">Kellyville precinct</strong></span>
+        <button style="height:34px;padding:0 14px;border-radius:8px;font-size:13px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong)">Cancel</button>
+        <button style="height:34px;padding:0 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;background:var(--accent);border:none;color:#fff">Move here</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var tree=[
+    {n:'Planning approvals',d:0,type:'col',open:true},
+    {n:'2023 development consents',d:1,type:'fol'},
+    {n:'2024 development consents',d:1,type:'fol',current:true},
+    {n:'Rouse Hill precinct',d:2,type:'fol'},
+    {n:'Kellyville precinct',d:2,type:'fol',selected:true},
+    {n:'Objections register',d:1,type:'fol'},
+    {n:'Heritage records',d:0,type:'col'}
+  ];
+  var th=document.getElementById('tree');
+  tree.forEach(function(t){
+    var el=document.createElement('div');
+    var bg=t.selected?'background:var(--bg-accent);':'';
+    el.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 10px;padding-left:'+(10+t.d*18)+'px;border-radius:8px;cursor:pointer;font-size:13px;margin-bottom:1px;'+bg;
+    var icon=t.type==='col'?'ti-folders':(t.selected?'ti-folder-check':'ti-folder');
+    var color=t.selected?'var(--text-accent)':(t.type==='col'?'var(--text-muted)':'#BA7517');
+    el.innerHTML='<i class="ti '+icon+'" style="font-size:16px;color:'+color+';flex-shrink:0" aria-hidden="true"></i>'+
+      '<span style="flex:1;'+(t.selected?'color:var(--text-accent);font-weight:500':'')+'">'+t.n+'</span>'+
+      (t.current?'<span style="font-size:10px;color:var(--text-muted);background:var(--surface-0);border:0.5px solid var(--border);border-radius:4px;padding:0 6px">current</span>':'')+
+      (t.selected?'<i class="ti ti-check" style="font-size:16px;color:var(--text-accent)" aria-hidden="true"></i>':'');
+    th.appendChild(el);
+  });
+})();
+</script>

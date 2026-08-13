@@ -1,0 +1,47 @@
+<div style="font-family:var(--font-sans)">
+  <div style="min-height:480px;background:rgba(29,52,85,0.28);border-radius:12px;display:flex;align-items:center;justify-content:center;padding:24px">
+    <div style="width:460px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-popover)">
+      <div style="padding:15px 18px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:10px">
+        <i class="ti ti-cloud-check" style="font-size:19px;color:var(--text-accent)" aria-hidden="true"></i>
+        <div style="flex:1"><h1 style="font-size:16px;margin:0">Publish item</h1><p style="font-size:12px;color:var(--text-secondary);margin:2px 0 0">Consent DA-2024-0392 — v3</p></div>
+        <i class="ti ti-x" style="font-size:18px;color:var(--text-muted);cursor:pointer" aria-hidden="true"></i>
+      </div>
+
+      <div style="padding:16px 18px">
+        <div style="display:flex;align-items:flex-start;gap:9px;background:var(--bg-warning);border:0.5px solid var(--border-warning);border-radius:9px;padding:10px 12px;margin-bottom:16px">
+          <i class="ti ti-eye-check" style="font-size:16px;color:var(--text-warning);flex-shrink:0;margin-top:1px" aria-hidden="true"></i>
+          <p style="font-size:12px;color:var(--text-warning);margin:0">This profile requires review before publishing — at least one reviewer must be assigned.</p>
+        </div>
+
+        <label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:8px">Reviewers</label>
+        <div id="reviewers" style="margin-bottom:10px"></div>
+        <div style="display:flex;align-items:center;gap:8px;border:1px dashed var(--border-strong);border-radius:9px;height:38px;padding:0 12px;background:var(--surface-1);cursor:pointer;margin-bottom:6px"><i class="ti ti-user-plus" style="font-size:16px;color:var(--text-muted)" aria-hidden="true"></i><span style="font-size:13px;color:var(--text-muted)">Add reviewer…</span></div>
+        <p style="font-size:11px;color:var(--text-muted);margin:0 0 4px">You can’t review an item you’re publishing. All reviewers must approve to publish; any rejection returns it to Draft.</p>
+      </div>
+
+      <div style="padding:12px 18px;border-top:0.5px solid var(--border);display:flex;align-items:center;gap:10px">
+        <span style="flex:1;font-size:11px;color:var(--text-muted)"><i class="ti ti-info-circle" style="font-size:13px;vertical-align:-1px" aria-hidden="true"></i> No-review profiles would publish immediately instead.</span>
+        <button style="height:34px;padding:0 14px;border-radius:8px;font-size:13px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong)">Cancel</button>
+        <button style="height:34px;padding:0 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;background:var(--accent);border:none;color:#fff">Send for review</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var reviewers=[
+    {n:'T. Osei',role:'Reviewer',init:'TO',c:'#0F6E56',picked:true},
+    {n:'M. Chen',role:'Senior reviewer',init:'MC',c:'#003B49',picked:true}
+  ];
+  var rh=document.getElementById('reviewers');
+  reviewers.forEach(function(r){
+    var el=document.createElement('div');
+    el.style.cssText='display:flex;align-items:center;gap:10px;padding:8px 11px;border:0.5px solid var(--border);border-radius:9px;margin-bottom:7px;background:var(--surface-1)';
+    el.innerHTML='<div style="width:28px;height:28px;border-radius:50%;background:'+r.c+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500">'+r.init+'</div>'+
+      '<div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:500;margin:0">'+r.n+'</p><p style="font-size:11px;color:var(--text-muted);margin:0">'+r.role+'</p></div>'+
+      '<i class="ti ti-x" style="font-size:16px;color:var(--text-muted);cursor:pointer" aria-hidden="true"></i>';
+    rh.appendChild(el);
+  });
+})();
+</script>

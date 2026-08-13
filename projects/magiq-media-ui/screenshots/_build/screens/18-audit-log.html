@@ -1,0 +1,52 @@
+<div style="font-family:var(--font-sans)">
+  <div style="display:flex;align-items:center;gap:9px;background:var(--bg-warning);border:0.5px solid var(--border-warning);border-radius:10px;padding:9px 13px;margin-bottom:12px;font-size:12px;color:var(--text-warning)">
+    <i class="ti ti-flag" style="font-size:15px" aria-hidden="true"></i><span><strong style="font-weight:500">Design ahead of spec.</strong> No audit read-model/endpoint exists yet (gap ADM-4). This is a proposed shape for backend to confirm.</span>
+  </div>
+
+  <div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:12px;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:9px;padding:13px 18px;border-bottom:0.5px solid var(--border);flex-wrap:wrap">
+      <h1 style="font-size:17px;margin:0;flex:1">Audit log</h1>
+      <div style="display:flex;align-items:center;gap:8px;background:var(--surface-2);border:0.5px solid var(--border-strong);border-radius:8px;height:32px;padding:0 11px"><i class="ti ti-search" style="font-size:15px;color:var(--text-muted)" aria-hidden="true"></i><span style="font-size:12px;color:var(--text-muted)">Filter by actor, target…</span></div>
+      <button style="height:32px;padding:0 11px;border-radius:8px;font-size:12px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong);display:flex;align-items:center;gap:6px"><i class="ti ti-calendar" style="font-size:14px" aria-hidden="true"></i>Last 7 days</button>
+      <button style="height:32px;padding:0 11px;border-radius:8px;font-size:12px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong);display:flex;align-items:center;gap:6px"><i class="ti ti-download" style="font-size:14px" aria-hidden="true"></i>Export</button>
+    </div>
+
+    <div style="display:flex;gap:6px;padding:10px 18px;border-bottom:0.5px solid var(--border);flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:500;background:var(--bg-accent);color:var(--text-accent);border-radius:20px;padding:4px 11px;cursor:pointer">All events</span>
+      <span style="font-size:11px;color:var(--text-secondary);border:0.5px solid var(--border);border-radius:20px;padding:4px 11px;cursor:pointer">Publishing</span>
+      <span style="font-size:11px;color:var(--text-secondary);border:0.5px solid var(--border);border-radius:20px;padding:4px 11px;cursor:pointer">Access control</span>
+      <span style="font-size:11px;color:var(--text-secondary);border:0.5px solid var(--border);border-radius:20px;padding:4px 11px;cursor:pointer">Security</span>
+      <span style="font-size:11px;color:var(--text-secondary);border:0.5px solid var(--border);border-radius:20px;padding:4px 11px;cursor:pointer">Admin config</span>
+    </div>
+
+    <div id="log"></div>
+
+    <div style="display:flex;justify-content:center;padding:12px;border-top:0.5px solid var(--border)"><button style="height:30px;padding:0 13px;border-radius:8px;font-size:12px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong);display:flex;align-items:center;gap:6px">Load more<i class="ti ti-arrow-down" style="font-size:14px" aria-hidden="true"></i></button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var events=[
+    {ic:'ti-shield-x',cat:'sec',actor:'system',action:'Asset infection detected — quarantined',target:'contractor-upload-88.exe',t:'2m ago',ip:'processing worker'},
+    {ic:'ti-lock-open',cat:'access',actor:'admin.lee',action:'Force-released checkout',target:'DA-2024-0410 — Box Hill',t:'18m ago',ip:'10.2.4.11'},
+    {ic:'ti-circle-check',cat:'pub',actor:'t.osei',action:'Approved review → item published v3',target:'DA-2024-0392 — Kellyville',t:'2h ago',ip:'10.2.4.31'},
+    {ic:'ti-forbid',cat:'access',actor:'user.bob',action:'Denied — 403 write to item not owned',target:'DA-2024-0417 — Lot 42',t:'3h ago',ip:'10.2.9.7'},
+    {ic:'ti-upload',cat:'pub',actor:'a.kaur',action:'Uploaded asset to role site-plan',target:'DA-2024-0392 — Kellyville',t:'3h ago',ip:'10.2.4.31'},
+    {ic:'ti-adjustments',cat:'admin',actor:'admin.lee',action:'Published media profile v2',target:'Development consent',t:'yesterday',ip:'10.2.4.11'},
+    {ic:'ti-login',cat:'sec',actor:'a.kaur',action:'Signed in via magiq-auth',target:'session',t:'yesterday',ip:'10.2.4.31'}
+  ];
+  var catStyle={sec:{c:'var(--text-danger)',bg:'var(--bg-danger)'},access:{c:'var(--text-warning)',bg:'var(--bg-warning)'},pub:{c:'var(--text-accent)',bg:'var(--bg-accent)'},admin:{c:'#534AB7',bg:'#EEEDFE'}};
+  var lh=document.getElementById('log');
+  events.forEach(function(e){
+    var cs=catStyle[e.cat];
+    var el=document.createElement('div');
+    el.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:0.5px solid var(--border);font-size:13px';
+    el.innerHTML='<div style="width:32px;height:32px;border-radius:8px;background:'+cs.bg+';display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti '+e.ic+'" style="font-size:17px;color:'+cs.c+'" aria-hidden="true"></i></div>'+
+      '<div style="flex:1;min-width:0"><p style="margin:0;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+e.action+'</p>'+
+        '<p style="margin:2px 0 0;font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><i class="ti ti-user" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> '+e.actor+' · <i class="ti ti-target" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> '+e.target+'</p></div>'+
+      '<div style="text-align:right;flex-shrink:0"><p style="margin:0;font-size:12px;color:var(--text-secondary)">'+e.t+'</p><p style="margin:1px 0 0;font-size:10px;color:var(--text-muted);font-family:var(--font-mono)">'+e.ip+'</p></div>';
+    lh.appendChild(el);
+  });
+})();
+</script>

@@ -1,0 +1,84 @@
+<div style="font-family:var(--font-sans)">
+  <div style="display:flex;gap:8px;margin-bottom:14px">
+    <button style="height:34px;padding:0 14px;border-radius:8px;font-size:13px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong);display:flex;align-items:center;gap:7px"><i class="ti ti-forms" style="font-size:16px" aria-hidden="true"></i>Record types</button>
+    <button style="height:34px;padding:0 14px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;background:var(--bg-accent);border:0.5px solid var(--border-accent);color:var(--text-accent);display:flex;align-items:center;gap:7px"><i class="ti ti-adjustments" style="font-size:16px" aria-hidden="true"></i>Media profiles</button>
+  </div>
+
+  <div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:12px;overflow:hidden">
+    <div style="padding:15px 20px;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <h1 style="font-size:18px;margin:0">Development consent</h1>
+        <span style="font-size:11px;font-weight:500;color:#0F6E56;background:#E1F5EE;border-radius:6px;padding:3px 9px">Published v2</span>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button style="height:32px;padding:0 12px;border-radius:8px;font-size:13px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong);color:var(--text-secondary)">Deprecate</button>
+          <button style="height:32px;padding:0 13px;border-radius:8px;font-size:13px;cursor:pointer;background:#1D3455;border:none;color:#fff">New revision</button>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--text-secondary);margin:9px 0 0">Structural contract for a MediaItem type. Only Published profiles can be assigned. Profile is immutable on an item once created.</p>
+    </div>
+
+    <div style="padding:16px 20px;border-bottom:0.5px solid var(--border)">
+      <p style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin:0 0 9px">Capabilities <span style="font-weight:400;text-transform:none;letter-spacing:0">· 3 of 9 active</span></p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:var(--text-accent);background:var(--bg-accent);border-radius:7px;padding:4px 11px"><i class="ti ti-wand" style="font-size:14px" aria-hidden="true"></i>Processing</span>
+        <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:var(--text-accent);background:var(--bg-accent);border-radius:7px;padding:4px 11px"><i class="ti ti-certificate" style="font-size:14px" aria-hidden="true"></i>Registration</span>
+        <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:var(--text-accent);background:var(--bg-accent);border-radius:7px;padding:4px 11px"><i class="ti ti-signature" style="font-size:14px" aria-hidden="true"></i>Signing</span>
+        <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-muted);border:0.5px solid var(--border);border-radius:7px;padding:4px 11px"><i class="ti ti-arrows-exchange" style="font-size:14px" aria-hidden="true"></i>CheckInOut</span>
+        <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-muted);border:0.5px solid var(--border);border-radius:7px;padding:4px 11px"><i class="ti ti-clock-pause" style="font-size:14px" aria-hidden="true"></i>Retention</span>
+        <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-muted);border:0.5px solid var(--border);border-radius:7px;padding:4px 11px"><i class="ti ti-eye-check" style="font-size:14px" aria-hidden="true"></i>Review</span>
+        <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-muted);border:0.5px solid var(--border);border-radius:7px;padding:4px 11px"><i class="ti ti-share" style="font-size:14px" aria-hidden="true"></i>Distribution</span>
+        <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-muted);border:0.5px solid var(--border);border-radius:7px;padding:4px 11px"><i class="ti ti-scale" style="font-size:14px" aria-hidden="true"></i>Governance</span>
+        <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-muted);border:0.5px solid var(--border);border-radius:7px;padding:4px 11px"><i class="ti ti-git-branch" style="font-size:14px" aria-hidden="true"></i>VersionControl</span>
+      </div>
+      <p style="font-size:11px;color:var(--text-muted);margin:9px 0 0">Filled = active on this profile. Outline = available to enable.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr">
+      <div style="padding:16px 20px;border-right:0.5px solid var(--border)">
+        <p style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin:0 0 10px">Pinned record types</p>
+        <div id="pins"></div>
+        <p style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px">Policies</p>
+        <div id="policies"></div>
+      </div>
+      <div style="padding:16px 20px">
+        <p style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin:0 0 10px">Asset roles</p>
+        <div id="roles"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var pins=[{n:'Development consent',v:2,upd:false},{n:'Property address',v:1,upd:true}];
+  var ph=document.getElementById('pins');
+  pins.forEach(function(p){
+    var el=document.createElement('div');
+    el.style.cssText='display:flex;align-items:center;gap:9px;padding:9px 11px;border:0.5px solid var(--border);border-radius:9px;margin-bottom:7px;background:var(--surface-2)';
+    el.innerHTML='<i class="ti ti-forms" style="font-size:16px;color:var(--text-muted);flex-shrink:0" aria-hidden="true"></i><div style="flex:1;min-width:0"><p style="font-size:12px;font-weight:500;margin:0">'+p.n+'</p><p style="font-size:10px;color:var(--text-muted);margin:0">pinned to v'+p.v+'</p></div>'+(p.upd?'<span style="font-size:10px;color:var(--text-accent);cursor:pointer;flex-shrink:0">v2 available →</span>':'');
+    ph.appendChild(el);
+  });
+
+  var policies=[{i:'ti-eye-check',l:'Review',v:'Required for publish'},{i:'ti-lock',l:'Checkout',v:'Required for edit'}];
+  var poh=document.getElementById('policies');
+  policies.forEach(function(p){
+    var el=document.createElement('div');
+    el.style.cssText='display:flex;align-items:center;gap:9px;padding:6px 0;font-size:12px';
+    el.innerHTML='<i class="ti '+p.i+'" style="font-size:15px;color:var(--text-muted)" aria-hidden="true"></i><span style="color:var(--text-secondary);flex:1">'+p.l+'</span><span style="font-weight:500">'+p.v+'</span>';
+    poh.appendChild(el);
+  });
+
+  var roles=[
+    {r:'consent-document',req:true,t:'PDF',max:'25 MB'},
+    {r:'site-plan',req:false,t:'Image / PDF',max:'100 MB'},
+    {r:'aerial-photo',req:false,t:'Image',max:'50 MB'}
+  ];
+  var rh=document.getElementById('roles');
+  roles.forEach(function(r){
+    var el=document.createElement('div');
+    el.style.cssText='display:flex;align-items:center;gap:9px;padding:9px 11px;border:0.5px solid var(--border);border-radius:9px;margin-bottom:7px;background:var(--surface-2)';
+    el.innerHTML='<i class="ti ti-stack-2" style="font-size:16px;color:var(--text-muted);flex-shrink:0" aria-hidden="true"></i><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px"><code style="font-family:var(--font-mono);font-size:11px">'+r.r+'</code><span style="font-size:9px;font-weight:500;color:'+(r.req?'#A32D2D':'var(--text-muted)')+';background:'+(r.req?'#FCEBEB':'var(--surface-1)')+';border-radius:4px;padding:0 5px">'+(r.req?'REQUIRED':'OPTIONAL')+'</span></div><p style="font-size:10px;color:var(--text-muted);margin:2px 0 0">'+r.t+' · max '+r.max+'</p></div>';
+    rh.appendChild(el);
+  });
+})();
+</script>

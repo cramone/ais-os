@@ -1,0 +1,60 @@
+<div style="font-family:var(--font-sans)">
+  <div style="display:flex;gap:8px;margin-bottom:14px">
+    <button style="height:34px;padding:0 14px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;background:var(--bg-accent);border:0.5px solid var(--border-accent);color:var(--text-accent);display:flex;align-items:center;gap:7px"><i class="ti ti-forms" style="font-size:16px" aria-hidden="true"></i>Record types</button>
+    <button style="height:34px;padding:0 14px;border-radius:8px;font-size:13px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong);display:flex;align-items:center;gap:7px"><i class="ti ti-adjustments" style="font-size:16px" aria-hidden="true"></i>Media profiles</button>
+  </div>
+
+  <div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:12px;overflow:hidden">
+    <div style="padding:15px 20px;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <h1 style="font-size:18px;margin:0">Development consent</h1>
+        <span style="font-size:11px;font-weight:500;color:#0F6E56;background:#E1F5EE;border-radius:6px;padding:3px 9px">Published v2</span>
+        <span style="font-size:11px;font-weight:500;color:var(--text-accent);background:var(--bg-accent);border-radius:6px;padding:3px 9px">Editing draft v3</span>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button style="height:32px;padding:0 12px;border-radius:8px;font-size:13px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong);color:var(--text-secondary)">Deprecate</button>
+          <button style="height:32px;padding:0 13px;border-radius:8px;font-size:13px;cursor:pointer;background:#1D3455;border:none;color:#fff">Publish draft</button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;margin-top:9px">
+        <span style="font-size:11px;color:var(--text-muted)">Aliases:</span>
+        <span style="font-size:11px;font-family:var(--font-mono);background:var(--surface-2);border:0.5px solid var(--border);border-radius:5px;padding:1px 7px">consent</span>
+        <span style="font-size:11px;font-family:var(--font-mono);background:var(--surface-2);border:0.5px solid var(--border);border-radius:5px;padding:1px 7px">da</span>
+        <span style="font-size:11px;color:var(--text-muted)">· qualify colliding field names across profiles</span>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 88px 62px 74px 130px;gap:8px;padding:9px 20px;border-bottom:0.5px solid var(--border);font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">
+      <span>Field</span><span>Type</span><span>Req</span><span>Search</span><span>Constraints</span>
+    </div>
+    <div id="fields"></div>
+    <div style="padding:12px 20px;display:flex;align-items:center;gap:10px">
+      <button style="height:32px;padding:0 12px;border-radius:8px;font-size:13px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong);display:flex;align-items:center;gap:6px"><i class="ti ti-plus" style="font-size:15px" aria-hidden="true"></i>Add field</button>
+      <span style="font-size:11px;color:var(--text-muted)">5 / 100 fields · type is immutable once set — use Replace to change it</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var typeColor={Text:'#5F5E5A',Date:'#185FA5',Enum:'#534AB7',Number:'#0F6E56',Boolean:'#854F0B'};
+  var fields=[
+    {n:'applicant',t:'Text',req:true,srch:true,con:'≤ 200 chars',cap:false},
+    {n:'lodgedDate',t:'Date',req:true,srch:true,con:'≥ 2020-01-01',cap:false},
+    {n:'decision',t:'Enum',req:true,srch:true,con:'3 values',cap:false},
+    {n:'expiryDate',t:'Date',req:true,srch:false,con:'after lodgedDate',cap:false},
+    {n:'signedBy',t:'Text',req:false,srch:false,con:'from Signing',cap:true}
+  ];
+  var fh=document.getElementById('fields');
+  fields.forEach(function(f){
+    var tc=typeColor[f.t]||'#5F5E5A';
+    var el=document.createElement('div');
+    el.style.cssText='display:grid;grid-template-columns:1fr 88px 62px 74px 130px;gap:8px;align-items:center;padding:11px 20px;border-bottom:0.5px solid var(--border);font-size:13px';
+    el.innerHTML='<div style="display:flex;align-items:center;gap:7px;min-width:0"><code style="font-family:var(--font-mono);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+f.n+'</code>'+(f.cap?'<i class="ti ti-lock" title="Capability-contributed · immutable" style="font-size:13px;color:var(--text-muted)" aria-hidden="true"></i>':'')+'</div>'+
+      '<span><span style="font-size:11px;font-weight:500;color:'+tc+';background:var(--surface-2);border:0.5px solid var(--border);border-radius:5px;padding:1px 7px">'+f.t+'</span></span>'+
+      '<span>'+(f.req?'<i class="ti ti-check" style="font-size:16px;color:var(--text-success)" aria-hidden="true"></i>':'<span style="color:var(--text-muted)">—</span>')+'</span>'+
+      '<span>'+(f.srch?'<i class="ti ti-check" style="font-size:16px;color:var(--text-success)" aria-hidden="true"></i>':'<span style="color:var(--text-muted)">—</span>')+'</span>'+
+      '<span style="font-size:11px;color:var(--text-secondary)">'+f.con+'</span>';
+    fh.appendChild(el);
+  });
+})();
+</script>

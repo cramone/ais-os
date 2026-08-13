@@ -4,6 +4,72 @@ _Last updated: 2026-07-12_
 
 ---
 
+## Remove Retry Animation During Archival
+_Captured: 2026-07-12T00:00:00Z_
+
+Remove the animation for "A retry is in progress — this list updates as documents are moved." whilst archival is running.
+
+---
+
+## Add Ignore as Valid Retry Action
+_Captured: 2026-07-12T00:00:00Z_
+
+Add ignore as a valid retry action to allow moving past a failed item.
+
+---
+
+## Force Checkout for Checked Out Documents
+_Captured: 2026-07-12T00:00:00Z_
+
+Add force checkout handling for the "This document is currently checked out" message.
+
+---
+
+## Remove Duplicate Failure Section Under Progress
+_Captured: 2026-07-12T00:00:00Z_
+
+Remove the duplicate failure section that appears under the progress indicator.
+
+---
+
+## Consolidate Snapshot CSV Exports at Document Register
+_Captured: 2026-07-12T00:00:00Z_
+
+Keep all snapshot CSV exports in the same location as the Document Register, named as follows:
+- Document Register
+- Pre Name Normalization
+- Post Name Normalization
+
+---
+
+## No Immediate Retry After Archival Progress Completes
+_Captured: 2026-07-12T00:00:00Z_
+
+Ensure a retry is not performed immediately after the Archival progress completes on failed items.
+
+---
+
+## Nick is Cool
+_Captured: 2026-07-12T00:00:00Z_
+
+Nick is cool.
+
+---
+
+## Show Missing Settings
+_Captured: 2026-07-12T00:00:00Z_
+
+Show missing settings to the user.
+
+---
+
+## Wizard Steps Indicator Removed with Notifications
+_Captured: 2026-07-12T00:00:00Z_
+
+The wizard steps indicator gets removed when notifications are shown. Notifications need to be added as a step in the wizard steps indicator.
+
+---
+
 ## Update dlc-process-walkthrough.html Step 9 Rollback
 _Captured: 2026-07-12T00:00:00Z_
 

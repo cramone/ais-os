@@ -1,0 +1,115 @@
+<div style="font-family:var(--font-sans)">
+  <div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:12px;overflow:hidden">
+
+    <div style="padding:15px 20px;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);margin-bottom:8px"><i class="ti ti-arrow-left" style="font-size:15px;cursor:pointer" aria-hidden="true"></i><span>Signing</span><i class="ti ti-chevron-right" style="font-size:12px" aria-hidden="true"></i><span style="color:var(--text-secondary)">SGN-2024-0067</span></div>
+      <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+        <h1 style="font-size:19px;margin:0">Signing session</h1>
+        <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;color:#185FA5;background:#E6F1FB;border-radius:6px;padding:3px 9px"><i class="ti ti-send" style="font-size:13px" aria-hidden="true"></i>Out for signature</span>
+        <span style="font-size:11px;color:var(--text-muted)"><i class="ti ti-signature" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> SecuredSigning · envelope SS-9F3A2</span>
+      </div>
+      <p style="font-size:13px;margin:8px 0 0;color:var(--text-secondary)">Signing <a href="#" style="color:var(--text-accent);text-decoration:none">Consent DA-2024-0392 — Kellyville subdivision</a></p>
+    </div>
+
+    <div style="padding:20px 20px 16px;border-bottom:0.5px solid var(--border)">
+      <div id="stepper" style="display:flex;align-items:flex-start"></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 240px">
+
+      <div style="padding:18px 20px;border-right:0.5px solid var(--border);min-width:0">
+        <h3 style="font-size:14px;margin:0 0 4px;display:flex;align-items:center;gap:7px"><i class="ti ti-users" style="font-size:17px;color:var(--text-muted)" aria-hidden="true"></i>Signers</h3>
+        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 14px">Sequential routing — each signer is emailed in order once the prior completes.</p>
+        <div id="signers" style="margin-bottom:22px"></div>
+
+        <h3 style="font-size:14px;margin:0 0 14px;display:flex;align-items:center;gap:7px"><i class="ti ti-webhook" style="font-size:17px;color:var(--text-muted)" aria-hidden="true"></i>Activity <span style="font-size:11px;font-weight:400;color:var(--text-muted)">· from SecuredSigning webhooks</span></h3>
+        <div id="events"></div>
+      </div>
+
+      <aside style="padding:18px 16px;background:var(--surface-2)">
+        <h3 style="font-size:12px;margin:0 0 10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Session</h3>
+        <div id="details" style="margin-bottom:16px"></div>
+
+        <div style="display:flex;align-items:flex-start;gap:8px;background:var(--bg-warning);border:0.5px solid var(--border-warning);border-radius:9px;padding:9px 11px;margin-bottom:16px">
+          <i class="ti ti-lock" style="font-size:15px;color:var(--text-warning);flex-shrink:0;margin-top:1px" aria-hidden="true"></i>
+          <p style="font-size:11px;color:var(--text-warning);margin:0">MediaItem stays checked out until the signed document is recorded, then the lock auto-releases and it publishes.</p>
+        </div>
+
+        <button disabled style="width:100%;height:34px;border-radius:8px;font-size:13px;background:var(--surface-1);border:0.5px solid var(--border);color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:6px;cursor:not-allowed"><i class="ti ti-ban" style="font-size:15px" aria-hidden="true"></i>Cancel session</button>
+        <p style="font-size:10px;color:var(--text-muted);margin:8px 0 0">Cancel is only available before the envelope is sent. After sending, it can only be voided at SecuredSigning.</p>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var steps=[
+    {l:'Initiated',s:'done'},
+    {l:'Envelope created',s:'done'},
+    {l:'Sent',s:'current'},
+    {l:'Completed',s:'todo'},
+    {l:'Signed doc recorded',s:'todo'}
+  ];
+  var sh=document.getElementById('stepper');
+  steps.forEach(function(st,i){
+    var color=st.s==='done'?'var(--text-success)':(st.s==='current'?'var(--text-accent)':'var(--text-muted)');
+    var bg=st.s==='done'?'var(--bg-success)':(st.s==='current'?'var(--bg-accent)':'var(--surface-2)');
+    var ic=st.s==='done'?'ti-check':(st.s==='current'?'ti-loader-2':'ti-circle');
+    sh.innerHTML+='<div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;width:88px;text-align:center">'+
+        '<div style="width:32px;height:32px;border-radius:50%;background:'+bg+';border:0.5px solid '+(st.s==='todo'?'var(--border)':color)+';display:flex;align-items:center;justify-content:center"><i class="ti '+ic+'" style="font-size:16px;color:'+color+'" aria-hidden="true"></i></div>'+
+        '<p style="font-size:11px;font-weight:500;margin:7px 0 0;color:'+(st.s==='todo'?'var(--text-muted)':'var(--text-primary)')+';line-height:1.3">'+st.l+'</p>'+
+      '</div>'+
+      (i<steps.length-1?'<div style="flex:1;height:2px;background:'+(steps[i+1].s==='todo'?'var(--border)':'var(--text-success)')+';margin-top:16px;min-width:10px"></div>':'');
+  });
+
+  var signers=[
+    {e:'assessor@planning.nsw.gov.au',order:1,s:'Completed',when:'signed 2h ago'},
+    {e:'delegate@dept-records.nsw.gov.au',order:2,s:'Pending',when:'emailed · awaiting signature'},
+    {e:'director@dept-records.nsw.gov.au',order:3,s:'Pending',when:'not yet routed'}
+  ];
+  var sst={Completed:{c:'var(--text-success)',ic:'ti-circle-check',bg:'var(--bg-success)'},Pending:{c:'var(--text-warning)',ic:'ti-clock'}};
+  var sgh=document.getElementById('signers');
+  signers.forEach(function(sg,i){
+    var s=sst[sg.s];
+    var active=sg.s==='Pending'&&i>0&&signers[i-1].s==='Completed';
+    var el=document.createElement('div');
+    el.style.cssText='display:flex;align-items:center;gap:11px;padding:10px 12px;border:0.5px solid '+(active?'var(--border-accent)':'var(--border)')+';border-radius:10px;margin-bottom:8px;background:'+(active?'var(--bg-accent)':'var(--surface-2)');
+    el.innerHTML='<div style="width:26px;height:26px;border-radius:50%;background:var(--surface-1);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:var(--text-secondary);flex-shrink:0">'+sg.order+'</div>'+
+      '<div style="flex:1;min-width:0"><p style="font-size:12px;font-weight:500;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+sg.e+'</p><p style="font-size:11px;color:var(--text-muted);margin:1px 0 0">'+sg.when+(active?' · current signer':'')+'</p></div>'+
+      '<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;color:'+s.c+';flex-shrink:0"><i class="ti '+s.ic+'" style="font-size:14px" aria-hidden="true"></i>'+sg.s+'</span>';
+    sgh.appendChild(el);
+  });
+
+  var events=[
+    {ic:'ti-mail-forward',t:'Signer 2 notified — envelope routed',when:'2 hours ago'},
+    {ic:'ti-writing-sign',t:'Signer 1 (assessor) completed signing',when:'2 hours ago'},
+    {ic:'ti-send',t:'Envelope sent to signers',when:'3 hours ago'},
+    {ic:'ti-mail',t:'Envelope created at SecuredSigning',when:'3 hours ago'},
+    {ic:'ti-signature',t:'Session initiated by A. Kaur',when:'3 hours ago'}
+  ];
+  var eh=document.getElementById('events');
+  events.forEach(function(e,i){
+    var el=document.createElement('div');
+    el.style.cssText='display:flex;gap:12px;padding-bottom:'+(i<events.length-1?'15px':'0')+'';
+    el.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0"><div style="width:26px;height:26px;border-radius:50%;background:var(--surface-2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center"><i class="ti '+e.ic+'" style="font-size:13px;color:var(--text-secondary)" aria-hidden="true"></i></div>'+(i<events.length-1?'<div style="width:2px;flex:1;background:var(--border);margin-top:2px"></div>':'')+'</div>'+
+      '<div style="flex:1;min-width:0;padding-top:2px"><p style="font-size:13px;margin:0;font-weight:500">'+e.t+'</p><p style="font-size:11px;color:var(--text-muted);margin:2px 0 0">'+e.when+'</p></div>';
+    eh.appendChild(el);
+  });
+
+  var details=[
+    {i:'ti-signature',l:'Provider',v:'SecuredSigning'},
+    {i:'ti-mail',l:'Envelope',v:'SS-9F3A2'},
+    {i:'ti-users',l:'Signers',v:'1 of 3 signed'},
+    {i:'ti-user',l:'Initiated by',v:'A. Kaur'},
+    {i:'ti-clock',l:'Started',v:'3h ago'}
+  ];
+  var deh=document.getElementById('details');
+  details.forEach(function(p){
+    var el=document.createElement('div');
+    el.style.cssText='display:flex;align-items:center;gap:9px;padding:6px 0;font-size:12px';
+    el.innerHTML='<i class="ti '+p.i+'" style="font-size:15px;color:var(--text-muted);flex-shrink:0" aria-hidden="true"></i><span style="color:var(--text-secondary);flex:1">'+p.l+'</span><span style="font-weight:500;text-align:right">'+p.v+'</span>';
+    deh.appendChild(el);
+  });
+})();
+</script>

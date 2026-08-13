@@ -1,0 +1,81 @@
+<div style="font-family:var(--font-sans)">
+  <div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:12px;overflow:hidden">
+    <div style="padding:15px 20px;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);margin-bottom:8px"><i class="ti ti-arrow-left" style="font-size:15px;cursor:pointer" aria-hidden="true"></i><span>Collections</span><i class="ti ti-chevron-right" style="font-size:12px" aria-hidden="true"></i><span style="color:var(--text-secondary)">Planning approvals</span><i class="ti ti-chevron-right" style="font-size:12px" aria-hidden="true"></i><span style="color:var(--text-secondary)">Manage</span></div>
+      <h1 style="font-size:19px;margin:0">Manage collection</h1>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr">
+      <div style="padding:18px 20px;border-right:0.5px solid var(--border)">
+        <h3 style="font-size:14px;margin:0 0 14px">Settings</h3>
+
+        <label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:5px">Name</label>
+        <input type="text" value="Planning approvals" style="width:100%;height:36px;margin-bottom:14px" />
+
+        <label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:5px">Description</label>
+        <textarea style="width:100%;min-height:52px;resize:vertical;margin-bottom:14px;font-family:inherit">Development applications and consents for the 2023–2025 planning cycle.</textarea>
+
+        <label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:6px">Visibility</label>
+        <div style="display:flex;gap:6px;margin-bottom:16px">
+          <button style="flex:1;height:38px;border-radius:9px;font-size:12px;cursor:pointer;background:var(--bg-accent);border:0.5px solid var(--border-accent);color:var(--text-accent);display:flex;align-items:center;justify-content:center;gap:6px"><i class="ti ti-lock" style="font-size:15px" aria-hidden="true"></i>Private</button>
+          <button style="flex:1;height:38px;border-radius:9px;font-size:12px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong);display:flex;align-items:center;justify-content:center;gap:6px"><i class="ti ti-link" style="font-size:15px" aria-hidden="true"></i>Unlisted</button>
+          <button style="flex:1;height:38px;border-radius:9px;font-size:12px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong);display:flex;align-items:center;justify-content:center;gap:6px"><i class="ti ti-world" style="font-size:15px" aria-hidden="true"></i>Public</button>
+        </div>
+
+        <label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:6px">Default media profile</label>
+        <div style="display:flex;align-items:center;gap:9px;height:38px;padding:0 12px;border:0.5px solid var(--border-strong);border-radius:9px;margin-bottom:6px;cursor:pointer"><i class="ti ti-adjustments" style="font-size:16px;color:var(--text-muted)" aria-hidden="true"></i><span style="flex:1;font-size:13px">Development consent</span><i class="ti ti-chevron-down" style="font-size:15px;color:var(--text-muted)" aria-hidden="true"></i></div>
+        <p style="font-size:11px;color:var(--text-muted);margin:0 0 16px">New items in this collection default to this profile.</p>
+
+        <label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:6px">Tags</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+          <span style="font-size:11px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:6px;padding:3px 9px;display:inline-flex;align-items:center;gap:5px">planning <i class="ti ti-x" style="font-size:11px;cursor:pointer" aria-hidden="true"></i></span>
+          <span style="font-size:11px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:6px;padding:3px 9px;display:inline-flex;align-items:center;gap:5px">consents <i class="ti ti-x" style="font-size:11px;cursor:pointer" aria-hidden="true"></i></span>
+          <span style="font-size:11px;color:var(--text-accent);cursor:pointer;padding:3px 4px">+ Add tag</span>
+        </div>
+      </div>
+
+      <div style="padding:18px 20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <h3 style="font-size:14px;margin:0">Folders</h3>
+          <button style="height:30px;padding:0 11px;border-radius:8px;font-size:12px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong);display:flex;align-items:center;gap:6px"><i class="ti ti-folder-plus" style="font-size:15px" aria-hidden="true"></i>New folder</button>
+        </div>
+        <div id="tree" style="margin-bottom:12px"></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px dashed var(--border-strong);border-radius:9px;background:var(--surface-2)">
+          <i class="ti ti-folder-plus" style="font-size:16px;color:var(--text-muted)" aria-hidden="true"></i>
+          <input type="text" placeholder="New subfolder name" style="flex:1;height:30px;border:none;background:transparent;font-size:13px;font-family:inherit;color:var(--text-primary)" />
+          <button style="height:28px;padding:0 11px;border-radius:7px;font-size:12px;cursor:pointer;background:#1D3455;border:none;color:#fff">Add</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding:16px 20px;border-top:0.5px solid var(--border);background:var(--bg-danger)">
+      <div style="display:flex;align-items:center;gap:12px">
+        <i class="ti ti-archive" style="font-size:20px;color:var(--text-danger);flex-shrink:0" aria-hidden="true"></i>
+        <div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:500;margin:0;color:var(--text-danger)">Archive collection</p><p style="font-size:12px;color:var(--text-danger);opacity:.85;margin:2px 0 0">Cascades to every folder and item inside. Items become inaccessible until restored. Active registrations block archiving.</p></div>
+        <button style="height:34px;padding:0 14px;border-radius:8px;font-size:13px;cursor:pointer;background:transparent;border:0.5px solid var(--border-danger);color:var(--text-danger);flex-shrink:0">Archive…</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var tree=[
+    {n:'2023 development consents',items:112,depth:0},
+    {n:'2024 development consents',items:148,depth:0},
+    {n:'Rouse Hill precinct',items:34,depth:1},
+    {n:'Kellyville precinct',items:41,depth:1},
+    {n:'Objections register',items:63,depth:0}
+  ];
+  var th=document.getElementById('tree');
+  tree.forEach(function(f){
+    var el=document.createElement('div');
+    el.style.cssText='display:flex;align-items:center;gap:9px;padding:9px 10px;padding-left:'+(10+f.depth*20)+'px;border:0.5px solid var(--border);border-radius:9px;margin-bottom:6px;background:var(--surface-2)';
+    el.innerHTML='<i class="ti ti-folder" style="font-size:17px;color:#BA7517;flex-shrink:0" aria-hidden="true"></i>'+
+      '<span style="flex:1;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+f.n+'</span>'+
+      '<span style="font-size:11px;color:var(--text-muted)">'+f.items+' items</span>'+
+      '<i class="ti ti-dots" style="font-size:16px;color:var(--text-muted);cursor:pointer;flex-shrink:0" aria-hidden="true"></i>';
+    th.appendChild(el);
+  });
+})();
+</script>

@@ -1,0 +1,50 @@
+<div style="font-family:var(--font-sans)">
+  <div id="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px"></div>
+</div>
+
+<script>
+(function(){
+  var cards=[
+    {
+      badge:'Declined', bic:'ti-writing-sign-off', tone:'danger', envelope:'SS-9F3A2',
+      title:'Signer declined',
+      who:'delegate@dept-records.nsw.gov.au declined to sign · 20m ago',
+      note:'Decline is a distinct signer action — the envelope stops here. The MediaItem stays checked out; start a new signing session to retry with amended signers or document.',
+      steps:['Initiated','Envelope sent','Declined'],
+      action:'Start new session'
+    },
+    {
+      badge:'Voided', bic:'ti-mail-x', tone:'warning', envelope:'SS-88C10',
+      title:'Envelope voided',
+      who:'Voided at SecuredSigning (expired) · yesterday',
+      note:'Compensation path: the signing session is closed and the checkout lock released. The item returns to its pre-signing state — no signed asset was recorded.',
+      steps:['Initiated','Envelope sent','Voided'],
+      action:'Re-initiate signing'
+    }
+  ];
+  var toneMap={danger:{c:'var(--text-danger)',bg:'var(--bg-danger)'},warning:{c:'var(--text-warning)',bg:'var(--bg-warning)'}};
+  var g=document.getElementById('grid');
+  cards.forEach(function(cd){
+    var t=toneMap[cd.tone];
+    var stepHtml=cd.steps.map(function(s,i){
+      var last=i===cd.steps.length-1;
+      return '<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:'+(last?t.c:'var(--text-secondary)')+';font-weight:'+(last?'500':'400')+'"><i class="ti '+(last?'ti-x':'ti-check')+'" style="font-size:13px" aria-hidden="true"></i>'+s+'</span>'+(last?'':'<i class="ti ti-chevron-right" style="font-size:12px;color:var(--text-muted)" aria-hidden="true"></i>');
+    }).join('');
+    var el=document.createElement('div');
+    el.style.cssText='background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;overflow:hidden';
+    el.innerHTML=
+      '<div style="padding:14px 16px;border-bottom:0.5px solid var(--border)">'+
+        '<div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><div style="width:32px;height:32px;border-radius:8px;background:'+t.bg+';display:flex;align-items:center;justify-content:center"><i class="ti '+cd.bic+'" style="font-size:17px;color:'+t.c+'" aria-hidden="true"></i></div>'+
+          '<div style="flex:1"><h3 style="font-size:15px;margin:0">'+cd.title+'</h3><p style="font-size:11px;color:var(--text-muted);margin:1px 0 0">SecuredSigning · envelope '+cd.envelope+'</p></div>'+
+          '<span style="font-size:11px;font-weight:500;color:'+t.c+';background:'+t.bg+';border-radius:6px;padding:2px 9px">'+cd.badge+'</span></div>'+
+        '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px">'+stepHtml+'</div>'+
+      '</div>'+
+      '<div style="padding:14px 16px">'+
+        '<p style="font-size:12px;font-weight:500;margin:0 0 6px">'+cd.who+'</p>'+
+        '<p style="font-size:12px;color:var(--text-secondary);line-height:1.5;margin:0 0 14px">'+cd.note+'</p>'+
+        '<button style="height:34px;padding:0 14px;border-radius:8px;font-size:13px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong);display:flex;align-items:center;gap:6px"><i class="ti ti-refresh" style="font-size:15px" aria-hidden="true"></i>'+cd.action+'</button>'+
+      '</div>';
+    g.appendChild(el);
+  });
+})();
+</script>

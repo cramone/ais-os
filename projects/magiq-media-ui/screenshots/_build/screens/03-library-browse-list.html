@@ -1,0 +1,112 @@
+<div style="font-family:var(--font-sans)">
+  <div style="background:var(--surface-1);border-radius:12px;border:0.5px solid var(--border);overflow:hidden">
+    <div style="display:flex;min-height:440px">
+
+      <aside style="width:236px;background:var(--surface-2);border-right:0.5px solid var(--border);padding:12px 8px;flex-shrink:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0 6px 8px">
+          <span style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Collections</span>
+          <i class="ti ti-plus" style="font-size:16px;color:var(--text-muted);cursor:pointer" aria-hidden="true"></i>
+        </div>
+        <div id="tree"></div>
+        <div style="border-top:0.5px solid var(--border);margin:8px 6px 0;padding-top:8px">
+          <div style="display:flex;align-items:center;gap:9px;padding:7px 6px;border-radius:7px;cursor:pointer;color:var(--text-secondary);font-size:13px"><i class="ti ti-inbox" style="font-size:17px" aria-hidden="true"></i>Unassigned pool<span style="margin-left:auto;font-size:11px;color:var(--text-muted)">12</span></div>
+        </div>
+      </aside>
+
+      <main style="flex:1;min-width:0;display:flex;flex-direction:column">
+        <div style="padding:14px 18px 0">
+          <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);margin-bottom:8px">
+            <span>Planning approvals</span><i class="ti ti-chevron-right" style="font-size:13px" aria-hidden="true"></i>
+            <span style="color:var(--text-secondary)">2024 development consents</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+            <h1 style="font-size:19px;margin:0;flex:1">2024 development consents</h1>
+            <div style="display:flex;background:var(--surface-2);border:0.5px solid var(--border);border-radius:8px;overflow:hidden">
+              <button aria-label="List view" style="width:32px;height:30px;border:none;background:var(--bg-accent);color:var(--text-accent);cursor:pointer"><i class="ti ti-list" style="font-size:16px" aria-hidden="true"></i></button>
+              <button aria-label="Grid view" style="width:32px;height:30px;border:none;background:transparent;color:var(--text-secondary);cursor:pointer;border-left:0.5px solid var(--border)"><i class="ti ti-layout-grid" style="font-size:16px" aria-hidden="true"></i></button>
+            </div>
+            <button style="height:30px;padding:0 11px;border-radius:8px;font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong)"><i class="ti ti-filter" style="font-size:15px" aria-hidden="true"></i>Status</button>
+            <button style="height:30px;padding:0 12px;border-radius:8px;font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;background:#1D3455;border:none;color:#fff"><i class="ti ti-upload" style="font-size:15px" aria-hidden="true"></i>Upload</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 96px 78px 120px;gap:8px;padding:0 18px 7px;border-bottom:0.5px solid var(--border);font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">
+          <span>Title</span><span>Status</span><span>Version</span><span>Modified</span>
+        </div>
+        <div id="rows" style="flex:1"></div>
+
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:11px 18px;border-top:0.5px solid var(--border);font-size:12px;color:var(--text-secondary)">
+          <span>7 shown</span>
+          <button style="height:30px;padding:0 12px;border-radius:8px;font-size:12px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong);display:flex;align-items:center;gap:5px">Load more<i class="ti ti-arrow-down" style="font-size:14px" aria-hidden="true"></i></button>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var tree=[
+    {n:'Planning approvals',ic:'ti-folder',open:true,kids:[
+      {n:'2023 development consents',cur:false},
+      {n:'2024 development consents',cur:true},
+      {n:'Objections register',cur:false}
+    ]},
+    {n:'Heritage records',ic:'ti-folder',open:false,kids:[]},
+    {n:'Council minutes',ic:'ti-folder',open:false,kids:[]},
+    {n:'Contracts (read only)',ic:'ti-lock',open:false,ro:true,kids:[]}
+  ];
+  var th=document.getElementById('tree');
+  tree.forEach(function(c){
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:7px;padding:7px 6px;border-radius:7px;cursor:pointer;font-size:13px;color:var(--text-primary)';
+    row.innerHTML='<i class="ti '+(c.open?'ti-chevron-down':'ti-chevron-right')+'" style="font-size:14px;color:var(--text-muted)" aria-hidden="true"></i><i class="ti '+c.ic+'" style="font-size:17px;color:'+(c.ro?'var(--text-muted)':'#BA7517')+'" aria-hidden="true"></i><span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+c.n+'</span>';
+    th.appendChild(row);
+    if(c.open&&c.kids.length){
+      c.kids.forEach(function(k){
+        var kr=document.createElement('div');
+        kr.style.cssText='display:flex;align-items:center;gap:7px;padding:6px 6px 6px 30px;border-radius:7px;cursor:pointer;font-size:13px;margin:1px 0;'+(k.cur?'background:var(--bg-accent);color:var(--text-accent);font-weight:500':'color:var(--text-secondary)');
+        kr.innerHTML='<i class="ti ti-folder'+(k.cur?'-open':'')+'" style="font-size:16px;color:'+(k.cur?'var(--text-accent)':'var(--text-muted)')+'" aria-hidden="true"></i><span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+k.n+'</span>';
+        th.appendChild(kr);
+      });
+    }
+  });
+
+  var status={
+    Published:{bg:'#E1F5EE',fg:'#0F6E56',ic:'ti-circle-check'},
+    Draft:{bg:'var(--surface-0)',fg:'var(--text-secondary)',ic:'ti-pencil'},
+    PendingApproval:{bg:'#FAEEDA',fg:'#854F0B',ic:'ti-clock-hour-4',lab:'In review'},
+    Revising:{bg:'#E6F1FB',fg:'#185FA5',ic:'ti-git-branch'},
+    Archived:{bg:'var(--surface-0)',fg:'var(--text-muted)',ic:'ti-archive'}
+  };
+  var items=[
+    {t:'Consent DA-2024-0417 — Lot 42 Rouse Hill',s:'Published',v:3,m:'2 days ago',owner:'A. Kaur',lock:false,conf:false},
+    {t:'Consent DA-2024-0392 — Kellyville subdivision',s:'PendingApproval',v:2,m:'5 hours ago',owner:'A. Kaur',lock:true,conf:false},
+    {t:'Consent DA-2024-0410 — Box Hill industrial',s:'Revising',v:4,m:'yesterday',owner:'J. Ng',lock:true,conf:false},
+    {t:'Consent DA-2024-0388 — Marsden Park lot 9',s:'Draft',v:0,m:'1 hour ago',owner:'A. Kaur',lock:false,conf:true},
+    {t:'Consent DA-2024-0375 — Riverstone East',s:'Published',v:1,m:'1 week ago',owner:'T. Osei',lock:false,conf:false},
+    {t:'Consent DA-2023-0912 — superseded scope',s:'Archived',v:2,m:'3 months ago',owner:'T. Osei',lock:false,conf:false},
+    {t:'Consent DA-2024-0401 — Schofields precinct',s:'Draft',v:0,m:'4 days ago',owner:'J. Ng',lock:false,conf:false}
+  ];
+  var rh=document.getElementById('rows');
+  items.forEach(function(it){
+    var s=status[it.s];
+    var r=document.createElement('div');
+    r.style.cssText='display:grid;grid-template-columns:1fr 96px 78px 120px;gap:8px;align-items:center;padding:11px 18px;border-bottom:0.5px solid var(--border);cursor:pointer;font-size:13px';
+    var flags='';
+    if(it.lock)flags+='<i class="ti ti-lock" title="Checked out" style="font-size:14px;color:var(--text-warning)" aria-hidden="true"></i>';
+    if(it.conf)flags+='<i class="ti ti-alert-triangle" title="Pending conformance" style="font-size:14px;color:#BA7517" aria-hidden="true"></i>';
+    r.innerHTML=
+      '<div style="min-width:0;display:flex;align-items:center;gap:8px">'+
+        '<i class="ti ti-file-description" style="font-size:18px;color:var(--text-muted);flex-shrink:0" aria-hidden="true"></i>'+
+        '<div style="min-width:0"><p style="margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500">'+it.t+'</p>'+
+        '<p style="margin:1px 0 0;font-size:11px;color:var(--text-muted)">'+it.owner+(flags?' &nbsp;':'')+'</p></div>'+
+        (flags?'<span style="display:flex;gap:5px;margin-left:auto;flex-shrink:0">'+flags+'</span>':'')+
+      '</div>'+
+      '<div><span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;color:'+s.fg+';background:'+s.bg+';border-radius:6px;padding:2px 8px"><i class="ti '+s.ic+'" style="font-size:12px" aria-hidden="true"></i>'+(s.lab||it.s)+'</span></div>'+
+      '<div style="color:var(--text-secondary)">'+(it.v>0?'v'+it.v:'—')+'</div>'+
+      '<div style="color:var(--text-secondary)">'+it.m+'</div>';
+    rh.appendChild(r);
+  });
+})();
+</script>

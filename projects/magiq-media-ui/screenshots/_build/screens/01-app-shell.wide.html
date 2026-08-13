@@ -1,0 +1,131 @@
+<div style="min-height:560px;background:var(--surface-1);border-radius:12px;overflow:hidden;border:0.5px solid var(--border);font-family:var(--font-sans)">
+  <div style="display:flex;align-items:center;gap:14px;height:52px;padding:0 16px;background:#1D3455;color:#fff">
+    <div style="display:flex;align-items:center;gap:9px">
+      <div style="width:26px;height:26px;border-radius:6px;background:#1D3455;display:flex;align-items:center;justify-content:center;font-weight:500;font-size:13px">M</div>
+      <span style="font-weight:500;font-size:15px;letter-spacing:.2px">MAGIQ Media</span>
+    </div>
+    <div style="width:1px;height:22px;background:rgba(255,255,255,.18)"></div>
+    <button id="tenantBtn" style="display:flex;align-items:center;gap:7px;background:transparent;border:0.5px solid rgba(255,255,255,.22);color:#fff;height:32px;padding:0 11px;border-radius:8px;font-size:13px;cursor:pointer">
+      <i class="ti ti-building-community" style="font-size:15px" aria-hidden="true"></i>
+      <span>Dept. of Records — NSW</span>
+      <i class="ti ti-chevron-down" style="font-size:14px;opacity:.7" aria-hidden="true"></i>
+    </button>
+    <div style="flex:1;max-width:380px;margin:0 auto;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.10);height:34px;padding:0 12px;border-radius:8px">
+      <i class="ti ti-search" style="font-size:16px;opacity:.7" aria-hidden="true"></i>
+      <span style="font-size:13px;opacity:.6">Search media, collections, records…</span>
+      <span style="margin-left:auto;font-size:11px;opacity:.55;border:0.5px solid rgba(255,255,255,.25);border-radius:4px;padding:1px 5px">⌘K</span>
+    </div>
+    <button aria-label="Notifications" style="position:relative;background:transparent;border:none;color:#fff;cursor:pointer;font-size:19px;padding:4px">
+      <i class="ti ti-bell" aria-hidden="true"></i>
+      <span style="position:absolute;top:2px;right:2px;width:7px;height:7px;background:#E24B4A;border-radius:50%"></span>
+    </button>
+    <button aria-label="Help" style="background:transparent;border:none;color:#fff;cursor:pointer;font-size:19px;padding:4px"><i class="ti ti-help" aria-hidden="true"></i></button>
+    <div style="width:30px;height:30px;border-radius:50%;background:#534AB7;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500">AK</div>
+  </div>
+
+  <div style="display:flex;min-height:508px">
+    <nav id="rail" style="width:212px;background:var(--surface-2);border-right:0.5px solid var(--border);padding:10px 8px;flex-shrink:0">
+      <button id="collapseBtn" style="width:100%;display:flex;align-items:center;gap:8px;justify-content:flex-start;background:transparent;border:none;color:var(--text-muted);height:30px;padding:0 8px;cursor:pointer;font-size:13px;margin-bottom:6px">
+        <i class="ti ti-layout-sidebar-left-collapse" style="font-size:18px" aria-hidden="true"></i><span class="lbl">Collapse</span>
+      </button>
+      <div id="navItems"></div>
+    </nav>
+
+    <main style="flex:1;padding:18px 22px;min-width:0">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);margin-bottom:10px">
+        <span>Library</span><i class="ti ti-chevron-right" style="font-size:13px" aria-hidden="true"></i>
+        <span>Planning approvals</span><i class="ti ti-chevron-right" style="font-size:13px" aria-hidden="true"></i>
+        <span style="color:var(--text-secondary)">2024 development consents</span>
+      </div>
+
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:8px">
+        <div style="flex:1;min-width:0">
+          <h1 style="font-size:22px;margin:0 0 3px">2024 development consents</h1>
+          <p style="font-size:13px;color:var(--text-secondary);margin:0">Folder · 148 items · you have edit access</p>
+        </div>
+        <button style="height:34px;padding:0 12px;border-radius:8px;font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong)"><i class="ti ti-filter" style="font-size:15px" aria-hidden="true"></i>Filter</button>
+        <button style="height:34px;padding:0 13px;border-radius:8px;font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;background:#1D3455;border:none;color:#fff"><i class="ti ti-upload" style="font-size:15px" aria-hidden="true"></i>Upload</button>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:6px;border-bottom:0.5px solid var(--border);margin-bottom:16px">
+        <span style="font-size:13px;padding:8px 2px;border-bottom:2px solid #1D3455;color:var(--text-primary)">All</span>
+        <span style="font-size:13px;padding:8px 10px;color:var(--text-secondary)">Published</span>
+        <span style="font-size:13px;padding:8px 10px;color:var(--text-secondary)">In review</span>
+        <span style="font-size:13px;padding:8px 10px;color:var(--text-secondary)">Processing</span>
+      </div>
+
+      <div id="grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px"></div>
+
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:16px;font-size:12px;color:var(--text-secondary)">
+        <span>Cursor-paged</span>
+        <button style="height:30px;padding:0 12px;border-radius:8px;font-size:12px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong);display:flex;align-items:center;gap:5px">Load more<i class="ti ti-arrow-down" style="font-size:14px" aria-hidden="true"></i></button>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" style="margin:0 16px 14px;display:flex;align-items:center;gap:10px;background:var(--bg-accent);border:0.5px solid var(--border-accent);border-radius:10px;padding:10px 13px;font-size:13px;color:var(--text-accent)" role="status" aria-live="polite">
+    <i class="ti ti-loader-2" style="font-size:16px" aria-hidden="true"></i>
+    <span><strong style="font-weight:500">3 assets processing.</strong> Renditions will appear when ready — read model lags the write.</span>
+    <button aria-label="Dismiss" style="margin-left:auto;background:transparent;border:none;cursor:pointer;color:var(--text-accent);font-size:16px"><i class="ti ti-x" aria-hidden="true"></i></button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var nav=[
+    {i:'ti-photo',l:'Library',active:true},
+    {i:'ti-search',l:'Search'},
+    {i:'ti-cloud-upload',l:'Uploads',badge:'3'},
+    {i:'ti-git-pull-request',l:'Change requests',badge:'5'},
+    {i:'ti-certificate',l:'Registrations'},
+    {i:'ti-signature',l:'Signing'},
+    {sep:'Admin'},
+    {i:'ti-forms',l:'Record types'},
+    {i:'ti-adjustments',l:'Media profiles'},
+    {i:'ti-users',l:'Users'},
+    {i:'ti-history',l:'Audit'}
+  ];
+  var host=document.getElementById('navItems');
+  nav.forEach(function(n){
+    if(n.sep){var s=document.createElement('div');s.className='lbl';s.textContent=n.sep;s.style.cssText='font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;padding:12px 8px 5px';host.appendChild(s);return;}
+    var a=document.createElement('div');
+    a.style.cssText='display:flex;align-items:center;gap:10px;height:36px;padding:0 8px;border-radius:8px;cursor:pointer;font-size:13px;margin-bottom:1px;'+(n.active?'background:var(--bg-accent);color:var(--text-accent);font-weight:500':'color:var(--text-secondary)');
+    a.innerHTML='<i class="ti '+n.i+'" style="font-size:18px;flex-shrink:0" aria-hidden="true"></i><span class="lbl" style="flex:1;white-space:nowrap;overflow:hidden">'+n.l+'</span>'+(n.badge?'<span class="lbl" style="font-size:11px;background:var(--surface-0);border:0.5px solid var(--border);border-radius:10px;padding:1px 7px;color:var(--text-secondary)">'+n.badge+'</span>':'');
+    host.appendChild(a);
+  });
+
+  var items=[
+    {t:'Consent DA-2024-0417',s:'available',ty:'ti-file-type-pdf',meta:'PDF · v3'},
+    {t:'Site plan — Lot 42',s:'available',ty:'ti-photo',meta:'PNG · v1'},
+    {t:'Aerial survey pass 2',s:'processing',ty:'ti-loader-2',meta:'Generating renditions'},
+    {t:'Council minutes Q1',s:'review',ty:'ti-file-text',meta:'CR-118 · 2 reviewers'},
+    {t:'Drainage schematic',s:'pending',ty:'ti-clock',meta:'Queued for scan'},
+    {t:'Heritage assessment',s:'available',ty:'ti-file-type-pdf',meta:'PDF · v2'},
+    {t:'Contractor upload 88',s:'failed',ty:'ti-alert-triangle',meta:'Virus scan failed'},
+    {t:'Boundary photo set',s:'available',ty:'ti-photo',meta:'JPG · v1'}
+  ];
+  var st={
+    available:{c:'--text-secondary',bg:'var(--surface-0)',ic:'#5DCAA5',lab:''},
+    processing:{c:'var(--text-accent)',bg:'var(--bg-accent)',ic:'#1D3455',lab:'Processing'},
+    review:{c:'#854F0B',bg:'#FAEEDA',ic:'#BA7517',lab:'In review'},
+    pending:{c:'var(--text-muted)',bg:'var(--surface-0)',ic:'#888780',lab:'Pending'},
+    failed:{c:'#A32D2D',bg:'#FCEBEB',ic:'#E24B4A',lab:'Failed'}
+  };
+  var g=document.getElementById('grid');
+  items.forEach(function(it){
+    var s=st[it.s];
+    var c=document.createElement('div');
+    c.style.cssText='background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer';
+    c.innerHTML=
+      '<div style="height:92px;background:'+s.bg+';display:flex;align-items:center;justify-content:center;position:relative">'+
+        '<i class="ti '+it.ty+'" style="font-size:30px;color:'+s.ic+'" aria-hidden="true"></i>'+
+        (s.lab?'<span style="position:absolute;top:7px;left:7px;font-size:10px;font-weight:500;color:'+s.c+';background:var(--surface-2);border:0.5px solid var(--border);border-radius:5px;padding:1px 6px">'+s.lab+'</span>':'')+
+      '</div>'+
+      '<div style="padding:9px 10px 11px">'+
+        '<p style="font-size:12px;font-weight:500;margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+it.t+'</p>'+
+        '<p style="font-size:11px;color:var(--text-muted);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+it.meta+'</p>'+
+      '</div>';
+    g.appendChild(c);
+  });
+})();
+</script>

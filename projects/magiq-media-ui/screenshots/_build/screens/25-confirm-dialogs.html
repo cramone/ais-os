@@ -1,0 +1,29 @@
+<div style="font-family:var(--font-sans)">
+  <div id="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px"></div>
+</div>
+
+<script>
+(function(){
+  var dialogs=[
+    {ic:'ti-arrow-back-up',tone:'accent',h:'Withdraw item?',b:'This returns the published item to Draft. Readers lose access to it until you publish again.',cancel:'Keep published',confirm:'Withdraw',danger:false},
+    {ic:'ti-archive',tone:'danger',h:'Archive item?',b:'The item and its assets become inaccessible until restored. Any active registration must be resolved first.',cancel:'Cancel',confirm:'Archive',danger:true},
+    {ic:'ti-git-branch-deleted',tone:'accent',h:'Discard revision?',b:'Draft changes to v3 are discarded. The published v2 stays live. This can’t be undone.',cancel:'Keep editing',confirm:'Discard revision',danger:false},
+    {ic:'ti-lock-open',tone:'danger',h:'Force-release checkout?',b:'J. Ng has this item checked out. Releasing it will abandon their in-progress edits and any open change request. Admin action — audited.',cancel:'Cancel',confirm:'Force-release',danger:true}
+  ];
+  var toneMap={accent:{c:'var(--text-accent)',bg:'var(--bg-accent)'},danger:{c:'var(--text-danger)',bg:'var(--bg-danger)'}};
+  var g=document.getElementById('grid');
+  dialogs.forEach(function(d){
+    var t=toneMap[d.tone];
+    var el=document.createElement('div');
+    el.style.cssText='background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:18px 18px 16px;box-shadow:var(--shadow-md)';
+    el.innerHTML=
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="width:34px;height:34px;border-radius:9px;background:'+t.bg+';display:flex;align-items:center;justify-content:center"><i class="ti '+d.ic+'" style="font-size:18px;color:'+t.c+'" aria-hidden="true"></i></div><h3 style="font-size:15px;margin:0">'+d.h+'</h3></div>'+
+      '<p style="font-size:12px;color:var(--text-secondary);line-height:1.5;margin:0 0 16px">'+d.b+'</p>'+
+      '<div style="display:flex;gap:8px;justify-content:flex-end">'+
+        '<button style="height:34px;padding:0 13px;border-radius:8px;font-size:12px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong)">'+d.cancel+'</button>'+
+        '<button style="height:34px;padding:0 14px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;border:none;color:#fff;background:'+(d.danger?'var(--text-danger)':'var(--accent)')+'">'+d.confirm+'</button>'+
+      '</div>';
+    g.appendChild(el);
+  });
+})();
+</script>

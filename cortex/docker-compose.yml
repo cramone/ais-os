@@ -197,7 +197,7 @@ services:
       - no-new-privileges:true
     environment:
       CLOUDFLARE_API_TOKEN: ${CF_DNS_API_TOKEN}
-      DOMAINS: tower.ramonedevelopment.com,login.ramonedevelopment.com
+      DOMAINS: tower.ramonedevelopment.com,login.ramonedevelopment.com,tenant1.ramonedevelopment.com,tenant2.ramonedevelopment.com
       PROXIED: "true"
       IP6_PROVIDER: none
 
@@ -562,6 +562,8 @@ services:
       - "--certificatesresolvers.public.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
       - "--certificatesresolvers.public.acme.email=chase.ramone@magiqsoftware.com"
       - "--certificatesresolvers.public.acme.storage=/letsencrypt/acme.json"
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
       - "--log.level=INFO"
       - "--api.dashboard=true"
       # cortex is now sole owner of ramonedevelopment.com's public ACME path.
@@ -584,6 +586,7 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "/var/lib/tailscale/certs:/tailscale-certs:ro"
       - "traefik_certs:/letsencrypt"
+      - "/mnt/shared/claudia/magiq/cortex/traefik-dynamic:/etc/traefik/dynamic:ro"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.ramonedevelopment.com`)"

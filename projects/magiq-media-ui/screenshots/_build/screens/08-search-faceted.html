@@ -1,0 +1,102 @@
+<div style="font-family:var(--font-sans)">
+  <div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:12px;overflow:hidden">
+
+    <div style="padding:14px 18px;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:9px;background:var(--surface-2);border:0.5px solid var(--border-strong);border-radius:9px;height:40px;padding:0 13px">
+        <i class="ti ti-search" style="font-size:18px;color:var(--text-muted)" aria-hidden="true"></i>
+        <span style="flex:1;font-size:14px">kellyville subdivision consent</span>
+        <span style="font-size:11px;color:var(--text-muted)">debounced 300ms</span>
+        <i class="ti ti-x" style="font-size:16px;color:var(--text-muted);cursor:pointer" aria-hidden="true"></i>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:194px 1fr">
+
+      <aside style="padding:16px 14px;border-right:0.5px solid var(--border);background:var(--surface-2)">
+        <div id="facets"></div>
+      </aside>
+
+      <div style="padding:14px 18px;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+          <span style="font-size:13px;color:var(--text-secondary);font-weight:500">42 results</span>
+          <span style="font-size:12px;color:var(--text-muted)">·</span>
+          <span id="chips" style="display:flex;gap:6px;flex-wrap:wrap"></span>
+          <span style="font-size:12px;color:var(--text-accent);cursor:pointer;margin-left:auto">Clear all</span>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:9px;background:var(--bg-accent);border:0.5px solid var(--border-accent);border-radius:8px;padding:8px 11px;margin-bottom:14px;font-size:12px;color:var(--text-accent)">
+          <i class="ti ti-clock-bolt" style="font-size:15px" aria-hidden="true"></i>Search index is eventually consistent — very recent edits may lag.
+        </div>
+
+        <div id="results"></div>
+
+        <div style="display:flex;justify-content:center;margin-top:14px">
+          <button style="height:32px;padding:0 14px;border-radius:8px;font-size:12px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong);display:flex;align-items:center;gap:6px">Load more<i class="ti ti-arrow-down" style="font-size:14px" aria-hidden="true"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var facets=[
+    {h:'Status',items:[['Published',18,true],['In review',6,false],['Draft',12,false],['Archived',6,false]]},
+    {h:'Media profile',items:[['Development consent',24,true],['Council minutes',9,false],['Heritage record',9,false]]},
+    {h:'Owner',items:[['Only mine',15,false]]},
+    {h:'Date (created)',items:[['Last 7 days',4,false],['Last 30 days',11,false],['This year',31,false]]}
+  ];
+  var fh=document.getElementById('facets');
+  facets.forEach(function(f){
+    var sec=document.createElement('div');
+    sec.style.cssText='margin-bottom:16px';
+    var rows=f.items.map(function(it){
+      return '<label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;cursor:pointer">'+
+        '<input type="checkbox" '+(it[2]?'checked':'')+' style="width:15px;height:15px;accent-color:#1D3455"/>'+
+        '<span style="flex:1;color:var(--text-primary)">'+it[0]+'</span>'+
+        '<span style="font-size:11px;color:var(--text-muted)">'+it[1]+'</span></label>';
+    }).join('');
+    sec.innerHTML='<p style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin:0 0 6px">'+f.h+'</p>'+rows;
+    fh.appendChild(sec);
+  });
+  var tagSec=document.createElement('div');
+  tagSec.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 7px"><p style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin:0">Tags</p>'+
+    '<span style="font-size:10px;display:inline-flex;border:0.5px solid var(--border);border-radius:6px;overflow:hidden"><span style="padding:1px 6px;background:var(--bg-accent);color:var(--text-accent);font-weight:500">AND</span><span style="padding:1px 6px;color:var(--text-muted)">OR</span></span></div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:5px"><span style="font-size:11px;background:var(--bg-accent);color:var(--text-accent);border-radius:6px;padding:2px 8px;cursor:pointer">subdivision <i class="ti ti-x" style="font-size:11px" aria-hidden="true"></i></span><span style="font-size:11px;background:var(--surface-1);border:0.5px solid var(--border);border-radius:6px;padding:2px 8px;cursor:pointer">2024</span><span style="font-size:11px;background:var(--surface-1);border:0.5px solid var(--border);border-radius:6px;padding:2px 8px;cursor:pointer">rouse-hill</span></div>';
+  fh.appendChild(tagSec);
+
+  var chips=[['Status: Published','#0F6E56','#E1F5EE'],['Profile: Development consent','var(--text-accent)','var(--bg-accent)'],['tag: subdivision','var(--text-accent)','var(--bg-accent)']];
+  var ch=document.getElementById('chips');
+  chips.forEach(function(c){
+    var el=document.createElement('span');
+    el.style.cssText='display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;color:'+c[1]+';background:'+c[2]+';border-radius:6px;padding:2px 8px;cursor:pointer';
+    el.innerHTML=c[0]+' <i class="ti ti-x" style="font-size:12px" aria-hidden="true"></i>';
+    ch.appendChild(el);
+  });
+
+  var st={Published:{bg:'#E1F5EE',fg:'#0F6E56'},PendingApproval:{bg:'#FAEEDA',fg:'#854F0B',lab:'In review'},Draft:{bg:'var(--surface-2)',fg:'var(--text-secondary)'},Archived:{bg:'var(--surface-2)',fg:'var(--text-muted)'}};
+  var results=[
+    {t:'Consent DA-2024-0392 — <mark>Kellyville subdivision</mark>',path:'Planning approvals › 2024 dev consents',s:'PendingApproval',score:.98,v:2},
+    {t:'Consent DA-2024-0417 — Lot 42 Rouse Hill <mark>subdivision</mark>',path:'Planning approvals › 2024 dev consents',s:'Published',score:.86,v:3},
+    {t:'<mark>Kellyville</mark> stage 2 objections register',path:'Planning approvals › Objections',s:'Published',score:.71,v:1},
+    {t:'Draft <mark>consent</mark> — <mark>Kellyville</mark> lot 14',path:'Unassigned pool',s:'Draft',score:.64,v:0}
+  ];
+  var rh=document.getElementById('results');
+  results.forEach(function(r){
+    var s=st[r.s];
+    var el=document.createElement('div');
+    el.style.cssText='display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:0.5px solid var(--border);cursor:pointer';
+    el.innerHTML='<i class="ti ti-file-description" style="font-size:20px;color:var(--text-muted);margin-top:2px;flex-shrink:0" aria-hidden="true"></i>'+
+      '<div style="flex:1;min-width:0">'+
+        '<p style="font-size:14px;font-weight:500;margin:0;line-height:1.4">'+r.t+'</p>'+
+        '<p style="font-size:11px;color:var(--text-muted);margin:3px 0 0"><i class="ti ti-folder" style="font-size:12px;vertical-align:-2px" aria-hidden="true"></i> '+r.path+' · '+(r.v>0?'v'+r.v:'draft')+'</p>'+
+      '</div>'+
+      '<div style="text-align:right;flex-shrink:0">'+
+        '<span style="display:inline-block;font-size:10px;font-weight:500;color:'+s.fg+';background:'+s.bg+';border-radius:5px;padding:1px 7px;margin-bottom:5px">'+(s.lab||r.s)+'</span>'+
+        '<div style="display:flex;align-items:center;gap:5px;justify-content:flex-end"><div style="width:34px;height:4px;background:var(--surface-0);border-radius:2px;overflow:hidden"><div style="width:'+Math.round(r.score*100)+'%;height:100%;background:#1D3455"></div></div><span style="font-size:10px;color:var(--text-muted)">'+r.score.toFixed(2)+'</span></div>'+
+      '</div>';
+    rh.appendChild(el);
+  });
+  var s=document.createElement('style');s.textContent='mark{background:#FAC775;color:#633806;padding:0 2px;border-radius:2px}';document.head.appendChild(s);
+})();
+</script>

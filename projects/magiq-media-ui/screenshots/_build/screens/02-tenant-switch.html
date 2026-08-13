@@ -1,0 +1,97 @@
+<div style="font-family:var(--font-sans)">
+  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+    <button id="btnMenu" class="seg" style="height:32px;padding:0 12px;border-radius:8px;font-size:13px;cursor:pointer;background:var(--bg-accent);border:0.5px solid var(--border-accent);color:var(--text-accent)">1 · Selector</button>
+    <button id="btnSwitch" class="seg" style="height:32px;padding:0 12px;border-radius:8px;font-size:13px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong)">2 · Switching</button>
+    <button id="btnGuard" class="seg" style="height:32px;padding:0 12px;border-radius:8px;font-size:13px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong)">3 · Upload guard</button>
+  </div>
+
+  <div style="background:var(--surface-1);border-radius:12px;border:0.5px solid var(--border);overflow:hidden">
+    <div style="display:flex;align-items:center;gap:12px;height:52px;padding:0 16px;background:#1D3455;color:#fff">
+      <div style="width:26px;height:26px;border-radius:6px;background:#1D3455;display:flex;align-items:center;justify-content:center;font-weight:500;font-size:13px">M</div>
+      <span style="font-weight:500;font-size:15px">MAGIQ Media</span>
+      <div style="width:1px;height:22px;background:rgba(255,255,255,.18)"></div>
+      <button id="chip" style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.10);border:0.5px solid rgba(255,255,255,.22);color:#fff;height:32px;padding:0 11px;border-radius:8px;font-size:13px;cursor:pointer">
+        <i class="ti ti-building-community" style="font-size:15px" aria-hidden="true"></i>
+        <span id="chipName">Dept. of Records — NSW</span>
+        <i class="ti ti-chevron-down" style="font-size:14px;opacity:.7" aria-hidden="true"></i>
+      </button>
+      <div style="width:30px;height:30px;border-radius:50%;background:#534AB7;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;margin-left:auto">AK</div>
+    </div>
+
+    <div id="stage" style="position:relative;min-height:360px;background:var(--surface-0)"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var stage=document.getElementById('stage'),chipName=document.getElementById('chipName');
+  var tenants=[
+    {n:'Dept. of Records — NSW',r:'Records officer · edit',cur:true,init:'DR'},
+    {n:'Dept. of Planning — NSW',r:'Reviewer',init:'DP'},
+    {n:'City of Parramatta',r:'Records officer · edit',init:'CP'},
+    {n:'Heritage NSW',r:'Read only',init:'HN'}
+  ];
+
+  function menu(){
+    chipName.textContent='Dept. of Records — NSW';
+    var rows=tenants.map(function(t){
+      return '<div class="trow" data-n="'+t.n+'" style="display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:8px;cursor:pointer;'+(t.cur?'background:var(--bg-accent)':'')+'">'+
+        '<div style="width:32px;height:32px;border-radius:7px;background:var(--surface-0);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:var(--text-secondary)">'+t.init+'</div>'+
+        '<div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:500;margin:0;'+(t.cur?'color:var(--text-accent)':'')+'">'+t.n+'</p>'+
+        '<p style="font-size:11px;color:var(--text-muted);margin:0">'+t.r+'</p></div>'+
+        (t.cur?'<i class="ti ti-check" style="font-size:17px;color:var(--text-accent)" aria-hidden="true"></i>':'<i class="ti ti-arrow-right" style="font-size:16px;color:var(--text-muted)" aria-hidden="true"></i>')+
+      '</div>';
+    }).join('');
+    stage.innerHTML='<div style="padding:14px 16px 20px">'+
+      '<p style="font-size:12px;color:var(--text-secondary);margin:0 0 10px">Menu anchored under the tenant chip. Shown only when the user belongs to more than one tenant.</p>'+
+      '<div style="max-width:340px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:6px;box-shadow:var(--shadow-popover)">'+
+        '<div style="display:flex;align-items:center;gap:8px;background:var(--surface-0);height:34px;padding:0 10px;border-radius:8px;margin:4px 4px 6px"><i class="ti ti-search" style="font-size:15px;color:var(--text-muted)" aria-hidden="true"></i><span style="font-size:13px;color:var(--text-muted)">Find a tenant…</span></div>'+
+        rows+
+        '<div style="border-top:0.5px solid var(--border);margin:6px 4px 2px;padding-top:6px"><div style="display:flex;align-items:center;gap:8px;padding:8px 10px;color:var(--text-secondary);font-size:12px"><i class="ti ti-info-circle" style="font-size:15px" aria-hidden="true"></i>Switching re-authenticates you into the selected tenant.</div></div>'+
+      '</div></div>';
+    stage.querySelectorAll('.trow').forEach(function(r){
+      r.addEventListener('click',function(){ if(r.querySelector('.ti-check'))return; switching(r.getAttribute('data-n')); });
+    });
+  }
+
+  function switching(name){
+    chipName.textContent=name;
+    var steps=[
+      {ic:'ti-key',t:'Mint new access token',d:'grant scoped to '+name+' at magiq-auth · tenant_id claim swapped'},
+      {ic:'ti-trash',t:'Drop all cached data',d:'invalidate every TanStack Query cache — prior data was tenant-scoped'},
+      {ic:'ti-eraser',t:'Reset tenant-scoped client state',d:'command palette, filters, selection — upload queue handled separately'},
+      {ic:'ti-home',t:'Land on Library root',d:'deep-linked IDs from the old tenant would 404 here'}
+    ];
+    stage.innerHTML='<div style="padding:22px 16px;max-width:440px;margin:0 auto">'+
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><i class="ti ti-loader-2" style="font-size:20px;color:var(--text-accent)" aria-hidden="true"></i><h3 style="font-size:16px;margin:0">Switching to '+name+'</h3></div>'+
+      '<p style="font-size:12px;color:var(--text-secondary);margin:0 0 18px 30px">Access token lives in memory only — the old one is discarded, not reused.</p>'+
+      '<div id="steps"></div>'+
+      '<div id="doneRow" style="display:none;align-items:center;gap:8px;margin-top:16px;background:var(--bg-success);border:0.5px solid var(--border-success);border-radius:10px;padding:10px 13px;font-size:13px;color:var(--text-success)"><i class="ti ti-circle-check" style="font-size:16px" aria-hidden="true"></i><span>Now in '+name+'. Screen reader announced via polite live region.</span></div>'+
+    '</div>';
+    var sh=stage.querySelector('#steps');
+    steps.forEach(function(s,i){
+      var el=document.createElement('div');
+      el.style.cssText='display:flex;align-items:flex-start;gap:11px;padding:11px 0;border-bottom:0.5px solid var(--border);opacity:1;transition:opacity .25s';
+      el.innerHTML='<div class="dot" style="width:26px;height:26px;border-radius:50%;background:var(--surface-2);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti '+s.ic+'" style="font-size:15px;color:var(--text-muted)" aria-hidden="true"></i></div>'+
+        '<div style="flex:1"><p style="font-size:13px;font-weight:500;margin:0">'+s.t+'</p><p style="font-size:11px;color:var(--text-muted);margin:1px 0 0">'+s.d+'</p></div>'+
+        '<i class="ti ti-check tick" style="font-size:17px;color:var(--text-success);opacity:0;transition:opacity .2s" aria-hidden="true"></i>';
+      sh.appendChild(el);
+    });
+  }
+
+  function guard(){
+    chipName.textContent='Dept. of Records — NSW';
+    stage.innerHTML='<div style="min-height:360px;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;padding:20px">'+
+      '<div style="max-width:400px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:20px 22px">'+
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="width:34px;height:34px;border-radius:8px;background:var(--bg-warning);display:flex;align-items:center;justify-content:center"><i class="ti ti-cloud-upload" style="font-size:18px;color:var(--text-warning)" aria-hidden="true"></i></div><h3 style="font-size:16px;margin:0">Uploads in progress</h3></div>'+
+        '<p style="font-size:13px;color:var(--text-secondary);line-height:1.55;margin:0 0 8px">2 assets are still uploading to <strong style="font-weight:500;color:var(--text-primary)">Dept. of Records — NSW</strong>. Switching tenant ends this session — those uploads can’t continue and won’t resume in the new tenant.</p>'+
+        '<div style="background:var(--surface-0);border-radius:8px;padding:9px 11px;margin:0 0 16px;font-size:12px;color:var(--text-secondary)"><i class="ti ti-file" style="font-size:14px;vertical-align:-2px;margin-right:6px" aria-hidden="true"></i>Aerial survey pass 2 · 64%<br><i class="ti ti-file" style="font-size:14px;vertical-align:-2px;margin-right:6px;margin-top:4px" aria-hidden="true"></i>Boundary photo set · 12%</div>'+
+        '<div style="display:flex;gap:8px;justify-content:flex-end"><button id="stay" style="height:34px;padding:0 14px;border-radius:8px;font-size:13px;cursor:pointer;background:transparent;border:0.5px solid var(--border-strong)">Stay and finish</button><button id="go" style="height:34px;padding:0 14px;border-radius:8px;font-size:13px;cursor:pointer;background:#A32D2D;border:none;color:#fff">Switch anyway</button></div>'+
+      '</div></div>';
+  }
+
+  function seg(active){document.querySelectorAll('.seg').forEach(function(b){b.style.background='transparent';b.style.border='0.5px solid var(--border-strong)';b.style.color='var(--text-primary)';});active.style.background='var(--bg-accent)';active.style.border='0.5px solid var(--border-accent)';active.style.color='var(--text-accent)';}
+  var bM=document.getElementById('btnMenu');
+  menu();
+})();
+</script>

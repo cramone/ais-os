@@ -1069,3 +1069,705 @@ already safe (Dapper runs the parameterised INSERT once per row, not a multi-row
 **If the vendor fixes/waives it:** removal would unwind `RunPhase.Normalization` + `ExecuteNormalizationAsync`, the `confirm → normalization` chaining (back to `confirm → archival`), the rename SOAP ops + `RawRenamePath`, `CleanupRunRename` + `ICleanupRunRenameStore`, the `EnteredNormalization` audit-lock, and `RenamePlanner`. The step renumbering (Archival 9–10, Cleanup 11–12) would revert to 8–9 / 10–11. The operation-audit `Rename` type can stay harmlessly. Track that as its own story if it happens.
 
 **Status:** Reported to vendor; phase implemented and retained. No code change — this is a status/decision record. Chase checking in the latest (normalization-inclusive) code.
+
+---
+
+## [2026-08-07] Name Normalization — conflict dry run + operator resolution gate; audit lock retimed
+
+**Context:** Normalizing source names can make two previously-distinct items collapse onto the **same** name under one parent — `Report` + `Report ` → `Report`, or a regular-space vs non-breaking-space pair → the same string. A blind rename would then fail or silently merge. These collisions need an operator decision, not an automated guess. Requested by Chase (spec-first; product implementation to follow).
+
+**Decision:**
+
+1. **Three-part phase.** Step 8 becomes **8a dry run** (`AnalyzeNormalizationAsync` / pure `RenamePlanner`) that plans every rename and detects conflicts **without mutating** → **conflict gate** (`AwaitingInput`) when any exist → **8b execute** (`ExecuteNormalizationAsync`) that applies renames/merges/deletes. No step renumber (8a/8b are narrative sub-parts of Step 8; `RunPhaseExecutor` still emits step 8).
+
+2. **Conflict scope.** A conflict is ≥2 items resolving to the same name under the same parent, evaluated against the **whole projected structure including non-candidate siblings** (`FolderFolder` / `DocumentDocument`).
+
+3. **Resolution options + safe default.** Per conflict: rename folder, rename document, merge the two folders (then inner document conflicts → rename or keep-one/delete-other), or keep-one/delete-other. The **pre-selected default is always a non-destructive disambiguating rename** (`" (2)"`, …); merge and delete-duplicate require a deliberate choice + confirmation and are written to `CleanupRunOperation` (`FolderMerge` / `DeleteDuplicate`). Resolutions draft-saved like Step 6.
+
+4. **Re-analysis loop.** Submitting resolutions re-runs 8a with them applied (a chosen rename/merge can create a new collision) — fixpoint loop until zero conflicts; only then 8b is enqueued. ("Re-run identification" = re-analyse the normalization plan, not Phase 1.)
+
+5. **Audit lock retimed (amends Rule 7).** The lock now trips on the **first executed mutation in 8b** (signalled by `CleanupRun.EnteredNormalization`), **not** on entering `RunPhase.Normalization`. A run still in 8a / the gate has changed nothing and stays deletable. `DescribeDeletability` keys off `EnteredNormalization`, superseding the earlier "any `CleanupRunRename` row / `CurrentPhase` reached" signal. New **Rule 8** covers the conflict gate.
+
+6. **Surfaces.** New `CleanupRunNameConflict` (+ `…ConflictItem`) table (into `0001_baseline.sql`; DB reset pre-release); endpoints `GET /normalization/plan`, `POST /normalization/conflicts/draft`, `POST /normalization/resolve`; SOAP `DeleteDocument` (op name to confirm at integration) plus `Move`+`DeleteFolder` reused for merge; SPA **Normalization Review** view adapted from the Step 6 folder tree.
+
+**Rationale:** A dry run + explicit operator resolution is the only safe way to handle name collisions in a records tool — auto-merging or auto-deleting source items without a decision is unacceptable. Retiming the audit lock to the first real change is both more accurate (nothing has changed until 8b) and kinder to operators who abandon during resolution. Reusing the Step 6 tree view and the existing `AwaitingInput` pause keeps the surface small and avoids a renumber.
+
+**Contingency:** This sits on top of the Name Normalization phase, which is **parked pending the MAGIQ vendor** (`[2026-08-06]`). If the vendor fixes the whitespace `Move`/`CreateFolder` behaviour and the phase is retired, there are no normalization renames and therefore no conflicts — this entire feature retires with it. Flagged to Chase; building it keeps the annual cull unblocked in the meantime.
+
+**Status:** Spec-first — `NATA…Spec_v0.6.md` (Step 8, Rules 7–8, run states, UI, SOAP, navigation) and `dev-spec.md` (phase behaviour, conflict data model, endpoints, component map, sequence) updated; CLAUDE.md constraint updated. **Product implementation not yet started** (`RenamePlanner` conflict detection, the two-job split, the gate endpoints, the SPA view). Chase owns branch/commit/PR.
+
+---
+
+## [2026-08-07] Name Normalization is permanent — vendor won't change; conflict-resolution SOAP ops confirmed
+
+**Context:** The `[2026-08-06]` entry parked the Name Normalization phase pending a MAGIQ Documents vendor investigation of the whitespace `Move`/`CreateFolder` limitation, noting the phase might be retired if the vendor fixed it. Chase has now heard back.
+
+**Decision (Chase, from the vendor):**
+
+1. **The vendor will not change the behaviour.** The whitespace/invisible-character limitation stays. Name Normalization is therefore **permanent** — this **supersedes the "parked / may be removed" status** of `[2026-08-06]`. The removal-unwind plan in that entry is now moot; the conflict dry-run + resolution gate (`[2026-08-07]`, above) proceeds as real, non-contingent work.
+
+2. **`DeleteDocument` verified.** Backs the Step 8 keep-one/delete-other resolution: `AuthenticationTicket` + full `Path` → recycle bin, simple `<response success="…"/>` ack. Captured in `SOAP-VERIFICATION-34525.md` op 18. The earlier "op name/shape to confirm at integration" hedge is removed from both specs.
+
+3. **`GetDocument` `withVersions=true` verified, and drives duplicate identity.** The response carries a `<Versions>` block with a per-version `CheckSum` (+ `VersionSize`). For a **DocumentDocument** conflict the dry run reads each colliding document with versions and compares checksums: **all match ⇒ true duplicates** (keep-one/delete-other is a safe collapse and the gate says so); **any mismatch ⇒ distinct content** (keep-one/delete-other is flagged lossy; the disambiguating rename stays the default). Persisted on `CleanupRunNameConflict.Identical`. Captured in `SOAP-VERIFICATION-34525.md` op 16.
+
+**Rationale:** A permanent platform limitation makes the phase load-bearing, so investing in safe conflict resolution is warranted. Checksum comparison is the only trustworthy way to tell an accidental duplicate (safe to collapse) from two same-named but different documents (must not silently delete) — filename equality alone is not enough in a records system.
+
+**Status:** `SOAP-VERIFICATION-34525.md` updated (ops 16, 18 + addendum-4 findings). Specs updated (`DeleteDocument` un-hedged; checksum identity added to the Step 8 conflict gate; `CleanupRunNameConflict.Identical`). Product implementation still pending with the rest of the conflict-gate work. Chase owns branch/commit/PR.
+
+---
+
+## [2026-08-07] Protection (Rule 2) overrides Name Normalization conflict resolution
+
+**Context:** The Step 8 conflict gate offers destructive resolutions (merge folders, keep-one/delete-other). Without a guard these could delete a **protected** folder (one holding a post-cutoff document, or an ancestor of one) or a **post-cutoff document** — violating Rule 2, the tool's cardinal preservation guarantee. Chase: protection must hold at all times.
+
+**Decision:** Protection wins over every conflict resolution.
+
+1. **No resolution may delete protected content.** 8a tags each `CleanupRunNameConflictItem` with `Protected` (from the Step 4 protection computation). The gate filters options: `MergeFolders` must orient with the **protected folder as the survivor** (the non-protected side is the one whose contents move and which is then deleted — never the protected one); `KeepOneDeleteOther` can't pick a protected/post-cutoff document as the delete target; the pre-selected default `Rename` targets the **non-protected** side; and if **all** colliding members are protected, **rename is the only option**.
+
+2. **Rename is always protection-safe.** A rename deletes nothing, so a protection-safe resolution always exists — the operator can never be forced into removing protected content. (Renaming a protected folder to disambiguate is permitted; Rule 2 forbids *deletion*, not renaming, and the default avoids it by renaming the other side where possible.)
+
+3. **Server re-validates.** `POST /normalization/resolve` re-checks protection against the persisted `Protected` flags and rejects a protection-violating resolution, so a crafted request can't bypass it.
+
+**Rationale:** Rule 2 is the strongest guarantee in the system; a convenience feature (conflict resolution) must never be able to breach it. Orienting merges by protection (rather than blocking them outright) keeps the useful "two folders are really one" case available without risking preserved records.
+
+**Open (Gap 2):** handling of collisions with a **non-candidate** folder (outside the cull) — recommended to treat like protection for deletion (never delete a non-candidate folder; default to renaming the candidate side; allow merge only with the non-candidate as survivor + a clear out-of-scope warning). Awaiting Chase's confirmation before spec'ing.
+
+**Status:** Specs updated — main spec Step 8 conflict section + Rules 2 & 8; `dev-spec` conflict-item `Protected` + protection-filter behaviour. Product implementation pending with the rest of the conflict gate. Chase owns branch/commit/PR.
+
+---
+
+## [2026-08-07] Gap 2 resolved — Name Normalization collisions with a folder outside the cull
+
+**Context:** A candidate folder can normalize onto a **non-candidate** sibling (a folder the cull never selected — no candidate documents beneath it). Merging archived candidates into an out-of-scope folder, or deleting one, would touch data the operator didn't put in scope. Follow-up to the `[2026-08-07]` protection decision (its open Gap 2).
+
+**Decision (Chase — accepted the recommended option):** Treat a non-candidate folder like protected content for **deletion**, but allow a deliberate, warned merge into it.
+
+1. **Never delete a non-candidate folder.** 8a tags `CleanupRunNameConflictItem.NonCandidate`; such a folder is **survivor-only** — a merge may keep it, never `DeleteFolder` it.
+2. **Default renames the candidate side**, leaving the out-of-scope folder untouched.
+3. **Merge stays available, warned + direction-locked.** For the real "these two are the same folder, duplicated by a paste" case, merge is offered only with the non-candidate as survivor and behind an *"outside this cull — contents will be combined with archived candidates"* warning + confirmation. The response carries an `outOfScope` flag; the SPA badges the out-of-scope side. `resolve` re-validates that neither a `NonCandidate` nor a `Protected` item is ever the deleted side.
+
+**Rationale:** Renaming is the least-surprise automatic outcome; forcing rename-only would block the legitimate paste-duplicate reconciliation. Direction-locking + a loud warning keeps that case available without ever silently absorbing or deleting out-of-scope content.
+
+**Status:** Specs updated — main spec Step 8 conflict section + Rule 8; `dev-spec` conflict-item `NonCandidate` + non-candidate filter + component note. Product implementation pending with the rest of the conflict gate. Chase owns branch/commit/PR.
+
+---
+
+## [2026-08-07] Name Normalization conflict gate — implemented (branches B1–B8); open items for later
+
+**Context:** The conflict dry-run + resolution gate designed spec-first across the four `[2026-08-07]` entries
+above was built out end to end in the product working tree, following the ordered branch plan in
+`normalization-conflict-gate-plan.md` (B1–B8). Verified by inspection + xUnit (author) / `tsc -b` (SPA);
+Chase runs `dotnet build`/`test` + `npm run build` and owns git. This entry records the load-bearing
+implementation decisions and, more importantly, the deferred / confirm-at-integration items so a later
+session can pick them up without re-deriving context.
+
+**As-built (what landed):**
+
+- **B1** `MagiqPath.Normalize` widened to a single-pass char walk — every `char.IsWhiteSpace` → one space
+  (collapse+trim), the six invisibles stripped (the whitespace half was already covered by the old `\s`
+  regex; the strip is the real fix). `RenamePlanner.Analyze` added as a pure function returning a
+  `NormalizationPlan { Renames, Conflicts }`; conflicts carry a **natural-key identity** (Kind + ParentPath +
+  CollidingName), not a Guid, so the planner stays deterministic. `Build` retained as an adapter.
+- **B2** `CleanupRunNameConflict(+Item)` into `0001_baseline.sql`; `RunOperationType += FolderMerge,
+  DeleteDuplicate`; `NameConflictStatus`; `ICleanupRunNameConflictStore` (+ Dapper + fake); `CleanupRun`
+  gate helpers `PauseForNormalizationConflicts` / `ResumeNormalization`. The audit-lock retiming call-site
+  move was deferred to B5 (B2 changed no deletability behaviour).
+- **B3** `IMagiqSoapClient.DeleteDocumentAsync` (op 18) + `GetDocumentAsync(withVersions)` overload (op 16,
+  `DocumentVersion`/`CheckSum`), non-breaking (`DocumentProperties.Versions` is an init-property defaulting
+  empty). Overload (not a signature change) so existing callers bind unchanged.
+- **B4** `AnalyzeNormalizationAsync` (8a): gathers raw paths + protected folders + committed resolutions +
+  doc-conflict checksums, runs `Analyze`, persists conflicts, and **pauses-or-enqueues-execute**; the pipeline
+  split into `StartNormalizationAnalysis` / `StartNormalizationExecute`; `ConfirmDeletionsHandler` retargeted.
+  8b reads the persisted plan (no build) and the **audit lock now trips on the first executed mutation in
+  8b** — a run parked at the gate stays deletable (Rule 7 realised). Protection is keyed to raw folder paths
+  by expanding the normalized `CleanupRunFolder` protected set (fail-safe over-protection in the rare
+  same-normalized-collision case).
+- **B5** 8b executes the operator's destructive resolutions: **duplicate deletes** (`DeleteDocument`) and
+  **folder merges** via a **temp-rename mechanism** — the loser is renamed in place to a unique clean name
+  (raw-addressed `UpdateFolderProperties`), its immediate children `Move`d into the survivor, the emptied
+  loser `DeleteFolder`d through the reactive rule guard; `FolderMerge`/`DeleteDuplicate` audit rows.
+  `Analyze` excludes merged/deleted items from the rename plan. The conflict store keeps **Resolved** rows
+  across 8a re-analysis (`DeletePendingByRunAsync`) so they survive as the durable 8b action log.
+- **B6** Endpoints `GET …/normalization/plan`, `POST …/conflicts/draft`, `POST …/resolve`. **`resolve` is
+  asynchronous**: it validates (every pending conflict resolved; no Protected/NonCandidate as a
+  delete/merge-loser — server-side defence in depth), persists `Resolved`, `ResumeNormalization` +
+  re-enqueues 8a, and responds `{ runStatus, message }`; the client polls the plan for the loop outcome.
+  `dev-spec` resolve-endpoint prose updated to match the async/poll model.
+- **B7/B8** `api/normalization.ts`; `JobDetailsView` gate is now **phase-based** (`AwaitingInput` +
+  `currentPhase` → ReviewSelection/Normalization/Cleanup), replacing the fragile `currentStep <= 8` test;
+  `NormalizationReview` renders each conflict with protection/scope/identity badges, the pre-selected safe
+  rename, gated destructive options behind warnings, an impact summary, debounced draft autosave, and a
+  submit→re-analyse poll loop. `tsc -b` clean.
+
+**Open / deferred items (left here in the decision trail, not a separate backlog):**
+
+1. **Gap-2 non-candidate sibling detection is not wired at runtime.** 8a passes `ExistingSiblings` **empty**,
+   so a candidate colliding with a folder *outside the cull* isn't detected yet — the planner (B1) fully
+   supports it; what's missing is 8a enumerating each affected parent's existing children, which needs a
+   SOAP folder-listing approach + a cost decision (plan `normalization-conflict-gate-plan.md` §13). Current
+   behaviour detects candidate-vs-candidate collisions only. Safe (never deletes out-of-scope), just narrower.
+2. **Folder-merge SOAP addressing is confirm-at-integration (ADR-011 class).** The temp-rename mechanism,
+   the `Move` destination form, and deeply-nested/whitespace child interactions are validated against
+   `training.magiqdocuments.com`; merge resume-idempotency is best-effort (consistent with the archival
+   accepted edge). Duplicate-delete (`DeleteDocument`, op 18) is already verified.
+3. **The SPA review renders a conflict *list*, not a projected folder *tree*.** Spec §"UI structure" and the
+   plan §9 (`ProjectedStructureTree` reusing `wizard/folderTree.ts`) describe a folder-structure view of the
+   projected archive outcome; the built view is conflict-focused because `GET …/plan` returns conflicts, not
+   a projected tree. A richer tree would need the API to return the projected structure too. Not reconciled
+   into the spec — a UI-richness enhancement to layer on later.
+
+**Status:** Implemented in the product working tree (uncommitted). Build/test green on Chase's machine
+(`dotnet build`/`test`, `npm run build`); the bridge VM has no .NET SDK and its `node_modules` lacks the
+Linux rollup binary, so SPA bundling is Chase-side (`tsc -b` passes on the bridge). Chase owns
+branch/commit/PR (big-PR delivery). Specs already describe the built behaviour (spec-first); only the three
+open items above remain unreconciled, and deliberately so.
+
+---
+
+## [2026-08-08] First-run allowlist reworked to a bootstrap sign-in + `GetAllUsers` typeahead
+
+**Context:** A MAGIQ Documents update means the anonymous `UserExists` SOAP op can no longer be called by
+an unauthenticated caller. First-run setup relied on it: the wizard tested the SOAP endpoint (anonymous
+`ServerInfo`), then validated each typed admin-allowlist username via anonymous `UserExists` before saving.
+That validation now fails, and there is no anonymous way to confirm an allowlist username exists — but the
+allowlist must be seeded before anyone can sign in (fail-closed: an empty allowlist denies everyone).
+
+**Decision:**
+
+1. **Bootstrap sign-in during setup.** The MAGIQ access phase becomes *test endpoint → sign in → allowlist*.
+   The operator authenticates with a MAGIQ account against the candidate endpoint (`POST /setup/magiq/login`).
+   On success the account is **auto-added to the allowlist as the first operator, pinned (non-removable)** so
+   the operator can't save an allowlist that locks themselves out. The resulting UI ticket is stashed in the
+   shared httpOnly `ticket` cookie (kept out of JS, reusing the existing auth-cookie infra), so the follow-up
+   user-list and save calls re-present it server-side.
+
+2. **`GetAllUsers` typeahead.** Authenticated `GetAllUsers` (SOAP-VERIFICATION-34525.md op 19) powers a
+   name/username typeahead — search by UserName / FirstName / LastName, each shown as `First Last (username)`.
+   Accounts with `Enabled="FALSE"` are filtered out. Setup uses `POST /setup/magiq/users` (cookie ticket,
+   candidate endpoint); System Settings uses `GET /admin/magiq/users` (live UI ticket, configured endpoint) —
+   the same typeahead **replaces the plain newline-list allowlist editor** there too, with a manual
+   add-by-username escape hatch when `GetAllUsers` is unavailable.
+
+3. **Server-side save enforcement via `GetAllUsers`.** `POST /setup/magiq` no longer re-checks each username
+   with anonymous `UserExists`; it re-lists enabled users with the cookie ticket and rejects any allowlist
+   entry not among them (the call also proves endpoint reachability).
+
+4. **Retired the anonymous check.** `POST /setup/magiq/validate-user` (`SetupMagiqProbe.UserExistsAsync`) was
+   removed. The SOAP client keeps `UserExistsAsync` for authenticated existence checks; a new
+   `GetAllUsersAsync` + `MagiqUser`/`MagiqUserList` + `ParseUserList` were added.
+
+**Rationale:** A bootstrap sign-in is the only way to obtain an authenticated ticket before the allowlist
+exists, and it doubles as proof the operator holds a real, working MAGIQ account. Pinning the bootstrap user
+prevents self-lockout. Reusing the httpOnly cookie keeps the raw ticket out of JS, consistent with the app's
+ticket-handling stance. Filtering disabled accounts and offering a searchable name/username picker removes
+the "type an exact username and hope" failure mode the old flow had.
+
+**Status:** Implemented in the product working tree (uncommitted). Frontend `tsc -b` passes on the bridge VM;
+C# validated by balance/reference checks (no .NET SDK on the bridge) — Chase runs `dotnet build`/`test`.
+Specs updated in the same unit of work (v0.6 Authorisation + First-run setup + SOAP ops table + History;
+`dev-spec.md` setup/admin endpoint tables + admin-allowlist SOAP op; `SOAP-VERIFICATION-34525.md` op 19).
+Chase owns branch/commit/PR.
+
+---
+
+## [2026-08-08] First-run setup UX refinements — endpoint auto-suffix, lock-on-sign-in, skip second login
+
+**Context:** Follow-up polish on the reworked first-run allowlist flow (previous entry). Three rough edges:
+operators forget the `/srv.asmx` suffix on the SOAP URL; nothing stopped signing in against one service and
+then editing the URL to point at another before saving; and after finishing setup the operator was shown the
+login screen even though they'd just authenticated.
+
+**Decision:**
+
+1. **Auto-suffix `/srv.asmx`.** On endpoint blur/test the wizard tidies the URL — trims, drops trailing
+   slashes, and appends `/srv.asmx` when the path doesn't already end in an `.asmx` service file (an explicit
+   `…/x.asmx` is left alone; a non-URL is left for the field's own validation).
+
+2. **Lock the endpoint after sign-in.** Once signed in, the endpoint renders as a distinct read-only field
+   (lock icon, tinted, monospace, "Locked" badge) with a **Change** button. Change re-opens editing, clears
+   the sign-in, and **resets the allowlist** (those users came from the previous service's directory), so a
+   fresh sign-in is required — you can't authenticate against service A and save an allowlist against B. The
+   server already rejects this too (a save re-lists users with the cookie ticket, which won't validate
+   against a different endpoint), so the lock is defence-in-depth + a clear UX.
+
+3. **Skip the second login.** `AuthContext` gains `revalidate()` (re-runs `/auth/me`); the wizard calls it on
+   completion, so the bootstrap sign-in's shared ticket cookie is adopted and the operator lands straight in
+   the app. If the ticket has lapsed (very slow setup, past the 20-minute window) `revalidate` fails and the
+   login screen is the fallback.
+
+**Status:** Implemented in the product working tree (uncommitted); `tsc -b` passes on the bridge VM. Same
+branch/PR as the previous entry. Spec updated (v0.6 First-run setup paragraph). Chase owns branch/commit/PR.
+
+## [2026-08-09] Idempotent archive-library create (adopt existing on name collision)
+
+**Context:** During a live Step 9 run, `CreateDomain` failed with *"A library with this name already
+exists. Please choose another name."* This happens in create mode (`ArchiveLibraryId is null`) when a
+prior attempt created the domain but crashed before persisting `ArchiveLibraryId`, so a resume re-enters
+create mode and re-issues `CreateDomain` against a name that now exists.
+
+**Decision:** Make library creation idempotent. Before `CreateDomain`, `ExecuteArchivalAsync` calls
+`GetDomains` (`ListDomainsAsync`) and, if a library whose name equals `ArchiveLibraryName`
+(case-insensitive) already exists, it **adopts** that library — `SetArchiveLibraryId(match.Id ?? root)`
+and skips `CreateDomain`. A `GetDomains` fault fails the phase (same as a create fault).
+
+**Ownership / teardown:** an adopted library is deliberately **NOT** marked `CreatedArchiveLibrary`.
+Create mode cannot prove *this* run created the colliding library, and a records-management tool must
+never schedule a `DeleteDomain` teardown for a library it can't prove it made. Trade-off (chosen by
+Chase, "don't mark created — safer"): an orphaned empty library from a prior crash is left for the
+operator to remove, in exchange for never auto-deleting a pre-existing library that merely shares the
+name. The adoption is audited as `CreateDomain / Ok` with a `Detail` noting creation was skipped.
+
+**Status:** Implemented in the product working tree (uncommitted) —
+`RunPhaseExecutor.ExecuteArchivalAsync`, plus `RunPhaseExecutorArchivalCreateDomainTests` (adopt + create
+paths). Spec updated (v0.6 Step 10 paragraph + History; dev-spec new "Step 9 — Create (or adopt)" flow).
+Chase owns branch/commit/PR.
+
+## [2026-08-09] Operation audit trail — scale rework (live feed + paged/searchable trail; per-document moves)
+
+**Context:** The SPA Job Details view loaded the **entire** operation audit trail on every 5s poll and
+rendered it in one unbounded Mantine table. On a long-lived run the trail grows without bound, so the
+payload and the DOM grow with it and the page slows down. Two asks from Chase: (a) a live "what's
+happening now" view with plain-language descriptions plus a paged/searchable full trail, filterable on
+operation, target, outcome and path; and (b) show a batch document move as its **individual items**, not
+one summary line.
+
+**(b) reverses a logged decision.** The 2026-08-05 entry recorded moves as **batch-summary** — one
+`Move` row per batch of 25 (moved/failed counts in `Detail`) — explicitly to avoid tens of thousands of
+inserts. This was surfaced to Chase before proceeding; he chose per-document rows, reconciled against the
+insert-volume concern by **bulk-inserting one set-based INSERT per batch** (not per-row round-trips), so
+move throughput matches the old summary write while each document becomes a first-class, searchable row.
+
+**Decisions:**
+1. **Per-document move audit, bulk-inserted.** `MoveDocumentsAsync` now builds a `CleanupRunOperationDraft`
+   per document (path, archive destination, `Ok`/`Failed`, error, SOAP success) and writes the batch in one
+   `ICleanupRunOperationStore.AppendManyAsync` — a single `VALUES`-list INSERT that assigns the per-run
+   monotonic `Seq` as `MAX(Seq) + ordinal`. The old single batch-summary `AppendAsync` is gone. The retry
+   pass naturally adds a second row per re-attempted document (a truthful audit of the retry).
+2. **Server-paged, filtered read.** `GET /runs/{runId}/operations` now returns one **newest-first page**
+   (`Seq DESC`) plus the unpaged `total`, with `?page=`/`?pageSize=` (default 50, max 200) and filters
+   `?operationType=`, `?targetType=`, `?outcome=`, `?path=` (substring over source/destination) and
+   `?search=` (free text over path/destination/detail/error). Backed by a new
+   `GetPageByRunAsync(runId, filter, skip, take)`; `LIKE` terms are wildcard-escaped with `ESCAPE '\'`.
+   Unknown enum filters are ignored (matching the `ListRuns` forgiving contract). No schema/migration
+   change — the existing `IX_CleanupRunOperation_RunId_Seq` covers newest-first paging within a run.
+3. **SPA split into two surfaces.** New `OperationAuditPanel`: a compact **live activity** feed (latest ~8,
+   plain-language `describeOperation` lines, polled every 5s while the run is live) above the **full trail**
+   — a searchable/filterable, server-paged table with a Mantine pager. `JobDetailsView` no longer loads the
+   trail in its polling `load()`; the panel fetches on demand, so the 5s poll no longer re-pulls the whole
+   history.
+
+**Rationale:** Paging + server-side filtering is the actual fix for the perf issue; the live feed gives the
+"during" narrative the operator wants without scrolling a huge table. Per-document rows are the right audit
+grain for a government records tool — the batch-summary was a throughput compromise, and bulk-insert removes
+the reason it existed, so the reversal costs nothing at write time while making every move auditable and
+searchable.
+
+**Status:** Implemented in the product working tree (uncommitted). API — `AppendManyAsync` +
+`GetPageByRunAsync` (+ `CleanupRunOperationDraft`/`CleanupRunOperationFilter`), `MoveDocumentsAsync`
+per-document rows, paged/filtered `GetRunOperations` endpoint/query/handler/response, fake store + new
+`GetRunOperationsHandlerTests` and a per-document `RunPhaseExecutorArchivalCreateDomainTests` case. SPA —
+`OperationAuditPanel`, `api/runs.ts` paged call, `JobDetailsView` wiring, two new icons. Verified by house
+checks (interface implementers, Dapper param/`LIKE` escaping, `QueryMultipleAsync` order) and `tsc -b`
+(clean); Chase runs `dotnet build`/`test` and owns branch/commit/PR. Spec updated (v0.6 "during" + Job
+Details paragraphs + History; dev-spec endpoint row + `CleanupRunOperation` grain; baseline SQL +
+`RunOperationType.Move` comments).
+
+**Follow-up (2026-08-09, same work):** two fixes on top of the above.
+1. **Live audit refresh.** The full trail only updated on a manual run reload. `OperationAuditPanel`'s
+   `FullAuditTrail` now re-fetches its current page/filters on the 5s poll while the run is live (a `tick`
+   bumped by an interval, plus `live` in the fetch deps for a final refresh when the run stops). Because the
+   trail is newest-first, new rows land on page 1 — so paging/totals stay correct and the operator sees
+   activity without reloading. No API change.
+2. **Cancel actually stops in-flight phases.** Cancel is cooperative — `CancelRun` only flips the DB to
+   `Cancelled` and each phase must observe it at a guarded checkpoint (`IsCancellationRequestedAsync`, a
+   fresh DB read). Only the Step 9/10 **move** and **normalization** had checkpoints; **identification**
+   (Steps 1 & 4 batch loops) and **cleanup** (`DeleteEmptyFoldersAsync` delete loop) had none, so a cancel
+   during those phases let the phase run to completion — and worse, identification then **clobbered** the
+   `Cancelled` status by calling `BeginReview` (→ `AwaitingInput`) on its in-memory run. Added a shared
+   `StopIfCancelledAsync(runId, phase, step, message, ct)` helper (logs `Cancelled`, refreshes the UI,
+   returns true to stop **without** writing further run state) and called it between batches in both
+   identification loops, before identification's step-advance/`BeginReview` transitions, and between
+   batches in `DeleteEmptyFoldersAsync` (now returns `bool` cancelled; `ExecuteCleanupAsync` stops before
+   the irreversible purge). Purge/teardown is deliberately left uninterruptible (irreversible, and Cancel
+   is disallowed once terminal). This brings the code in line with the spec's existing promise that Cancel
+   "stops cooperatively at the next guarded checkpoint" (v0.6 Cancel row) — no spec change needed, though it
+   was previously inaccurate for those two phases. Test: `RunPhaseExecutorRuleGuardTests`
+   `Cleanup_cancelled_by_operator_stops_before_deleting_folders_and_stays_cancelled`.
+
+## [2026-08-09] Reactive delete-rule handling: relax once per folder, not per item
+
+**Context:** During a live NATA cull, Step 10 moves failed with MAGIQ's *"Folder rules disallow
+deletions in this folder."* even though the source folder genuinely only needed its
+`DISALLOWDOCUMENTDELETE` relaxed. Chase verified relaxing the parent folder once lets every child move.
+The reactive guard (`RetryWithRuleRelaxedAsync`) was invoked **per item**: for each blocked document it
+read the folder's rules, relaxed the one rule, retried, and restored — so a folder with N blocked
+documents had its rule flipped allows→disallows N times in rapid succession. Against MAGIQ that
+flip/read churn left the second and later documents in the folder failing (the guard's live re-read and
+the retried move race the just-reverted rule; the audit even shows the first document relaxing/moving/
+reverting and the next failing). The single per-item guard was correct in isolation but wrong-shaped for
+a folder of items.
+
+**Decision:** Relax once per folder. Group the work by the rule-bearing folder (a folder's documents in a
+Step 10 move, a parent's child folders in a Step 11 delete, a folder's returning documents in a rollback
+move-back), attempt each item once, and — only if some are blocked — relax that folder's rule a **single**
+time, retry just the still-blocked items under the relaxed rule, then restore **once**. Implemented as a
+new folder-scoped guard primitive `IFolderDeleteRuleGuard.WithRuleRelaxedAsync(folder, rule, body, …)`
+(read rules → if the rule is the blocker, relax → run body → restore in a `finally`; if the rule already
+allows or can't be read, the body does not run and the caller's items stay failed). The per-operation
+`RetryWithRuleRelaxedAsync` now delegates to it and is kept for the genuinely single-op site (the
+Normalization folder-merge loser delete). A shared `RunFolderGroupAsync` helper drives "attempt-all →
+relax-once-retry-failed" for the three loops.
+
+**Consequences:** For a folder of N blocked items the rule is now read once and flipped twice (relax +
+restore) instead of N reads and 2N flips — fewer live mutations of the customer repository and no
+flip/read race. Live-rule read at failure time, the verbatim restore, the non-cancellable revert, and the
+"rule already allows / unreadable / relax rejected → original error stands" semantics are all preserved.
+No behaviour change for a folder with a single blocked item (the SOAP call sequence is identical), so the
+existing guard/executor tests hold unchanged.
+
+**Status:** Implemented in the product working tree (uncommitted) — `FolderDeleteRuleGuard` +
+`IFolderDeleteRuleGuard` (new `WithRuleRelaxedAsync`), `RunPhaseExecutor` (`RunFolderGroupAsync` + the
+Step 10 move, Step 11 delete, and rollback move-back loops grouped by folder). Tests: new
+`WithRuleRelaxedAsync` unit tests + `RunPhaseExecutorRelaxOncePerFolderTests` proving one read + one relax
++ one restore per folder across multiple items. Spec updated (v0.6 "Folder rules and the Move is copy +
+delete constraint" + History). Chase owns branch/commit/PR.
+
+## [2026-08-09] Audit trail — sortable + resizable columns, friendly Path, Path typeahead
+
+**Context:** Follow-on polish to the reworked operation audit trail. Chase asked for sortable and resizable
+columns, friendlier display of the (often very long) Path values, and a typeahead on the Path filter.
+
+**Decisions:**
+1. **Server-side sort.** Because the trail is server-paged, sorting must order the whole (filtered) dataset,
+   not just the visible page — so it's a server concern. `GetPageByRunAsync` gained `sort`
+   (`CleanupRunOperationSort`: `OccurredAt`|`OperationType`|`TargetType`|`Outcome`|`Path`) + `descending`;
+   the column name comes from a fixed **allow-list** map (never interpolated from client input) with `Seq DESC`
+   as a stable tiebreaker. `GET /operations` takes `?sort=`/`?dir=` (defaults `occurredAt`/`desc`; unknown
+   values fall back). SPA headers toggle sort and show a caret.
+2. **Resizable columns, persisted.** SPA-only: `table-layout: fixed` with per-column widths dragged via a
+   pointer handle on each header's right edge, clamped to a per-column min, saved to `localStorage`
+   (`dlc.auditTrail.columnWidths.v1`) so they survive reloads. No backend involvement.
+3. **Friendly Path cell.** The Path column truncates **at the front** (`direction: rtl` + `bdi`) so the
+   identifying leaf (file/folder name) stays visible, with a leading ellipsis, the full path on hover, and a
+   copy button. `source -> destination` is shown when the op has a destination/new name.
+4. **Path typeahead.** New read `GET /runs/{runId}/operations/paths?contains=&take=` ->
+   `GetDistinctPathsAsync` (distinct `SourcePath`, optional case-insensitive `contains`, capped). The SPA
+   Path filter is a Mantine `Autocomplete` fed by this endpoint as the operator types (debounced).
+
+**Rationale:** Sorting has to be server-side to be correct over paged data; everything else is presentation.
+The front-truncation is the key call — end-ellipsis would hide the filename, which is the most identifying
+part; RTL truncation keeps it. A distinct-paths endpoint (rather than deriving from the loaded page) makes
+the typeahead cover the whole run.
+
+**Status:** Implemented in the product working tree (uncommitted). API — `CleanupRunOperationSort`, sort
+params on `GetPageByRunAsync`, `GetDistinctPathsAsync`, `GetRunOperations` sort wiring, new
+`GetRunOperationPaths` feature (endpoint/handler/query/request/response). SPA — `OperationAuditPanel`
+sortable/resizable table + `PathCell` + `Autocomplete`, `api/runs.ts` (`sort`/`dir`, `getRunOperationPaths`),
+five icons. Tests — sort case in `GetRunOperationsHandlerTests`, new `GetRunOperationPathsHandlerTests`, fake
+store updated. Verified by house checks + `tsc -b` (clean); Chase runs `dotnet build`/`test` and owns
+branch/commit/PR. Spec updated (v0.6 Job Details paragraph; dev-spec `/operations` sort params + new
+`/operations/paths` row).
+
+## [2026-08-09] Audit trail — content-sized fixed columns (resizable removed)
+
+**Change (Chase's call):** dropped the resizable columns added earlier the same day in favour of
+**content-sized fixed columns** for When, Operation, Target and Outcome, and reverted the Path cell's
+front-truncation while keeping the copy button.
+
+- **Content sizing.** A `useLayoutEffect` measures each of the four columns against its header label (plus a
+  sort-caret allowance) using the table's actual rendered font (canvas `measureText`), takes the widest, and
+  adds a **10px buffer on each side** — applied as cell padding so, with `box-sizing: border-box`, the text's
+  own space equals the measured maximum. The three **enum** columns (Operation, Target, Outcome) are sized
+  against their **full list of possible enum names** (not the current page), so their widths are constant and
+  never shift when paging; **When** is measured from the page's timestamps (uniform width). Columns are single
+  line (`white-space: nowrap`); the flexible columns (What happened / Path / Detail) wrap as before.
+- **Removed:** the `localStorage`-persisted widths, the pointer-drag resize handles, and `table-layout: fixed`.
+- **Path cell:** back to the plain source (or `source → destination`) text that wraps, **with the copy button
+  retained**. The RTL leaf-first truncation is gone.
+
+Sorting (server-side), the Path typeahead, and the live refresh are unchanged. `tsc -b` clean. Spec updated
+(v0.6 Job Details paragraph). Chase owns branch/commit/PR.
+
+## [2026-08-09] Audit trail — split Path into Source path + Destination path columns/filters
+
+**Change (Chase's call):** the single Path column carried both source and destination (`source → destination`).
+Split it into two first-class, independently **sortable** and **filterable** columns.
+
+- **Columns.** Replaced "What happened" (the derived plain-language cell — still used by the live feed) with
+  **Source path** (`SourcePath`), and the combined Path column with **Destination path** (`DestinationOrNewName`).
+  Order: When | Source path | Operation | Target | Outcome | Destination path | Detail. Both path cells keep
+  the copy button.
+- **Sort.** `CleanupRunOperationSort.Path` → `SourcePath` + `DestinationPath` (mapping to the `SourcePath` /
+  `DestinationOrNewName` columns via the allow-list). `GET /operations` `?sort=` accepts `sourcePath` /
+  `destinationPath`.
+- **Filter.** The single `?path=` filter (which matched source OR destination) became `?sourcePath=` and
+  `?destinationPath=`, each a substring match on its own column; `CleanupRunOperationFilter.Path` → `SourcePath`
+  + `DestinationPath`. The free-text `?search=` still spans both plus detail/error.
+- **Typeahead.** `GET /operations/paths` gained `?field=source|destination` (default source), backed by
+  `GetDistinctPathsAsync(runId, destination, …)` selecting the chosen column (from a fixed pair). The SPA now
+  has two Autocomplete filters, each fed by its field.
+
+`tsc -b` clean; C# by house checks. Tests: source + destination filter cases and a destination-sort/typeahead
+case added; existing cases updated for the new signatures. Spec updated (v0.6 Job Details paragraph; dev-spec
+`/operations` + `/operations/paths` rows). Chase owns branch/commit/PR.
+
+## [2026-08-09] Faithful audit ordering for the relaxed retry (relax → items → restore)
+
+**Context:** Reading a live run's audit trail, Chase saw for one folder: `RuleRelax` (DocumentDeletes
+allowed) → `RuleRestore` (DocumentDeletes disallowed) → `Move` (Document, Failed). The trail read as if
+the folder rule was reverted *before* the documents were moved. Two things were happening: (1) in the old
+per-item guard, a later document's relaxed retry genuinely failed (the churn bug, fixed by
+relax-once-per-folder); and (2) the per-item/per-batch audit **rows** for the moves were appended *after*
+the `RuleRestore` row, because the move rows were persisted after the guard returned — so even a
+successful move would be stamped after the restore, making the trail misleading for an audit surface that
+operators rely on.
+
+**Decision:** Record each folder group's per-item outcomes (results + audit rows) from **inside** the
+relaxed scope — after the retries, before the restore. `RunFolderGroupAsync` now takes a `recordOutcomes`
+callback and invokes it exactly once: in the all-succeeded-first-try path (no relax), or inside the
+`WithRuleRelaxedAsync` body before the `finally` restore (when relaxed), or after the guard when it chose
+not to relax. Because `RuleRelax`/`RuleRestore` are appended by the guard's `onRelaxed`/`onRestored` hooks
+(the relax hook fires before the body, the restore hook in the `finally` after it), stamping the item rows
+inside the body places them, by `Seq`, between `RuleRelax` and `RuleRestore`. The trail now reads
+`RuleRelax → Move/DeleteFolder rows → RuleRestore`, faithfully matching the SOAP order.
+
+**Consequences:** Move audit rows are now appended per **folder group** (one `AppendManyAsync` per group)
+rather than once per batch — still set-based, no per-row round-trip. No functional change to what moves/
+deletes happen; purely the ordering and grouping of the audit writes. Folder-delete rows likewise land
+between the relax/restore; rollback has no per-move audit rows so only its results move into the callback.
+
+**Status:** Implemented in the product working tree (uncommitted) — `RunFolderGroupAsync` (`recordOutcomes`
+callback) and the three call sites' record callbacks. Tests: `RunPhaseExecutorRelaxOncePerFolderTests` now
+asserts the audit order `RuleRelax → item rows → RuleRestore` for both the Step 10 move and the Step 11
+delete. Same branch as the relax-once change. Chase owns branch/commit/PR.
+
+## [2026-08-10] Export the operation audit trail to CSV (honouring the current filters)
+
+**Context:** Operators wanted to pull the operation audit trail out of the Job Details view for offline
+review / attaching to records — and specifically the *filtered* view they'd narrowed to (e.g. failed
+Moves under one facility), not the whole trail.
+
+**Decision:** Add a synchronous CSV export driven by the same filters as the paged trail. New
+`GET /api/v1/runs/{runId}/operations/export` takes the identical `?operationType/targetType/outcome/
+sourcePath/destinationPath/search/sort/dir` query as `.../operations` (minus paging) and streams a
+`text/csv` file of every matching row. Backed by a new `ICleanupRunOperationStore.GetAllByRunAsync` (the
+unpaged form of `GetPageByRunAsync`, sharing the exact WHERE/ORDER building so the export matches the SPA
+one-for-one) and a hand-rolled `RunOperationsCsvWriter` (fixed schema, RFC 4180, UTF-8 BOM, CRLF — the
+same approach as `RegisterCsvWriter`). The file opens with a `#`-prefixed **filter-summary header** (run,
+export time, sort, and the active filters) so it is a self-documenting audit artifact. The SPA adds an
+**Export CSV** button to the audit panel header that calls the endpoint with the current filters and
+downloads the streamed file (bearer-auth fetch → blob, mirroring the register download).
+
+**Why CSV-only, synchronous:** the trail is a fast bounded DB read + string build, so — unlike the
+Document Register's large, background-rendered xlsx — it needs no job/polling/stored artifact. CSV opens
+cleanly in Excel and is the natural fit for an audit extract. (Chase's call: CSV only, with the filter
+header.)
+
+**Status:** Implemented in the product working tree (uncommitted) — `ExportRunOperations` feature
+(endpoint/query/handler/request/content), `IRunOperationsCsvWriter`+`RunOperationsCsvWriter` (registered
+in `Program.cs`), `GetAllByRunAsync` on the store + fake, and the SPA `exportRunOperations` client +
+Export CSV button. Tests: `RunOperationsCsvWriterTests` (header/escaping/BOM) and
+`ExportRunOperationsHandlerTests` (filtered rows, filter header, 404). Frontend `tsc -b` passes on the
+bridge VM. Spec + dev-spec updated. Chase owns branch/commit/PR.
+
+## [2026-08-10] SetFolderRules must send <Rules> as nested XML, not escaped text (the real cause of the delete-lock failures)
+
+**Context:** After the per-folder relax-once change and the faithful audit ordering, a live NATA cull
+STILL failed Step 10 moves with *"Folder rules disallow deletions in this folder."* The now-faithful audit
+showed, for the exact source folder: `RuleRelax` (DocumentDeletes) → `Move` (Failed) → `RuleRestore` — i.e.
+the relax ran on the right folder, the move happened while "relaxed", and it still failed. A live
+`GetFolderRules` capture (training, 2026-08-10) confirmed the rule **names/values match the code exactly**
+(`DocumentDeletes` = `allows`/`disallows`), so the read and the relax *content* were correct.
+
+**Root cause:** `MagiqSoapClient.SetFolderRulesAsync` sent `xmlRules` as a raw string set as element text,
+which the envelope builder XML-**escaped** (`<xmlRules>&lt;Rules&gt;…</xmlRules>`). MAGIQ's `SetFolderRules`
+reads the **child `<Rules>` markup**; an escaped string is **silently ignored** and the call returns
+`success="true"` **without applying anything**. So every relax was a no-op — the folder stayed
+`DocumentDeletes=disallows`, and the retried Move's delete-half stayed blocked. A hand-run Postman request
+with the `<Rules>` as **inline nested XML** flipped the rule; the escaped form did not. (This was an
+`xsd:any`/unverified request shape — deferred Story 34525.)
+
+**Decision:** Send `xmlRules` as real nested XML. `SetFolderRulesAsync` now parses the `<Rules>` fragment
+and rebuilds it into the tempuri namespace (`ToTempuri`) so it embeds as a child of `<xmlRules>` and
+inherits the operation's default `xmlns` on the wire (no `xmlns=""` reset) — byte-for-byte the
+verified-working request. `ApplyToTree=false` unchanged. Everything else stands: the per-folder
+relax-once structure, the faithful audit ordering, `GetFolderRules`/`ParseFolderRules`, and
+`FolderRuleSet.WithAllowed`/`OriginalXml` (which still produce the `<Rules>` string the client now embeds).
+
+**Caveat for the audit trail:** a `SetFolderRules` `success="true"` does NOT prove the rules were applied —
+confirm with a follow-up `GetFolderRules`. Documented in `SOAP-VERIFICATION-34525.md` (op 21) under the
+"encoding is the finding" note.
+
+**Status:** Implemented in the product working tree (uncommitted) — `MagiqSoapClient.SetFolderRulesAsync`
+(+ `ToTempuri`). Wire-level tests updated (`MagiqSoapClientFolderRulesTests`) to assert nested XML instead
+of escaped text; the failing test that encoded the bug is inverted. Docs: `SOAP-VERIFICATION-34525.md`
+addendum 6 (ops 20–21, with the verified request/response), ADR-004 + ADR-011 amended. Chase owns
+branch/commit/PR — and should re-run the cull to confirm the moves now succeed.
+
+---
+
+## [2026-08-10] Step 8 review gate widened to any name change + name-change export
+
+**Context:** The Step 8 Normalization gate only paused when there were **name conflicts**; a clean plan
+(plain whitespace/invisible renames, no collisions) ran 8a → 8b automatically, so the operator never saw
+the folder/document renames before they were applied. The `GET …/normalization/plan` endpoint returned
+only the conflicts, dropping the full rename set the planner already computes, and there was no way to
+download a before → after list of the changes. Chase asked to extend the (existing) Document Register
+before/after story so an operator can review **every** planned name change — and export it — before
+confirming, while still working through conflicts as today. Two forks were settled with Chase: (1) the run
+pauses whenever there are **any** renames (not only conflicts); (2) the download is a **targeted
+name-change list** (before → after), reusing the register's Excel/CSV writers — not full pre/post register
+snapshots.
+
+**Decision:**
+
+1. **Pause on any change.** `AnalyzeNormalizationAsync` (8a) now pauses the run in `AwaitingInput` +
+   `Normalization` whenever the plan contains a conflict **or** a rename. Only a plan that changes nothing
+   skips the gate and chains 8b automatically. The audit lock (Rule 7) is unchanged — it still trips only
+   on the first executed mutation in 8b, so a parked run has changed nothing and stays deletable.
+
+2. **Explicit confirm.** A resolved-clean plan no longer auto-executes; it parks at the review gate showing
+   the full change list. A new `POST /runs/{runId}/normalization/confirm` (owner-guarded) resumes the run
+   and enqueues 8b → archival → cleanup. Confirm is rejected (`409 UnresolvedConflicts`) if any conflict is
+   still pending — server-side defence on top of the UI.
+
+3. **Full rename list surfaced.** `GET …/normalization/plan` now returns `Renames` (type, path, original →
+   new, status) alongside the conflicts, populated from `dbo.CleanupRunRename`.
+
+4. **Name-change export.** `GET /runs/{runId}/normalization/changes/export?format=xlsx|csv` renders the
+   change set — renames plus resolved merges/duplicate-deletes — reusing `IRegisterCsvWriter` /
+   `IDocumentRegisterExcelWriter`. Synchronous (change-bounded row set, no Hangfire job), available at the
+   gate and afterward as the record of what 8b did.
+
+5. **SPA.** `NormalizationReview` now shows an "All name changes" table (before → after with invisibles
+   made visible), a format toggle + Download-changes control, and a Confirm & continue action; the
+   no-conflict case skips the resolver and goes straight to the change list. `JobDetailsView` gate trigger
+   (`AwaitingInput` + `Normalization`) is unchanged and already covers the no-conflict pause.
+
+**Rationale:** "Review all name changes prior to confirming" requires a human step whenever names change,
+not only on collisions. Reusing the register writers keeps the export format consistent and avoids new
+rendering code. Keeping the audit lock on the first 8b mutation preserves the Rule 7 invariant. Note the
+side effect: a reset/retry that re-enters 8a now pauses for a re-confirm instead of auto-continuing —
+acceptable and safer given the gate philosophy.
+
+**Status:** Implemented in the product working tree (uncommitted): executor gate retiming; `Confirm` +
+`ExportChanges` features; `Renames` on the plan response + handler; `DraftResolutions` updated for the new
+response shape; SPA `NormalizationReview` + `api/normalization.ts` + `JobDetailsView` copy; xUnit tests
+(gate pause-on-rename + zero-change auto-continue, confirm handler, export handler, plan renames). C#
+validated by balance/reference checks; Chase runs `dotnet build`/`dotnet test` + `npm run build`, and owns
+branch/commit/PR. Plan: `normalization-change-review-plan.md`. Spec + dev-spec updated in step.
+
+---
+
+## [2026-08-10] Step 10 operator move-failure retry + post-archival pause
+
+**Context:** When Step 10 (document move) finishes with documents that could not be moved, the phase does a
+single automatic retry and then fails the whole run (`FailArchival`) — the executor comment literally noted
+per-item retry was "deferred". The only recovery was the generic **Retry (resume)** lifecycle action, which
+re-runs the entire archival phase and auto-chains cleanup; there was no failures list and no way to retry a
+single document. Chase asked to surface the Step 10 failures and let the operator work through them —
+retrying individually or all together. Two forks were settled: (1) after a retry clears the last failure the
+run should **stop and let the operator proceed** to cleanup (not auto-continue); (2) UI placement was left to
+best practice — a failures panel in the Job Details view.
+
+**Decision:**
+
+1. **Scoped retry job.** New `RunPhaseExecutor.RetryDocumentMovesAsync(runId, documentRowIds?)` re-attempts
+   the selected failed documents (or all failed when null/empty) via the existing move machinery
+   (destination-ensure, per-folder relax-once, per-document audit). It is enqueued by a new pipeline method
+   `StartMoveFailureRetry` and is **not** chained to cleanup.
+
+2. **Stop-and-proceed after archival.** On full success (no document left failed) the job calls the new
+   `CleanupRun.PauseAfterArchival()` → `AwaitingInput` in the Archival phase, rather than auto-chaining
+   cleanup. The operator proceeds with `POST …/archival/continue` (`CleanupRun.ResumeAfterArchival()` →
+   `StartCleanup`). If any move still fails, the run returns to `Failed` for another attempt. This keeps a
+   human checkpoint before the irreversible cleanup/purge, per Chase's choice. (Note: the normal, no-failure
+   archival path still auto-chains cleanup — only the recovery path gains the checkpoint.)
+
+3. **Endpoints.** `GET /runs/{runId}/archival/move-failures` (list + `canRetry`/`canContinue` flags),
+   `POST …/archival/move-failures/retry` (`{ documentRowIds? }`), `POST …/archival/continue`. Retry is valid
+   only for a `Failed` run in the archival phase with at least one failure; continue only for a run paused
+   post-archival. Owner-guarded (non-GET).
+
+4. **SPA.** A **Document move failures** panel in the Job Details view lists each failed document (path,
+   error, attempts) with per-row Retry, Retry selected, and Retry all; while a retry runs it polls and
+   disables the actions; once all clear it shows **Continue to cleanup**.
+
+**Rationale:** Reusing the move machinery keeps the retry faithful to the normal move (rules, audit,
+resume-safety) with no duplicate SOAP logic. Pausing after a recovery retry — but not on the clean path —
+gives the operator a deliberate checkpoint exactly when something already went wrong, without adding friction
+to the happy path. The generic Retry/Reset lifecycle actions remain for whole-phase recovery.
+
+**Refinement (2026-08-10, after first UX review).** On feedback the retry was made **synchronous and
+per-row inline** rather than a background job: the endpoint now returns each targeted document's outcome and
+the panel shows *Retrying… → Moved* in the row itself, keeping resolved rows in the table, without touching the
+main run-progress panel. Consequently the async path was removed — `RetryDocumentMovesAsync` +
+`IRunPipeline.StartMoveFailureRetry` are gone, replaced by `IMoveFailureRetryer.RetryDocumentMovesInlineAsync`
+(implemented by `RunPhaseExecutor`, injected into the handler) which moves the targets with
+`MoveDocumentsAsync(…, emitProgress: false)` and pauses (`Retry()` → `PauseAfterArchival()`) only when the
+last failure clears. The retry endpoint returns `{ runStatus, allCleared, results[] }`; the SPA calls it once
+per failed row (so Retry-all shows per-row progress) and per-row Retry no longer depends on a checkbox
+(the selection UI was dropped).
+
+**Status:** Implemented in the product working tree (uncommitted): `CleanupRun.PauseAfterArchival` /
+`ResumeAfterArchival`; `IMoveFailureRetryer` + `RunPhaseExecutor.RetryDocumentMovesInlineAsync` (synchronous,
+`emitProgress` flag on `MoveDocumentsAsync`); the three `Features/Runs/Archival/*` features (retry returns
+per-doc outcomes); SPA `MoveFailuresPanel` (inline per-row status, kept rows, sequential Retry-all) +
+`api/runs.ts` client + `JobDetailsView` mount; xUnit tests (run-state transitions, the three handlers via a
+`FakeMoveFailureRetryer`, and two executor inline-retry-outcome cases). SPA `tsc` clean; C# validated by
+reference/pattern checks — Chase runs `dotnet build`/`dotnet test` + `npm run build` and owns branch/commit/PR.
+Plan: `move-failure-retry-plan.md`. Spec + dev-spec updated in step.
+
+---
+
+## [2026-08-11] Fix: Step 8 renames/merges left candidate document paths stale → "source folder not found"
+
+**Context:** A live run surfaced Step 10 move failures reading *"source folder not found"*. Root cause: Step 8b
+renames source folders/documents in place and repaths the pending **rename rows**
+(`RepathPendingDescendantsAsync` → `CleanupRunRename.UpdatePaths`), but it never repaths the **candidate
+documents** (`CleanupRunDocument.DocumentPath`). The archival move (Step 10) addresses each document by its
+stored path, which after normalization still pointed at the old (whitespace) folder/name — a path that no
+longer exists — so every normalized item's move failed. The same gap hits folder **merges** (the loser's
+candidate documents are moved under the survivor but keep the loser path).
+
+**Decision:** During Step 8b, repath the candidate document set in lockstep with each applied change — the
+`CleanupRunDocument` counterpart of the existing rename-row repath. After a **folder rename**, rewrite the
+path prefix of every candidate document beneath it; after a **document rename**, rewrite the matching
+candidate document's leaf; after a **folder merge**, rewrite the loser's candidate documents onto the survivor
+path. New `ICleanupRunDocumentStore.UpdatePathsAsync` + `DocumentPathUpdate` persist the changes; the executor
+keeps an in-memory candidate list in sync so a later rename/merge matches the current path. Renames address
+raw paths and are applied top-down, so replaying them onto the candidate paths reproduces the live path
+exactly.
+
+**Follow-ups (both now done, 2026-08-11):**
+
+1. **Salvage the already-failed run (reconcile from the rename log).** A run whose 8b predates the repath fix
+   has stale candidate paths persisted, so a panel retry alone still fails. `RunPhaseExecutor.RetryDocumentMovesInlineAsync`
+   now first calls `ReconcileCandidateDocumentPathsAsync`, which replays the completed `CleanupRunRename` rows
+   (folders top-down, then documents — the 8b order) plus any resolved folder merges onto the candidate
+   documents and persists the corrected paths (`UpdatePathsAsync`). Idempotent: on an already-current run the
+   raw prefixes no longer match, so nothing changes. So the operator just retries and the run self-heals.
+
+2. **Exclude a deleted duplicate from the move set.** A keep-one/delete-other resolution removes the victim in
+   8b; its candidate row is now marked `MoveStatus.Deleted` (matched by the victim's raw path captured before
+   the repaths). `GetMovable`/`HasUnmovedDocuments` were changed from `<> 'Moved'` to `IN ('Pending','Failed')`,
+   so a `Deleted` candidate is excluded from Step 10 and is neither moved nor counted as a failure — and the
+   row is retained (not deleted) so the before/after register ledger and audit still show it as removed.
+
+3. **Deterministic rename order (`CleanupRunRename.Seq`).** `CleanupRunRename.Id` is `NEWID()` and the store
+   read `ORDER BY Id` — i.e. a random order — so Step 8b applied renames (and the reconcile replayed them) in a
+   non-deterministic order rather than the intended folders-top-down. Added a per-run monotonic `Seq` (assigned
+   in plan order in the insert, `MAX(Seq)+1`, mirroring `CleanupRunOperation`); `GetByRunAsync` now orders by
+   `Seq` and the index is `IX_CleanupRunRename_RunId_Seq (RunId, Seq)`. Baseline-schema edit (fresh-DB
+   convention). This makes ancestors reliably rename before descendants — the repath/reconcile logic already
+   held for any fixed order, but a deterministic top-down order removes the latent nested-rename hazard.
+
+**Status:** Implemented in the product working tree (uncommitted): `ICleanupRunDocumentStore.UpdatePathsAsync`
++ `DocumentPathUpdate` + Dapper impl; `RunPhaseExecutor` candidate-doc load + repath helpers wired into the 8b
+rename loop and merge loop, `ReconcileCandidateDocumentPathsAsync` (called from the inline retry), and
+`ExcludeDeletedDuplicateAsync`; new `MoveStatus.Deleted` with `GetMovable`/`HasUnmoved` narrowed to
+Pending/Failed; `CleanupRunRename.Seq` added to the baseline schema + `CleanupRunRenameStore` insert/read
+(`ORDER BY Seq`); xUnit tests (folder-rename repath, inline-retry reconcile-then-move, deleted-duplicate
+exclusion) + existing stubs updated for the new interface method. **Baseline schema changed → dev DBs need a
+reset (fresh-DB convention).** C# validated by reference/pattern checks — Chase runs `dotnet build`/`dotnet
+test`. Spec + dev-spec updated in step.

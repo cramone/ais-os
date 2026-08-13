@@ -1,0 +1,99 @@
+<div style="font-family:var(--font-sans)">
+  <div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:12px;padding:11px 16px;background:#1D3455;color:#fff">
+      <i class="ti ti-checkbox" style="font-size:18px" aria-hidden="true"></i>
+      <span style="font-size:13px;font-weight:500">12 selected</span>
+      <span style="font-size:12px;opacity:.65">of 148 · max 100 per batch</span>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button style="height:30px;padding:0 12px;border-radius:7px;font-size:12px;cursor:pointer;background:rgba(255,255,255,.12);border:0.5px solid rgba(255,255,255,.22);color:#fff;display:flex;align-items:center;gap:6px"><i class="ti ti-list-details" style="font-size:14px" aria-hidden="true"></i>Edit metadata</button>
+        <button style="height:30px;padding:0 12px;border-radius:7px;font-size:12px;cursor:pointer;background:rgba(255,255,255,.12);border:0.5px solid rgba(255,255,255,.22);color:#fff;display:flex;align-items:center;gap:6px"><i class="ti ti-archive" style="font-size:14px" aria-hidden="true"></i>Archive</button>
+        <button style="height:30px;padding:0 12px;border-radius:7px;font-size:12px;cursor:pointer;background:rgba(255,255,255,.12);border:0.5px solid rgba(255,255,255,.22);color:#fff;display:flex;align-items:center;gap:6px"><i class="ti ti-folder-symlink" style="font-size:14px" aria-hidden="true"></i>Move</button>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr">
+      <div id="sellist" style="border-right:0.5px solid var(--border)"></div>
+      <div style="padding:16px 18px">
+        <h3 style="font-size:14px;margin:0 0 4px">Set shared metadata</h3>
+        <p style="font-size:12px;color:var(--text-secondary);margin:0 0 14px">Fields you set here apply to all 12 selected items. Blank fields are left unchanged.</p>
+        <label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:5px">consent.decision</label>
+        <div style="display:flex;align-items:center;gap:9px;height:36px;padding:0 12px;border:0.5px solid var(--border-strong);border-radius:8px;margin-bottom:12px;cursor:pointer"><span style="flex:1;font-size:13px">Approved with conditions</span><i class="ti ti-chevron-down" style="font-size:15px;color:var(--text-muted)" aria-hidden="true"></i></div>
+        <label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:5px">Tags to add</label>
+        <input type="text" value="reviewed-2024" style="width:100%;height:36px;margin-bottom:16px" />
+
+        <div style="border-top:0.5px solid var(--border);padding-top:13px">
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:10px">
+            <span style="font-size:12px;color:var(--text-secondary);flex:1">On error</span>
+            <span style="display:inline-flex;font-size:11px;border:0.5px solid var(--border);border-radius:7px;overflow:hidden"><span style="padding:3px 9px;background:var(--bg-accent);color:var(--text-accent);font-weight:500">Continue</span><span style="padding:3px 9px;color:var(--text-muted)">Fail fast</span></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px">
+            <span style="font-size:12px;color:var(--text-secondary);flex:1">On duplicate name</span>
+            <span style="display:inline-flex;font-size:11px;border:0.5px solid var(--border);border-radius:7px;overflow:hidden"><span style="padding:3px 9px;color:var(--text-muted)">Skip</span><span style="padding:3px 9px;background:var(--bg-accent);color:var(--text-accent);font-weight:500">Reject</span><span style="padding:3px 9px;color:var(--text-muted);border-left:0.5px solid var(--border)">Auto-suffix</span></span>
+          </div>
+        </div>
+        <button style="width:100%;height:38px;border-radius:9px;font-size:13px;font-weight:500;cursor:pointer;background:#1D3455;border:none;color:#fff;margin-top:16px">Apply to 12 items</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:12px;overflow:hidden">
+    <div style="padding:15px 20px;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:9px">
+        <h1 style="font-size:17px;margin:0">Bulk metadata update</h1>
+        <span style="font-size:11px;font-weight:500;color:#854F0B;background:#FAEEDA;border-radius:6px;padding:3px 9px">202 Accepted · partial</span>
+      </div>
+      <div id="tallies" style="display:flex;gap:10px;margin-top:12px"></div>
+    </div>
+    <div style="padding:8px 20px 18px">
+      <div id="resGroups"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var items=[
+    'DA-2024-0417 — Lot 42 Rouse Hill','DA-2024-0392 — Kellyville subdivision','DA-2024-0410 — Box Hill','DA-2024-0388 — Marsden Park','DA-2024-0375 — Riverstone East','DA-2024-0401 — Schofields'
+  ];
+  var sl=document.getElementById('sellist');
+  items.forEach(function(t,i){
+    var el=document.createElement('label');
+    el.style.cssText='display:flex;align-items:center;gap:11px;padding:11px 18px;border-bottom:0.5px solid var(--border);cursor:pointer;font-size:13px';
+    el.innerHTML='<input type="checkbox" '+(i<5?'checked':'')+' style="width:15px;height:15px;accent-color:#1D3455"/><i class="ti ti-file-description" style="font-size:17px;color:var(--text-muted)" aria-hidden="true"></i><span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+t+'</span>';
+    sl.appendChild(el);
+  });
+
+  var tallies=[['succeeded',9,'var(--text-success)','var(--bg-success)','ti-circle-check'],['failed',2,'var(--text-danger)','var(--bg-danger)','ti-circle-x'],['skipped',1,'var(--text-warning)','var(--bg-warning)','ti-circle-minus']];
+  var th=document.getElementById('tallies');
+  tallies.forEach(function(t){
+    var el=document.createElement('div');
+    el.style.cssText='flex:1;background:'+t[3]+';border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:9px';
+    el.innerHTML='<i class="ti '+t[4]+'" style="font-size:19px;color:'+t[2]+'" aria-hidden="true"></i><div><p style="font-size:20px;font-weight:500;margin:0;color:'+t[2]+'">'+t[1]+'</p><p style="font-size:11px;margin:0;color:'+t[2]+';text-transform:capitalize">'+t[0]+'</p></div>';
+    th.appendChild(el);
+  });
+
+  var groups=[
+    {h:'Failed · 2',items:[
+      {i:2,n:'DA-2024-0410 — Box Hill',code:'MediaItemNotDraft',msg:'Item is Published — metadata can only be set on Draft or Revising.'},
+      {i:7,n:'DA-2024-0433 — Tallawong',code:'MetadataFieldAmbiguous',msg:'Field “decision” collides across two record types. Qualify it (consent.decision).'}
+    ],color:'var(--text-danger)'},
+    {h:'Skipped · 1',items:[
+      {i:4,n:'DA-2024-0388 — Marsden Park',code:'DuplicateName',msg:'A tag “reviewed-2024” already present — skipped per On-duplicate: Skip.'}
+    ],color:'var(--text-warning)'}
+  ];
+  var rg=document.getElementById('resGroups');
+  groups.forEach(function(g){
+    var head=document.createElement('p');
+    head.style.cssText='font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px';
+    head.textContent=g.h;
+    rg.appendChild(head);
+    g.items.forEach(function(it){
+      var el=document.createElement('div');
+      el.style.cssText='display:flex;align-items:flex-start;gap:11px;padding:11px 13px;border:0.5px solid var(--border);border-radius:10px;margin-bottom:7px;background:var(--surface-2)';
+      el.innerHTML='<span style="font-size:10px;font-family:var(--font-mono);color:var(--text-muted);background:var(--surface-1);border:0.5px solid var(--border);border-radius:5px;padding:1px 6px;flex-shrink:0;margin-top:1px">#'+it.i+'</span>'+
+        '<div style="flex:1;min-width:0"><p style="font-size:13px;font-weight:500;margin:0">'+it.n+'</p><p style="font-size:11px;margin:3px 0 0;color:var(--text-secondary);line-height:1.45"><code style="font-family:var(--font-mono);color:'+g.color+'">'+it.code+'</code> · '+it.msg+'</p></div>';
+      rg.appendChild(el);
+    });
+  });
+})();
+</script>
