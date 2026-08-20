@@ -168,4 +168,14 @@ def read_github_prs() -> list[dict[str, Any]]:
 
 
 def read_github_review_requested() -> list[dict[str, Any]]:
-    return _enrich(_search_prs(["--review-requested", "@me"]), _get_me())
+    review = _search_prs(["--review-requested", "@me"])
+    assigned = _search_prs(["--assignee", "@me"])
+    seen: set[str] = set()
+    merged: list[dict[str, Any]] = []
+    for pr in review + assigned:
+        key = pr.get("url") or f"{pr.get('repo')}#{pr.get('number')}"
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append(pr)
+    return _enrich(merged, _get_me())
