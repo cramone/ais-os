@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MediaItem Edit Session — Solo &amp; Collaborative Checkout</title>
+<style>
+  :root {
+    --ink:#14181f; --ink-2:#4a5461; --ink-3:#7b8694;
+    --line:#d8dee6; --bg:#ffffff; --panel:#f6f8fa;
+    --a:#2563eb;  --a-bg:#eaf1fe;    /* actor / allowed */
+    --ok:#15803d; --ok-bg:#e9f6ee;   /* success */
+    --warn:#b45309; --warn-bg:#fdf3e3;
+    --bad:#dc2626; --bad-bg:#fdecec;
+    --new:#7c3aed; --new-bg:#f2ecfd;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; padding:48px 40px 96px; background:var(--bg); color:var(--ink);
+    font:15px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1160px; margin:0 auto; }
+
+  header.doc { border-bottom:2px solid var(--ink); padding-bottom:18px; margin-bottom:36px; }
+  header.doc h1 { font-size:26px; margin:0 0 6px; letter-spacing:-0.02em; }
+  header.doc .sub { color:var(--ink-2); font-size:14px; margin:0; max-width:820px; }
+  header.doc .meta { margin-top:14px; font-size:12px; color:var(--ink-3);
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
+
+  h2.sec { font-size:20px; margin:56px 0 8px; letter-spacing:-0.01em; }
+  h2.sec .n { color:var(--ink-3); font-weight:400; margin-right:10px; }
+  h3.sub { font-size:15.5px; margin:32px 0 8px; }
+  p.lede { color:var(--ink-2); font-size:14px; margin:0 0 20px; max-width:840px; }
+
+  .thesis {
+    border-left:3px solid var(--new); background:var(--new-bg);
+    padding:18px 22px; border-radius:0 8px 8px 0; margin:0 0 12px;
+  }
+  .thesis p { margin:0; font-size:15px; }
+  .thesis strong { color:var(--new); }
+
+  .canvas { border:1px solid var(--line); border-radius:8px; background:#fcfdfe;
+            padding:8px 12px; overflow-x:auto; margin-top:6px; }
+  svg { display:block; width:100%; height:auto; }
+
+  pre.code {
+    background:#f6f8fa; border:1px solid var(--line); border-radius:7px;
+    padding:15px 18px; overflow-x:auto; margin:14px 0 0;
+    font:12.5px/1.62 ui-monospace,"SF Mono",Menlo,Consolas,monospace; color:var(--ink);
+  }
+  pre.code .c { color:#7b8694; }
+  pre.code .k { color:#7c3aed; font-weight:600; }
+  pre.code .t { color:#15803d; }
+
+  table { width:100%; border-collapse:collapse; font-size:13.5px; margin-top:12px; }
+  th,td { text-align:left; padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-3);
+       border-bottom:2px solid var(--ink); }
+  td:first-child { font-weight:600; width:26%; }
+  tr:last-child td { border-bottom:none; }
+
+  code { font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:.9em;
+         background:#eef1f5; padding:1px 5px; border-radius:3px; }
+
+  .callout { border:1px solid var(--line); border-left-width:3px; border-radius:6px;
+             padding:14px 18px; background:var(--panel); margin-top:16px; }
+  .callout h4 { margin:0 0 6px; font-size:14px; }
+  .callout p { margin:0; font-size:13.5px; color:var(--ink-2); }
+  .callout.bad { border-left-color:var(--bad); background:var(--bad-bg); }
+  .callout.bad h4 { color:var(--bad); }
+  .callout.new { border-left-color:var(--new); background:var(--new-bg); }
+  .callout.new h4 { color:var(--new); }
+
+  .shapes { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:18px; }
+  .shape { border:1px solid var(--line); border-radius:8px; padding:16px 18px; background:#fff; }
+  .shape h4 { margin:0 0 4px; font-size:14px; }
+  .shape .holders {
+    font:600 12px ui-monospace,Menlo,monospace; color:var(--new);
+    background:var(--new-bg); display:inline-block; padding:3px 9px; border-radius:4px; margin:6px 0 8px;
+  }
+  .shape p { margin:0; font-size:13px; color:var(--ink-2); }
+
+  @media print { body{padding:0} .canvas{page-break-inside:avoid} }
+  @media (max-width:760px) { .shapes { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="doc">
+  <h1>MediaItem Edit Session</h1>
+  <p class="sub">One locking mechanism that serves both solo checkout and multi-party collaboration — and the
+  concurrency guarantee that changes between them.</p>
+  <p class="meta">magiq-media · Catalog · design proposal · 2026-08-20 · supersedes the CR-first checkout model</p>
+</header>
+
+<div class="thesis">
+  <p>Your two scenarios are not two features. They are <strong>one mechanism with a holder set of size 1 or N</strong>.
+  An <code>EditSession</code> names who may write; solo checkout is the degenerate case where that set has one
+  member. Everything else — lease, renewal, release-on-publish, force-release — is identical.</p>
+</div>
+
+<div class="shapes">
+  <div class="shape">
+    <h4>Scenario 1 — exclusive</h4>
+    <div class="holders">Editors = { alice }</div>
+    <p>Nobody but Alice can write. Publish closes the session and releases the lock. This is a true mutual-exclusion
+    guarantee.</p>
+  </div>
+  <div class="shape">
+    <h4>Scenario 2 — collaborative</h4>
+    <div class="holders">Editors = { alice, bob, carol }</div>
+    <p>The lock keeps everyone <em>else</em> out. It does not order the three of them against each other — that needs
+    optimistic concurrency underneath.</p>
+  </div>
+</div>
+
+<!-- ══════════════ MODEL ══════════════ -->
+<h2 class="sec"><span class="n">1</span>The model</h2>
+<p class="lede">
+  One nullable value object on the aggregate. No new statuses, no second aggregate, no saga — the whole thing is
+  local to <code>MediaItem</code> and enforced inside its own transaction.
+</p>
+
+<pre class="code"><span class="c">// Catalog.Domain/Aggregates/MediaItems/ValueObjects/EditSession.cs</span>
+<span class="k">public sealed record</span> <span class="t">EditSession</span>(
+    EditSessionId              Id,
+    MemberId                   OpenedBy,
+    IReadOnlySet&lt;MemberId&gt;     Editors,          <span class="c">// always contains OpenedBy</span>
+    MediaItemStatus            OriginStatus,     <span class="c">// Draft | Revising — where to return on reject</span>
+    DateTimeOffset             OpenedAt,
+    DateTimeOffset?            LeaseExpiresAt);  <span class="c">// null = never expires (per-profile)</span>
+
+<span class="c">// On the aggregate</span>
+<span class="k">private</span> EditSession? _activeEditSession;
+<span class="k">public</span> <span class="k">bool</span> IsCheckedOut =&gt; _activeEditSession <span class="k">is not null</span>;
+<span class="k">public</span> <span class="k">bool</span> CanWrite(MemberId actor) =&gt; _activeEditSession <span class="k">is null</span>
+    ? CheckoutPolicy != CheckoutPolicy.RequiredForEdit
+    : _activeEditSession.Editors.Contains(actor);</pre>
+
+<h3 class="sub">Commands</h3>
+<table>
+  <thead><tr><th>Command</th><th>Effect</th></tr></thead>
+  <tbody>
+    <tr><td><code>CheckOutMediaItem</code></td><td>Opens the session. <code>Collaborators[]</code> optional — empty means solo. If <code>Status == Published</code>, also raises <code>MediaItemRevisionStarted</code> so the caller doesn't have to make two round-trips to start editing a live item.</td></tr>
+    <tr><td><code>AddSessionEditor</code> / <code>RemoveSessionEditor</code></td><td>Grow or shrink the holder set mid-session. Turns scenario 1 into scenario 2 without dropping the lock — which matters, because "I need Bob's help with this" happens after checkout, not before.</td></tr>
+    <tr><td><code>RenewCheckout</code></td><td>Extends <code>LeaseExpiresAt</code>. Any editor may renew. Client renews on activity; no user-visible action.</td></tr>
+    <tr><td><code>CheckInMediaItem</code></td><td>Closes the session, <em>keeps</em> the draft. "I'm done for now, someone else can take it."</td></tr>
+    <tr><td><code>AbandonCheckout</code></td><td>Closes the session and discards the draft. Returns to <code>OriginStatus</code>.</td></tr>
+    <tr><td><code>ForceReleaseCheckout</code></td><td>System/admin only. Closes the session, keeps the draft. Should be rare once leases exist.</td></tr>
+    <tr><td><code>RequestPublication</code></td><td>Closes the session as <code>Submitted</code> and transitions to <code>PendingApproval</code> (or straight to <code>Published</code> if no reviewers). <strong>This is the "publish releases the lock" path.</strong></td></tr>
+  </tbody>
+</table>
+
+<h3 class="sub">Invariants</h3>
+<table>
+  <thead><tr><th>Rule</th><th>Error</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>Only one active session per item</td><td><code>MediaItemAlreadyCheckedOut</code></td><td>Error payload carries <code>openedBy</code> and <code>leaseExpiresAt</code> so the UI can say "locked by Estelle until 14:30" instead of just failing.</td></tr>
+    <tr><td>Writer must be in <code>Editors</code></td><td><code>NotAnEditSessionParticipant</code></td><td>403. Applies to metadata, assets, title, tags — every mutation.</td></tr>
+    <tr><td>No session + <code>CheckoutPolicy = RequiredForEdit</code></td><td><code>MediaItemNotCheckedOut</code></td><td>Finally gives the existing profile flag a meaning. <code>CheckoutPolicy = None</code> leaves checkout optional.</td></tr>
+    <tr><td>Cannot open a session in <code>PendingApproval</code> or <code>Archived</code></td><td><code>MediaItemNotEditable</code></td><td>Review is its own write block; a lock there would be redundant.</td></tr>
+    <tr><td>Submitter must hold the session</td><td><code>NotAnEditSessionParticipant</code></td><td>You can't publish work you weren't invited into.</td></tr>
+    <tr><td>Every write carries <code>If-Match: &lt;aggregateVersion&gt;</code></td><td><code>409 VersionConflict</code></td><td>Mandatory for scenario 2, harmless for scenario 1. See §4.</td></tr>
+  </tbody>
+</table>
+
+<!-- ══════════════ FLOW 1 ══════════════ -->
+<h2 class="sec"><span class="n">2</span>Scenario 1 — exclusive checkout, publish releases the lock</h2>
+<p class="lede">Alice takes the item, nobody else can touch it, publishing hands it back.</p>
+
+<div class="canvas">
+<svg viewBox="0 0 1120 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Solo checkout sequence">
+  <defs>
+    <marker id="s1-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/></marker>
+    <marker id="s1-ok"  viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#15803d"/></marker>
+    <marker id="s1-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/></marker>
+  </defs>
+  <style>
+    .ll   { stroke:#c3cbd6; stroke-width:1.4; stroke-dasharray:4 5; }
+    .hd   { rx:6; stroke-width:1.6; }
+    .hdt  { font:600 12.5px -apple-system,"Segoe UI",sans-serif; text-anchor:middle; }
+    .hds  { font:400 9.5px ui-monospace,Menlo,monospace; text-anchor:middle; fill:#7b8694; }
+    .msg  { stroke:#2563eb; stroke-width:1.7; fill:none; }
+    .ret  { stroke:#15803d; stroke-width:1.5; fill:none; stroke-dasharray:6 4; }
+    .retb { stroke:#dc2626; stroke-width:1.5; fill:none; stroke-dasharray:6 4; }
+    .mt   { font:500 11.5px ui-monospace,Menlo,monospace; fill:#1f4fb8; }
+    .rt   { font:500 11.5px ui-monospace,Menlo,monospace; fill:#15803d; }
+    .rtb  { font:500 11.5px ui-monospace,Menlo,monospace; fill:#dc2626; }
+    .ev   { font:400 10.5px ui-monospace,Menlo,monospace; fill:#4a5461; }
+    .evk  { font:600 10.5px ui-monospace,Menlo,monospace; fill:#7c3aed; }
+    .sep  { stroke:#e3e8ee; stroke-width:1; }
+  </style>
+
+  <!-- lifelines -->
+  <line class="ll" x1="120" y1="72" x2="120" y2="540"/>
+  <line class="ll" x1="330" y1="72" x2="330" y2="540"/>
+  <line class="ll" x1="620" y1="72" x2="620" y2="540"/>
+  <line class="sep" x1="670" y1="72" x2="670" y2="540"/>
+
+  <!-- headers -->
+  <rect class="hd" x="55"  y="26" width="130" height="42" fill="var(--a-bg)" stroke="var(--a)"/>
+  <text class="hdt" x="120" y="45" fill="var(--a)">Alice</text><text class="hds" x="120" y="59">owner</text>
+
+  <rect class="hd" x="265" y="26" width="130" height="42" fill="#fff" stroke="#94a3b8"/>
+  <text class="hdt" x="330" y="45" fill="#4a5461">Bob</text><text class="hds" x="330" y="59">another editor</text>
+
+  <rect class="hd" x="545" y="26" width="150" height="42" fill="var(--new-bg)" stroke="var(--new)"/>
+  <text class="hdt" x="620" y="45" fill="var(--new)">MediaItem</text><text class="hds" x="620" y="59">write API</text>
+
+  <text class="evk" x="690" y="52">emitted events</text>
+
+  <!-- R1 checkout -->
+  <path class="msg" d="M122,108 H612" marker-end="url(#s1-ink)"/>
+  <text class="mt" x="130" y="102">POST /items/{id}/checkout   { collaborators: [] }</text>
+  <text class="evk" x="690" y="100">EditSessionOpened</text>
+  <text class="ev"  x="690" y="114">editors={alice} · lease T+60m</text>
+  <text class="ev"  x="690" y="128">+ MediaItemRevisionStarted (if Published)</text>
+
+  <path class="ret" d="M618,150 H126" marker-end="url(#s1-ok)"/>
+  <text class="rt" x="130" y="144">201 { sessionId, leaseExpiresAt }</text>
+
+  <!-- R2 write -->
+  <path class="msg" d="M122,196 H612" marker-end="url(#s1-ink)"/>
+  <text class="mt" x="130" y="190">PUT /items/{id}/metadata   If-Match: v12</text>
+  <text class="evk" x="690" y="192">MediaItemMetadataBatchSet</text>
+  <text class="ev"  x="690" y="206">v12 → v13</text>
+  <path class="ret" d="M618,224 H126" marker-end="url(#s1-ok)"/>
+  <text class="rt" x="130" y="218">200  ETag: v13</text>
+
+  <!-- R3 Bob blocked -->
+  <rect x="250" y="252" width="380" height="56" rx="6" fill="var(--bad-bg)" stroke="var(--bad)" stroke-width="1.2" stroke-dasharray="4 3" opacity="0.5"/>
+  <path class="msg" d="M332,272 H612" stroke="#dc2626" marker-end="url(#s1-bad)"/>
+  <text class="rtb" x="340" y="266">PUT /items/{id}/metadata</text>
+  <path class="retb" d="M618,296 H338" marker-end="url(#s1-bad)"/>
+  <text class="rtb" x="346" y="290">409 MediaItemAlreadyCheckedOut</text>
+  <text class="evk" x="690" y="270" fill="#dc2626">— no event —</text>
+  <text class="ev"  x="690" y="284">{ openedBy: "alice", until: "14:30" }</text>
+  <text class="ev"  x="690" y="298">UI shows who holds it, not just a failure</text>
+
+  <!-- R4 renew -->
+  <path class="msg" d="M122,346 H612" stroke="#94a3b8" stroke-dasharray="5 4" marker-end="url(#s1-ink)"/>
+  <text class="ev" x="130" y="340">POST /items/{id}/checkout/renew   (client, on activity)</text>
+  <text class="evk" x="690" y="344">EditSessionRenewed</text>
+  <text class="ev"  x="690" y="358">lease → T+60m</text>
+
+  <!-- R5 publish -->
+  <path class="msg" d="M122,404 H612" marker-end="url(#s1-ink)"/>
+  <text class="mt" x="130" y="398">POST /items/{id}/publish   { reviewers: [] }</text>
+  <text class="evk" x="690" y="396">EditSessionClosed(Submitted)</text>
+  <text class="ev"  x="690" y="410">MediaItemPublicationRequested</text>
+  <text class="ev"  x="690" y="424">MediaItemApproved → Published v(n+1)</text>
+  <path class="ret" d="M618,438 H126" marker-end="url(#s1-ok)"/>
+  <text class="rt" x="130" y="432">200 { version: n+1 }   ← lock released here</text>
+
+  <!-- R6 Bob free -->
+  <path class="msg" d="M332,486 H612" marker-end="url(#s1-ink)"/>
+  <text class="mt" x="340" y="480">POST /items/{id}/checkout</text>
+  <path class="ret" d="M618,514 H338" marker-end="url(#s1-ok)"/>
+  <text class="rt" x="346" y="508">201 — item is free</text>
+  <text class="evk" x="690" y="486">EditSessionOpened</text>
+  <text class="ev"  x="690" y="500">editors={bob} · + MediaItemRevisionStarted</text>
+</svg>
+</div>
+
+<div class="callout new">
+  <h4>Why publish, not check-in, is the natural release point</h4>
+  <p>Submitting moves the item to <code>PendingApproval</code>, where writes are already blocked by status. Holding a
+  lock on top of that would be two mechanisms guarding the same thing — and would leave you deciding who owns the
+  lock while three reviewers deliberate. Closing the session at submit means the lock exists only during the window
+  it actually protects.</p>
+</div>
+
+<!-- ══════════════ FLOW 2 ══════════════ -->
+<h2 class="sec"><span class="n">3</span>Scenario 2 — collaborative checkout</h2>
+<p class="lede">
+  Same session, larger holder set. Note rows 3 and 4: Bob gets in because he's an editor, Carol gets a
+  <code>409</code> from a colleague — two different rejections that a single mechanism cannot produce.
+</p>
+
+<div class="canvas">
+<svg viewBox="0 0 1220 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Collaborative checkout sequence">
+  <defs>
+    <marker id="s2-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/></marker>
+    <marker id="s2-ok"  viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#15803d"/></marker>
+    <marker id="s2-wn"  viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b45309"/></marker>
+    <marker id="s2-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/></marker>
+  </defs>
+  <style>
+    .l2   { stroke:#c3cbd6; stroke-width:1.4; stroke-dasharray:4 5; }
+    .h2b  { rx:6; stroke-width:1.6; }
+    .h2t  { font:600 12.5px -apple-system,"Segoe UI",sans-serif; text-anchor:middle; }
+    .h2s  { font:400 9.5px ui-monospace,Menlo,monospace; text-anchor:middle; fill:#7b8694; }
+    .m2   { stroke:#2563eb; stroke-width:1.7; fill:none; }
+    .r2   { stroke:#15803d; stroke-width:1.5; fill:none; stroke-dasharray:6 4; }
+    .r2w  { stroke:#b45309; stroke-width:1.5; fill:none; stroke-dasharray:6 4; }
+    .r2b  { stroke:#dc2626; stroke-width:1.5; fill:none; stroke-dasharray:6 4; }
+    .t2   { font:500 11.5px ui-monospace,Menlo,monospace; fill:#1f4fb8; }
+    .t2g  { font:500 11.5px ui-monospace,Menlo,monospace; fill:#15803d; }
+    .t2w  { font:500 11.5px ui-monospace,Menlo,monospace; fill:#b45309; }
+    .t2r  { font:500 11.5px ui-monospace,Menlo,monospace; fill:#dc2626; }
+    .e2   { font:400 10.5px ui-monospace,Menlo,monospace; fill:#4a5461; }
+    .e2k  { font:600 10.5px ui-monospace,Menlo,monospace; fill:#7c3aed; }
+    .s2   { stroke:#e3e8ee; stroke-width:1; }
+  </style>
+
+  <line class="l2" x1="110" y1="72" x2="110" y2="600"/>
+  <line class="l2" x1="270" y1="72" x2="270" y2="600"/>
+  <line class="l2" x1="430" y1="72" x2="430" y2="600"/>
+  <line class="l2" x1="590" y1="72" x2="590" y2="600"/>
+  <line class="l2" x1="790" y1="72" x2="790" y2="600"/>
+  <line class="s2" x1="838" y1="72" x2="838" y2="600"/>
+
+  <rect class="h2b" x="55"  y="26" width="110" height="42" fill="var(--a-bg)" stroke="var(--a)"/>
+  <text class="h2t" x="110" y="45" fill="var(--a)">Alice</text><text class="h2s" x="110" y="59">initiator</text>
+  <rect class="h2b" x="215" y="26" width="110" height="42" fill="var(--a-bg)" stroke="var(--a)"/>
+  <text class="h2t" x="270" y="45" fill="var(--a)">Bob</text><text class="h2s" x="270" y="59">editor</text>
+  <rect class="h2b" x="375" y="26" width="110" height="42" fill="var(--a-bg)" stroke="var(--a)"/>
+  <text class="h2t" x="430" y="45" fill="var(--a)">Carol</text><text class="h2s" x="430" y="59">editor</text>
+  <rect class="h2b" x="535" y="26" width="110" height="42" fill="#fff" stroke="#94a3b8"/>
+  <text class="h2t" x="590" y="45" fill="#64748b">Dave</text><text class="h2s" x="590" y="59">not invited</text>
+  <rect class="h2b" x="715" y="26" width="150" height="42" fill="var(--new-bg)" stroke="var(--new)"/>
+  <text class="h2t" x="790" y="45" fill="var(--new)">MediaItem</text><text class="h2s" x="790" y="59">write API</text>
+  <text class="e2k" x="856" y="52">emitted events</text>
+
+  <!-- R1 -->
+  <path class="m2" d="M112,110 H782" marker-end="url(#s2-ink)"/>
+  <text class="t2" x="120" y="104">POST /checkout   { collaborators: ["bob","carol"] }</text>
+  <text class="e2k" x="856" y="102">EditSessionOpened</text>
+  <text class="e2"  x="856" y="116">editors={alice,bob,carol}</text>
+  <path class="r2" d="M788,134 H116" marker-end="url(#s2-ok)"/>
+  <text class="t2g" x="120" y="128">201 { sessionId }</text>
+
+  <!-- R2 Bob writes -->
+  <path class="m2" d="M272,180 H782" marker-end="url(#s2-ink)"/>
+  <text class="t2" x="280" y="174">PUT /metadata   If-Match: v13</text>
+  <path class="r2" d="M788,204 H276" marker-end="url(#s2-ok)"/>
+  <text class="t2g" x="280" y="198">200  ETag: v14</text>
+  <text class="e2k" x="856" y="180">MediaItemMetadataBatchSet</text>
+  <text class="e2"  x="856" y="194">bob ∈ editors → allowed · v13 → v14</text>
+
+  <!-- R3 Carol conflict -->
+  <path class="m2" d="M432,250 H782" stroke="#b45309" marker-end="url(#s2-wn)"/>
+  <text class="t2w" x="440" y="244">PUT /metadata   If-Match: v13</text>
+  <path class="r2w" d="M788,274 H436" marker-end="url(#s2-wn)"/>
+  <text class="t2w" x="440" y="268">409 VersionConflict</text>
+  <text class="e2k" x="856" y="250" fill="#b45309">— no event —</text>
+  <text class="e2"  x="856" y="264">Carol's base v13 is stale — Bob moved it.</text>
+  <text class="e2"  x="856" y="278">The LOCK did not catch this. The version did.</text>
+
+  <!-- R4 Carol retry -->
+  <path class="m2" d="M432,320 H782" marker-end="url(#s2-ink)"/>
+  <text class="t2" x="440" y="314">re-read → PUT /metadata   If-Match: v14</text>
+  <path class="r2" d="M788,344 H436" marker-end="url(#s2-ok)"/>
+  <text class="t2g" x="440" y="338">200  ETag: v15</text>
+  <text class="e2k" x="856" y="322">MediaItemMetadataBatchSet</text>
+  <text class="e2"  x="856" y="336">v14 → v15</text>
+
+  <!-- R5 Dave rejected -->
+  <path class="m2" d="M592,390 H782" stroke="#dc2626" marker-end="url(#s2-bad)"/>
+  <text class="t2r" x="600" y="384">PUT /metadata</text>
+  <path class="r2b" d="M788,414 H596" marker-end="url(#s2-bad)"/>
+  <text class="t2r" x="600" y="408">403 NotAnEditSessionParticipant</text>
+  <text class="e2k" x="856" y="392" fill="#dc2626">— no event —</text>
+  <text class="e2"  x="856" y="406">Dave ∉ editors. THIS is what the lock catches.</text>
+
+  <!-- R6 add Dave -->
+  <path class="m2" d="M112,460 H782" marker-end="url(#s2-ink)"/>
+  <text class="t2" x="120" y="454">POST /checkout/editors   { add: "dave" }</text>
+  <text class="e2k" x="856" y="458">EditSessionEditorAdded</text>
+  <text class="e2"  x="856" y="472">editors={alice,bob,carol,dave} — no re-lock</text>
+
+  <!-- R7 publish -->
+  <path class="m2" d="M272,516 H782" marker-end="url(#s2-ink)"/>
+  <text class="t2" x="280" y="510">POST /publish   { reviewers: ["erin"] }   ← any editor may submit</text>
+  <text class="e2k" x="856" y="514">EditSessionClosed(Submitted)</text>
+  <text class="e2"  x="856" y="528">MediaItemPublicationRequested</text>
+  <text class="e2"  x="856" y="542">→ PendingApproval · lock released</text>
+
+  <!-- R8 reject reopens -->
+  <rect x="700" y="562" width="180" height="30" rx="5" fill="var(--warn-bg)" stroke="var(--warn)" stroke-width="1.3"/>
+  <text class="t2w" x="790" y="581" text-anchor="middle">Erin rejects</text>
+  <path class="r2w" d="M698,577 H120" marker-end="url(#s2-wn)"/>
+  <text class="e2k" x="856" y="574" fill="#b45309">EditSessionReopened</text>
+  <text class="e2"  x="856" y="588">→ OriginStatus, same editors, fresh lease</text>
+</svg>
+</div>
+
+<!-- ══════════════ THE CATCH ══════════════ -->
+<h2 class="sec"><span class="n">4</span>The part that bites</h2>
+
+<div class="callout bad">
+  <h4>A shared lock is not mutual exclusion — it is a membership test</h4>
+  <p>In scenario 1 the lock genuinely guarantees "no changes can be made." In scenario 2 that guarantee evaporates
+  the moment the holder set exceeds one: Bob and Carol can still clobber each other. If you ship collaborative
+  checkout without <code>If-Match</code> underneath it, you will have built something that <em>looks</em> like it
+  prevents conflicts and silently doesn't — which is worse than no lock at all, because people will trust it.</p>
+</div>
+
+<p class="lede" style="margin-top:18px">
+  The two mechanisms answer different questions and you need both:
+</p>
+
+<table>
+  <thead><tr><th>Mechanism</th><th>Question</th><th>Scenario 1</th><th>Scenario 2</th></tr></thead>
+  <tbody>
+    <tr><td><code>EditSession</code></td><td>Are you allowed in this room?</td><td>Load-bearing — it is the whole feature</td><td>Load-bearing — keeps Dave out</td></tr>
+    <tr><td><code>If-Match</code> / version</td><td>Is your copy current?</td><td>Redundant but free — one editor can't conflict with themselves</td><td>Load-bearing — the only thing ordering Bob against Carol</td></tr>
+  </tbody>
+</table>
+
+<h3 class="sub">How far to take collaboration</h3>
+<p class="lede">
+  <code>If-Match</code> at the aggregate level means any two concurrent writes conflict, even to unrelated fields.
+  That's correct but coarse — with three people editing, Carol will hit <code>409</code> a lot. Two ways to soften it,
+  in increasing order of cost:
+</p>
+<table>
+  <thead><tr><th>Option</th><th>Behaviour</th><th>Cost</th></tr></thead>
+  <tbody>
+    <tr><td>Aggregate-level <code>If-Match</code></td><td>Any concurrent write → <code>409</code>, client re-reads and retries.</td><td>Free — the event store already does this conditional write. Start here.</td></tr>
+    <tr><td>Field-level merge</td><td><code>409</code> only when the same field changed. Server compares the changed key-set against events since the caller's base version.</td><td>Moderate — needs a "changes since version N" read. Worth it if <code>409</code> rates get annoying in practice, not before.</td></tr>
+    <tr><td>Live co-editing (CRDT/OT)</td><td>No conflicts, real-time cursors.</td><td>Don't. It's a different product, and it fits poorly with an append-only audit trail for regulated records.</td></tr>
+  </tbody>
+</table>
+
+<!-- ══════════════ EDGES ══════════════ -->
+<h2 class="sec"><span class="n">5</span>Edge cases worth deciding now</h2>
+<table>
+  <thead><tr><th>Situation</th><th>Proposed behaviour</th></tr></thead>
+  <tbody>
+    <tr><td>Initiator leaves the company mid-session</td><td>Any remaining editor can continue and submit. The session belongs to the set, not to <code>OpenedBy</code>. Only <code>ForceRelease</code> needs elevated rights.</td></tr>
+    <tr><td>Last editor removed from the set</td><td>Reject — <code>Editors</code> must be non-empty. Use <code>ForceRelease</code> or <code>AbandonCheckout</code> to end a session.</td></tr>
+    <tr><td>Lease expires with unsaved draft</td><td>Session closes, draft is <em>kept</em>. Expiry releases the lock, never the work. Next person to check out inherits the draft and sees who left it.</td></tr>
+    <tr><td>Reviewer rejects a submitted item</td><td><code>EditSessionReopened</code> with the same editor set and a fresh lease, item returns to <code>OriginStatus</code>. Avoids a window where a rejected item is editable but unlocked.</td></tr>
+    <tr><td>Checkout on a <code>Published</code> item</td><td>Implicitly raises <code>MediaItemRevisionStarted</code>. One user action. <code>OriginStatus = Revising</code> is recorded on the session.</td></tr>
+    <tr><td>Active <code>DocumentSigningSession</code></td><td>Block checkout — <code>SigningSessionInProgress</code>. Reuses the guard already on <code>RequestPublication</code>.</td></tr>
+    <tr><td>Bulk metadata across many items</td><td>Bulk skips the session requirement, or fails per-item with <code>MediaItemAlreadyCheckedOut</code> in the existing <code>BulkItemError</code> shape. Recommend the latter — a bulk path that ignores locks makes the lock a lie.</td></tr>
+  </tbody>
+</table>
+
+<!-- ══════════════ DELTA ══════════════ -->
+<h2 class="sec"><span class="n">6</span>What this replaces</h2>
+<p class="lede">
+  Everything below exists only in <code>mediaitem.checkout-cr-saga.md</code> and the ChangeRequests specs —
+  none of it is implemented, so removing it costs nothing but a spec edit.
+</p>
+<table>
+  <thead><tr><th>CR-first design</th><th>Becomes</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td><code>WithChangeRequest</code> flag at checkout</td><td><code>Collaborators[]</code> at checkout</td><td>Collaboration and approval stop being the same decision. You can collaborate without review, and review without collaborating.</td></tr>
+    <tr><td><code>CheckoutBound</code> → <code>SubmissionBound</code> CR states</td><td>deleted</td><td>Resolves the contradiction between <code>mediachangerequest.write-model.md</code> and the read-model/context-overview. The CR goes back to being a comment thread.</td></tr>
+    <tr><td><code>MediaItemCheckoutReviewSaga</code> + 5 SNS consumers</td><td>deleted</td><td>The entire saga exists to keep a CR's state in step with a lock. Once the lock holds its own membership, there is nothing to orchestrate — it's all local to <code>MediaItem</code>.</td></tr>
+    <tr><td>Reviewers named at checkout; self-review hard-blocked there</td><td>Reviewers named at <code>RequestPublication</code></td><td>You know who should review after you see what changed. <code>ReviewerIsInitiator</code> still applies, just at submit.</td></tr>
+    <tr><td><code>ReviewPolicy = RequiredForPublish</code> enforced at checkout</td><td>enforced at publish</td><td>The failure it prevents — "I edited, now I'm told I need review" — is a UI problem. Show the policy on the editor; don't force an irreversible choice before any work exists.</td></tr>
+    <tr><td>"Any CR participant can check in"</td><td>"Any session editor can write and submit"</td><td>Same capability, without needing a second aggregate to hold the participant list.</td></tr>
+  </tbody>
+</table>
+
+<div class="callout new" style="margin-top:26px">
+  <h4>Net effect on the build</h4>
+  <p>One value object, one nullable field, six commands, and an <code>If-Match</code> header — all inside
+  <code>Catalog</code>. Against the CR-first plan this drops a saga, five integration-event consumers, two CR
+  states, and a cross-module command, while covering both of your scenarios and leaving the
+  <code>ChangeRequest</code> aggregate exactly as it is today.</p>
+</div>
+
+</div>
+</body>
+</html>

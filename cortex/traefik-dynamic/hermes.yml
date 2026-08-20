@@ -1,0 +1,53 @@
+# hermes.ramonedevelopment.com — Hermes Agent dashboard.
+#
+# File-provider route rather than docker labels because the dashboard is NOT a
+# container: it runs as a systemd *user* service on cortex
+# (~/.config/systemd/user/hermes-dashboard.service), so there is nothing to hang
+# traefik.* labels on. Traefik is network_mode: host, so it reaches the
+# loopback listener directly — same reason the authentik forward-auth address
+# below can be 127.0.0.1:9000.
+#
+# passHostHeader: false is REQUIRED here, not cosmetic. The dashboard binds
+# 127.0.0.1 and enforces a Host-header allowlist as a DNS-rebinding defence
+# (hermes_cli/web_server.py::_is_accepted_host, GHSA-ppp5-vxwm-4cf7): on a
+# loopback bind it accepts ONLY localhost / 127.0.0.1 / ::1 and returns HTTP 400
+# for anything else. Passing the browser's `hermes.ramonedevelopment.com`
+# through would therefore 400 every single request. false rewrites the upstream
+# Host to the backend URL's host (127.0.0.1:9119), which the allowlist accepts.
+# Authentik is unaffected: forward-auth runs at the router BEFORE the backend
+# dial and reads the real host from X-Forwarded-Host, so the domain-level cookie
+# match against ramonedevelopment.com still succeeds.
+# (iis-tenants.yml sets passHostHeader: true — opposite value, deliberately:
+# IIS needs the real host for tenant vhost selection. Don't copy that here.)
+#
+# Auth model: because the bind is loopback, Hermes' own auth gate stays OFF (it
+# engages only on non-loopback binds — see should_require_auth). Authentik
+# forward-auth is therefore the single gate, sharing the same domain-level
+# session cookie as home. / traefik. / redisinsight. No per-host Authentik
+# provider or -outpost router is needed — attaching the middleware IS the whole
+# integration, per the domain-level design in docker-compose.yml.
+#
+# tailnet entrypoint ONLY — deliberately never websecure. This UI exposes API
+# keys, MCP server config, shell/PTY endpoints and live agent sessions; it must
+# not be reachable from the public internet the way tower. is.
+#
+# No DNS or cert work was needed to add this host: dns-internal's dnsmasq
+# already answers *.ramonedevelopment.com with cortex's tailnet IP, and the
+# `public` resolver mints the cert per-host on demand over DNS-01.
+http:
+  routers:
+    hermes:
+      rule: "Host(`hermes.ramonedevelopment.com`)"
+      entryPoints: [tailnet]
+      tls:
+        certResolver: public
+      middlewares:
+        - authentik@docker
+      service: hermes-dashboard
+
+  services:
+    hermes-dashboard:
+      loadBalancer:
+        passHostHeader: false
+        servers:
+          - url: "http://127.0.0.1:9119"

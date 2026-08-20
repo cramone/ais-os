@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MediaItem Edit Lifecycle — As-Is vs Recommended</title>
+<style>
+  :root {
+    --ink:      #14181f;
+    --ink-2:    #4a5461;
+    --ink-3:    #7b8694;
+    --line:     #d8dee6;
+    --bg:       #ffffff;
+    --panel:    #f6f8fa;
+
+    --edit:     #2563eb;   /* editable states */
+    --edit-bg:  #eaf1fe;
+    --locked:   #b45309;   /* review / write-blocked */
+    --locked-bg:#fdf3e3;
+    --live:     #15803d;   /* published */
+    --live-bg:  #e9f6ee;
+    --dead:     #64748b;   /* archived */
+    --dead-bg:  #eef1f5;
+    --bad:      #dc2626;   /* defect */
+    --bad-bg:   #fdecec;
+    --new:      #7c3aed;   /* recommended change */
+    --new-bg:   #f2ecfd;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 48px 40px 96px;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; }
+
+  header.doc {
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 18px;
+    margin-bottom: 40px;
+  }
+  header.doc h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.02em; }
+  header.doc .sub { color: var(--ink-2); font-size: 14px; margin: 0; }
+  header.doc .meta {
+    margin-top: 14px; font-size: 12px; color: var(--ink-3);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  section.diagram { margin-bottom: 72px; }
+
+  .sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px; }
+  .sec-head h2 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+  .tag {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 3px;
+  }
+  .tag.now  { background: var(--dead-bg); color: var(--ink-2); border: 1px solid var(--line); }
+  .tag.rec  { background: var(--new-bg);  color: var(--new);   border: 1px solid #d9c9fa; }
+  .tag.open { background: var(--locked-bg); color: var(--locked); border: 1px solid #f0d9ae; }
+  .tag.done { background: var(--live-bg); color: var(--live); border: 1px solid #b9e2c8; }
+  .flag.dec { background: var(--new-bg); color: var(--new); }
+  .flag.def { background: var(--dead-bg); color: var(--ink-2); }
+
+  .sec-sub { color: var(--ink-2); font-size: 14px; margin: 0 0 24px; max-width: 780px; }
+
+  .canvas {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fcfdfe;
+    padding: 8px 12px;
+    overflow-x: auto;
+  }
+  svg { display: block; width: 100%; height: auto; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px 22px;
+    margin: 14px 2px 0; font-size: 12px; color: var(--ink-2);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .sw { width: 12px; height: 12px; border-radius: 3px; border: 1.5px solid; }
+
+  .notes { margin-top: 26px; display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+  .note {
+    border: 1px solid var(--line); border-left-width: 3px;
+    border-radius: 6px; padding: 13px 16px; background: var(--panel);
+  }
+  .note h4 { margin: 0 0 6px; font-size: 13.5px; display: flex; align-items: center; gap: 8px; }
+  .note p  { margin: 0; font-size: 13px; color: var(--ink-2); }
+  .note.bad { border-left-color: var(--bad); background: var(--bad-bg); }
+  .note.bad h4 { color: var(--bad); }
+  .note.new { border-left-color: var(--new); background: var(--new-bg); }
+  .note.new h4 { color: var(--new); }
+  .note.neutral { border-left-color: var(--ink-3); }
+
+  .pin {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; border-radius: 50%;
+    font-size: 11px; font-weight: 700; color: #fff; background: var(--ink);
+    flex: 0 0 auto;
+  }
+  .note.bad .pin { background: var(--bad); }
+  .note.new .pin { background: var(--new); }
+
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.9em; background: #eef1f5; padding: 1px 5px; border-radius: 3px;
+    color: var(--ink);
+  }
+  .note.bad code { background: #f9dada; }
+  .note.new code { background: #e6dafb; }
+
+  table.delta { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 8px; }
+  table.delta th, table.delta td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.delta th { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); border-bottom: 2px solid var(--ink); }
+  table.delta td:first-child { font-weight: 600; width: 24%; }
+  table.delta tr:last-child td { border-bottom: none; }
+
+  .flag {
+    font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 3px;
+    background: var(--bad-bg); color: var(--bad); white-space: nowrap;
+  }
+  .flag.ok { background: var(--live-bg); color: var(--live); }
+
+  h3.block { font-size: 17px; margin: 56px 0 10px; letter-spacing: -0.01em; }
+  p.block-sub { color: var(--ink-2); font-size: 14px; margin: 0 0 18px; max-width: 800px; }
+
+
+  pre.code {
+    background:#f6f8fa; border:1px solid var(--line); border-radius:7px;
+    padding:15px 18px; overflow-x:auto; margin:16px 0 0;
+    font:12.5px/1.62 ui-monospace,"SF Mono",Menlo,Consolas,monospace; color:var(--ink);
+  }
+  pre.code .c { color:#7b8694; }
+  pre.code .k { color:#7c3aed; font-weight:600; }
+  pre.code .t { color:#15803d; }
+
+  .shapes { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:22px; }
+  .shape { border:1px solid var(--line); border-radius:8px; padding:16px 18px; background:#fff; }
+  .shape.hl { border-color:var(--new); background:var(--new-bg); }
+  .shape h4 { margin:0 0 4px; font-size:14px; }
+  .shape .holders {
+    font:600 12px ui-monospace,Menlo,monospace; color:var(--new);
+    background:#fff; border:1px solid #d9c9fa;
+    display:inline-block; padding:3px 9px; border-radius:4px; margin:6px 0 8px;
+  }
+  .shape p { margin:0; font-size:13px; color:var(--ink-2); }
+  @media (max-width:760px) { .shapes { grid-template-columns:1fr; } }
+
+  .flowhead { display:flex; align-items:baseline; gap:12px; margin:34px 0 6px; }
+  .flowhead h4 { font-size:15.5px; margin:0; }
+  .flowhead .pill {
+    font:600 10.5px ui-monospace,Menlo,monospace; letter-spacing:.03em;
+    padding:3px 9px; border-radius:4px; background:var(--new-bg); color:var(--new);
+    border:1px solid #d9c9fa;
+  }
+
+  @media print {
+    body { padding: 0; }
+    section.diagram { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="doc">
+  <h1>MediaItem Edit Lifecycle — Design &amp; Delivery Plan</h1>
+  <p class="sub">Checkout, collaboration, revision and review. All open questions closed; §7 is the build order.</p>
+  <p class="meta">magiq-media · Catalog + ChangeRequests · ADO 34385 · decisions closed 2026-08-20 · verified against <code>Catalog.Domain/Aggregates/MediaItems/MediaItem.cs</code> @ develop</p>
+
+<div class="note new" style="margin-top:24px">
+  <h4>Decision record — closed 2026-08-20, Chase Ramone</h4>
+  <p style="margin-bottom:10px">Three questions were open in the review draft. All are now settled; this document
+  is the design of record and supersedes the CR-first checkout model. An ADR carrying these decisions is
+  <strong>step 0</strong> of the plan in §7.</p>
+</div>
+
+<table class="delta">
+  <thead><tr><th>#</th><th>Question</th><th>Decision</th><th>Consequence</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>D1</td>
+      <td>Is a documented reason-for-change (or multi-item change) a requirement?</td>
+      <td><strong>Yes — Branch B.</strong> <code>ChangeRequest</code> becomes a long-lived container, not a comment thread.</td>
+      <td>No rename to <code>ReviewThread</code>. CR keeps its name and gains a lifecycle independent of the lock. See §4.</td>
+    </tr>
+    <tr>
+      <td>D2</td>
+      <td>May an edit lock expire on its own?</td>
+      <td><strong>Configurable per profile.</strong> <code>LeaseDurationMinutes</code> nullable on <code>MediaProfile</code>; <code>null</code> = never expires.</td>
+      <td>Honours logged decision #2 per-tenant while making stale locks solvable. Reaped by the existing <code>TimeoutScanner</code>.</td>
+    </tr>
+    <tr>
+      <td>D3</td>
+      <td>When are reviewers named?</td>
+      <td><strong>At submit</strong> — but the CR may be opened at checkout.</td>
+      <td>Separates "this change is governed" (checkout, D1) from "these people must approve it" (submit). Recovers the intent CR-first was reaching for, without binding a CR's lifetime to a lock's.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p class="block-sub" style="margin-top:14px;max-width:840px">
+  D1 was recorded on Chase's authority rather than a written compliance ruling. If that later comes back "not
+  required", Branch B is over-build rather than wrong — the CR container is additive and nothing else in the
+  design depends on it.
+</p>
+</header>
+
+<!-- ═══════════════════════════ AS-IS ═══════════════════════════ -->
+<section class="diagram">
+  <div class="sec-head">
+    <h2>1 &nbsp;As it is now</h2>
+    <span class="tag now">Shipping</span>
+  </div>
+  <p class="sec-sub">
+    Five states on one aggregate. Review decisions live inline on <code>MediaItem</code>.
+    There is no concurrency control of any kind, and the one policy that was meant to provide it
+    is declared but never read.
+  </p>
+
+  <div class="canvas">
+  <svg viewBox="0 0 1060 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Current MediaItem state machine">
+    <defs>
+      <marker id="a-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#4a5461"/>
+      </marker>
+      <marker id="a-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/>
+      </marker>
+      <marker id="a-dead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/>
+      </marker>
+    </defs>
+
+    <style>
+      .box   { stroke-width: 1.75; rx: 7; }
+      .lbl   { font: 600 14px -apple-system, "Segoe UI", sans-serif; text-anchor: middle; }
+      .sublbl{ font: 400 10.5px ui-monospace, Menlo, monospace; text-anchor: middle; fill: #7b8694; }
+      .edge  { fill: none; stroke: #4a5461; stroke-width: 1.6; }
+      .edge-bad { fill: none; stroke: #dc2626; stroke-width: 2; }
+      .edge-dead{ fill: none; stroke: #94a3b8; stroke-width: 1.4; stroke-dasharray: 5 4; }
+      .et    { font: 500 11px -apple-system, "Segoe UI", sans-serif; fill: #4a5461; }
+      .et-bad{ font: 600 11px -apple-system, "Segoe UI", sans-serif; fill: #dc2626; }
+      .et-m  { font: 400 10px ui-monospace, Menlo, monospace; fill: #7b8694; }
+      .satl  { font: 600 11.5px -apple-system, "Segoe UI", sans-serif; }
+      .sats  { font: 400 10.5px -apple-system, "Segoe UI", sans-serif; fill: #7b8694; }
+      .pinc  { font: 700 11px -apple-system, sans-serif; text-anchor: middle; fill: #fff; }
+    </style>
+
+    <!-- start -->
+    <circle cx="48" cy="220" r="7" fill="#4a5461"/>
+    <path class="edge" d="M57,220 H72" marker-end="url(#a-ink)"/>
+
+    <!-- ── STATE BOXES ── -->
+    <rect class="box" rx="7" x="80"  y="190" width="150" height="60" fill="var(--edit-bg)"   stroke="var(--edit)"/>
+    <text class="lbl" x="155" y="216" fill="var(--edit)">Draft</text>
+    <text class="sublbl" x="155" y="234">writes allowed</text>
+
+    <rect class="box" rx="7" x="420" y="190" width="170" height="60" fill="var(--locked-bg)" stroke="var(--locked)"/>
+    <text class="lbl" x="505" y="216" fill="var(--locked)">PendingApproval</text>
+    <text class="sublbl" x="505" y="234">writes blocked</text>
+
+    <rect class="box" rx="7" x="790" y="190" width="150" height="60" fill="var(--live-bg)"   stroke="var(--live)"/>
+    <text class="lbl" x="865" y="216" fill="var(--live)">Published</text>
+    <text class="sublbl" x="865" y="234">live · v(n)</text>
+
+    <rect class="box" rx="7" x="790" y="380" width="150" height="60" fill="var(--edit-bg)"   stroke="var(--edit)"/>
+    <text class="lbl" x="865" y="406" fill="var(--edit)">Revising</text>
+    <text class="sublbl" x="865" y="424">writes allowed</text>
+
+    <rect class="box" rx="7" x="80"  y="380" width="150" height="60" fill="var(--dead-bg)"   stroke="var(--dead)"/>
+    <text class="lbl" x="155" y="406" fill="var(--dead)">Archived</text>
+    <text class="sublbl" x="155" y="424">terminal</text>
+
+    <!-- ── EDGES ── -->
+
+    <!-- Draft → PendingApproval -->
+    <path class="edge" d="M230,206 H414" marker-end="url(#a-ink)"/>
+    <text class="et"   x="322" y="192" text-anchor="middle">RequestPublication</text>
+    <text class="et-m" x="322" y="180" text-anchor="middle">reviewers ≠ ∅</text>
+
+    <!-- PendingApproval → Published -->
+    <path class="edge" d="M590,206 H784" marker-end="url(#a-ink)"/>
+    <text class="et"   x="687" y="192" text-anchor="middle">all approve</text>
+    <text class="et-m" x="687" y="180" text-anchor="middle">v+1 · ReviewSession cleared</text>
+
+    <!-- Draft → Published (immediate) -->
+    <path class="edge" d="M120,188 V112 H862 V184" marker-end="url(#a-ink)"/>
+    <text class="et"   x="480" y="104" text-anchor="middle">RequestPublication · reviewers = ∅ → immediate publish, v+1</text>
+
+    <!-- PendingApproval → Draft (reject/withdraw) — DEFECT -->
+    <path class="edge-bad" d="M416,238 H236" marker-end="url(#a-bad)"/>
+    <text class="et-bad" x="326" y="256" text-anchor="middle">reject / withdraw</text>
+    <text class="et-m"   x="326" y="268" text-anchor="middle">always → Draft</text>
+    <circle cx="326" cy="230" r="9" fill="#dc2626"/>
+    <text class="pinc" x="326" y="234">3</text>
+
+    <!-- Published ⇄ Revising -->
+    <path class="edge" d="M830,250 V374" marker-end="url(#a-ink)"/>
+    <text class="et" x="822" y="316" text-anchor="end">BeginRevision</text>
+    <path class="edge" d="M900,374 V256" marker-end="url(#a-ink)"/>
+    <text class="et" x="908" y="316">DiscardRevision</text>
+
+    <!-- Revising → PendingApproval -->
+    <path class="edge" d="M786,398 H560 V258" marker-end="url(#a-ink)"/>
+    <text class="et"   x="672" y="390" text-anchor="middle">RequestPublication</text>
+    <text class="et-m" x="672" y="412" text-anchor="middle">published v(n) stays live throughout</text>
+
+    <!-- Draft → Archived -->
+    <path class="edge-dead" d="M155,250 V374" marker-end="url(#a-dead)"/>
+    <text class="et-m" x="163" y="300">Archive</text>
+    <text class="et-m" x="163" y="314">(also from Published /</text>
+    <text class="et-m" x="163" y="326">PendingApproval)</text>
+
+    <!-- Archived → Delete -->
+    <path class="edge-dead" d="M230,410 H288" marker-end="url(#a-dead)"/>
+    <circle cx="304" cy="410" r="9" fill="none" stroke="#94a3b8" stroke-width="1.4"/>
+    <circle cx="304" cy="410" r="4.5" fill="#94a3b8"/>
+    <text class="et-m" x="259" y="400" text-anchor="middle">Delete</text>
+
+    <!-- ── SATELLITES ── -->
+
+    <!-- ChangeRequest -->
+    <path class="edge-dead" d="M470,468 V258"/>
+    <rect x="370" y="470" width="250" height="56" rx="6" fill="#fff" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="5 4"/>
+    <text class="satl" x="386" y="492" fill="#4a5461">ChangeRequest</text>
+    <text class="sats" x="386" y="508">comment thread only — no state,</text>
+    <text class="sats" x="386" y="520">no gate. System-created at submit.</text>
+
+    <!-- CheckoutPolicy — dead -->
+    <path class="edge-dead" d="M830,468 V444"/>
+    <line x1="823" y1="450" x2="837" y2="464" stroke="#dc2626" stroke-width="2"/>
+    <line x1="837" y1="450" x2="823" y2="464" stroke="#dc2626" stroke-width="2"/>
+    <rect x="680" y="470" width="300" height="56" rx="6" fill="#fff" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="5 4"/>
+    <text class="satl" x="696" y="492" fill="#4a5461">CheckoutPolicy = RequiredForEdit</text>
+    <text class="sats" x="696" y="508">settable on MediaProfile · read by nothing.</text>
+    <text class="sats" x="696" y="520">No CheckOut / CheckIn exists in the domain.</text>
+
+    <!-- pins -->
+    <circle cx="582" cy="184" r="9" fill="#14181f"/><text class="pinc" x="582" y="188">1</text>
+    <circle cx="222" cy="184" r="9" fill="#14181f"/><text class="pinc" x="222" y="188">2</text>
+    <circle cx="948" cy="374" r="9" fill="#14181f"/><text class="pinc" x="948" y="378">4</text>
+  </svg>
+  </div>
+
+  <div class="legend">
+    <span><i class="sw" style="background:var(--edit-bg);border-color:var(--edit)"></i>editable</span>
+    <span><i class="sw" style="background:var(--locked-bg);border-color:var(--locked)"></i>writes blocked</span>
+    <span><i class="sw" style="background:var(--live-bg);border-color:var(--live)"></i>live to readers</span>
+    <span><i class="sw" style="background:var(--dead-bg);border-color:var(--dead)"></i>terminal</span>
+    <span><i class="sw" style="background:#fff;border-color:#94a3b8;border-style:dashed"></i>satellite / not enforced</span>
+  </div>
+
+  <div class="notes">
+    <div class="note neutral">
+      <h4><span class="pin">1</span> ReviewSession owns the decisions</h4>
+      <p>An embedded value object on <code>MediaItem</code>, created by <code>RequestPublication</code> when
+      <code>reviewerIds</code> is non-empty. Holds <code>Pending / Approved / Rejected / Withdrawn</code> per reviewer.
+      The <code>ChangeRequest</code> aggregate records nothing about the outcome — it is purely a comment space.</p>
+    </div>
+    <div class="note neutral">
+      <h4><span class="pin">2</span> The write gate is status-only</h4>
+      <p>Every metadata and asset mutation checks exactly two things: <code>Status ∈ {Draft, Revising}</code> and
+      <code>!IsArchived</code>. No ownership check, no lock, no version precondition. Two editors on the same item
+      both write <code>Metadata.Draft</code> and the later write silently wins per field.</p>
+    </div>
+    <div class="note bad">
+      <h4><span class="pin">3</span> Rejection from a revision cycle corrupts state</h4>
+      <p><code>Apply(MediaItemRejected)</code> sets <code>Status = Draft</code> unconditionally. Revise a Published
+      item, submit, get rejected — the item is now <code>Draft</code> while <code>CurrentVersionNumber</code> and
+      <code>PublishedAt</code> still describe a live published version. <code>DiscardRevision</code> requires
+      <code>Revising</code>, so there is no longer any way back to a clean Published state. <code>Withdraw</code>
+      has the same defect.</p>
+    </div>
+    <div class="note neutral">
+      <h4><span class="pin">4</span> Revision isolation works well</h4>
+      <p>This part is sound. <code>BeginRevision</code> copies <code>Metadata.Current</code> into
+      <code>Metadata.Draft</code>; readers keep seeing v(n) for the whole cycle; approval promotes the draft and
+      bumps to v(n+1). Worth keeping unchanged.</p>
+    </div>
+  </div>
+</section>
+<!-- ═══════════════════════════ RECOMMENDED ═══════════════════════════ -->
+<section class="diagram">
+  <div class="sec-head">
+    <h2>2 &nbsp;Recommended</h2>
+    <span class="tag rec">Proposed</span>
+  </div>
+  <p class="sec-sub">
+    The state machine barely changes — that is the point. The fix is one field on <code>ReviewSession</code>,
+    one nullable value object holding <em>who may write</em>, and an <code>If-Match</code> header. No new
+    statuses and no saga. The <code>ChangeRequest</code> aggregate stays where it is and gains a lifecycle of
+    its own (§4) rather than being fused to the lock.
+  </p>
+
+  <div class="canvas">
+  <svg viewBox="0 0 1060 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Recommended MediaItem state machine">
+    <defs>
+      <marker id="b-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#4a5461"/>
+      </marker>
+      <marker id="b-new" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#7c3aed"/>
+      </marker>
+      <marker id="b-dead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/>
+      </marker>
+    </defs>
+
+    <style>
+      .b-lbl   { font: 600 14px -apple-system, "Segoe UI", sans-serif; text-anchor: middle; }
+      .b-sub   { font: 400 10.5px ui-monospace, Menlo, monospace; text-anchor: middle; fill: #7b8694; }
+      .b-edge  { fill: none; stroke: #4a5461; stroke-width: 1.6; }
+      .b-new   { fill: none; stroke: #7c3aed; stroke-width: 2.1; }
+      .b-dead  { fill: none; stroke: #94a3b8; stroke-width: 1.4; stroke-dasharray: 5 4; }
+      .b-et    { font: 500 11px -apple-system, "Segoe UI", sans-serif; fill: #4a5461; }
+      .b-etn   { font: 600 11px -apple-system, "Segoe UI", sans-serif; fill: #7c3aed; }
+      .b-etm   { font: 400 10px ui-monospace, Menlo, monospace; fill: #7b8694; }
+      .b-etmn  { font: 400 10px ui-monospace, Menlo, monospace; fill: #9061e8; }
+      .b-satl  { font: 600 11.5px -apple-system, "Segoe UI", sans-serif; }
+      .b-sats  { font: 400 10.5px -apple-system, "Segoe UI", sans-serif; fill: #7b8694; }
+      .b-pinc  { font: 700 11px -apple-system, sans-serif; text-anchor: middle; fill: #fff; }
+    </style>
+
+    <circle cx="48" cy="220" r="7" fill="#4a5461"/>
+    <path class="b-edge" d="M57,220 H72" marker-end="url(#b-ink)"/>
+
+    <!-- states -->
+    <rect x="80"  y="190" width="150" height="60" rx="7" fill="var(--edit-bg)"   stroke="var(--edit)"   stroke-width="1.75"/>
+    <text class="b-lbl" x="155" y="216" fill="var(--edit)">Draft</text>
+    <text class="b-sub" x="155" y="234">revision 0</text>
+
+    <rect x="420" y="190" width="170" height="60" rx="7" fill="var(--locked-bg)" stroke="var(--locked)" stroke-width="1.75"/>
+    <text class="b-lbl" x="505" y="216" fill="var(--locked)">PendingApproval</text>
+    <text class="b-sub" x="505" y="234">writes blocked by status</text>
+
+    <rect x="790" y="190" width="150" height="60" rx="7" fill="var(--live-bg)"   stroke="var(--live)"   stroke-width="1.75"/>
+    <text class="b-lbl" x="865" y="216" fill="var(--live)">Published</text>
+    <text class="b-sub" x="865" y="234">live · v(n)</text>
+
+    <rect x="790" y="380" width="150" height="60" rx="7" fill="var(--edit-bg)"   stroke="var(--edit)"   stroke-width="1.75"/>
+    <text class="b-lbl" x="865" y="406" fill="var(--edit)">Revising</text>
+    <text class="b-sub" x="865" y="424">revision n+1</text>
+
+    <!-- Draft → PendingApproval -->
+    <path class="b-edge" d="M230,206 H414" marker-end="url(#b-ink)"/>
+    <text class="b-et"   x="322" y="192" text-anchor="middle">RequestPublication</text>
+    <text class="b-etmn" x="322" y="180" text-anchor="middle">closes the session · reviewers named HERE</text>
+
+    <!-- PendingApproval → Published -->
+    <path class="b-edge" d="M590,206 H784" marker-end="url(#b-ink)"/>
+    <text class="b-et"  x="687" y="192" text-anchor="middle">all approve</text>
+    <text class="b-etm" x="687" y="180" text-anchor="middle">v+1</text>
+
+    <!-- Draft → Published immediate -->
+    <path class="b-edge" d="M120,188 V112 H862 V184" marker-end="url(#b-ink)"/>
+    <text class="b-et" x="480" y="104" text-anchor="middle">RequestPublication · reviewers = ∅ → immediate publish, v+1</text>
+
+    <!-- reject → origin Draft -->
+    <path class="b-new" d="M416,238 H236" marker-end="url(#b-new)"/>
+    <text class="b-etn"  x="326" y="256" text-anchor="middle">reject / withdraw</text>
+    <text class="b-etmn" x="326" y="268" text-anchor="middle">OriginStatus == Draft</text>
+
+    <!-- reject → origin Revising -->
+    <path class="b-new" d="M460,252 V322 H700 V386 H784" marker-end="url(#b-new)"/>
+    <text class="b-etn"  x="580" y="314" text-anchor="middle">reject / withdraw</text>
+    <text class="b-etmn" x="580" y="336" text-anchor="middle">OriginStatus == Revising — v(n) still live · session reopens</text>
+    <circle cx="700" cy="354" r="9" fill="#7c3aed"/><text class="b-pinc" x="700" y="358">1</text>
+
+    <!-- Published ⇄ Revising -->
+    <path class="b-edge" d="M830,250 V374" marker-end="url(#b-ink)"/>
+    <text class="b-et"   x="822" y="310" text-anchor="end">CheckOut</text>
+    <text class="b-etmn" x="822" y="324" text-anchor="end">implies BeginRevision</text>
+    <path class="b-edge" d="M900,374 V256" marker-end="url(#b-ink)"/>
+    <text class="b-et" x="908" y="316">DiscardRevision</text>
+
+    <!-- Revising → PendingApproval -->
+    <path class="b-edge" d="M786,410 H560 V258" marker-end="url(#b-ink)"/>
+    <text class="b-et" x="672" y="402" text-anchor="middle">RequestPublication</text>
+
+    <text class="b-etm" x="80" y="300">Archive → Archived → Delete: unchanged</text>
+
+    <!-- ── satellite 1: EditSession ── -->
+    <path class="b-new" d="M155,466 V254" stroke-dasharray="5 4"/>
+    <rect x="40" y="468" width="320" height="98" rx="6" fill="var(--new-bg)" stroke="var(--new)" stroke-width="1.5"/>
+    <text class="b-satl" x="56" y="490" fill="var(--new)">EditSession — who may write</text>
+    <text class="b-sats" x="56" y="507">Editors = { alice }        → exclusive checkout</text>
+    <text class="b-sats" x="56" y="520">Editors = { alice, bob, … } → collaboration</text>
+    <text class="b-sats" x="56" y="537">One mechanism. Optional lease. Closed by</text>
+    <text class="b-sats" x="56" y="550">publish, check-in, abandon, expiry or admin.</text>
+    <circle cx="155" cy="456" r="9" fill="#7c3aed"/><text class="b-pinc" x="155" y="460">2</text>
+
+    <!-- ── satellite 2: ReviewThread ── -->
+    <path class="b-dead" d="M440,466 V256"/>
+    <rect x="380" y="468" width="300" height="98" rx="6" fill="#fff" stroke="#94a3b8" stroke-width="1.4"/>
+    <text class="b-satl" x="396" y="490" fill="#4a5461">ChangeRequest — the WHY <tspan class="b-sats">(optional)</tspan></text>
+    <text class="b-sats" x="396" y="507">Title, reason, Open → Resolved. Outlives both</text>
+    <text class="b-sats" x="396" y="520">the lock and the review round. Never owns a</text>
+    <text class="b-sats" x="396" y="533">decision — approval stays on ReviewSession, so</text>
+    <text class="b-sats" x="396" y="546">the publish invariant stays local. See §4.</text>
+    <circle cx="440" cy="456" r="9" fill="#14181f"/><text class="b-pinc" x="440" y="460">3</text>
+
+    <!-- ── satellite 3: optimistic concurrency ── -->
+    <path class="b-new" d="M865,466 V444" stroke-dasharray="5 4"/>
+    <rect x="700" y="468" width="320" height="98" rx="6" fill="var(--new-bg)" stroke="var(--new)" stroke-width="1.5"/>
+    <text class="b-satl" x="716" y="490" fill="var(--new)">If-Match — is your copy current?</text>
+    <text class="b-sats" x="716" y="507">Runs underneath every write, session or not.</text>
+    <text class="b-sats" x="716" y="520">Redundant for a solo session; the ONLY thing</text>
+    <text class="b-sats" x="716" y="533">ordering two collaborators against each other.</text>
+    <text class="b-sats" x="716" y="550">Mismatch → 409, client re-reads and retries.</text>
+    <circle cx="865" cy="456" r="9" fill="#7c3aed"/><text class="b-pinc" x="865" y="460">4</text>
+  </svg>
+  </div>
+
+  <div class="legend">
+    <span><i class="sw" style="background:var(--new-bg);border-color:var(--new)"></i>changed vs. today</span>
+    <span><i class="sw" style="background:var(--edit-bg);border-color:var(--edit)"></i>editable</span>
+    <span><i class="sw" style="background:var(--locked-bg);border-color:var(--locked)"></i>writes blocked</span>
+    <span><i class="sw" style="background:var(--live-bg);border-color:var(--live)"></i>live to readers</span>
+  </div>
+
+  <div class="notes">
+    <div class="note new">
+      <h4><span class="pin">1</span> <code>ReviewSession.OriginStatus</code></h4>
+      <p>One field, captured at <code>RequestPublication</code>, replayed on reject and withdraw. Rejecting a
+      revision returns you to <code>Revising</code> with the draft intact and v(n) still live — which is what
+      everyone assumes already happens. The edit session reopens with the same editors, so there is no window
+      where a rejected item is editable but unlocked.</p>
+    </div>
+    <div class="note new">
+      <h4><span class="pin">2</span> <code>EditSession</code> — one mechanism, two shapes</h4>
+      <p>A nullable value object naming the set of principals who may write. Solo checkout is the degenerate case
+      where that set has one member; collaboration is the same object with more names in it. Lease, renewal,
+      release-on-publish and force-release are identical either way.</p>
+    </div>
+    <div class="note neutral">
+      <h4><span class="pin">3</span> Decisions stay on MediaItem</h4>
+      <p>"Cannot publish without approval" is a <em>MediaItem</em> invariant, so it must be enforced inside that
+      aggregate's transaction. Moving decisions onto the CR converts a local invariant into a distributed one
+      guarded by a saga — strictly weaker, for no gain. The CR carries the <em>why</em>; the decision stays here.</p>
+    </div>
+    <div class="note new">
+      <h4><span class="pin">4</span> The lock does not replace versioning</h4>
+      <p>The event store already does conditional writes on <code>AggregateVersion</code>; the version is simply
+      never shown to the caller, so conflicts are invisible and resolve last-write-wins. Exposing it as
+      <code>If-Match</code> costs almost nothing and is mandatory the moment a session has two editors.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ FLOWS ═══════════════════════════ -->
+<section class="diagram">
+  <div class="sec-head">
+    <h2>3 &nbsp;The two flows</h2>
+    <span class="tag rec">Proposed</span>
+  </div>
+  <p class="sec-sub">
+    Both scenarios, on the same <code>EditSession</code>. The interesting difference is not the checkout call —
+    it is what happens on the third and fourth rows of the second flow.
+  </p>
+
+  <div class="shapes">
+    <div class="shape hl">
+      <h4>Flow A — exclusive checkout</h4>
+      <div class="holders">Editors = { alice }</div>
+      <p>Nobody but Alice can write. Publishing closes the session and releases the lock. A true
+      mutual-exclusion guarantee.</p>
+    </div>
+    <div class="shape hl">
+      <h4>Flow B — collaborative checkout</h4>
+      <div class="holders">Editors = { alice, bob, carol }</div>
+      <p>The lock keeps everyone <em>else</em> out. It does not order the three of them against each other —
+      that is what <code>If-Match</code> is for.</p>
+    </div>
+  </div>
+
+  <pre class="code"><span class="c">// Catalog.Domain/Aggregates/MediaItems/ValueObjects/EditSession.cs</span>
+<span class="k">public sealed record</span> <span class="t">EditSession</span>(
+    EditSessionId              Id,
+    MemberId                   OpenedBy,
+    IReadOnlySet&lt;MemberId&gt;     Editors,          <span class="c">// always contains OpenedBy</span>
+    MediaItemStatus            OriginStatus,     <span class="c">// Draft | Revising — where to return on reject</span>
+    DateTimeOffset             OpenedAt,
+    DateTimeOffset?            LeaseExpiresAt);  <span class="c">// null = never expires (per-profile)</span>
+
+<span class="k">private</span> EditSession? _activeEditSession;
+
+<span class="k">public bool</span> CanWrite(MemberId actor) =&gt; _activeEditSession <span class="k">is null</span>
+    ? CheckoutPolicy != CheckoutPolicy.RequiredForEdit
+    : _activeEditSession.Editors.Contains(actor);</pre>
+
+  <!-- ── FLOW A ── -->
+  <div class="flowhead">
+    <h4>Flow A — exclusive checkout, publish releases the lock</h4>
+    <span class="pill">Editors = { alice }</span>
+  </div>
+
+  <div class="canvas">
+  <svg viewBox="0 0 1120 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Solo checkout sequence">
+    <defs>
+      <marker id="s1-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/></marker>
+      <marker id="s1-ok"  viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#15803d"/></marker>
+      <marker id="s1-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/></marker>
+    </defs>
+    <style>
+      .ll   { stroke:#c3cbd6; stroke-width:1.4; stroke-dasharray:4 5; }
+      .hd   { rx:6; stroke-width:1.6; }
+      .hdt  { font:600 12.5px -apple-system,"Segoe UI",sans-serif; text-anchor:middle; }
+      .hds  { font:400 9.5px ui-monospace,Menlo,monospace; text-anchor:middle; fill:#7b8694; }
+      .msg  { stroke:#2563eb; stroke-width:1.7; fill:none; }
+      .ret  { stroke:#15803d; stroke-width:1.5; fill:none; stroke-dasharray:6 4; }
+      .retb { stroke:#dc2626; stroke-width:1.5; fill:none; stroke-dasharray:6 4; }
+      .mt   { font:500 11.5px ui-monospace,Menlo,monospace; fill:#1f4fb8; }
+      .rt   { font:500 11.5px ui-monospace,Menlo,monospace; fill:#15803d; }
+      .rtb  { font:500 11.5px ui-monospace,Menlo,monospace; fill:#dc2626; }
+      .ev   { font:400 10.5px ui-monospace,Menlo,monospace; fill:#4a5461; }
+      .evk  { font:600 10.5px ui-monospace,Menlo,monospace; fill:#7c3aed; }
+      .sep  { stroke:#e3e8ee; stroke-width:1; }
+    </style>
+
+    <line class="ll" x1="120" y1="72" x2="120" y2="540"/>
+    <line class="ll" x1="330" y1="72" x2="330" y2="540"/>
+    <line class="ll" x1="620" y1="72" x2="620" y2="540"/>
+    <line class="sep" x1="670" y1="72" x2="670" y2="540"/>
+
+    <rect class="hd" x="55"  y="26" width="130" height="42" fill="var(--edit-bg)" stroke="var(--edit)"/>
+    <text class="hdt" x="120" y="45" fill="var(--edit)">Alice</text><text class="hds" x="120" y="59">owner</text>
+    <rect class="hd" x="265" y="26" width="130" height="42" fill="#fff" stroke="#94a3b8"/>
+    <text class="hdt" x="330" y="45" fill="#4a5461">Bob</text><text class="hds" x="330" y="59">another editor</text>
+    <rect class="hd" x="545" y="26" width="150" height="42" fill="var(--new-bg)" stroke="var(--new)"/>
+    <text class="hdt" x="620" y="45" fill="var(--new)">MediaItem</text><text class="hds" x="620" y="59">write API</text>
+    <text class="evk" x="690" y="52">emitted events</text>
+
+    <path class="msg" d="M122,108 H612" marker-end="url(#s1-ink)"/>
+    <text class="mt" x="130" y="102">POST /items/{id}/checkout   { collaborators: [] }</text>
+    <text class="evk" x="690" y="100">EditSessionOpened</text>
+    <text class="ev"  x="690" y="114">editors={alice} · lease T+60m</text>
+    <text class="ev"  x="690" y="128">+ MediaItemRevisionStarted (if Published)</text>
+    <path class="ret" d="M618,150 H126" marker-end="url(#s1-ok)"/>
+    <text class="rt" x="130" y="144">201 { sessionId, leaseExpiresAt }</text>
+
+    <path class="msg" d="M122,196 H612" marker-end="url(#s1-ink)"/>
+    <text class="mt" x="130" y="190">PUT /items/{id}/metadata   If-Match: v12</text>
+    <text class="evk" x="690" y="192">MediaItemMetadataBatchSet</text>
+    <text class="ev"  x="690" y="206">v12 → v13</text>
+    <path class="ret" d="M618,224 H126" marker-end="url(#s1-ok)"/>
+    <text class="rt" x="130" y="218">200  ETag: v13</text>
+
+    <rect x="250" y="252" width="380" height="56" rx="6" fill="var(--bad-bg)" stroke="var(--bad)" stroke-width="1.2" stroke-dasharray="4 3" opacity="0.5"/>
+    <path class="msg" d="M332,272 H612" stroke="#dc2626" marker-end="url(#s1-bad)"/>
+    <text class="rtb" x="340" y="266">PUT /items/{id}/metadata</text>
+    <path class="retb" d="M618,296 H338" marker-end="url(#s1-bad)"/>
+    <text class="rtb" x="346" y="290">409 MediaItemAlreadyCheckedOut</text>
+    <text class="evk" x="690" y="270" fill="#dc2626">— no event —</text>
+    <text class="ev"  x="690" y="284">{ openedBy: "alice", until: "14:30" }</text>
+    <text class="ev"  x="690" y="298">UI names the holder, doesn't just fail</text>
+
+    <path class="msg" d="M122,346 H612" stroke="#94a3b8" stroke-dasharray="5 4" marker-end="url(#s1-ink)"/>
+    <text class="ev" x="130" y="340">POST /items/{id}/checkout/renew   (client, on activity)</text>
+    <text class="evk" x="690" y="344">EditSessionRenewed</text>
+    <text class="ev"  x="690" y="358">lease → T+60m</text>
+
+    <path class="msg" d="M122,404 H612" marker-end="url(#s1-ink)"/>
+    <text class="mt" x="130" y="398">POST /items/{id}/publish   { reviewers: [] }</text>
+    <text class="evk" x="690" y="396">EditSessionClosed(Submitted)</text>
+    <text class="ev"  x="690" y="410">MediaItemPublicationRequested</text>
+    <text class="ev"  x="690" y="424">MediaItemApproved → Published v(n+1)</text>
+    <path class="ret" d="M618,438 H126" marker-end="url(#s1-ok)"/>
+    <text class="rt" x="130" y="432">200 { version: n+1 }   ← lock released here</text>
+
+    <path class="msg" d="M332,486 H612" marker-end="url(#s1-ink)"/>
+    <text class="mt" x="340" y="480">POST /items/{id}/checkout</text>
+    <path class="ret" d="M618,514 H338" marker-end="url(#s1-ok)"/>
+    <text class="rt" x="346" y="508">201 — item is free</text>
+    <text class="evk" x="690" y="486">EditSessionOpened</text>
+    <text class="ev"  x="690" y="500">editors={bob} · + MediaItemRevisionStarted</text>
+  </svg>
+  </div>
+
+  <div class="note new" style="margin-top:16px">
+    <h4>Why publish, not check-in, is the natural release point</h4>
+    <p>Submitting moves the item to <code>PendingApproval</code>, where writes are already blocked by status.
+    Holding a lock on top of that would be two mechanisms guarding the same thing — and would leave you deciding
+    who owns the lock while reviewers deliberate. Closing the session at submit means the lock exists only during
+    the window it actually protects.</p>
+  </div>
+
+  <!-- ── FLOW B ── -->
+  <div class="flowhead">
+    <h4>Flow B — collaborative checkout</h4>
+    <span class="pill">Editors = { alice, bob, carol }</span>
+  </div>
+
+  <div class="canvas">
+  <svg viewBox="0 0 1220 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Collaborative checkout sequence">
+    <defs>
+      <marker id="s2-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/></marker>
+      <marker id="s2-ok"  viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#15803d"/></marker>
+      <marker id="s2-wn"  viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b45309"/></marker>
+      <marker id="s2-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/></marker>
+    </defs>
+    <style>
+      .l2   { stroke:#c3cbd6; stroke-width:1.4; stroke-dasharray:4 5; }
+      .h2b  { rx:6; stroke-width:1.6; }
+      .h2t  { font:600 12.5px -apple-system,"Segoe UI",sans-serif; text-anchor:middle; }
+      .h2s  { font:400 9.5px ui-monospace,Menlo,monospace; text-anchor:middle; fill:#7b8694; }
+      .m2   { stroke:#2563eb; stroke-width:1.7; fill:none; }
+      .r2   { stroke:#15803d; stroke-width:1.5; fill:none; stroke-dasharray:6 4; }
+      .r2w  { stroke:#b45309; stroke-width:1.5; fill:none; stroke-dasharray:6 4; }
+      .r2b  { stroke:#dc2626; stroke-width:1.5; fill:none; stroke-dasharray:6 4; }
+      .t2   { font:500 11.5px ui-monospace,Menlo,monospace; fill:#1f4fb8; }
+      .t2g  { font:500 11.5px ui-monospace,Menlo,monospace; fill:#15803d; }
+      .t2w  { font:500 11.5px ui-monospace,Menlo,monospace; fill:#b45309; }
+      .t2r  { font:500 11.5px ui-monospace,Menlo,monospace; fill:#dc2626; }
+      .e2   { font:400 10.5px ui-monospace,Menlo,monospace; fill:#4a5461; }
+      .e2k  { font:600 10.5px ui-monospace,Menlo,monospace; fill:#7c3aed; }
+      .sp2  { stroke:#e3e8ee; stroke-width:1; }
+    </style>
+
+    <line class="l2" x1="110" y1="72" x2="110" y2="600"/>
+    <line class="l2" x1="270" y1="72" x2="270" y2="600"/>
+    <line class="l2" x1="430" y1="72" x2="430" y2="600"/>
+    <line class="l2" x1="590" y1="72" x2="590" y2="600"/>
+    <line class="l2" x1="790" y1="72" x2="790" y2="600"/>
+    <line class="sp2" x1="838" y1="72" x2="838" y2="600"/>
+
+    <rect class="h2b" x="55"  y="26" width="110" height="42" fill="var(--edit-bg)" stroke="var(--edit)"/>
+    <text class="h2t" x="110" y="45" fill="var(--edit)">Alice</text><text class="h2s" x="110" y="59">initiator</text>
+    <rect class="h2b" x="215" y="26" width="110" height="42" fill="var(--edit-bg)" stroke="var(--edit)"/>
+    <text class="h2t" x="270" y="45" fill="var(--edit)">Bob</text><text class="h2s" x="270" y="59">editor</text>
+    <rect class="h2b" x="375" y="26" width="110" height="42" fill="var(--edit-bg)" stroke="var(--edit)"/>
+    <text class="h2t" x="430" y="45" fill="var(--edit)">Carol</text><text class="h2s" x="430" y="59">editor</text>
+    <rect class="h2b" x="535" y="26" width="110" height="42" fill="#fff" stroke="#94a3b8"/>
+    <text class="h2t" x="590" y="45" fill="#64748b">Dave</text><text class="h2s" x="590" y="59">not invited</text>
+    <rect class="h2b" x="715" y="26" width="150" height="42" fill="var(--new-bg)" stroke="var(--new)"/>
+    <text class="h2t" x="790" y="45" fill="var(--new)">MediaItem</text><text class="h2s" x="790" y="59">write API</text>
+    <text class="e2k" x="856" y="52">emitted events</text>
+
+    <path class="m2" d="M112,110 H782" marker-end="url(#s2-ink)"/>
+    <text class="t2" x="120" y="104">POST /checkout   { collaborators: ["bob","carol"] }</text>
+    <text class="e2k" x="856" y="102">EditSessionOpened</text>
+    <text class="e2"  x="856" y="116">editors={alice,bob,carol}</text>
+    <path class="r2" d="M788,134 H116" marker-end="url(#s2-ok)"/>
+    <text class="t2g" x="120" y="128">201 { sessionId }</text>
+
+    <path class="m2" d="M272,180 H782" marker-end="url(#s2-ink)"/>
+    <text class="t2" x="280" y="174">PUT /metadata   If-Match: v13</text>
+    <path class="r2" d="M788,204 H276" marker-end="url(#s2-ok)"/>
+    <text class="t2g" x="280" y="198">200  ETag: v14</text>
+    <text class="e2k" x="856" y="180">MediaItemMetadataBatchSet</text>
+    <text class="e2"  x="856" y="194">bob ∈ editors → allowed · v13 → v14</text>
+
+    <path class="m2" d="M432,250 H782" stroke="#b45309" marker-end="url(#s2-wn)"/>
+    <text class="t2w" x="440" y="244">PUT /metadata   If-Match: v13</text>
+    <path class="r2w" d="M788,274 H436" marker-end="url(#s2-wn)"/>
+    <text class="t2w" x="440" y="268">409 VersionConflict</text>
+    <text class="e2k" x="856" y="250" fill="#b45309">— no event —</text>
+    <text class="e2"  x="856" y="264">Carol's base v13 is stale — Bob moved it.</text>
+    <text class="e2"  x="856" y="278">The LOCK did not catch this. The version did.</text>
+
+    <path class="m2" d="M432,320 H782" marker-end="url(#s2-ink)"/>
+    <text class="t2" x="440" y="314">re-read → PUT /metadata   If-Match: v14</text>
+    <path class="r2" d="M788,344 H436" marker-end="url(#s2-ok)"/>
+    <text class="t2g" x="440" y="338">200  ETag: v15</text>
+    <text class="e2k" x="856" y="322">MediaItemMetadataBatchSet</text>
+    <text class="e2"  x="856" y="336">v14 → v15</text>
+
+    <path class="m2" d="M592,390 H782" stroke="#dc2626" marker-end="url(#s2-bad)"/>
+    <text class="t2r" x="600" y="384">PUT /metadata</text>
+    <path class="r2b" d="M788,414 H596" marker-end="url(#s2-bad)"/>
+    <text class="t2r" x="600" y="408">403 NotAnEditSessionParticipant</text>
+    <text class="e2k" x="856" y="392" fill="#dc2626">— no event —</text>
+    <text class="e2"  x="856" y="406">Dave ∉ editors. THIS is what the lock catches.</text>
+
+    <path class="m2" d="M112,460 H782" marker-end="url(#s2-ink)"/>
+    <text class="t2" x="120" y="454">POST /checkout/editors   { add: "dave" }</text>
+    <text class="e2k" x="856" y="458">EditSessionEditorAdded</text>
+    <text class="e2"  x="856" y="472">editors={alice,bob,carol,dave} — no re-lock</text>
+
+    <path class="m2" d="M272,516 H782" marker-end="url(#s2-ink)"/>
+    <text class="t2" x="280" y="510">POST /publish   { reviewers: ["erin"] }   ← any editor may submit</text>
+    <text class="e2k" x="856" y="514">EditSessionClosed(Submitted)</text>
+    <text class="e2"  x="856" y="528">MediaItemPublicationRequested</text>
+    <text class="e2"  x="856" y="542">→ PendingApproval · lock released</text>
+
+    <rect x="700" y="562" width="180" height="30" rx="5" fill="var(--locked-bg)" stroke="var(--locked)" stroke-width="1.3"/>
+    <text class="t2w" x="790" y="581" text-anchor="middle">Erin rejects</text>
+    <path class="r2w" d="M698,577 H120" marker-end="url(#s2-wn)"/>
+    <text class="e2k" x="856" y="574" fill="#b45309">EditSessionReopened</text>
+    <text class="e2"  x="856" y="588">→ OriginStatus, same editors, fresh lease</text>
+  </svg>
+  </div>
+
+  <div class="note bad" style="margin-top:16px">
+    <h4>The part that bites — a shared lock is a membership test, not mutual exclusion</h4>
+    <p>In Flow A the lock genuinely guarantees "no changes can be made." In Flow B that guarantee evaporates the
+    moment the holder set exceeds one: Bob and Carol can still clobber each other, as rows 3–4 show. Ship
+    collaborative checkout without <code>If-Match</code> underneath and you have built something that
+    <em>looks</em> like it prevents conflicts and silently doesn't — worse than no lock at all, because people
+    will trust it.</p>
+  </div>
+
+  <table class="delta" style="margin-top:20px">
+    <thead><tr><th>Mechanism</th><th>Question it answers</th><th>Flow A</th><th>Flow B</th></tr></thead>
+    <tbody>
+      <tr><td><code>EditSession</code></td><td>Are you allowed in this room?</td><td>Load-bearing — it is the whole feature</td><td>Load-bearing — keeps Dave out</td></tr>
+      <tr><td><code>If-Match</code> / version</td><td>Is your copy current?</td><td>Redundant but free — one editor can't conflict with themselves</td><td>Load-bearing — the only thing ordering Bob against Carol</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ── 3.1 RESOLUTION ── -->
+  <div class="flowhead" style="margin-top:40px">
+    <h4>3.1 &nbsp;How we deal with it</h4>
+    <span class="pill">three layers, ship one</span>
+  </div>
+  <p class="sec-sub" style="margin-bottom:6px">
+    You cannot make a shared lock exclusive — "shared" and "exclusive" are contradictory. So stop asking the lock
+    to do that job. Three other moves are available: <strong>detect collisions precisely instead of coarsely</strong>,
+    <strong>shrink the unit of exclusion until it is exclusive again</strong>, or <strong>prevent them socially
+    before they reach the server</strong>. They layer, and only the first is needed now.
+  </p>
+
+  <div class="canvas">
+  <svg viewBox="0 0 1160 690" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Write admission and conflict resolution flow">
+    <defs>
+      <marker id="f-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#4a5461"/></marker>
+      <marker id="f-ok"  viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#15803d"/></marker>
+      <marker id="f-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/></marker>
+      <marker id="f-wn"  viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b45309"/></marker>
+    </defs>
+    <style>
+      .fd  { fill:#fff; stroke:#8a94a2; stroke-width:1.6; }
+      .fp  { fill:var(--new-bg); stroke:var(--new); stroke-width:1.6; }
+      .fok { fill:var(--live-bg); stroke:var(--live); stroke-width:1.6; }
+      .fbd { fill:var(--bad-bg); stroke:var(--bad); stroke-width:1.6; }
+      .fwn { fill:var(--locked-bg); stroke:var(--locked); stroke-width:1.6; }
+      .ft  { font:600 12.5px -apple-system,"Segoe UI",sans-serif; text-anchor:middle; fill:#14181f; }
+      .ftm { font:400 10.5px ui-monospace,Menlo,monospace; text-anchor:middle; fill:#4a5461; }
+      .fe  { fill:none; stroke:#4a5461; stroke-width:1.6; }
+      .feo { fill:none; stroke:#15803d; stroke-width:1.6; }
+      .feb { fill:none; stroke:#dc2626; stroke-width:1.6; }
+      .few { fill:none; stroke:#b45309; stroke-width:1.6; }
+      .fl  { font:700 10px -apple-system,sans-serif; fill:#4a5461; }
+      .rail{ font:700 10.5px -apple-system,sans-serif; fill:#fff; }
+      .rails{ font:400 9.5px -apple-system,sans-serif; fill:#fff; opacity:.85; }
+    </style>
+
+    <!-- layer rails -->
+    <rect x="20" y="118" width="140" height="126" rx="6" fill="#64748b"/>
+    <text class="rail"  x="34" y="142">LAYER 0</text>
+    <text class="rail"  x="34" y="156">the lock</text>
+    <text class="rails" x="34" y="176">Membership test.</text>
+    <text class="rails" x="34" y="189">Keeps outsiders out.</text>
+    <text class="rails" x="34" y="202">Exclusive only when</text>
+    <text class="rails" x="34" y="215">Editors has one member.</text>
+
+    <rect x="20" y="262" width="140" height="316" rx="6" fill="#7c3aed"/>
+    <text class="rail"  x="34" y="286">LAYER 1</text>
+    <text class="rail"  x="34" y="300">precise detection</text>
+    <text class="rails" x="34" y="320">This is the answer.</text>
+    <text class="rails" x="34" y="333">Orders collaborators</text>
+    <text class="rails" x="34" y="346">against each other</text>
+    <text class="rails" x="34" y="359">without a lock.</text>
+    <text class="rails" x="34" y="382">Costs one bounded</text>
+    <text class="rails" x="34" y="395">range query, on the</text>
+    <text class="rails" x="34" y="408">mismatch path only.</text>
+    <text class="rails" x="34" y="431">LoadAfterAsync()</text>
+    <text class="rails" x="34" y="444">already exists in</text>
+    <text class="rails" x="34" y="457">Magiq.Platform.</text>
+    <text class="rails" x="34" y="470">EventSourcing.</text>
+
+    <!-- spine -->
+    <rect class="fp" x="190" y="24" width="340" height="54" rx="7"/>
+    <text class="ft"  x="360" y="46">PUT /items/{id}/metadata</text>
+    <text class="ftm" x="360" y="64">If-Match: v13 · fields { Subject }</text>
+    <path class="fe" d="M360,78 V114" marker-end="url(#f-ink)"/>
+
+    <rect class="fd" x="190" y="118" width="340" height="46" rx="7"/>
+    <text class="ft" x="360" y="146">Active EditSession?</text>
+    <path class="fe" d="M360,164 V190" marker-end="url(#f-ink)"/>
+    <text class="fl" x="368" y="180">yes</text>
+
+    <rect class="fd" x="190" y="194" width="340" height="46" rx="7"/>
+    <text class="ft" x="360" y="222">actor ∈ Editors?</text>
+    <path class="fe" d="M360,240 V266" marker-end="url(#f-ink)"/>
+    <text class="fl" x="368" y="256">yes</text>
+
+    <rect class="fd" x="190" y="270" width="340" height="46" rx="7"/>
+    <text class="ft" x="360" y="298">BaseVersion == CurrentVersion?</text>
+    <path class="fe" d="M360,316 V346" marker-end="url(#f-ink)"/>
+    <text class="fl" x="368" y="334">no</text>
+
+    <rect class="fp" x="190" y="350" width="340" height="58" rx="7"/>
+    <text class="ft"  x="360" y="372">LoadAfterAsync(base) → theirKeys</text>
+    <text class="ftm" x="360" y="392">fold MediaItemMetadataFieldSet / BatchSet</text>
+    <path class="fe" d="M360,408 V438" marker-end="url(#f-ink)"/>
+
+    <rect class="fd" x="190" y="442" width="340" height="58" rx="7"/>
+    <text class="ft"  x="360" y="464">myKeys ∩ theirKeys == ∅ ?</text>
+    <text class="ftm" x="360" y="484">…and every field I am writing is AllowsConcurrentEdit?</text>
+    <path class="feo" d="M360,500 V532" marker-end="url(#f-ok)"/>
+    <text class="fl" x="368" y="520" fill="#15803d">yes</text>
+
+    <rect class="fp" x="190" y="536" width="340" height="52" rx="7"/>
+    <text class="ft"  x="360" y="558">REBASE — apply at current version</text>
+    <text class="ftm" x="360" y="576">only for fields explicitly declared safe</text>
+    <path class="feo" d="M360,588 V618" marker-end="url(#f-ok)"/>
+
+    <rect class="fok" x="190" y="622" width="340" height="46" rx="7"/>
+    <text class="ft"  x="360" y="643" fill="#15803d">200 OK · ETag: v16</text>
+    <text class="ftm" x="360" y="659">own event, own actor — audit trail intact</text>
+
+    <!-- exits -->
+    <path class="fe" d="M530,141 H594" marker-end="url(#f-ink)"/>
+    <text class="fl" x="548" y="133">no</text>
+    <rect class="fd" x="600" y="112" width="540" height="58" rx="7"/>
+    <text class="ft"  x="870" y="134">CheckoutPolicy = RequiredForEdit ?</text>
+    <text class="ftm" x="870" y="154">yes → 409 MediaItemNotCheckedOut  ·  no → skip to version check</text>
+
+    <path class="feb" d="M530,217 H594" marker-end="url(#f-bad)"/>
+    <text class="fl" x="548" y="209" fill="#dc2626">no</text>
+    <rect class="fbd" x="600" y="192" width="540" height="50" rx="7"/>
+    <text class="ft"  x="870" y="213" fill="#dc2626">403 NotAnEditSessionParticipant</text>
+    <text class="ftm" x="870" y="230">the only thing the lock itself catches</text>
+
+    <path class="feo" d="M530,293 H594" marker-end="url(#f-ok)"/>
+    <text class="fl" x="548" y="285" fill="#15803d">yes</text>
+    <rect class="fok" x="600" y="268" width="540" height="50" rx="7"/>
+    <text class="ft"  x="870" y="289" fill="#15803d">fast path — apply, 200</text>
+    <text class="ftm" x="870" y="306">no extra read; this is the overwhelming majority of writes</text>
+
+    <path class="few" d="M530,471 H594" marker-end="url(#f-wn)"/>
+    <text class="fl" x="548" y="463" fill="#b45309">no</text>
+    <rect class="fwn" x="600" y="430" width="540" height="82" rx="7"/>
+    <text class="ft"  x="870" y="452" fill="#b45309">409 VersionConflict</text>
+    <text class="ftm" x="870" y="472">{ conflictingFields, yourValue, theirValue, changedBy, changedAt }</text>
+    <text class="ftm" x="870" y="490">Rich enough for a "keep mine / keep theirs" prompt —</text>
+    <text class="ftm" x="870" y="504">not "reload and lose your work".</text>
+  </svg>
+  </div>
+
+  <pre class="code"><span class="c">// SetMetadataBatchHandler — on version mismatch only</span>
+<span class="k">var</span> tail = <span class="k">new</span> MediaItem(command.MediaItemId);
+<span class="k">await</span> eventStore.LoadAfterAsync(tenantId, tail, command.BaseVersion, ct);
+
+<span class="k">var</span> theirKeys = tail.KeysTouchedSinceLoad();              <span class="c">// fold over metadata events</span>
+<span class="k">var</span> myKeys    = command.Fields.Select(f =&gt; f.FieldName).ToHashSet();
+
+<span class="c">// rebase is opt-in per field and fails closed</span>
+<span class="k">var</span> overlap  = myKeys.Intersect(theirKeys).ToHashSet();
+<span class="k">var</span> unsafeKeys = myKeys.Where(k =&gt; !mediaItem.SnapshotFields[k].AllowsConcurrentEdit);
+
+<span class="k">return</span> (overlap.Count &gt; 0 || unsafeKeys.Any())
+    ? DomainError.Conflict(<span class="t">"VersionConflict"</span>, overlap.Union(unsafeKeys))
+    : <span class="c">/* rebase */</span> mediaItem.SetMetadataBatch(command.Fields, baseVersion, ...);</pre>
+
+  <table class="delta" style="margin-top:22px">
+    <thead><tr><th>Layer</th><th>What it catches</th><th>Cost</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>0 · <code>EditSession</code></td>
+        <td>Outsiders. Nothing between editors.</td>
+        <td>Already in the design.</td>
+        <td><span class="flag ok">Ship</span></td>
+      </tr>
+      <tr>
+        <td>1 · Field-level rebase</td>
+        <td>Every real collision between collaborators; lets disjoint edits through.</td>
+        <td>One <code>LoadAfterAsync</code> range query, on the mismatch path only. Fast path unchanged.</td>
+        <td><span class="flag ok">Ship — this is the answer</span></td>
+      </tr>
+      <tr>
+        <td>2 · Scope claims</td>
+        <td>Restores true mutual exclusion at sub-item granularity — <code>Assets:*</code>, <code>Metadata:{recordTypeId}</code> claimed by one editor.</td>
+        <td>New concept, new UI surface (who holds what), claim expiry. Most likely thing here to be built and never used.</td>
+        <td><span class="flag">Defer — only on evidence</span></td>
+      </tr>
+      <tr>
+        <td>3 · Presence</td>
+        <td>Collisions, socially, before they reach the server. Shows who is in the session and where their focus is.</td>
+        <td>Needs a push channel you don't have today (WebSocket / AppSync).</td>
+        <td><span class="flag">Defer — polish</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── 3.2 COUPLED FIELDS ── -->
+  <div class="flowhead" style="margin-top:40px">
+    <h4>3.2 &nbsp;Coupled fields — and how we deal with them</h4>
+    <span class="pill">fail closed</span>
+  </div>
+
+  <div class="note bad">
+    <h4>The failure mode has a name: write skew</h4>
+    <p>Carol reads <code>StartDate = 1 Jan</code> at v13 and sets <code>EndDate = 31 Jan</code>. Bob changes
+    <code>StartDate</code> to <code>1 Mar</code> at v14. The <em>write</em> sets are disjoint, so a naive rebase
+    accepts — and Carol's value is now nonsense. This is textbook write skew under snapshot isolation, and the
+    cause is precise: <code>If-Match</code> plus a write-set comparison captures what the caller
+    <strong>wrote</strong> and ignores what the caller <strong>read</strong>.</p>
+  </div>
+
+  <div class="note new" style="margin-top:16px">
+    <h4>The fix is to invert the declaration</h4>
+    <p>Declaring dependency <em>groups</em> — the earlier proposal — asks the schema author to enumerate every
+    coupling that exists. That is open-ended negative space, and the cost of forgetting one is
+    <strong>silent data corruption</strong>. Declaring <em>independence</em> is a closed, positive assertion about
+    one field, and the cost of forgetting one is <strong>a spurious 409</strong>. Same information, opposite
+    failure mode. For regulated records there is only one defensible direction.</p>
+  </div>
+
+  <pre class="code"><span class="c">// Metadata.Domain/ValueObjects/FieldDefinition.cs — one flag, next to the ones already there</span>
+<span class="k">public sealed record</span> <span class="t">FieldDefinition</span>(
+    FieldName FieldName,
+    ...
+    <span class="k">bool</span> IsRequired,
+    <span class="k">bool</span> IsImmutable,
+    <span class="k">bool</span> IsSearchable,
+    <span class="k">bool</span> AllowsConcurrentEdit,   <span class="c">// NEW — defaults to false</span>
+    ...);
+
+<span class="c">// Rebase is permitted only when BOTH hold:</span>
+<span class="c">//   1. myKeys ∩ theirKeys == ∅          (no one overwrote me)</span>
+<span class="c">//   2. every key in myKeys is AllowsConcurrentEdit  (my value depends on nothing else)</span></pre>
+
+  <p class="sec-sub" style="margin:18px 0 0">
+    Condition 2 only has to hold for <em>my</em> write set, not theirs. If <code>Notes</code> is declared
+    independent, then by definition no change Bob made can invalidate the value Carol computed for it — that is
+    exactly what the flag asserts. Good candidates: notes, description, tags, keywords, free-text classification.
+    Bad candidates: anything in a date range, anything participating in a total, anything with a
+    "see also" relationship. Default <code>false</code> means an unconsidered field behaves exactly as it does
+    with no rebase at all.
+  </p>
+
+  <table class="delta" style="margin-top:22px">
+    <thead><tr><th>Lever</th><th>What it does</th><th>Owner</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>AllowsConcurrentEdit</code></td>
+        <td>Per-field opt-in to rebase, default <code>false</code>. Flows <code>FieldDefinition</code> → <code>CompiledMetadataTemplate</code> → <code>MediaProfileSnapshotField</code>, so it is pinned per item at creation like every other field property.</td>
+        <td>Domain — Metadata + Catalog</td>
+        <td><span class="flag ok">Ship with layer 1</span></td>
+      </tr>
+      <tr>
+        <td>Shrink the write window</td>
+        <td>Autosave on field blur instead of batching a whole form submit. Base version becomes seconds old rather than minutes, and overlap probability collapses. Costs no domain modelling at all.</td>
+        <td>Client — Akshay</td>
+        <td><span class="flag ok">Highest ROI</span></td>
+      </tr>
+      <tr>
+        <td>Optional read-set header</td>
+        <td>Client may send <code>X-Read-Fields</code> — what the editor had on screen and reasoned from. Server unions it into the conflict check. Purely additive: it can only ever produce <em>more</em> 409s, never fewer, so there is no client-trust problem.</td>
+        <td>API + client</td>
+        <td><span class="flag ok">Cheap, add later</span></td>
+      </tr>
+      <tr>
+        <td>Escalate to scope claims</td>
+        <td>When a RecordType is so densely coupled that almost nothing can be marked independent, that is the signal to claim the whole section instead — real mutual exclusion at the right granularity. The coupled-field caveat is the strongest argument for layer 2 existing at all.</td>
+        <td>Domain — <code>EditSession.Claims</code></td>
+        <td><span class="flag">Defer until a profile demands it</span></td>
+      </tr>
+      <tr>
+        <td><code>SourceCapability</code> as a default group</td>
+        <td>Refinement, not needed at first: <code>FieldDefinition</code> already records which capability contributed each field. Fields from the same capability are far likelier to be coupled, so it is a free grouping axis if per-field flags later prove too granular to administer.</td>
+        <td>Domain — Metadata</td>
+        <td><span class="flag">Only if per-field proves unwieldy</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note neutral" style="margin-top:20px">
+    <h4>Make the rebase visible in the audit trail</h4>
+    <p>A rebased write is still a write that landed against a version the caller never saw. Carry
+    <code>BaseVersion</code> on <code>MediaItemMetadataFieldSet</code> and <code>MediaItemMetadataBatchSet</code>
+    so the gap between "what they were looking at" and "what they wrote onto" is reconstructable from the stream.
+    Two extra bytes on an event, and it is the difference between an auditor being able to explain a value and
+    having to guess. Old events replay with <code>BaseVersion = null</code>, so this is non-breaking.</p>
+  </div>
+
+  <div class="note new" style="margin-top:20px">
+    <h4>Sequencing</h4>
+    <p>Layer 1 plus <code>AllowsConcurrentEdit</code> is the whole answer for now — a bounded change inside <code>Catalog</code>,
+    built on a platform API that already exists, and the thing that makes collaborative checkout honest rather
+    than decorative. Layers 2 and 3 are both "later, if the usage data says so." Shipping Flow B without layer 1
+    is the one outcome to avoid.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ OPEN DECISION ═══════════════════════════ -->
+<section class="diagram">
+  <div class="sec-head">
+    <h2>4 &nbsp;EditSession and ChangeRequest</h2>
+    <span class="tag done">Decided — Branch B</span>
+  </div>
+  <p class="sec-sub">
+    Are these the same idea wearing two hats? The overlap is real, and CR-first merging them was not arbitrary.
+    They are nonetheless separate — and the reason is lifespan, not semantics. <strong>Decision: the
+    <code>ChangeRequest</code> becomes a long-lived container holding many short lock episodes.</strong>
+  </p>
+
+  <h4 style="font-size:15px;margin:26px 0 4px">Three things that keep getting conflated</h4>
+  <table class="delta">
+    <thead><tr><th>Concept</th><th>What it is</th><th>Natural lifespan</th><th>Cardinality</th></tr></thead>
+    <tbody>
+      <tr><td>The lock</td><td>Who may write, right now</td><td>Minutes → hours</td><td>Exactly one item</td></tr>
+      <tr><td>The change unit</td><td>This batch of edits as a nameable, justifiable thing</td><td>Days → weeks</td><td>One <em>or many</em> items</td></tr>
+      <tr><td>The decision</td><td>Approved / rejected, and by whom</td><td>One submit cycle</td><td>Exactly one item</td></tr>
+    </tbody>
+  </table>
+  <p class="sec-sub" style="margin-top:14px">
+    CR-first merges the first two, and puts the third on the CR as well. The <code>EditSession</code> design in §2–3
+    merges none of them — and that is its genuine weakness: <strong>nothing owns "the change" as a first-class
+    object.</strong> It exists only implicitly, as <code>Metadata.Draft</code> plus the events between two published
+    versions. There is nowhere to hang a title, a justification, or a conversation that survives a rejection.
+  </p>
+
+  <h4 style="font-size:15px;margin:34px 0 4px">If they are separate, this is how they relate</h4>
+  <p class="sec-sub" style="margin-bottom:6px">
+    Not one-to-one. One long-lived change request containing many short lock episodes — which is what the lifespan
+    mismatch forces.
+  </p>
+
+  <div class="canvas">
+  <svg viewBox="0 0 1160 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ChangeRequest containing multiple EditSessions over time">
+    <style>
+      .lane { font:600 11px -apple-system,"Segoe UI",sans-serif; fill:#4a5461; }
+      .barl { font:600 11.5px -apple-system,"Segoe UI",sans-serif; fill:#fff; }
+      .barm { font:400 10px ui-monospace,Menlo,monospace; fill:#fff; opacity:.9; }
+      .gap  { font:400 10px ui-monospace,Menlo,monospace; fill:#7b8694; text-anchor:middle; }
+      .axis { stroke:#c3cbd6; stroke-width:1.2; }
+      .tick { font:400 10px ui-monospace,Menlo,monospace; fill:#7b8694; text-anchor:middle; }
+      .brk  { stroke:#c3cbd6; stroke-width:1; stroke-dasharray:3 4; }
+    </style>
+
+    <text class="lane" x="16" y="76">ChangeRequest</text>
+    <text class="lane" x="16" y="146">EditSession</text>
+    <text class="lane" x="16" y="216">MediaItem status</text>
+
+    <!-- vertical guides -->
+    <line class="brk" x1="360" y1="50" x2="360" y2="290"/>
+    <line class="brk" x1="520" y1="50" x2="520" y2="290"/>
+    <line class="brk" x1="800" y1="50" x2="800" y2="290"/>
+    <line class="brk" x1="960" y1="50" x2="960" y2="290"/>
+
+    <!-- CR bar -->
+    <rect x="120" y="56" width="840" height="38" rx="6" fill="#7c3aed"/>
+    <text class="barl" x="136" y="74">ChangeRequest — "Reclassify Q3 contract records"</text>
+    <text class="barm" x="136" y="88">alice, bob · carries the WHY · survives both review rounds · may span many items</text>
+
+    <!-- EditSession bars -->
+    <rect x="120" y="126" width="240" height="38" rx="6" fill="#2563eb"/>
+    <text class="barl" x="134" y="144">EditSession #1</text>
+    <text class="barm" x="134" y="157">alice + bob · lock held</text>
+
+    <rect x="520" y="126" width="280" height="38" rx="6" fill="#2563eb"/>
+    <text class="barl" x="534" y="144">EditSession #2</text>
+    <text class="barm" x="534" y="157">alice · reopened on reject</text>
+
+    <text class="gap" x="440" y="149">— no lock —</text>
+    <text class="gap" x="880" y="149">— no lock —</text>
+
+    <!-- status ribbon -->
+    <rect x="120" y="196" width="240" height="34" rx="5" fill="var(--edit-bg)" stroke="var(--edit)" stroke-width="1.4"/>
+    <text class="barl" x="240" y="218" fill="var(--edit)" text-anchor="middle">Revising</text>
+
+    <rect x="360" y="196" width="160" height="34" rx="5" fill="var(--locked-bg)" stroke="var(--locked)" stroke-width="1.4"/>
+    <text class="barl" x="440" y="218" fill="var(--locked)" text-anchor="middle">PendingApproval</text>
+
+    <rect x="520" y="196" width="280" height="34" rx="5" fill="var(--edit-bg)" stroke="var(--edit)" stroke-width="1.4"/>
+    <text class="barl" x="660" y="218" fill="var(--edit)" text-anchor="middle">Revising</text>
+
+    <rect x="800" y="196" width="160" height="34" rx="5" fill="var(--locked-bg)" stroke="var(--locked)" stroke-width="1.4"/>
+    <text class="barl" x="880" y="218" fill="var(--locked)" text-anchor="middle">PendingApproval</text>
+
+    <rect x="960" y="196" width="180" height="34" rx="5" fill="var(--live-bg)" stroke="var(--live)" stroke-width="1.4"/>
+    <text class="barl" x="1050" y="218" fill="var(--live)" text-anchor="middle">Published v(n+1)</text>
+
+    <!-- axis -->
+    <line class="axis" x1="120" y1="264" x2="1140" y2="264"/>
+    <text class="tick" x="240"  y="282">edit</text>
+    <text class="tick" x="440"  y="282">review round 1 → rejected</text>
+    <text class="tick" x="660"  y="282">edit again</text>
+    <text class="tick" x="880"  y="282">review round 2 → approved</text>
+    <text class="tick" x="1050" y="282">CR resolved</text>
+
+    <text class="gap" x="630" y="322" style="fill:#7c3aed;font-weight:600">The CR spans the whole timeline. The lock exists only in the two blue windows — which is exactly why they cannot be the same object.</text>
+  </svg>
+  </div>
+
+  <h4 style="font-size:15px;margin:34px 0 4px">Why merging them breaks — three mismatches</h4>
+  <table class="delta">
+    <thead><tr><th>Mismatch</th><th>Consequence of merging</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Lifespan <span class="flag" style="margin-left:6px">decisive</span></td>
+        <td>A lock must be short or it blocks everyone; a change request may live for weeks across review rounds. Merged, you either hold a lock for weeks or you kill the CR when the lock releases. This is precisely the awkwardness already visible in CR-first: <code>CheckoutBound</code> with no timeout, held indefinitely, with the <code>TimeoutScanner</code> deliberately not pointed at it.</td>
+      </tr>
+      <tr>
+        <td>Cardinality</td>
+        <td>A lock is inherently per-item. A change request could reasonably cover forty records in a bulk reclassification. CR-first cannot express that at all.</td>
+      </tr>
+      <tr>
+        <td>Optionality</td>
+        <td>Most edits want a lock and no CR. Some changes want a CR and <em>no</em> lock — "please reclassify these records" is a proposal someone else executes. Merged, that is inexpressible.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h4 style="font-size:15px;margin:34px 0 4px">What gets built</h4>
+  <table class="delta">
+    <thead><tr><th>Aggregate</th><th>Change</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>ChangeRequest</code></td>
+        <td>Gains <code>Title</code>, <code>Reason</code>, <code>Status: Open | Resolved | Abandoned</code>, <code>Scope: IReadOnlyList&lt;MediaItemId&gt;</code>, <code>ResolvedAt?</code>. Keeps its existing comment thread untouched.</td>
+        <td>Keeps its name — the earlier <code>ReviewThread</code> rename is withdrawn. It is not a state machine bound to a lock; it is a container with an open/closed lifecycle.</td>
+      </tr>
+      <tr>
+        <td><code>EditSession</code></td>
+        <td>Gains nullable <code>ChangeRequestId</code>.</td>
+        <td>A session may or may not sit inside a CR. Many sessions may reference the same CR over its life.</td>
+      </tr>
+      <tr>
+        <td><code>MediaProfile</code></td>
+        <td>Gains <code>ChangeRequestPolicy: None | RequiredForEdit</code>.</td>
+        <td>This is the compliance control. <code>RequiredForEdit</code> → checkout without a <code>changeRequestId</code> is rejected with <code>ChangeRequestRequired</code>. It delivers CR-first's actual goal without CR-first's coupling.</td>
+      </tr>
+      <tr>
+        <td><em>(no new orchestration)</em></td>
+        <td>The client creates the CR, then checks out under it: <code>POST /change-requests</code> → <code>POST /items/{id}/checkout { changeRequestId }</code>.</td>
+        <td>Two calls, no cross-module command, no saga. Catalog validates existence against the <code>ChangeRequestReference</code> index it already maintains.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note new" style="margin-top:20px">
+    <h4>Why this recovers what CR-first was reaching for</h4>
+    <p>The motive behind CR-first was sound: don't let someone edit for an hour and only then discover the change
+    is governed. <code>ChangeRequestPolicy = RequiredForEdit</code> delivers exactly that — you cannot open a lock
+    on a governed profile without declaring the CR first. What it drops is the part that caused the trouble:
+    the CR's lifetime is no longer the lock's lifetime, so a CR can outlive a rejection, span a second edit
+    session, and close on its own terms. <code>MediaItemCheckoutReviewSaga</code> and its five consumers stay
+    deleted — there is no longer anything to keep in step.</p>
+  </div>
+
+  <div class="note neutral" style="margin-top:14px">
+    <h4>Scoped deferral — multi-item CRs</h4>
+    <p><code>Scope</code> is modelled as a list from day one but phase 1 only ever writes one entry, and a CR
+    resolves when its single linked item publishes. Fan-out resolution across many items is deliberately not
+    built. <strong>Trigger to revisit:</strong> the first real bulk-reclassification request from a tenant.
+    Modelling the list now means that is an additive change, not a migration.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ EDGE CASES ═══════════════════════════ -->
+<h3 class="block">5 &nbsp;Edge cases — accepted behaviour</h3>
+<p class="block-sub" style="max-width:840px">Accepted 2026-08-20. Nothing here is open; each row is the specified behaviour and belongs in the acceptance tests for the phase that introduces it.</p>
+<table class="delta">
+  <thead><tr><th>Situation</th><th>Proposed behaviour</th></tr></thead>
+  <tbody>
+    <tr><td>Initiator leaves mid-session</td><td>Any remaining editor continues and submits. The session belongs to the set, not to <code>OpenedBy</code>. Only <code>ForceRelease</code> needs elevated rights.</td></tr>
+    <tr><td>Last editor removed</td><td>Reject — <code>Editors</code> must be non-empty. End a session with <code>CheckIn</code>, <code>AbandonCheckout</code> or <code>ForceRelease</code>.</td></tr>
+    <tr><td>Lease expires with unsaved draft</td><td>Session closes, draft is <em>kept</em>. Expiry releases the lock, never the work. The next person to check out inherits the draft and sees who left it.</td></tr>
+    <tr><td>Reviewer rejects</td><td><code>EditSessionReopened</code> — same editors, fresh lease, item back to <code>OriginStatus</code>. Avoids a window where a rejected item is editable but unlocked.</td></tr>
+    <tr><td>Checkout on a <code>Published</code> item</td><td>Implicitly raises <code>MediaItemRevisionStarted</code>. One user action, two events. <code>OriginStatus = Revising</code>.</td></tr>
+    <tr><td>Active <code>DocumentSigningSession</code></td><td>Block checkout — <code>SigningSessionInProgress</code>. Reuses the guard already on <code>RequestPublication</code>.</td></tr>
+    <tr><td>Bulk metadata across many items</td><td>Fail per-item with <code>MediaItemAlreadyCheckedOut</code> in the existing <code>BulkItemError</code> shape. No silent exemption. Migration and conversion runs use an explicit <code>System</code>-actor bypass which is logged with the actor and reason — auditable, not quiet.</td></tr>
+    <tr><td>CR abandoned while a session is open under it</td><td>Reject — <code>ChangeRequestHasActiveSession</code>. Close or force-release the session first. Prevents a lock orphaned from its justification.</td></tr>
+    <tr><td>Item published, CR still open</td><td>CR resolves automatically when its linked item reaches <code>Published</code>. In phase 1 that is a one-to-one relationship, so it is a local check, not a fan-out.</td></tr>
+    <tr><td>Checkout under a CR belonging to another tenant</td><td>Rejected by the standard tenant guard — <code>ChangeRequestId</code> is resolved through the tenant-scoped <code>ChangeRequestReference</code> index, so a cross-tenant id simply does not resolve.</td></tr>
+    <tr><td>Profile has <code>ChangeRequestPolicy = RequiredForEdit</code> and caller omits <code>changeRequestId</code></td><td><code>422 ChangeRequestRequired</code>, with the policy named in the problem detail so the UI can offer "create one now".</td></tr>
+    <tr><td>Lease is <code>null</code> (never expires) and the holder is unavailable</td><td><code>ForceReleaseCheckout</code> — System actor only, draft preserved. This is the escape hatch that makes <code>null</code> leases safe to offer at all.</td></tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════ DELTA ═══════════════════════════ -->
+<h3 class="block">6 &nbsp;What changes</h3>
+<p class="block-sub" style="max-width:860px">
+  Several of these supersede decisions already in the log. They are recorded here and carried into the ADR in
+  step 0 — superseded, not silently overwritten.
+</p>
+
+<table class="delta">
+  <thead>
+    <tr><th>Change</th><th>From → to</th><th>Rationale</th><th>Status</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Reject/withdraw target</td>
+      <td>always <code>Draft</code> → <code>OriginStatus</code></td>
+      <td>Fixes a state-corruption defect live in <code>develop</code>. No migration — old events replay to the same place if <code>OriginStatus</code> defaults to <code>Draft</code>.</td>
+      <td><span class="flag ok">New — no conflict</span></td>
+    </tr>
+    <tr>
+      <td>Concurrency model</td>
+      <td>nothing → <code>If-Match</code> + field-level rebase</td>
+      <td>The conditional write already exists in the event store; this exposes it and makes it precise. Disjoint edits rebase, overlapping edits get a <code>409</code> naming the field and the other person. Mandatory before collaborative checkout ships — see §3.1.</td>
+      <td><span class="flag ok">New — no conflict</span></td>
+    </tr>
+    <tr>
+      <td><code>AllowsConcurrentEdit</code></td>
+      <td>none → per-field flag on <code>FieldDefinition</code>, default <code>false</code></td>
+      <td>Makes auto-rebase safe against write skew, and fails closed: an unconsidered field simply never rebases. Sits next to <code>IsRequired</code> / <code>IsImmutable</code> and rides the existing snapshot pinning. See §3.2.</td>
+      <td><span class="flag ok">New — no conflict</span></td>
+    </tr>
+    <tr>
+      <td>Lock shape</td>
+      <td><code>CheckedOutBy</code> (one) → <code>Editors[]</code> (a set)</td>
+      <td>Solo and collaborative checkout become the same object with a different cardinality, instead of two code paths and a saga to reconcile them.</td>
+      <td><span class="flag ok">New — no conflict</span></td>
+    </tr>
+    <tr>
+      <td>Lock duration</td>
+      <td>indefinite → optional TTL lease</td>
+      <td><code>LeaseDurationMinutes</code> on <code>MediaProfile</code>, nullable. Null preserves logged decision #2 per-tenant; set means auto-release via the existing <code>TimeoutScanner</code> host. Indefinite-by-default guarantees stale locks and a steady trickle of force-release tickets.</td>
+      <td><span class="flag dec">Decided D2</span></td>
+    </tr>
+    <tr>
+      <td>When reviewers are named</td>
+      <td>at checkout → at submit</td>
+      <td>D3. Reviewers are named when you can see what changed. The concern CR-first was answering — discovering mid-edit that a change is governed — is instead met by <code>ChangeRequestPolicy = RequiredForEdit</code> (§4), which blocks checkout rather than binding a reviewer roster to a lock.</td>
+      <td><span class="flag dec">Supersedes CR-first</span></td>
+    </tr>
+    <tr>
+      <td>CR states</td>
+      <td><code>CheckoutBound/SubmissionBound</code> → none</td>
+      <td>Resolves the live contradiction between <code>mediachangerequest.write-model.md</code> (no lifecycle) and the read-model + context-overview (full state machine). Picks the write model's version.</td>
+      <td><span class="flag dec">Supersedes CR-first</span></td>
+    </tr>
+    <tr>
+      <td><code>MediaItemCheckoutReviewSaga</code> + 5 SNS consumers</td>
+      <td>deleted</td>
+      <td>The saga exists only to keep a CR's state in step with a lock. Once the lock holds its own membership list there is nothing to orchestrate — it is all local to <code>MediaItem</code>, in one transaction.</td>
+      <td><span class="flag dec">Supersedes CR-first</span></td>
+    </tr>
+    <tr>
+      <td><code>CheckoutPolicy = RequiredForEdit</code></td>
+      <td>declared → enforced</td>
+      <td>The flag has existed and done nothing since it was added. <code>CanWrite</code> finally reads it.</td>
+      <td><span class="flag ok">New — no conflict</span></td>
+    </tr>
+    <tr>
+      <td>Aggregate name</td>
+      <td><del><code>ChangeRequest</code> → <code>ReviewThread</code></del> — withdrawn</td>
+      <td>Proposed in the review draft, withdrawn by D1. Under Branch B the CR is a governance container with a real lifecycle, so "thread" would be the wrong name. It keeps <code>ChangeRequest</code>.</td>
+      <td><span class="flag dec">Withdrawn — see D1</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════ DELIVERY PLAN ═══════════════════════════ -->
+<h3 class="block">7 &nbsp;Delivery plan</h3>
+<p class="block-sub" style="max-width:860px">
+  No step below is blocked on an unanswered question. Steps 0–2 have no dependency on each other beyond ordering
+  and can start immediately; 3 and 4 run in parallel once 2 lands. Spec and ADR changes ride in the same PR as the
+  code they describe, per the repo convention.
+</p>
+
+<table class="delta">
+  <thead>
+    <tr><th>Step</th><th>Branch</th><th>Contents</th><th>Done when</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="flag dec">0</span> ADR<br><span style="font-weight:400;color:var(--ink-3);font-size:12px">no dependencies</span></td>
+      <td><code>feature/chase/&lt;ticket&gt;-adr-edit-session</code></td>
+      <td>ADR in <code>docs/adrs/</code> recording D1–D3 and superseding the CR-first checkout model. Delete <code>mediaitem.checkout-cr-saga.md</code>. Resolve the <code>mediachangerequest.write-model.md</code> vs read-model/context-overview contradiction in favour of §4. Fix the <code>C-6…C-10 / MW-4 / MW-8</code> ID collisions in <code>Catalog/business-scenarios.md</code>. Delete the duplicate <code>plans\\mediaitem-edit-session-design.html</code>.</td>
+      <td>One story about checkout exists across <code>docs/spec</code>, <code>docs/adrs</code> and the Z: project. No spec file describes a design we are not building.</td>
+    </tr>
+    <tr>
+      <td><span class="flag dec">1</span> Defect fix<br><span style="font-weight:400;color:var(--ink-3);font-size:12px">no dependencies</span></td>
+      <td><code>bugfix/chase/&lt;ticket&gt;-review-origin-status</code></td>
+      <td><code>ReviewSession.OriginStatus</code>; <code>Apply(MediaItemRejected)</code> and <code>Apply(MediaItemWithdrawn)</code> return to origin instead of hard-coding <code>Draft</code>. Spec: review lifecycle + status transitions in <code>mediaitem.write-model.md</code>.</td>
+      <td>Revise → submit → reject leaves the item in <code>Revising</code>, draft intact, v(n) still live and <code>DiscardRevision</code> still reachable. Old events replay unchanged (<code>OriginStatus</code> defaults to <code>Draft</code>).</td>
+    </tr>
+    <tr>
+      <td><span class="flag dec">2</span> Concurrency<br><span style="font-weight:400;color:var(--ink-3);font-size:12px">after 1</span></td>
+      <td><code>feature/chase/&lt;ticket&gt;-optimistic-concurrency</code></td>
+      <td><code>If-Match</code> / <code>ETag</code> on Catalog write endpoints; <code>409 VersionConflict</code> as RFC 9457. <code>BaseVersion</code> (nullable) on the two metadata events. Coarse only — no rebase yet. Spec: <code>shared/api-conventions.md</code> + <code>shared/error-catalog.md</code>.</td>
+      <td>Two concurrent writes to one item produce a <code>409</code> carrying the current ETag. Useful on its own, with or without checkout.</td>
+    </tr>
+    <tr>
+      <td><span class="flag dec">2b</span> Client<br><span style="font-weight:400;color:var(--ink-3);font-size:12px">after 2 · Akshay</span></td>
+      <td><code>feature/akshay/&lt;ticket&gt;-metadata-autosave</code></td>
+      <td>Write on field blur rather than batching a form submit; handle <code>409</code> by re-reading and re-presenting. No domain work.</td>
+      <td>Base versions are seconds old, not minutes. This does more for the real-world conflict rate than anything server-side.</td>
+    </tr>
+    <tr>
+      <td><span class="flag dec">3</span> EditSession<br><span style="font-weight:400;color:var(--ink-3);font-size:12px">after 2 · ADO 34385</span></td>
+      <td><code>feature/chase/34385-edit-session</code></td>
+      <td><code>EditSession</code> VO with <code>Editors</code> of size 1. <code>CheckOut</code> / <code>CheckIn</code> / <code>Renew</code> / <code>Abandon</code> / <code>ForceRelease</code>. <code>CheckoutPolicy = RequiredForEdit</code> finally read by <code>CanWrite</code>. <code>LeaseDurationMinutes</code> on <code>MediaProfile</code> (D2) + <code>TimeoutScanner</code> reaper. Checkout on <code>Published</code> implies <code>BeginRevision</code>. <code>EditSessionReopened</code> on reject. Spec: write-model, <code>mediaitem.api.md</code> endpoints, scenarios.</td>
+      <td>Every row of Flow A passes as an integration test, including Bob's <code>409</code> naming the holder and expiry.</td>
+    </tr>
+    <tr>
+      <td><span class="flag dec">4</span> Collaboration<br><span style="font-weight:400;color:var(--ink-3);font-size:12px">after 3</span></td>
+      <td><code>feature/chase/&lt;ticket&gt;-collaborative-edit</code></td>
+      <td><code>Editors</code> of size N; <code>AddSessionEditor</code> / <code>RemoveSessionEditor</code>. <code>AllowsConcurrentEdit</code> on <code>FieldDefinition</code> → <code>CompiledMetadataTemplate</code> → <code>MediaProfileSnapshotField</code>. Field-level rebase via <code>LoadAfterAsync</code> (§3.1), failing closed (§3.2).</td>
+      <td>Every row of Flow B passes, including Carol's <code>409 VersionConflict</code> and Dave's <code>403</code>. A field left unflagged never rebases.</td>
+    </tr>
+    <tr>
+      <td><span class="flag dec">5</span> CR container<br><span style="font-weight:400;color:var(--ink-3);font-size:12px">after 3 · parallel to 4 · Estelle</span></td>
+      <td><code>feature/estelle/&lt;ticket&gt;-change-request-container</code></td>
+      <td><code>ChangeRequest</code> gains <code>Title</code>, <code>Reason</code>, <code>Status</code>, <code>Scope</code>, <code>ResolvedAt</code>. <code>ChangeRequestPolicy</code> on <code>MediaProfile</code>. <code>EditSession.ChangeRequestId</code>. <code>POST /change-requests</code> then checkout under it.</td>
+      <td>Checkout on a <code>RequiredForEdit</code> profile without a <code>changeRequestId</code> returns <code>422 ChangeRequestRequired</code>. A CR survives a rejection and a second edit session, then resolves on publish.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 class="block">7.1 &nbsp;Deferred — with the trigger that reopens each</h3>
+<p class="block-sub" style="max-width:860px">
+  These are out of scope, not unresolved. Each has a named condition that brings it back, so none of them is an
+  open question hanging over the work.
+</p>
+<table class="delta">
+  <thead><tr><th>Deferred</th><th>Trigger to revisit</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td>Scope claims (<code>EditSession.Claims</code>) — §3.1 layer 2</td><td>A RecordType where most fields cannot be marked <code>AllowsConcurrentEdit</code>, or a sustained <code>409</code> rate that autosave does not fix.</td><td><span class="flag def">Deferred</span></td></tr>
+    <tr><td>Presence / awareness — §3.1 layer 3</td><td>A push channel exists for some other reason. Not worth standing one up for this alone.</td><td><span class="flag def">Deferred</span></td></tr>
+    <tr><td>Group-level independence via <code>SourceCapability</code> — §3.2</td><td>Tenant admins report per-field flags are unmanageable at scale.</td><td><span class="flag def">Deferred</span></td></tr>
+    <tr><td>Multi-item CR fan-out resolution — §4</td><td>First real bulk-reclassification request. <code>Scope</code> is already a list, so this is additive.</td><td><span class="flag def">Deferred</span></td></tr>
+    <tr><td>Optional <code>X-Read-Fields</code> header — §3.2</td><td>A coupled-field incident that <code>AllowsConcurrentEdit</code> did not catch. Purely additive safety.</td><td><span class="flag def">Deferred</span></td></tr>
+    <tr><td>Real-time co-editing (CRDT / OT)</td><td>None. Wrong product, and a poor fit with an append-only audit trail for regulated records.</td><td><span class="flag def">Not planned</span></td></tr>
+  </tbody>
+</table>
+
+<h3 class="block">8 &nbsp;Net effect on the build</h3>
+<p class="block-sub" style="max-width:840px">
+  One value object, one nullable field, seven commands, an <code>If-Match</code> header and a range query on the conflict path — all inside
+  <code>Catalog</code>. Against the CR-first plan this drops a saga, five integration-event consumers, two CR
+  states and a cross-module command, while covering both scenarios and leaving the <code>ChangeRequest</code>
+  aggregate exactly as it is today.
+</p>
+
+<h3 class="block">Where to start on Monday</h3>
+<p class="block-sub" style="max-width:840px">
+  Step 0 and step 1 in either order. The ADR because the decisions are fresh and cheapest to write down now;
+  the <code>OriginStatus</code> fix because it is a single field, a two-line change to
+  <code>Apply(MediaItemRejected)</code> and <code>Apply(MediaItemWithdrawn)</code>, and it closes a defect that is
+  live in <code>develop</code> today. Neither depends on anything else in this document.
+</p>
+
+</div>
+</body>
+</html>

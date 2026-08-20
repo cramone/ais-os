@@ -4,6 +4,22 @@
 #
 # Grouping under "Infrastructure" merges this with the label-discovered Infrastructure tiles
 # (Traefik, Portainer, Netdata) into one section on the dashboard.
+#
+# Hermes Agent is manual for the same reason as Cockpit: it's a native systemd *user* service
+# (hermes-dashboard.service), not a container, so there's no label to discover. Its Traefik
+# route is likewise a file-provider entry rather than labels — cortex/traefik-dynamic/hermes.yml.
+# "AI" merges it with the label-discovered Open WebUI tile; that group is columns: 2 in
+# settings.yaml, so the two tiles fill the row exactly.
+- AI:
+    - Hermes Agent:
+        href: https://hermes.ramonedevelopment.com
+        description: Agent dashboard — config, API keys, sessions
+        # dashboard-icons .png, matching every other icon here. Deliberately NOT
+        # si-anthropic: simple-icons only added that slug in v11, and the si- prefix
+        # resolves against whatever version homepage pins — anthropic.png has no such
+        # version dependency.
+        icon: anthropic.png
+
 - Infrastructure:
     - Cockpit:
         href: https://100.90.195.22:9090
