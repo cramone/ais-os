@@ -2,7 +2,7 @@
 
 _Media project (dev.azure.com/MAGIQSoftware, project "Media"). Created 2026-07-20 from architecture-review-remediation-pr-plan.md. **Status: COMPLETE** — all items created, parent-linked, and dependency-linked. Owner/assignee context: Chase. Tag on Epics: `arch-review-remediation`._
 
-Totals: **6 Epics · 18 Features · 71 User Stories/Bugs · 74 Tasks** (169 work items) · **30 predecessor/successor dependency links**. This index supersedes `ado-creation-resume-manifest.md` (now historical).
+Totals: **6 Epics · 18 Features · 71 User Stories/Bugs · 74 Tasks** (169 work items) · **30 predecessor/successor dependency links**. This index supersedes `Archive/ado-creation-resume-manifest.md` (now historical).
 
 Open any item at: `https://dev.azure.com/MAGIQSoftware/Media/_workitems/edit/<id>`
 

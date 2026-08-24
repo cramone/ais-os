@@ -321,4 +321,4 @@ This is **Phase B** (§7) — the biggest change. Phase A ships the naming/CDK/m
 - magiq-media: `src/tools/ProjectionReplay/*` (Program/RotationHost/RotationRunner/TableRotationRegistry),
   module `*.ReadModel.Infrastructure` registrations, `docs/adrs/persistence-and-eventing.md`.
 - cdk-magiq-media: `lib/constructs/dynamodb/platform-tables.construct.ts`, `lib/magiq-media-stack.ts`.
-- Prior plan (versioned design): `plans/hot-swappable-projection-rotation-plan.md`.
+- Prior plan (versioned design): `plans/projection-tables/hot-swappable-projection-rotation-plan.md`.

@@ -1,5 +1,56 @@
 # Todos — magiq-media
 
+## Where the plans live (reorganised 2026-08-24)
+_Captured: 2026-08-24_
+_Status: reference — not a todo_
+
+`plans/` is now one subfolder per workstream, indexed by `plans/README.md`. Live entry points:
+
+| Workstream | Folder | Entry point | State |
+|---|---|---|---|
+| Spec ↔ repo drift | `plans/spec-drift-review/` | `spec-repo-drift-review.md` | **Active** — 59 open findings; tick the ✓ column as they land |
+| Architecture-review remediation | `plans/architecture-review-remediation/` | `COWORK-EXECUTION-INSTRUCTIONS.md` → `IMPLEMENTATION-PLAN.md` | Active — 169 ADO items, nothing started |
+| Authz + outbox | `plans/architecture-review-remediation/` | `architecture-review-authz-and-outbox-deferred-plan.md` | **Parked** — deferred in sequencing only, both are pre-prod gates |
+| Projection tables | `plans/projection-tables/` | `schema-versioned-projection-tables-plan.md` | Proposed — supersedes the hot-swap rotation plan beside it |
+| Deployment naming | `plans/deployment-naming/` | `remove-env-suffix-plan.md` | **Parked** — 4 decisions open (see the todo below) |
+| Design | `plans/design/` | `mediaitem-edit-session-design.html` | Active |
+
+Each folder has its own `Archive/`; `plans/Archive/` holds finished work with no live workstream.
+
+**Stale reference I could not fix:** the Cowork project instructions point at
+`plans\docs-migration-plan.md`; it is now `plans\Archive\docs-migration-plan.md`. Needs editing in the
+project settings.
+
+---
+
+## Verify and ship the X-9.7 / X-9.8 fixes
+_Captured: 2026-08-24_
+_Status: todo — code written, never executed_
+
+Both came out of the drift review on 2026-08-24 and are **written but not built or run** — no .NET
+toolchain in the session that wrote them. Detail in `plans/spec-drift-review/spec-repo-drift-review.md`
+§I.9.
+
+1. **X-9.7 — `MoveMediaItem` (app repo, on `feature/change-requests`).** Handler called `SwapAsync`
+   where it needed `MoveAsync`, so every folder-to-folder move failed with a spurious 409. Fixed, plus
+   intent-asserting unit tests (`NameReservationIntentRecorder` in `Catalog.WriteModel.Tests/Shared`)
+   and an end-to-end move test. Run:
+   `dotnet test tests/modules/Catalog/Catalog.WriteModel.Tests/` and
+   `dotnet test tests/integration/modules/Catalog/Catalog.IntegrationTests/ -v normal`.
+2. **X-9.8 — `GuidFactory` byte order (platform repo).** `(Guid)Medo.Uuid7` converted big-endian, so
+   the version nibble landed on the wrong byte and **no id in the system was time-sortable**. Fixed with
+   an explicit byte swap plus `GuidFactoryTests`. Run `dotnet test tests/Magiq.AspNetCore.Tests/`.
+   **Then a package release** — `GuidFactory` ships in `Magiq.Platform.Core`, which magiq-media never
+   references directly: ten packages pull it in transitively at 1.1.3.5 and
+   `CentralPackageTransitivePinningEnabled` is `false`, so publishing Core alone changes nothing.
+   Either republish the chain at a new `VersionPrefix` (1.1.3.6 and 1.1.3.7 are taken) and bump
+   `MagiqPlatformVersion`, or enable transitive pinning here and pin Core — which fixes this repo only.
+3. **Permanent consequence, no migration:** ids written before the fix stay unordered. Comment threads
+   in `media-change-request-comments` rely on `SK` order being creation order, so pre-fix threads list
+   arbitrarily. If that matters to a customer, the answer is a real `{CreatedAt}#{id}` sort key.
+
+---
+
 ## RESOLVED: deploy mechanism = cross-repo dispatch to cdk-magiq-media
 _Captured: 2026-07-03 · Resolved: 2026-07-03_
 _Status: todo_
@@ -125,7 +176,7 @@ Treat every deploy as prod-named: drop the `-{env}` suffix from all resource nam
 as host config (not name suffixes). Naming-only — `Media:Environment` / `ASPNETCORE_ENVIRONMENT`
 behaviour is retained.
 
-**Plan:** `plans/remove-env-suffix-plan.md` — full change inventory across `cdk-magiq-media`
+**Plan:** `plans/deployment-naming/remove-env-suffix-plan.md` — full change inventory across `cdk-magiq-media`
 (`lib/config.ts` `resourceName`/`bucketName`, `magiq-media-stack.ts` `TableSuffix`), the
 `magiq-media` app (`MediaResourceNaming`, `MediaConfigurationExtensions`, host bootstrap),
 spec/docs, plus sequencing, the destructive non-prod cutover, and verification steps.

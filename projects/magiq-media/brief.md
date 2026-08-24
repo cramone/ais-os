@@ -5,6 +5,9 @@
 **Team:** Chase Ramone (API layer), Akshay Gaikwad (UI/integrations)
 **Full spec:** `projects/magiq-media/spec/` (this repo)
 **Source code:** `D:\source\github\magiq-media`
+**Plans:** `plans/` — one subfolder per workstream since 2026-08-24; `plans/README.md` indexes them all
+with status. Live: spec-drift review, architecture-review remediation, projection tables, design.
+Parked: authz + outbox, deployment naming.
 
 ---
 
@@ -31,7 +34,7 @@ Serves government agencies and large enterprises managing regulated records. Mul
 | Language | C# (.NET 8) |
 | Architecture | DDD · CQRS · Event Sourcing |
 | API | FastEndpoints (ASP.NET) |
-| Mediator | MediatR |
+| Command dispatch | `ICommandDispatcher` (`Magiq.Platform.WriteModel.Commands`) — **not MediatR** (corrected 2026-08-24, X-9.5) |
 | Event Store | DynamoDB (custom append-only) |
 | Read Models | DynamoDB + OpenSearch |
 | Compute | AWS Lambda (containerised) |
@@ -63,7 +66,7 @@ Host: `src/hosts/Media.Api` — single FastEndpoints host wiring all modules.
 |---|---|---|
 | Ingest API | Lambda/ECS (ASP.NET + FastEndpoints) | Upload URL issuance, all write command dispatch |
 | Query API | Lambda/ECS (ASP.NET + FastEndpoints) | All read traffic — DynamoDB + OpenSearch |
-| Command Handler | Lambda (MediatR) | Aggregate lifecycle, event store writes, SNS publish |
+| Command Handler | Lambda (`ICommandDispatcher`) | Aggregate lifecycle, event store writes, SNS publish |
 | Projectors Lambda | Lambda (SQS-triggered) | Maintain DynamoDB + OpenSearch read models |
 | Processing Worker | Lambda (SQS-triggered) | Rendition generation, metadata extraction |
 | SagaOrchestrator | Lambda (SQS-triggered) | Cross-aggregate coordination (3 saga types) |

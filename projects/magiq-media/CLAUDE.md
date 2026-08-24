@@ -19,7 +19,7 @@ Serves government agencies and large enterprises managing regulated records. Mul
 | Language | C# (.NET 8) |
 | Architecture | DDD · CQRS · Event Sourcing |
 | API | FastEndpoints (ASP.NET) |
-| Mediator | MediatR |
+| Command dispatch | `ICommandDispatcher` (`Magiq.Platform.WriteModel.Commands`) — **not MediatR** (corrected 2026-08-24, drift review X-9.5) |
 | Event Store | DynamoDB (custom append-only) |
 | Read Models | DynamoDB + OpenSearch |
 | Compute | AWS Lambda (containerised) |
@@ -33,13 +33,34 @@ Serves government agencies and large enterprises managing regulated records. Mul
 |---|---|
 | `AssetManagement` | `Asset` |
 | `Catalog` | `Collection`, `Folder`, `MediaItem`, `MediaProfile` |
-| `ChangeRequests` | `ChangeRequest` |
+| `ChangeRequests` | `MediaChangeRequest` |
 | `Metadata` | `RecordType` |
 | `Processing` | `ProcessingJob` |
 | `Registration` | `Registration` |
-| `DocumentSigning` | `DocumentSigningSession` |
+| `DocumentSigning` | `DocumentSigningSession` ⚠️ *skeleton only — no aggregate class exists* |
 
-Host: `src/hosts/Media.Api` — single FastEndpoints host wiring all modules.
+## Hosts
+
+**There is no single host.** Write and read paths, and each async worker, deploy independently — nine
+projects under `src/hosts/`:
+
+| Host | Role |
+|---|---|
+| `Api` | Write-side FastEndpoints host — command dispatch, upload URL issuance |
+| `QueryApi` | Read-side FastEndpoints host — all query traffic (DynamoDB + OpenSearch) |
+| `Projectors.ReadModel` | SQS-triggered — maintains DynamoDB read models |
+| `Projectors.Search` | SQS-triggered — maintains OpenSearch indexes |
+| `EventConsumers` | SQS-triggered — intra-BC cross-module integration event consumers |
+| `ProcessingWorker` | SQS-triggered — rendition generation, metadata extraction |
+| `SagaOrchestrator` | SQS-triggered — `AssetIngestionSaga` |
+| `SagaOrchestrator.DocumentSigning` | Built and pushed every commit, but **nothing deploys it** — no Lambda, no queue |
+| `TimeoutScanner` | CloudWatch-scheduled — scans sagas for expired timeouts |
+
+> Corrected 2026-08-24 (drift review X-1.1). This previously read *"Host: `src/hosts/Media.Api` — single
+> FastEndpoints host wiring all modules."* No `Media.Api` project has ever existed in the solution; the
+> write host is `src/hosts/Api`. The only `Media.Api.csproj` on disk is inside a stale `cdk.out` synth
+> artifact. Treat the repo's own `CLAUDE.md` as authoritative for host layout — it is code-reviewed
+> alongside the hosts; this file is not.
 
 ## ADO Board
 Media
@@ -56,7 +77,8 @@ High
 | `use-cases.md` | Use case catalogue |
 | `todos.md` | Active todo items |
 | `MEMORY.md` | External memory — read at session start |
-| `plans/` | All plans — in-flight/pre-decision design work *and* point-in-time, cross-cutting implementation plans (e.g. spec-remediation checklists) |
+| `plans/` | All plans — in-flight/pre-decision design work *and* point-in-time, cross-cutting implementation plans (e.g. spec-remediation checklists). **One subfolder per workstream since 2026-08-24** — start at `plans/README.md`, which indexes every plan with its status |
+| `plans/README.md` | Index of the plan folders: what each workstream is, which plan is live, what is parked or superseded |
 | `decisions/` | Decision log |
 | `prompts/` | AI prompts used to produce spec content |
 | `reviews/` | Informal spec review artifacts |
@@ -64,8 +86,8 @@ High
 > **Spec and ADRs moved 2026-07-07.** `spec/contexts/`, `spec/shared/`,
 > `spec/architecture/`, and `adrs/` now live in
 > `D:\source\github\magiq-media\docs\spec\` and `docs\adrs\` — they're
-> code-reviewed there and publish to the ADO wiki automatically via
-> `.github/workflows/publish-wiki.yml`. Don't recreate them here. This folder
+> code-reviewed there, and that repo is the only source of truth for them —
+> there is no published or mirrored copy. Don't recreate them here. This folder
 > is the AI-operating-system layer — memory, todos, meetings, the decision
 > journal, and in-flight plans — not spec custody.
 

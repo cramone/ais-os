@@ -424,3 +424,5 @@ Everything past that gate is quality-and-completeness work that can ship continu
 ---
 
 _Prepared as a planning artifact over the 2026-07-19 review set. Finding IDs and severities are the reviews'; sequencing, PR grouping, and ADO shaping are this plan's. Cross-references to `s13-uniqueness-atomicity-remediation-plan.md`, `api-consistency-remediation-plan.md`, and `content-category-remediation-plan.md` are load-bearing — check those before opening a PR that touches reservation atomicity, the API error/DTO contract, or media categories._
+
+_**Where those three now live (2026-08-24 reorganisation):** the first two are in `plans\Archive\`, the third in `plans\design\Archive\` — all three completed, and all three outside this folder. See `plans\README.md`. Note that reservation atomicity has moved on since S13: the drift review's X-9.6 covers the same ground with current findings, in `plans\spec-drift-review\`._

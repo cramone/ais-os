@@ -21,7 +21,7 @@ _Standalone operating brief for a Claude Cowork project that executes the archit
 
 | Need | Where | Check |
 |---|---|---|
-| Live tracker + companion docs | `Z:\claudia\magiq\projects\magiq-media\plans\` | `IMPLEMENTATION-PLAN.md` opens |
+| Live tracker + companion docs | `Z:\claudia\magiq\projects\magiq-media\plans\architecture-review-remediation\` | `IMPLEMENTATION-PLAN.md` opens |
 | App repo (code + `docs\spec\` + `docs\adrs\`) | `D:\source\github\magiq-media` | `git status` works; on/near `develop` |
 | CDK repo | `D:\source\github\cdk-magiq-media` | `git status` works |
 | Platform SDK repo | `D:\source\github\aspnetcore-platform` | only for A1 / INV-5 |

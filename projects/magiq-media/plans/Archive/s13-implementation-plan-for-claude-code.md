@@ -2,7 +2,7 @@
 
 _magiq-media - Executable implementation runbook for architecture-spec-review finding S13._
 _Prepared 2026-07-18 for Chase Ramone. Execute this in a local Claude Code session with build/test access._
-_Companion design doc: plans/s13-uniqueness-atomicity-remediation-plan.md (read it first for the "why")._
+_Companion design doc: `s13-uniqueness-atomicity-remediation-plan.md`, beside this file in `plans/Archive/` (read it first for the "why")._
 
 ---
 

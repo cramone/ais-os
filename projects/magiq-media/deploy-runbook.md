@@ -6,7 +6,7 @@ files, `deploy.yml` rewrite, `ORGANIZATION_ID` warning) is committed locally
 on `develop`, not yet pushed. Captures the branch-mirroring + git-driven
 reconciliation model worked out with Chase to close the app/infra drift gap.
 See "Implementation status" below for exactly what's done vs. still open.
-Supersedes the dispatch-only model described in `plans/deploy-handoff-tom.md`
+Supersedes the dispatch-only model described in `plans/deployment-naming/Archive/deploy-handoff-tom.md`
 and `CDK-ALIGNMENT-GAPS.md` (cdk-magiq-media), and builds on the
 branch-naming conventions in `spec/architecture/branching-and-deployment.md`.
 
@@ -231,7 +231,7 @@ neither, so it needs a manual seeding pass before the normal flow takes over.
    (health checks, a basic write + read round-trip) before setting
    `STAGING_ENABLED`/`PROD_ENABLED` or relying on the environment for real
    traffic. This mirrors the existing "smoke test dev first" step in
-   `plans/deploy-handoff-tom.md`, generalized to any newly-bootstrapped
+   `plans/deployment-naming/Archive/deploy-handoff-tom.md`, generalized to any newly-bootstrapped
    environment.
 7. From this point on, the environment behaves like any other — pushes to
    its matching branch (whether infra PRs or CI-driven `imageTag` bumps)

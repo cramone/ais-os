@@ -1,6 +1,6 @@
 # magiq-media — Architecture-Review Remediation: Implementation Working Plan
 
-_Cross-session operating plan + live tracker. Working directory: `Z:\claudia\magiq\projects\magiq-media\plans`._
+_Cross-session operating plan + live tracker. Working directory: `Z:\claudia\magiq\projects\magiq-media\plans\architecture-review-remediation`._
 _Board: ADO **Media** project. Owner/assignee: Chase Ramone (chase.ramone@magiqsoftware.com)._
 _Created 2026-07-20. Companion docs in this folder: `architecture-review-remediation-pr-plan.md` (rationale), `architecture-review-ado-workitems.md` (ID index), `architecture-review-authz-and-outbox-deferred-plan.md` (deferred)._
 
