@@ -4,7 +4,7 @@ _magiq-media · Plan for architecture-spec-review finding **S13** ("Reservation 
 _Author: architecture pass (AI-assisted), for Chase Ramone · Drafted 2026-07-18._
 _Status: **DRAFT for review** — nothing implemented yet. Scope confirmed: **full fix including platform**._
 
-> **Companion to** `reviews/architecture-spec-review.md` §S13. This plan supersedes S13's original framing — the investigation (against `D:\source\github\magiq-media`, `D:\source\github\aspnetcore-platform`, `D:\source\github\cdk-magiq-media`) found the review inherited a stale premise from the `catalog-domain-invariants.md` ADR. The corrected problem statement is below.
+> **Companion to** `reviews/Archive/architecture-spec-review.md` §S13. This plan supersedes S13's original framing — the investigation (against `D:\source\github\magiq-media`, `D:\source\github\aspnetcore-platform`, `D:\source\github\cdk-magiq-media`) found the review inherited a stale premise from the `catalog-domain-invariants.md` ADR. The corrected problem statement is below.
 
 ---
 

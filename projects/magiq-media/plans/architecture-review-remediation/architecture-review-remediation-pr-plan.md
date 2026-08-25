@@ -1,11 +1,12 @@
 # Architecture-Review Remediation — PR Breakdown & Delivery Plan
 
-_magiq-media · How to break the 11 architecture reviews in `D:\source\github\magiq-media\docs\reviews\` (ex-`archived\`) into ordered, dependency-aware, PR-sized work._
+_magiq-media · How to break the 11 architecture reviews in `Z:\claudia\magiq\projects\magiq-media\reviews\architecture-review-remediation\` into ordered, dependency-aware, PR-sized work._
+_**Corrected 2026-08-24:** this said `D:\source\github\magiq-media\docs\reviews\`. That folder exists in the repo but is **empty** — the reviews never moved there and live only in the docs project, in the folder named for this plan._
 _Author: architecture pass (AI-assisted), for Chase Ramone · Drafted 2026-07-19 · Revised 2026-07-20._
 _Status: **DRAFT for review** — nothing implemented from this doc yet. Scope confirmed with Chase: **everything, phased** (all findings, pre-prod blockers first). ADO items **drafted here, not created**._
 _**2026-07-20 revision:** all work owners set to **Chase** (single-owner pass — re-delegate later as needed). **Authorization (Stream C / Phase 3) and the transactional-outbox PR (B4), plus the INV-2 outbox spike, are deferred and split into a companion plan: `architecture-review-authz-and-outbox-deferred-plan.md`.** Their production-gate obligations remain (see §16); only the sequencing is moved out of this doc._
 
-> **Companion to** the reviews in `docs/reviews/`. This plan does not re-argue any finding — it consumes them and answers one question: _in what order, grouped into which PRs, does this get fixed without the seams staying half-broken between merges._ Every PR cites the finding IDs it closes so you can trace back to the reasoning.
+> **Companion to** the reviews in `reviews/architecture-review-remediation/` (docs project). This plan does not re-argue any finding — it consumes them and answers one question: _in what order, grouped into which PRs, does this get fixed without the seams staying half-broken between merges._ Every PR cites the finding IDs it closes so you can trace back to the reasoning.
 
 ---
 

@@ -305,6 +305,12 @@ Codes present in both catalog and code (8, all MediaItem checkout / ChangeReques
 
 ---
 
+### I.11 Projector names in the spec
+
+| ✓ | # | Sev | Finding | Ref |
+|---|---|---|---|---|
+| ☐ | X-11.1 | **High** | **The spec's Command → Event → Projection tables name projector classes that do not exist.** `MediaItemProjector` (40 spec references), `CollectionProjector` (17), `SigningSessionProjector` (12) and `AssetProjector` have **no class in `src/`** — the only `AssetProjector` occurrence is inside a doc comment. Every module's projectors are split detail/summary/index: `MediaItemDetailProjector`, `MediaItemSummaryProjector`, `MediaItemVersionDetailProjector`, `CollectionDetailProjector`, `CollectionSummaryProjector`, `SigningSessionDetailProjector`, `AssetDetailProjector`, `AssetSummaryProjector`, and ~40 more. This lands on the artifact a projector author opens first, and it is not a per-file slip — the singular-projector model is how the spec describes projection everywhere, so the fix is a sweep plus a decision about whether the tables name classes at all or name the read model they maintain. Found while verifying the recovered spec tails against code · *Found 2026-08-25* | `grep -c 'class .*Projector' src/` → 50; DDD plan §3.1 |
+
 ## K. Coverage & limits
 
 **Verified by direct inspection during this review** (not taken on a subagent's word): P-1; M-6; AM-6; DS-4 constructor argument order; the absence of `publish-wiki.yml`; zero `IOutbox` usages; both `Guid.NewGuid()` sites; the absence of any owner-scope guard outside `ForceReleaseCheckoutHandler`.

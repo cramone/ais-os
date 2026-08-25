@@ -17,6 +17,42 @@ _Status: reference — not a todo_
 
 Each folder has its own `Archive/`; `plans/Archive/` holds finished work with no live workstream.
 
+`reviews/` mirrors this exactly — same workstream folder names, indexed by `reviews/README.md`. Work
+goes **review first, then plan**, and new plans take their review's filename so the pair stays traceable
+after archiving; see `CLAUDE.md § Review → Plan`. The eleven 2026-07 architecture reviews are the one
+many-to-one case: `reviews/architecture-review-remediation/` → the single plan set of the same name.
+
+The DDD coverage review now has a plan of the same name in `plans/spec-drift-review/` — see the todo
+below.
+
+---
+
+## Decide the six questions blocking the DDD remediation plan
+_Captured: 2026-08-24_
+_Status: todo — plan drafted, Phases 0–1 unblocked, Phases 2 and 4 waiting on you_
+
+`plans/spec-drift-review/spec-ddd-coverage-review-2026-08-24.md` §1 lists six decisions. The two that
+change the most downstream work:
+
+- **D1 — authority model.** Banner the three stale architecture docs (hours) or rewrite them (a week,
+  against a spec Phase 3 is still repairing). Recommendation: banner now, rewrite only `domain-model.md`
+  later, delete `bounded-context.md`'s duplicate inventories outright.
+- **D3 — integration event naming.** `media.mediaitem.*` (16 uses) vs `media.item.*` (12). External SNS
+  filter policies cannot be written against both. Needs a code check, then an ADR.
+
+D2 (truncated tails), D4 (`Capability` enum), D5 (authorization-matrix scope) and D6 (who owns deleting
+`MediaItemReviewSaga`) are in the plan with recommendations.
+
+**Worth knowing before you read it:** the review said "regenerate the 15 truncated files". There is
+nothing to regenerate from. It is 17 files truncated mid-token (plus 5 missing only a newline), the tails
+are **not in git** — `asset.api.md` ends at the same token across all six commits while growing 13KB —
+and **not in the wiki**, which cuts at the identical tokens. They have to be rewritten from the code.
+Worse, it is still happening: `system-spec.md` has been re-cut at a *different* point since the
+migration, so something in the authoring workflow is still truncating whole-file writes. Phase 0 is a CI
+guard for exactly that.
+
+---
+
 **Stale reference I could not fix:** the Cowork project instructions point at
 `plans\docs-migration-plan.md`; it is now `plans\Archive\docs-migration-plan.md`. Needs editing in the
 project settings.

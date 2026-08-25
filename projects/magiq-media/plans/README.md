@@ -18,7 +18,8 @@ The current live workstream.
 
 | Plan | Status | What it is |
 |---|---|---|
-| `spec-repo-drift-review.md` | **Active** | 59 open findings across spec, ADRs, CDK and platform. The working checklist — tick the ✓ column as items land. |
+| `spec-repo-drift-review.md` | **Active** | 58 open findings across spec, ADRs, CDK and platform. The working checklist — tick the ✓ column as items land. |
+| `spec-ddd-coverage-review-2026-08-24.md` | **In progress** | Remediation plan for the DDD coverage review of the same name. Six phases from "stop the file truncation" through the saga specs, authorization matrix and MediaItem state matrix. **Phase 1 complete 2026-08-25** — a full-history search recovered 15 of the 17 truncated spec tails (7 only from `Media.wiki`'s history). Dating the sources then split them: 12 link/row tails restored and checked against code, 3 prose tails **quarantined to `docs/spec/_recovered/`** because they predate the 2026-08-24 correction pass, 2 unrecoverable. Phase 3 drops from 3–5 days to ~1 day over 5 files. The check also surfaced **X-11.1 (High)** in the drift review: the spec's traceability tables name projector classes that don't exist, 69 times. D2 resolved; D1, D3–D6 still block Phases 2 and 4. §2 draws the ownership line against the drift review so nothing is worked twice. |
 | `Archive/spec-repo-drift-review-completed.md` | Done | The 154 closed findings plus the full session log for every pass. Split out 2026-08-24; the id sets do not overlap. |
 
 Recent: X-9.6 (name-reservation atomicity docs), X-9.7 (`MoveMediaItem` used `SwapAsync` — every
@@ -91,7 +92,7 @@ pointed across folders and were repointed:
 - `architecture-review-remediation-pr-plan.md` → its three "in-flight, do not re-plan" companions, which
   now sit in two different archives (footer note added rather than editing four inline mentions)
 - `Archive/s13-implementation-plan-for-claude-code.md` → its companion design doc, now beside it
-- `reviews/mediaitem-edit-lifecycle-as-is-vs-recommended.html` → the edit-session design doc
+- `reviews/design/mediaitem-edit-lifecycle-as-is-vs-recommended.html` → the edit-session design doc
 - In the app repo: `docs/adrs/persistence-and-eventing.md` → the schema-versioned tables plan;
   `docs/spec/contexts/Registration/.../registration.api.md` and `docs/spec/shared/error-catalog.md` →
   the drift review

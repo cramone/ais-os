@@ -5,9 +5,11 @@
 **Team:** Chase Ramone (API layer), Akshay Gaikwad (UI/integrations)
 **Full spec:** `projects/magiq-media/spec/` (this repo)
 **Source code:** `D:\source\github\magiq-media`
-**Plans:** `plans/` — one subfolder per workstream since 2026-08-24; `plans/README.md` indexes them all
-with status. Live: spec-drift review, architecture-review remediation, projection tables, design.
-Parked: authz + outbox, deployment naming.
+**Reviews → Plans:** `reviews/` and `plans/` mirror each other, one subfolder per workstream since
+2026-08-24, indexed by a README each. Work is reviewed before it is planned; a new plan takes its
+review's filename, and both sides archive together — see `CLAUDE.md § Review → Plan`. Live workstreams:
+spec-drift review, architecture-review remediation, projection tables, design. Parked: authz + outbox,
+deployment naming.
 
 ---
 

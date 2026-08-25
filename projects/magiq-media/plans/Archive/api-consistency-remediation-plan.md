@@ -1,6 +1,6 @@
 # API Consistency Remediation Plan
 
-_Derived from `api-rest-review.md` (Z:\claudia\magiq\projects\magiq-media\reviews\), Principal .NET / REST Architect pass, 2026-07-08._
+_Derived from `api-rest-review.md` (`Z:\claudia\magiq\projects\magiq-media\reviews\Archive\`), Principal .NET / REST Architect pass, 2026-07-08._
 _Owner: Chase Ramone. Status: Stages 0–5 substantially complete (2026-07-08); Stage 5 acceptance blocked on a spec-tree file-truncation incident — see Stage 5's incident note. `api-conventions.md` is fixed and verified; 11 other files are confirmed truncated and deferred pending Chase's go-ahead. Three earlier items flagged for a decision/follow-up, not auto-resolved — see Stage 1's note on the three asset-upload `202` endpoints, Stage 2's note on the `bulk-paths` envelope-shape mismatch, and Stage 3's note on the stale `InitiateRegistration` route/doc param mismatch._
 
 ## How to use this document

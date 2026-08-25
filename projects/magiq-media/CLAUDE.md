@@ -81,7 +81,39 @@ High
 | `plans/README.md` | Index of the plan folders: what each workstream is, which plan is live, what is parked or superseded |
 | `decisions/` | Decision log |
 | `prompts/` | AI prompts used to produce spec content |
-| `reviews/` | Informal spec review artifacts |
+| `reviews/` | Where work starts — review artifacts, in workstream subfolders mirroring `plans/`. Start at `reviews/README.md` |
+
+---
+
+## Review → Plan
+
+**Work goes through a review before it gets a plan.** The review argues the findings; the plan sequences
+them and tracks execution. Don't open a plan for something that hasn't been reviewed — if the reasoning
+isn't written down somewhere, that gap is the first thing to fix.
+
+`reviews/` and `plans/` mirror each other, one subfolder per workstream:
+
+```
+reviews/<workstream>/<review>.md   →   plans/<workstream>/<plan>.md
+reviews/<workstream>/Archive/      →   plans/<workstream>/Archive/
+```
+
+Three rules:
+
+1. **The folder name is the link.** A review and the plan that consumes it share the workstream folder
+   name. That is what survives archiving — when both sides are archived, the pairing is still legible.
+2. **Name the plan after the review.** For new work, the plan file takes the review's filename. Where
+   several reviews feed one plan — the 2026-07 architecture set is eleven reviews to one plan — the
+   shared folder carries the trace instead, and the plan says which reviews it consumes.
+3. **Archive both sides together.** When a workstream finishes, its review and plan move to the
+   `Archive/` inside their respective folders. A finished workstream leaves a matched pair.
+
+`plans/README.md` and `reviews/README.md` index both trees with status. Update them when adding a
+workstream — a folder nobody indexed is a folder the next session won't find.
+
+**One deliberate exception:** `plans/spec-drift-review/spec-repo-drift-review.md` is a review *and* its
+own working checklist. It lives on the plans side because that is where its ✓ column is worked; splitting
+it would separate the findings from the boxes tracking them.
 
 > **Spec and ADRs moved 2026-07-07.** `spec/contexts/`, `spec/shared/`,
 > `spec/architecture/`, and `adrs/` now live in

@@ -6,7 +6,7 @@ _Status: **DEFERRED — parked, not cancelled.** Owner: **Chase** on every item.
 
 > **Why this doc exists.** On 2026-07-20 the authorization stream (**Stream C / Phase 3**) and the transactional-outbox PR (**PR-B4**), plus the outbox scoping spike (**INV-2**), were pulled out of the main remediation plan so the primary backlog stays focused on the async backbone (Phase 1), distributed-systems safety (Phase 2 minus outbox), and per-module correctness (Phase 4). **Deferred means sequencing only — both remain hard/near-hard pre-production obligations.** Authorization is explicitly on the production gate (`main plan §16, item 4`); the outbox work closes a durable dual-write divergence that should land before prod if async volume makes silent publish loss material.
 
-> **Finding IDs and severities are the reviews'** (the 2026-07-19 set in `D:\source\github\magiq-media\docs\reviews\`); sequencing and PR grouping are this plan's, unchanged from the main plan except for ownership (now all **Chase**) and being tracked here.
+> **Finding IDs and severities are the reviews'** (the 2026-07-19 set in `Z:\claudia\magiq\projects\magiq-media\reviews\architecture-review-remediation\` — corrected 2026-08-24 from `D:\source\github\magiq-media\docs\reviews\`, which is an empty folder); sequencing and PR grouping are this plan's, unchanged from the main plan except for ownership (now all **Chase**) and being tracked here.
 
 ---
 
