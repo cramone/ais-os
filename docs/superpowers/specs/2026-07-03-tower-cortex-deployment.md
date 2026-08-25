@@ -1,3 +1,5 @@
+> Cortex-side flow moved to `/mnt/shared/cortex/docs/patterns/tower-deploy-flow.md` (2026-08-25). This file now covers the tower application side only.
+
 # Control Tower on Cortex — Deployment Design
 
 **Date:** 2026-07-03 (revised 2026-07-05)
@@ -70,101 +72,13 @@ Two things had to be possible; here's how each is satisfied:
 
 ---
 
-## Cortex-side setup (one-time)
+## Day-to-day development (Windows)
 
-### 1. Confirm the shared mount, populate `.env`
-
-**Revised 2026-07-05 — no clone step.** `/mnt/shared/claudia/magiq` should already exist on Cortex per the setup guide's Stage 14 (DS923 SMB mount) and Stage 15.5 (shared folder structure) — it's the same mount Claudia already works out of. Confirm it's there and populated before wiring Tower to it:
-
-```bash
-ls /mnt/shared/claudia/magiq/tower/server.py   # should exist — confirms the mount is live and has the repo on it
-```
-
-If `.env` doesn't already exist at `/mnt/shared/claudia/magiq/.env` (it's gitignored, so it won't have arrived via the share the way tracked files did):
-
-```bash
-cd /mnt/shared/claudia/magiq
-cp .env.example .env
-nano .env   # fill in TOWER_TOKEN, GH_TOKEN, AZURE_DEVOPS_*, ANTHROPIC_API_KEY, TOWER_ALLOWED_ORIGINS
-```
-
-`TOWER_ALLOWED_ORIGINS` on Cortex: `https://tower.ramonedevelopment.com`
-
-`GH_TOKEN`: on Windows, `gh` was already interactively logged in, so no token was needed there. The container has no interactive session — `gh` picks up `GH_TOKEN` automatically. Fine-grained PAT, read-only on repos/PRs.
-
-### 2. Add the service to the authoritative compose file
-
-Per the setup guide: `~/stack/docker-compose.yml` is the single authoritative file — edit it directly, don't create a second one. Add:
-
-```yaml
-  # ── AIS-OS Control Tower ────────────────────────────────────────────────
-  tower:
-    build:
-      context: /mnt/shared/claudia/magiq
-      dockerfile: tower/Dockerfile
-    restart: unless-stopped
-    user: "1000:1000"
-    env_file:
-      - /mnt/shared/claudia/magiq/.env
-    volumes:
-      - /mnt/shared/claudia/magiq:/app
-    extra_hosts:
-      - "host.docker.internal:host-gateway"   # reaches claudia-bridge on the host, same pattern as Open WebUI -> Ollama
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.tower.rule=Host(`tower.ramonedevelopment.com`)"
-      - "traefik.http.routers.tower.entrypoints=tailnet"
-      - "traefik.http.routers.tower.tls.certresolver=public"
-      - "traefik.http.services.tower.loadbalancer.server.port=8765"
-```
-
-Note: `tls.certresolver=public` (not bare `tls=true`) — matches the §10.3b pattern in the setup guide, gets a real Let's Encrypt cert for a tailnet-only router the same way `mcp-ado`/`seq`/`portainer`/`openwebui` already do. The original design's `tls=true` line would have repeated the self-signed-cert gap those four services had before it was fixed.
-
-**CIFS write permissions — verified 2026-07-05.** Tested directly on cortex against the live mount (`mount | grep /mnt/shared` showed `forceuid,forcegid,file_mode=0755,dir_mode=0755,nounix`): a throwaway container writes through the bind mount successfully both as root (default, no `user:` line — `uid=0` bypasses the local permission check) and as `--user 1000:1000` (owner-match against the `forceuid`-presented ownership). Either works; `user: "1000:1000"` above is the least-privilege choice, not a requirement. No `noperm` remount or other mount changes needed.
-
-```bash
-cd ~/stack
-docker compose up -d --build tower
-```
-
-### 3. Claudia bridge
-
-Fixes the open item below. Install as a systemd `--user` service on Cortex:
-
-```bash
-mkdir -p ~/.config/systemd/user
-cp scripts/claudia-bridge/claudia-bridge.service ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable --now claudia-bridge.service
-systemctl --user status claudia-bridge.service
-```
-
-**Before enabling:** confirm the CLI invocation in `scripts/claudia-bridge/server.py`'s `CLAUDIA_CMD`. It assumes `claudia chat -q "<message>" --yolo` works non-interactively (`claudia` as a scoped wrapper around `hermes --profile claudia`, per the `claudia gateway install/start` pattern in the setup guide). Verify with `which claudia` and a manual `claudia chat -q "test" --yolo` on Cortex first — adjust `CLAUDIA_CMD` if the real invocation differs. Nothing else in the bridge, Tower's `claudia.py`, or the compose file needs to change if it does.
-
-Set `CLAUDIA_BRIDGE_URL=http://host.docker.internal:8901` in Cortex's `.env`. On Windows, leave it unset — Tower falls back to `docker exec hermes ...` automatically (`tower/readers/claudia.py` branches on whether `CLAUDIA_BRIDGE_URL` is set).
-
-### 4. ~~Autosync timer~~ — removed, not needed
-
-**Superseded 2026-07-05.** The original design ran a systemd timer every 10 minutes to auto-commit + push Tower's live writes back to GitHub so Windows would see them on the next pull. That whole mechanism existed only to solve cross-machine visibility — and the shared NAS mount (Step 1 above) already solves that with no timer, no git identity/push credentials needed on Cortex, and no risk of an automated commit/push firing at a bad moment.
-
-Git still matters for **history and GitHub backup** of the repo as a whole — just as a manual/periodic action, not a timer reacting to Tower's writes specifically. Run `git add -A && git commit && git push` from whichever machine you're on when you want a checkpoint (Windows, since that's where you're usually driving Claude Desktop/Claude Code). `scripts/tower-deploy-check.sh` still works for checking whether `tower/` code has unpushed commits — that's a separate, still-useful question from "did Tower's live data get backed up."
-
----
-
-## Ongoing workflow
-
-**Day-to-day dev (Windows):** unchanged. `python tower/start.py`, edit, test — against the same `Z:\claudia\magiq` files the Cortex container reads.
-
-**Deploy to Cortex:**
-```bash
-ssh chase@cortex "cd /mnt/shared/claudia/magiq && ./tower/deploy-cortex.sh"
-```
-
-Or double-click **Deploy Tower to Cortex** on the Desktop (`tower/deploy.bat`, shortcut created via `tower/create-deploy-shortcut.ps1`) — runs the same command in a window, only prompts for the SSH password/passphrase. **Revised 2026-07-05:** `deploy-cortex.sh` no longer does `git pull` first — the bind-mounted share already reflects whatever's on disk the instant you save from Windows. The Docker build is still cache-hit if `requirements.txt` didn't change, so it's still safe to run speculatively; it just does less than it used to (rebuild/restart/health-check/tag only).
-
-`deploy-cortex.sh` still moves a `deployed-tower` git tag to whatever commit is currently checked out, for history purposes. `scripts/tower-deploy-check.sh` diffs that tag against `origin/main` (scoped to `tower/`) if you want to check what code has been pushed to GitHub but not yet "tagged as deployed" — read-only, safe to run anytime, doesn't touch Cortex.
+Unchanged. `python tower/start.py`, edit, test — against the same `Z:\claudia\magiq` files the Cortex container reads. No Docker required for the inner development loop.
 
 **Windows picks up Tower-originated data changes:** immediately — no `git pull` needed, it's the same file over SMB. (Subject to normal SMB client-side caching; if something looks stale, a manual refresh of the file/folder view is the first thing to try before assuming something's actually wrong.)
+
+For deploy workflow and cortex-side setup, see `/mnt/shared/cortex/docs/patterns/tower-deploy-flow.md`.
 
 ---
 
@@ -176,7 +90,7 @@ Original problem: `tower/readers/claudia.py` shelled out to `docker exec hermes 
 
 Why a bridge exists at all, rather than always using the SSH path: the Tower container has no SSH client/keys installed (its `Dockerfile` only adds `git`/`gh`), so `_send_via_docker()`'s SSH command wouldn't actually run from inside cortex's own Tower container — it's really the Windows/WSL-dev fallback, not a second Cortex-side option. On Cortex, the bridge is the only path that works from inside the container; SSH-from-container was considered and rejected anyway (key management overhead for no real benefit over a plain HTTP bridge), and replicating the Hermes venv inside the Tower image was rejected too (duplicates a working install, fragile to keep in sync).
 
-**Not yet verified:** the bridge's `CLAUDIA_CMD` assumes `claudia chat -q "<message>" --yolo` is the correct non-interactive invocation, inferred from the `claudia gateway install/start` pattern in the setup guide but never directly confirmed. One-line fix if wrong — see step 3 in Cortex-side setup above.
+**Not yet verified:** the bridge's `CLAUDIA_CMD` assumes `claudia chat -q "<message>" --yolo` is the correct non-interactive invocation, inferred from the `claudia gateway install/start` pattern in the setup guide but never directly confirmed. One-line fix if wrong — see cortex deploy flow doc.
 
 **Single shared `.env` wrinkle (2026-07-05):** now that Windows/WSL and Cortex all read the same `.env` (per the Data model revision above), setting `CLAUDIA_BRIDGE_URL` there means a Windows/WSL dev instance of Tower (`python tower/start.py`, not in Docker) will also try `_send_via_bridge()` — and `host.docker.internal` doesn't resolve outside a container, so "Ask Claudia" specifically fails there. Every other feature is unaffected either way. Not fixed as of this writing — just documented so it doesn't look like a mystery bug.
 
@@ -184,7 +98,7 @@ Why a bridge exists at all, rather than always using the SSH path: the Tower con
 
 ✅ **ADO reachability from Cortex — resolved 2026-07-04.** Originally flagged here as unverified (`connections.md`: "ADO writes must originate from Chase's machine, org IP allowlist"). This got tested as part of the separate Azure DevOps MCP work (`docs/superpowers/specs/2026-07-04-azure-devops-mcp-integration.md`, setup guide Stage 16.3) — same box, same egress path — and confirmed allowlisted. Tower's interrupt-push feature can rely on this; no separate re-test needed.
 
-✅ **CIFS write permissions — resolved 2026-07-05.** See the verified note in Cortex-side setup Step 2. Tested directly against the live mount; writes work both as root and as UID 1000. `user: "1000:1000"` is in the compose block above as the least-privilege choice.
+✅ **CIFS write permissions — resolved 2026-07-05.** See the verified note in the cortex deploy flow doc (Step 2). Tested directly against the live mount; writes work both as root and as UID 1000. `user: "1000:1000"` is in the compose block as the least-privilege choice.
 
 ⚠️ **Availability coupling — accepted tradeoff, not a bug.** Tower on Cortex now depends on the DS923 SMB mount staying up (same dependency Claudia already has). If Tailscale or the NAS drops, Tower's container will error or hang on file access until the mount recovers — unlike the old `/opt/ais-os` local-disk-clone design, which kept running standalone regardless of NAS availability. Documented here so it's a conscious call, not a surprise.
 
@@ -192,7 +106,7 @@ Why a bridge exists at all, rather than always using the SSH path: the Tower con
 
 ## Rollout order
 
-1. Confirm `/mnt/shared/claudia/magiq` is live on Cortex and populate `.env` there if missing (Step 1). ✅ CIFS write access confirmed 2026-07-05 — no blocker.
+1. Confirm `/mnt/shared/claudia/magiq` is live on Cortex and populate `.env` there if missing. ✅ CIFS write access confirmed 2026-07-05 — no blocker.
 2. Verify Claudia CLI invocation (`which claudia`, manual `claudia chat -q "test" --yolo`), fix `CLAUDIA_CMD` in `scripts/claudia-bridge/server.py` if needed, then install + enable `claudia-bridge.service`.
 3. Add `tower` service to `~/stack/docker-compose.yml` (includes `user: "1000:1000"` and `extra_hosts` for the bridge), `docker compose up -d --build tower`.
 4. Verify: `curl https://tower.ramonedevelopment.com:8443/api/health` from a tailnet device — confirm `projects`/`decisions`/`interrupts`/`claudia` all `true`.

@@ -1,5 +1,7 @@
 # Hermes Integration — magiq folder Context
 
+> Install-side content moved to `/mnt/shared/cortex/docs/setup/07-hermes-install.md` (2026-08-25). This file now covers consumer-side integration only.
+
 ## What Hermes Is
 Persistent agent framework. **As of 2026-07-04, the Docker-based install on the Windows PC (`hermes` + `hermes-dashboard` containers, described in "Retired setup" below) is retired.** The active work-profile agent is now **Claudia**, a bare-metal Hermes profile running on the `cortex` server (see [[cortex]]). Job (unchanged): capture notes/ideas/risks/decisions when away from desk, run scheduled cron tasks, bridge messaging platforms.
 

@@ -59,898 +59,101 @@ Fill in each table as the corresponding stage tells you to. This file gets `git 
 
 ## Stage 0 — Unboxing & Physical Setup
 
-1. Unbox, inspect for shipping damage (case, ports, included power adapter).
-2. Check box contents match: AI X1 Pro-370 unit, power adapter, mounting bracket/screws (if included), any cables.
-3. Place near your router/switch — you'll want **wired Ethernet** for the initial setup and ideally for the final config too (Wi-Fi 7 is fine later, but wired is more predictable for benchmarking).
-4. **[PHYSICAL]** Connect: monitor (HDMI/DP), keyboard, mouse, ethernet cable, power. Do not power on yet.
-5. If you plan to open the case to check/upgrade RAM or add NVMe drives, do it now before first boot (skip if you're keeping the stock 32GB / 1TB config).
-
----
+> Moved to `/mnt/shared/cortex/docs/setup/01-hardware-and-os.md` as of 2026-08-25.
 
 ## Stage 1 — BIOS Configuration **[PHYSICAL]**
 
-1. Power on, spam `Del` or `F7` (check splash screen — MINISFORUM boards typically use `Del`) to enter BIOS/UEFI.
-2. **Check RAM channel config first** (free look while you're in here):
-   - Find the memory info page (often `Advanced` → `Memory Information` / `DRAM Configuration`, sometimes on the main dashboard).
-   - Confirm whether you see **two populated slots** (e.g., 16GB + 16GB = dual-channel) or **one populated slot** (32GB = single-channel). Some BIOSes explicitly print `Channel Mode: Dual/Single`.
-   - **Write this down** — it goes in `BENCHMARKS.md` later and materially affects expected throughput.
-3. **Set the iGPU UMA Frame Buffer / GART size** (critical for Ollama on the 890M):
-   - Find it under `Advanced` → something like `UMA Frame Buffer Size`, `iGPU Memory Allocation`, or `GFX Configuration`.
-   - With 32GB total RAM, set UMA allocation to **16GB** if available (leaves 16GB for OS + Docker stack; an 8-9B Q4_K_M model needs ~5-6GB, leaving headroom for context). If only fixed steps exist (e.g., 4/8/16GB), pick **16GB**. If the max step is lower, note it — it caps the model+context size you can run on GPU.
-   - If your BIOS only offers "Auto" with no manual override, note that too — Ollama/Vulkan may need a kernel boot parameter workaround later (`amdgpu.gttsize=`) covered in Stage 7.
-4. Disable Secure Boot (simplifies Ubuntu + driver installation; re-enable later only if you have a strong reason to).
-5. Set boot priority: ensure boot menu (`F11`/`F7`) is accessible for picking the USB installer.
-6. Save & Exit (`F10`, confirm).
-
----
+> Moved to `/mnt/shared/cortex/docs/setup/01-hardware-and-os.md` as of 2026-08-25.
 
 ## Stage 2 — Prepare the Ubuntu Server Installer USB
 
-Do this on **any other computer** (not the mini PC):
-
-1. Download **Ubuntu Server 24.04 LTS** ISO: https://ubuntu.com/download/server
-2. Flash to a USB drive (8GB+) using:
-   - **Balena Etcher** (Windows/Mac/Linux GUI), or
-   - `dd` on Linux/Mac: `sudo dd if=ubuntu-24.04-live-server-amd64.iso of=/dev/sdX bs=4M status=progress`
-3. **Recommended — pre-stage SSH key access during install** so Stage 3 ends with the box already reachable via SSH (no extra physical time needed):
-   - Have your SSH public key (`~/.ssh/id_ed25519.pub` or similar) ready to paste — Ubuntu's installer (Subiquity) has a built-in step for this, no extra USB prep needed for it.
-   - If you don't have an SSH key pair yet, generate one now on your main machine: `ssh-keygen -t ed25519 -C "cortex"`.
-   - **If your main machine is Windows: copy this same key into WSL too.** Two separate processes need to reach cortex over SSH non-interactively later (Claude Code's Hermes MCP server, and the Control Tower if run via `python tower/start.py`), and they don't share a credential store — Windows OpenSSH keeps keys at `%USERPROFILE%\.ssh\`, WSL keeps its own at `~/.ssh\` inside the Linux filesystem. Use the **same keypair** in both places rather than generating a second one (one fewer key to keep authorized on cortex):
-     ```bash
-     # Run inside WSL, after generating/staging the key on the Windows side
-     mkdir -p ~/.ssh
-     cp /mnt/c/Users/<you>/.ssh/id_ed25519 /mnt/c/Users/<you>/.ssh/id_ed25519.pub ~/.ssh/
-     chmod 600 ~/.ssh/id_ed25519
-     chmod 644 ~/.ssh/id_ed25519.pub
-     ```
-   - **Verify both contexts can reach cortex non-interactively** once Stage 5 (Tailscale) is done on cortex:
-     ```bash
-     # From Windows (PowerShell/cmd)
-     ssh chase@cortex echo ok
-     # From WSL
-     ssh chase@cortex echo ok
-     ```
-     Both should print `ok` with no password/passphrase prompt. If either one prompts, that side's key isn't staged correctly — re-check the copy step and cortex's `~/.ssh/authorized_keys`.
-
----
+> Moved to `/mnt/shared/cortex/docs/setup/01-hardware-and-os.md` as of 2026-08-25.
 
 ## Stage 3 — Ubuntu Server Install **[PHYSICAL]**
 
-1. Insert installer USB, power on, hit boot-menu key, select the USB drive.
-2. Choose **"Try or Install Ubuntu Server"**.
-3. Language → keyboard layout → network: select your wired NIC, let it grab DHCP (note the IP shown — you'll need it for SSH).
-4. **Storage**: use entire 1TB NVMe, default LVM layout is fine for v1.
-5. Profile setup: set your username (`chase`), hostname (`cortex`), password.
-6. **SSH Setup screen**: tick **"Install OpenSSH server"**, then **"Import SSH identity"** or paste your public key directly when prompted. This is the step that lets you ditch the keyboard/monitor immediately after install.
-7. Skip the snap/featured-server-snaps screen (don't install Docker via snap here — you'll install it properly later).
-8. Let install finish, reboot when prompted, remove USB.
-9. **[PHYSICAL ENDS HERE]** — box should now boot to a login prompt with SSH already live.
-
----
+> Moved to `/mnt/shared/cortex/docs/setup/01-hardware-and-os.md` as of 2026-08-25.
 
 ## Stage 4 — First Remote Connection
 
-From your main machine or iPhone:
-
-1. **iPhone:** install **Tailscale** app + an SSH client (**Termius** recommended). On laptop/desktop: install Tailscale natively and use any terminal.
-2. From your LAN first (before Tailscale is configured), SSH in using the IP noted in Stage 3:
-   ```bash
-   ssh chase@<lan-ip>
-   ```
-3. Update the system:
-   ```bash
-   sudo apt update && sudo apt full-upgrade -y
-   sudo reboot
-   ```
-
----
+> Moved to `/mnt/shared/cortex/docs/setup/01-hardware-and-os.md` as of 2026-08-25.
 
 ## Stage 4.5 — Network & Firewall Baseline
 
-**Why now:** every Traefik stage from Stage 10 onward depends on three things this guide otherwise treats as background facts instead of steps — a domain with dynamic DNS, router ports forwarded to cortex, and a firewall that's default-deny but still lets SSH in. Do all three now, in the order below. **Reversing the two ufw commands in 4.5.3 is the one lockout risk in this entire guide** — Stage 3 was the last point with physical access.
-
-### 4.5.1 — Domain + DNS (Cloudflare)
-
-> **Updated 2026-07.** The original live setup used **No-IP** with a **wildcard** A record and Traefik **HTTP-01** ACME. That has been fully replaced: DNS moved to **Cloudflare**, ACME is now **DNS-01** (Cloudflare API — §10.3b), and there is **no wildcard** record. Reasons: DNS-01 needs a supported DNS provider (No-IP isn't one — Cloudflare is), removes the need for a public `:80` at all, and a wildcard A record was over-exposing (it published the home IP for every tailnet-only subdomain). The steps below are the current model; the migration rationale is in `decisions/log.md`.
-
-1. Register a domain (or use one you own). This guide uses `ramonedevelopment.com` as the example — substitute your own everywhere.
-2. Add the domain to **Cloudflare** and point the registrar's nameservers at Cloudflare's.
-3. Create a **scoped API token** (My Profile → API Tokens): permissions **Zone → DNS → Edit** + **Zone → Read**, scoped to your zone only. This one token is reused by Traefik (DNS-01) *and* the DDNS updater — it lands in `~/stack/.env` as `CF_DNS_API_TOKEN` (Stage 22).
-4. **Public A records — only for the hosts you actually expose to the internet.** In this build that's just `login.` (Authentik) and `tower.` (Control Tower), both added in Stage 23. Every other service is tailnet-only and resolves via Split DNS (Stage 10.8), so it needs **no** public record. **Do not add a wildcard** — it would publish your home IP for every subdomain including the tailnet-only ones.
-5. Keep those public records current as your home IP changes with the **`favonia/cloudflare-ddns`** container (defined in Stage 23) — it reuses `CF_DNS_API_TOKEN`, detects the WAN IP, and creates/updates only the listed hosts. (Router-native Cloudflare DDNS works too if you'd rather keep it off cortex.)
-
-**No public record needed for tailnet certs:** DNS-01 validates by writing a transient `_acme-challenge.<host>` TXT via the Cloudflare API — so a tailnet-only host like `redis.` gets a real Let's Encrypt cert with **no** public A record at all (§10.3b). Public A records exist only for hosts genuinely reachable from the internet.
-
-### 4.5.2 — Router Port Forwarding
-
-Forward **External `443` (TCP) → cortex's LAN IP `:443`** on your router.
-
-> **Updated 2026-07.** Originally this forwarded `80` + `443` for Traefik's HTTP-01 ACME challenge. ACME is now **DNS-01** (§10.3b, Cloudflare API) — the challenge is a TXT record written via the API, so **no inbound `:80` is needed and the `:80` forward can be closed.** The `:443` forward stays: it feeds Traefik's public `websecure` entrypoint, which serves the two internet-facing hosts (`login.` + `tower.`, Stage 23). Pin cortex's LAN IP as a **DHCP reservation** first, or the forward breaks on lease renewal.
-
-This is the only router forwarding the stack needs. It does not expose anything by itself — reachability is still governed by which Traefik entrypoint a router binds to (`tailnet` = tailscale-IP-only, `websecure` = public). Only `login.` and `tower.` bind `websecure`.
-
-### 4.5.3 — Firewall Baseline (ufw)
-
-**Order matters — allow SSH before enabling the firewall, not after:**
-
-```bash
-sudo apt install -y ufw
-sudo ufw allow OpenSSH        # 1st — must run before enable, or the next command locks you out
-sudo ufw enable                # 2nd — confirm "y" at the SSH-disruption prompt
-sudo ufw status verbose
-```
-
-Expect `22/tcp ALLOW` and default incoming policy `deny`. This is the baseline every later per-service rule builds on (Stage 10.6 opens 19999 for Netdata, Stage 10.7 opens 9090 for Cockpit) — this stage doesn't open those yet, it just makes sure the default-deny switch itself is safe to flip.
-
----
+> Moved to `/mnt/shared/cortex/docs/setup/01-hardware-and-os.md` as of 2026-08-25.
 
 ## Stage 5 — Tailscale (remote access, no public ports)
 
-1. Install Tailscale:
-   ```bash
-   curl -fsSL https://tailscale.com/install.sh | sh
-   sudo tailscale up
-   ```
-2. Follow the auth link printed in terminal (open it on your phone/laptop, log into your Tailscale account).
-3. Confirm it's connected:
-   ```bash
-   tailscale status
-   tailscale ip -4
-   ```
-4. From now on, SSH via the Tailscale IP/hostname (e.g. `ssh chase@cortex.your-tailnet.ts.net`) from anywhere — including your iPhone via Termius, no port forwarding, no public exposure.
-5. Optional: in the Tailscale admin console, disable key expiry for this node so it doesn't drop off the tailnet unexpectedly.
-6. **Tailscale IP is tied to node identity, not the physical interface** — confirmed empirically across a WiFi→Ethernet swap (Stage 5.5) with zero IP change. You don't need to update anything hardcoded to the Tailscale IP (Traefik's `--entrypoints.tailnet.address` in Stage 10.3, `dns-internal`'s `--listen-address` in Stage 10.3, Tailscale nameserver entries in Stage 10.8) purely because of an interface change. Still worth a quick `tailscale ip -4` sanity check after any networking change, since those are manual hardcodes, not auto-resolved.
-
----
+> Moved to `/mnt/shared/cortex/docs/setup/01-hardware-and-os.md` as of 2026-08-25.
 
 ## Stage 5.5 — Dual-NIC Network Priority (Ethernet over Wi-Fi)
 
-cortex has two NICs — a 2-port ethernet controller (only one port wired in) and onboard Wi-Fi. Goal: both stay active simultaneously, ethernet takes priority when connected, automatic failover to Wi-Fi if the cable's unplugged. No manual radio toggling.
-
-**Interfaces:**
-- `enp195s0` — ethernet, port 2, unused (no cable) — MAC `38:05:25:36:65:fb`
-- `enp196s0` — ethernet, port 1, wired — MAC `38:05:25:36:65:fc`
-- `wlp194s0` — Wi-Fi — MAC `38:9b:73:cc:f7:43`
-
-**Finding:** this box runs netplan with the `networkd` renderer (not NetworkManager — `nmcli device status` will show everything `unmanaged`, that's expected here, don't chase it).
-
-**Config — `/etc/netplan/*.yaml`:**
-```yaml
-network:
-  version: 2
-  renderer: networkd
-  ethernets:
-    enp195s0:
-      match:
-        macaddress: "38:05:25:36:65:fb"
-      set-name: "enp195s0"
-    enp196s0:
-      dhcp4: true
-      accept-ra: true
-      dhcp4-overrides:
-        route-metric: 100
-  wifis:
-    wlp194s0:
-      dhcp4: true
-      dhcp4-overrides:
-        route-metric: 600
-      access-points:
-        "<your-ssid>":
-          auth:
-            key-management: "psk"
-            password: "<your-wifi-password>"
-```
-
-Lower `route-metric` wins the default route — ethernet (100) beats Wi-Fi (600). Both interfaces stay up; unplugging ethernet drops its route and traffic fails over to Wi-Fi automatically.
-
-Apply safely (auto-reverts if it breaks connectivity):
-```bash
-sudo netplan try
-```
-
-**Not used:** an `/etc/NetworkManager/dispatcher.d/50-wifi-off` script that force-disabled the Wi-Fi radio on ethernet-up was tried and removed — it fully kills Wi-Fi instead of just deprioritizing it, which risks a full lockout if ethernet ever comes up without a working IP. Route metrics above replace it.
-
-**⚠️ TODO — router reservation:** reserve static IPs for both MACs in the router's DHCP settings so they don't change:
-- `38:05:25:36:65:fc` (enp196s0, ethernet)
-- `38:9b:73:cc:f7:43` (wlp194s0, Wi-Fi)
-
-Get current leased IPs to reserve against:
-```bash
-ip -br addr show enp196s0 wlp194s0
-```
+> Moved to `/mnt/shared/cortex/docs/setup/01-hardware-and-os.md` as of 2026-08-25.
 
 ---
 
 ## Stage 6 — Verify RAM Configuration
 
-1. Confirm dual/single channel from the OS side:
-   ```bash
-   sudo apt install -y dmidecode
-   sudo dmidecode -t memory | grep -E "Size:|Locator:|Speed:" | grep -v "No Module"
-   ```
-   Two populated DIMM entries = dual-channel. Cross-check against what you saw in BIOS (Stage 1).
-2. Run a real bandwidth check:
-   ```bash
-   sudo apt install -y sysbench
-   sysbench memory --memory-block-size=1M --memory-total-size=10G run
-   ```
-3. **Log results now** in `BENCHMARKS.md` — Hardware table (RAM total, channel config, confirmed ✅) and add a note with the sysbench number under Resource Contention or a new row.
-
----
+> Moved to `/mnt/shared/cortex/docs/setup/01-hardware-and-os.md` as of 2026-08-25.
 
 ## Stage 7 — GPU Driver Stack for the Radeon 890M (Vulkan path)
 
-1. Install Mesa/Vulkan userspace (RADV driver — this is what gives Vulkan access to the 890M):
-   ```bash
-   sudo apt install -y mesa-vulkan-drivers vulkan-tools
-   ```
-2. Verify the GPU is visible to Vulkan:
-   ```bash
-   vulkaninfo --summary
-   ```
-   You should see `AMD Radeon Graphics (RADV ...)` listed, gfx1150 family.
-
-   **If you instead see a permission error** (`Could not open device /dev/dri/renderD128: Permission denied`) and the device falls back to `llvmpipe` (`deviceType = PHYSICAL_DEVICE_TYPE_CPU`), your user and the `ollama` service user both need to be in the `render` group:
-   ```bash
-   sudo usermod -aG render,video $USER
-   sudo usermod -aG render,video ollama
-   newgrp render   # re-applies group membership in current shell without full logout
-   vulkaninfo --summary | grep -A5 "deviceType\|deviceName"
-   ```
-   Confirm `deviceType = PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU` and `deviceName = AMD Radeon 890M Graphics (RADV STRIX1)` before moving on. The `ollama` systemd service also needs a restart (`sudo systemctl restart ollama`) after its group membership changes — already-running processes don't pick up new group membership retroactively.
-3. If UMA allocation in BIOS was fixed/low or only "Auto," check actual GTT/VRAM visible to the GPU:
-   ```bash
-   sudo dmesg | grep -i amdgpu | grep -i vram
-   ```
-   If it's too small for your model+context, you'll need to revisit Stage 1's BIOS setting, or add a kernel param via GRUB (`amdgpu.gttsize=<MB>`) — only needed if BIOS has no manual override.
-
----
+> Moved to `/mnt/shared/cortex/docs/setup/01-hardware-and-os.md` as of 2026-08-25.
 
 ## Stage 8 — Install Ollama (Bare Metal)
 
-1. Install:
-   ```bash
-   curl -fsSL https://ollama.com/install.sh | sh
-   ```
-2. Configure systemd override for Vulkan + tuning — create the override file:
-   ```bash
-   sudo mkdir -p /etc/systemd/system/ollama.service.d
-   sudo tee /etc/systemd/system/ollama.service.d/override.conf <<'EOF'
-   [Service]
-   Environment="OLLAMA_VULKAN=1"
-   Environment="OLLAMA_IGPU_ENABLE=1"
-   Environment="OLLAMA_LLM_LIBRARY=vulkan"
-   Environment="ROCR_VISIBLE_DEVICES="
-   Environment="OLLAMA_FLASH_ATTENTION=1"
-   Environment="OLLAMA_KEEP_ALIVE=-1"
-   Environment="OLLAMA_HOST=0.0.0.0:11434"
-   EOF
-   ```
-   **Why all four GPU-related vars are needed, not just `OLLAMA_VULKAN=1`:**
-   - `OLLAMA_VULKAN=1` alone is **not sufficient** — the iGPU gets silently dropped (`journalctl` will show `dropping integrated GPU; to enable, set OLLAMA_IGPU_ENABLE=1`) and Ollama falls back to CPU without any error, so a `--verbose` run will look like it worked while actually running on CPU.
-   - `OLLAMA_IGPU_ENABLE=1` is the real activation gate.
-   - Once the iGPU is enabled, Ollama may auto-select **ROCm** over Vulkan for the 890M (`library=ROCm`) — explicitly set `OLLAMA_LLM_LIBRARY=vulkan` to force the correct backend per this project's Vulkan-over-ROCm decision (ROCm support for gfx1150/Strix Point is unofficial/poor).
-   - `ROCR_VISIBLE_DEVICES=` (blank) is a belt-and-suspenders block on ROCm being selected.
-3. Reload and restart:
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl restart ollama
-   sudo systemctl enable ollama
-   ```
-4. Confirm Vulkan backend is in use:
-   ```bash
-   journalctl -u ollama -n 50 --no-pager | grep -i vulkan
-   ```
-   Look for a line identifying `AMD Radeon(TM) 890M Graphics` as the inference compute device.
-5. Pull and test a model:
-   ```bash
-   ollama pull hermes3:8b
-   ollama run hermes3:8b --verbose <<< "Write one sentence about mini PCs."
-   ```
-   Note the `eval rate` (tok/s) printed at the end — **first real throughput number for BENCHMARKS.md.**
-
----
+> Moved to `/mnt/shared/cortex/docs/setup/01-hardware-and-os.md` as of 2026-08-25.
 
 ## Stage 9 — systemd Resource Isolation (Ollama vs Docker)
 
-1. Create a dedicated slice for Ollama with guaranteed priority:
-   ```bash
-   sudo mkdir -p /etc/systemd/system/ollama.service.d
-   sudo tee -a /etc/systemd/system/ollama.service.d/override.conf <<'EOF'
-
-   [Service]
-   CPUWeight=800
-   IOWeight=800
-   MemoryHigh=20G
-   EOF
-   sudo systemctl daemon-reload
-   sudo systemctl restart ollama
-   ```
-2. You'll cap Docker's total resource ceiling in Stage 10 so containers can't starve Ollama out under load.
+> Moved to `/mnt/shared/cortex/docs/setup/01-hardware-and-os.md` as of 2026-08-25.
 
 ---
 
 ## Stage 10 — Docker + Compose Stack
 
-### 10.1 — Install Docker Engine
-
-```bash
-sudo apt install -y ca-certificates curl gnupg
-sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-sudo apt update
-sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-sudo usermod -aG docker $USER
-```
-
-Log out/in (or `newgrp docker`) for group membership to take effect.
-
----
-
-### 10.2 — Docker Daemon Resource Cap
-
-Cap Docker's overall resource ceiling at the daemon level so it can't crowd out Ollama:
-
-```bash
-sudo tee /etc/docker/daemon.json <<'EOF'
-{
-  "default-ulimits": {
-    "nofile": { "Name": "nofile", "Hard": 64000, "Soft": 64000 }
-  }
-}
-EOF
-sudo systemctl restart docker
-```
-
-Per-container `mem_limit`/`cpus` is the more direct lever — add those once Stage 12 contention benchmarking gives real numbers.
-
----
-
-### 10.3 — Full Compose File
-
-This is the single authoritative `docker-compose.yml`. Don't add service snippets elsewhere — edit this file directly.
-
-**Domain note (updated 2026-07):** `ramonedevelopment.com` DNS is on **Cloudflare**, with **no wildcard** record (§4.5.1). Tailnet-only hostnames (`logs.`, `portainer.`, `chat.`, `redis.`, `mcp-ado.`, …) have **no public DNS record at all** — they resolve only via Split DNS on the tailnet (Stage 10.8). They still get real Let's Encrypt certs because ACME is **DNS-01** (§10.3b): lego proves control by writing a transient TXT via the Cloudflare API, which needs no public A record. Public reachability is controlled entirely by which Traefik `entrypoints` a router binds to. Exactly two hosts run their real router on `entrypoints=websecure` and are genuinely public via Cloudflare → forwarded `:443` — `login.` and `tower.` (Stage 23). Everything else is tailnet-entrypoint-only.
-
-```bash
-mkdir -p ~/stack && cd ~/stack
-nano docker-compose.yml
-```
-
-```yaml
-services:
-
-  # ── Reverse Proxy ────────────────────────────────────────────────────────────
-  traefik:
-    image: traefik:v3.6
-    restart: unless-stopped
-    network_mode: host
-    # network_mode: host is REQUIRED for the tailnet entrypoint below. Tailscale creates
-    # tailscale0 in the HOST network namespace — a container on the default bridge network
-    # can't see it, and binding to a tailscale IP from inside a bridge-networked container
-    # fails with "bind: cannot assign requested address" even when the IP is correct (confirmed
-    # via `tailscale ip -4` on the host). `ports:` and `extra_hosts:` are intentionally omitted
-    # below — both are meaningless (and ignored) under host networking; the entrypoint
-    # addresses in `command` are what actually bind, and the host's own DNS/hosts resolution
-    # applies directly.
-    environment:
-      # Scoped Cloudflare token (Zone:Read + DNS:Edit on your zone) — read by lego's cloudflare
-      # provider for the DNS-01 challenge below. Same token the DDNS updater reuses (Stage 23).
-      CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN}
-    command:
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      # Public entrypoints pinned to the LAN NIC IP (run `ip -4 addr show scope global`), NOT
-      # all-interfaces — this frees :443 on the tailscale IP for the tailnet entrypoint below.
-      - "--entrypoints.web.address=<lan-ip>:80"
-      - "--entrypoints.websecure.address=<lan-ip>:443"
-      # Tailnet entrypoint on :443 (was :8443). Replace <tailscale-ip> with `tailscale ip -4`
-      # (stable across NIC changes — Stage 5, point 6). :443 (not :8443) so domain-level
-      # forward-auth works (Stage 23 — authentik #12503) and URLs need no port suffix.
-      - "--entrypoints.tailnet.address=<tailscale-ip>:443"
-      # ACME is DNS-01 via Cloudflare (was HTTP-01). No public :80 needed; lego writes a
-      # _acme-challenge TXT via the API. Works for tailnet-only hosts with no public A record.
-      - "--certificatesresolvers.public.acme.dnschallenge=true"
-      - "--certificatesresolvers.public.acme.dnschallenge.provider=cloudflare"
-      - "--certificatesresolvers.public.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
-      - "--certificatesresolvers.public.acme.email=chase.ramone@magiqsoftware.com"
-      - "--certificatesresolvers.public.acme.storage=/letsencrypt/acme.json"
-      - "--log.level=INFO"
-      # cortex is sole owner of ramonedevelopment.com's public ACME path — confirmed working
-      # end-to-end 2026-07. Any previously separate Traefik instance for this domain is retired.
-    # NOTE: Traefik versions before 3.6.1 hardcode their Docker SDK client to declare API v1.24
-    # regardless of the DOCKER_API_VERSION env var (tried that first — no effect). Docker Engine
-    # 29 raised its minimum accepted client API version and rejects that fallback outright —
-    # error: "client version 1.24 is too old. Minimum supported API version is 1.40". Fixed
-    # upstream in Traefik 3.6.1 via real auto-negotiation — pinning to v3.6 (above) is the
-    # actual fix, not a config workaround.
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "traefik_certs:/letsencrypt"
-      - "/var/lib/tailscale/certs:/tailscale-certs:ro"
-
-  # ── Databases ─────────────────────────────────────────────────────────────────
-  # SET REAL PASSWORDS NOW — don't leave "changeme"/"ChangeMe123!" in place while
-  # working through the rest of this guide. Stage 22 later moves these values out of
-  # this file into a cortex-local .env for a different reason (keeping the shared/
-  # NAS copy of this file secret-free) — that's a file-location fix, not a strength
-  # fix, and it's ~12 stages away. Pick strong passwords here, on first write.
-  mysql:
-    image: mysql:8.4
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: changeme        # replace with a real strong password now
-    volumes:
-      - mysql_data:/var/lib/mysql
-    # No Traefik labels — TCP protocol, access via Tailscale IP + port 3306 directly
-
-  sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    restart: unless-stopped
-    environment:
-      ACCEPT_EULA: "Y"
-      MSSQL_PID: "Developer"              # Free tier — dev/test only, not production
-      SA_PASSWORD: "ChangeMe123!"         # replace with a real strong password now
-    volumes:
-      - mssql_data:/var/opt/mssql
-    # RAM-hungry (2GB+ floor) — watch Ollama MemoryHigh headroom (Stage 9) under load
-    # No Traefik labels — TCP protocol, access via Tailscale IP + port 1433 directly
-
-  # ── Cache ─────────────────────────────────────────────────────────────────────
-  redis-stack:
-    image: redis/redis-stack:latest
-    restart: unless-stopped
-    volumes:
-      - redis_data:/data
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.redisinsight.rule=Host(`redis.ramonedevelopment.com`)"
-      - "traefik.http.routers.redisinsight.entrypoints=tailnet"
-      - "traefik.http.routers.redisinsight.tls.certresolver=public"
-      - "traefik.http.services.redisinsight.loadbalancer.server.port=8001"
-    # Includes RedisJSON, RediSearch, RedisInsight (UI on :8001 inside container, fronted by
-    # Traefik above — real LE cert via the §10.3b pattern). Drop to redis:7-alpine if you don't
-    # need those modules. Redis protocol itself (6379) stays off Traefik — reach it directly
-    # via Tailscale IP + port.
-
-  # ── Logging ───────────────────────────────────────────────────────────────────
-  seq:
-    image: datalust/seq:latest
-    restart: unless-stopped
-    environment:
-      ACCEPT_EULA: "Y"
-    volumes:
-      - seq_data:/data
-    labels:
-      - "traefik.enable=true"
-      # Named logs. rather than seq. for historical reasons (originally avoided a naming
-      # collision with a since-decommissioned Traefik instance) — kept for continuity.
-      - "traefik.http.routers.seq.rule=Host(`logs.ramonedevelopment.com`)"
-      - "traefik.http.routers.seq.entrypoints=tailnet"
-      - "traefik.http.routers.seq.tls.certresolver=public"
-
-  # ── Container Management ──────────────────────────────────────────────────────
-  portainer:
-    image: portainer/portainer-ce:latest
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - portainer_data:/data
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.portainer.rule=Host(`portainer.ramonedevelopment.com`)"
-      - "traefik.http.routers.portainer.entrypoints=tailnet"
-      - "traefik.http.routers.portainer.tls.certresolver=public"
-
-  # ── Ollama Frontend ───────────────────────────────────────────────────────────
-  open-webui:
-    image: ghcr.io/open-webui/open-webui:main
-    restart: unless-stopped
-    environment:
-      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
-      WEBUI_AUTH: "true"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"   # required on Linux — not automatic like Docker Desktop
-    volumes:
-      - openwebui_data:/app/backend/data
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.openwebui.rule=Host(`chat.ramonedevelopment.com`)"
-      - "traefik.http.routers.openwebui.entrypoints=tailnet"
-      - "traefik.http.routers.openwebui.tls.certresolver=public"
-    # mem_limit/cpus deferred — add after Stage 12 contention benchmarking
-
-  # ── Split DNS for the Tailnet ─────────────────────────────────────────────────
-  dns-internal:
-    image: 4km3/dnsmasq:2.90-r3
-    restart: unless-stopped
-    network_mode: host
-    cap_add:
-      - NET_ADMIN
-    command:
-      # Replace <tailscale-ip> with output of `tailscale ip -4`
-      - "--listen-address=<tailscale-ip>"
-      - "--bind-interfaces"
-      - "--no-resolv"
-      - "--no-hosts"
-      - "--address=/ramonedevelopment.com/<tailscale-ip>"
-      - "--server=1.1.1.1"
-      - "--server=8.8.8.8"
-      - "--log-queries"
-    # Answers every *.ramonedevelopment.com query with cortex's own tailnet IP so tailnet
-    # devices reach internal Traefik routers without --resolve tricks or hosts-file entries;
-    # forwards everything else upstream. --listen-address + --bind-interfaces restricts this
-    # to the tailscale0 IP ONLY — must never bind :53 on all interfaces (would collide with
-    # systemd-resolved's 127.0.0.53 stub listener and/or answer LAN/public queries). Wired into
-    # Tailscale as a RESTRICTED nameserver (split DNS), not a global one — see Stage 10.8.
-
-  # ── Monitoring ────────────────────────────────────────────────────────────────
-  netdata:
-    image: netdata/netdata:latest
-    restart: unless-stopped
-    pid: host
-    network_mode: host    # required for accurate container/network stats — bypasses Traefik
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - apparmor:unconfined
-    volumes:
-      - netdataconfig:/etc/netdata
-      - netdatalib:/var/lib/netdata
-      - netdatacache:/var/cache/netdata
-      - /etc/passwd:/host/etc/passwd:ro
-      - /etc/group:/host/etc/group:ro
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /etc/os-release:/host/etc/os-release:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    # network_mode: host binds :19999 to ALL interfaces — locked down via ufw in Stage 10.6
-
-volumes:
-  traefik_certs:
-  mysql_data:
-  mssql_data:
-  redis_data:
-  seq_data:
-  portainer_data:
-  openwebui_data:
-  netdataconfig:
-  netdatalib:
-  netdatacache:
-```
-
-**To add a public service** (the only path that touches forwarded 80/443):
-```yaml
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.<name>.rule=Host(`<sub>.ramonedevelopment.com`)"
-      - "traefik.http.routers.<name>.entrypoints=websecure"
-      - "traefik.http.routers.<name>.tls.certresolver=public"
-```
-
-**Verify this pattern with a disposable test service before trusting it for anything real** — the live stack keeps exactly this for that purpose:
-```yaml
-  whoami-test:
-    image: traefik/whoami
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.whoami-test.rule=Host(`test.ramonedevelopment.com`)"
-      - "traefik.http.routers.whoami-test.entrypoints=websecure"
-      - "traefik.http.routers.whoami-test.tls.certresolver=public"
-```
-`docker compose up -d whoami-test`, then `curl -s https://test.ramonedevelopment.com` — a JSON response with hostname/IP fields confirms the full public path (router forwarding → Traefik → ACME cert → container) works before you point a real service at `entrypoints=websecure`. Leave it running as a permanent canary, or remove it once confirmed — either is fine.
-
-**DNS (updated 2026-07):** internal subdomains need **no public DNS record at all**. With DNS-01 (§10.3b), Traefik proves control by writing a transient `_acme-challenge.<host>` TXT via the Cloudflare API — so `logs.`, `portainer.`, `chat.`, `redis.`, `mcp-ado.`, and any future tailnet service get a real cert with zero public A record. They resolve only on the tailnet via Split DNS (Stage 10.8). This replaced the old No-IP wildcard, which over-exposed by publishing the home IP for every subdomain — see §4.5.1.
-
----
-
-### 10.3b — Getting Real Certs for Tailnet-Only Routers
-
-Every tailnet-only router above (`redisinsight`, `seq`, `portainer`, `openwebui`, and `mcp-ado` in Stage 16) uses `tls.certresolver=public` instead of a bare `tls=true`, even though none of them touch the `websecure`/`web` entrypoints. This is the standard pattern for **any future internal-only service** — use it instead of re-deriving this from scratch:
-
-```yaml
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.<name>.rule=Host(`<sub>.ramonedevelopment.com`)"
-      - "traefik.http.routers.<name>.entrypoints=tailnet"
-      - "traefik.http.routers.<name>.tls.certresolver=public"
-```
-
-**Why this works (DNS-01, updated 2026-07):** the `public` resolver now uses the **DNS-01** challenge via the Cloudflare API (§10.3). lego writes a transient `_acme-challenge.<host>.ramonedevelopment.com` TXT record to Cloudflare's public zone, Let's Encrypt validates it, then lego deletes it. This validates against the **public authoritative zone independent of any A record**, so a tailnet-only hostname with **no public A record at all** still gets a real cert. Once issued, Traefik's cert store is global and does SNI-based matching independent of entrypoint, so the cert is presented correctly when a client connects via the `tailnet` entrypoint. The service never becomes reachable on the public entrypoints — only the (API-based, non-public) ACME conversation happens.
-
-**Tradeoffs, accepted:**
-- Certs stay per-host (each router triggers its own) — no wildcard cert. DNS-01 *could* do a wildcard, but per-host keeps issuance tied to actual routers and needs no wildcard A record.
-- Each hostname becomes visible in public Certificate Transparency logs once its cert issues — information disclosure only, the service stays unreachable (see the Known Gotchas note on ACME scanner noise).
-- Requires a Cloudflare API token (`CF_DNS_API_TOKEN`, §10.3 / Stage 22). No inbound `:80` dependency anymore — DNS-01 removed it.
-
-**History:** the original build used **HTTP-01** (public `:80` + a wildcard No-IP A record so every subdomain resolved publicly). That was replaced by DNS-01/Cloudflare in 2026-07 — it removes the `:80` forward, removes the over-exposing wildcard, and is what makes the whole zone cleaner (only genuinely-public hosts get A records). Tailscale-issued certs (`tailscale cert` for `*.tail...ts.net`) were rejected — they'd force renaming every hostname off `ramonedevelopment.com`.
-
----
-
-### 10.4 — Bring the Stack Up
-
-```bash
-cd ~/stack
-docker compose up -d
-docker compose ps
-```
-
-Confirm a container can reach bare-metal Ollama:
-```bash
-docker exec -it stack-traefik-1 wget -qO- http://host.docker.internal:11434/api/version
-```
-
----
+> Moved to `/mnt/shared/cortex/docs/setup/02-docker-stack.md` as of 2026-08-25.
 
 ## Stage 10.5 — Open WebUI Configuration
 
-Open WebUI is already defined in the compose file. No extra snippets needed — just first-run config.
-
-**First load:** `https://chat.ramonedevelopment.com`
-
-- `WEBUI_AUTH=true` — first account created becomes admin
-- Confirm Ollama is visible under **Settings → Connections** (should auto-detect via `OLLAMA_BASE_URL`)
-- If the connection test fails, verify `host.docker.internal` resolves inside the container: `docker exec open-webui-1 curl -s http://host.docker.internal:11434/api/version`
-
----
+> Moved to `/mnt/shared/cortex/docs/setup/03-openwebui-netdata-cockpit.md` as of 2026-08-25.
 
 ## Stage 10.6 — Netdata: Post-Start Firewall Rules
 
-Netdata is already defined in the compose file. `network_mode: host` means it binds `:19999` to all interfaces — lock it to Tailscale before starting:
-
-```bash
-sudo ufw allow in on tailscale0 to any port 19999
-sudo ufw deny 19999
-sudo ufw status   # confirm rules; enable ufw if not already active
-```
-
-Then start it:
-```bash
-docker compose up -d netdata
-```
-
-Access at `http://<tailscale-ip>:19999`. Use this dashboard during Stage 12 to watch per-container CPU/RAM pressure live during contention tests.
-
----
+> Moved to `/mnt/shared/cortex/docs/setup/03-openwebui-netdata-cockpit.md` as of 2026-08-25.
 
 ## Stage 10.7 — Cockpit (Host System Admin)
 
-Cockpit is a native systemd service, not a container — not in the compose file by design.
-
-```bash
-sudo apt install -y cockpit
-sudo systemctl enable --now cockpit.socket
-```
-
-Binds to `:9090` on all interfaces by default — lock to Tailscale:
-
-```bash
-sudo ufw allow in on tailscale0 to any port 9090
-sudo ufw deny 9090
-```
-
-Access at `https://<tailscale-ip>:9090`. Log in with your `chase` Linux credentials.
-
----
+> Moved to `/mnt/shared/cortex/docs/setup/03-openwebui-netdata-cockpit.md` as of 2026-08-25.
 
 ## Stage 10.8 — Split DNS for the Tailnet
 
-`dns-internal` (Stage 10.3) is already defined in the compose file and running — this stage wires it into Tailscale so tailnet devices actually use it, and verifies end to end. Without this, getting a valid cert (§10.3b) doesn't make `https://portainer.ramonedevelopment.com` resolve to anything useful in a browser — the real router only answers on the tailnet entrypoint (the tailscale IP, `:443`), and — since the wildcard record was removed (§4.5.1) — tailnet hostnames no longer resolve publicly at all. This closes that gap: every tailnet device gets the internal IP automatically for anything under `ramonedevelopment.com`; non-tailnet clients only resolve the two hosts that have real public records (`login.`, `tower.`).
-
-### Configure the Tailscale admin console
-
-1. Go to the [DNS page](https://login.tailscale.com/admin/dns) of the admin console.
-2. Under **Nameservers**, click **Add nameserver** → **Custom**.
-3. Enter cortex's Tailscale IP (`tailscale ip -4` on cortex).
-4. Check **Restrict to domain** and enter `ramonedevelopment.com`. This makes it a **restricted nameserver** (split DNS) — it only answers queries for that domain, and is never treated as a global resolver for other traffic.
-5. Save. Do **not** enable "Override DNS servers" for this — that's for global nameservers only and isn't needed here.
-
-### Verify from a tailnet client
-
-Confirm the Tailscale client is using Tailscale's DNS settings (tray app → Preferences → "Use Tailscale DNS settings", on by default), then:
-
-```powershell
-# Windows
-Resolve-DnsName portainer.ramonedevelopment.com
-# expect the tailnet IP, not your public home IP
-```
-
-```bash
-# macOS/Linux
-dscacheutil -q host -a name portainer.ramonedevelopment.com   # macOS
-nslookup portainer.ramonedevelopment.com                       # Linux
-```
-
-Then a full end-to-end browser test: `https://portainer.ramonedevelopment.com` should load cleanly with a valid padlock — no `--resolve` trick, no hosts-file entry.
-
-**~~Known gap~~ — RESOLVED 2026-07:** the tailnet entrypoint used to bind `:8443` (so you had to type the port), because the public `websecure` entrypoint held all-interfaces `:443`. Fixed exactly as this note predicted: `websecure`/`web` were pinned to the **LAN NIC IP** (§10.3), freeing `:443` on the tailscale IP for a `tailnet` entrypoint on **`:443`**. Tailnet URLs now need no port suffix, and it unblocked domain-level forward-auth (Stage 23). No separate entrypoint needed beyond the IP-pinning.
-
-**Gotcha confirmed in practice:** after a cert or DNS change, always retest with `curl --resolve` before trusting a browser result — see Known Gotchas at the top of this guide. A stale cached browser handshake produced a false "not working" read during initial verification of this stage even though the server-side fix was already live.
+> Moved to `/mnt/shared/cortex/docs/setup/04-split-dns-tailnet.md` as of 2026-08-25.
 
 ---
 
 ## Stage 11 — Confirm `host.docker.internal` Works for Ollama Access
 
-If the curl in Stage 10.6 fails, add this explicitly per-service (already included in the compose snippet above via `extra_hosts`). On Linux, `host.docker.internal` isn't automatic the way it is on Docker Desktop — the `extra_hosts: host-gateway` line is what makes it resolve.
-
-**Router note (updated 2026-07):** forward only **`:443`** to this box (ACME is DNS-01 now, so the old `:80`/HTTP-01 forward is gone — §4.5.2). That single forward feeds the public `websecure` entrypoint, which serves exactly two internet-facing hosts (`login.` + `tower.`, Stage 23). It's a scoped, deliberate exception to the Tailscale-only default — not a reversal. Every other service stays off `websecure` (tailnet entrypoint only).
-
----
+> Moved to `/mnt/shared/cortex/docs/setup/05-benchmarks-v1-baseline.md` as of 2026-08-25.
 
 ## Stage 12 — Benchmark & Populate BENCHMARKS.md
 
-1. Run the repeatable load test from your project's BENCHMARKS.md template:
-   ```bash
-   curl -s http://localhost:11434/api/generate -d '{
-     "model": "hermes3:8b",
-     "prompt": "Explain RAM bandwidth in two sentences.",
-     "stream": false
-   }' | jq '.total_duration, .eval_count, .eval_duration'
-   ```
-2. Test under contention — run the above while `docker compose up -d` stack is live and SQL Server/MySQL are under load (e.g. a restore or query batch), log the tok/s delta. Use Netdata (Stage 10.6) to watch live resource pressure during this test instead of guessing.
-3. Fill in every table in `BENCHMARKS.md`:
-   - Hardware table (CPU, RAM total + channel config, iGPU/NPU model, storage)
-   - Ollama Backend table (Vulkan, RADV, model+quant, context length)
-   - Measured Throughput table (today's date, baseline + under-load numbers)
-   - Resource Contention Observations
-   - Decision Log — append entries for "Backend: Vulkan over ROCm for gfx1150" and "UMA allocation: Xgb" with today's date
-4. Once contention numbers are in, revisit Stage 10.5's deferred `mem_limit`/`cpus` for Open WebUI and set real per-container limits across the stack based on observed usage.
-
----
+> Moved to `/mnt/shared/cortex/docs/setup/05-benchmarks-v1-baseline.md` as of 2026-08-25.
 
 ## Stage 13 — Tag v1 Baseline
 
-Once numbers look stable across a few runs:
-```bash
-git init   # if not already a repo
-git add docker-compose.yml BENCHMARKS.md
-git commit -m "v1 baseline: Ubuntu 24.04 + Ollama Vulkan + Traefik + Docker stack"
-git tag v1.0-baseline
-```
-Fill in the `v1 Baseline Tag` section at the bottom of `BENCHMARKS.md` with the date and final numbers.
+> Moved to `/mnt/shared/cortex/docs/setup/05-benchmarks-v1-baseline.md` as of 2026-08-25.
 
 ---
 
 ## Stage 14 — Shared Storage: Synology DS923 (SMB, cross-platform)
 
-**Decision:** the DS923 is the canonical SMB host for shared working files (project files, datasets, docker volumes for stateless config, logs) — not `cortex`. Keeps the inference box free of file-serving load. See Decision Log.
-
-**Not for:** Ollama's model directory (`OLLAMA_MODELS`) — stays on local NVMe on `cortex`. Model loading is bandwidth/latency-sensitive; routing it through a NAS over network adds a hop you don't want on the hot inference path.
-
-### 14.1 — DS923 (DSM) setup
-
-1. **Shared folder:** Control Panel → Shared Folder → Create → name it `shared` (Btrfs volume if you want snapshots). Enable Recycle Bin. Skip encryption (CPU overhead, no real benefit here).
-2. **Service account:** Control Panel → User & Group → Create a dedicated account (e.g. `svc-shared`) — Read/Write on `shared` only, not an admin account, strong random password.
-3. **Enable SMB:** Control Panel → File Services → SMB → enable. Advanced Settings → Minimum protocol: SMB2, Maximum: SMB3 (no SMB1).
-4. **Permissions:** Shared Folder → `shared` → Edit → Permissions — grant `svc-shared` Read/Write, explicitly remove `everyone`/guest access.
-5. **Install Tailscale:** Package Center → Tailscale (native in DSM 7.x; SynoCommunity if not listed) → log in → authorize node. Note its Tailscale IP/hostname. Optionally disable key expiry for this node in the Tailscale admin console.
-6. **Firewall/router check:** confirm SMB (445) is not in any router port-forward rule — LAN/Tailscale only, never public.
-
-### 14.2 — Windows PC client
-
-File Explorer → Map network drive → `\\<ds923-tailscale-ip-or-name>\shared` → authenticate as `svc-shared`.
-
-### 14.3 — Linux PC client
-
-```bash
-sudo apt install -y cifs-utils
-sudo mkdir -p /mnt/shared
-
-# Note: /etc/samba/ only exists if the full samba server package is installed.
-# cifs-utils (the client package) does not create it. Use /etc/cifs/ instead.
-sudo mkdir -p /etc/cifs
-sudo tee /etc/cifs/creds-shared <<'EOF'
-username=svc-shared
-password=YOUR_SYNOLOGY_SMB_PASSWORD
-EOF
-sudo chmod 600 /etc/cifs/creds-shared
-```
-`/etc/fstab`:
-```
-//<ds923-tailscale-ip>/shared /mnt/shared cifs credentials=/etc/cifs/creds-shared,uid=1000,gid=1000,iocharset=utf8,vers=3.0 0 0
-```
-```bash
-sudo mount -a
-```
-
-**Git repos on this mount need one more step.** Git 2.35.2+ refuses to operate on a repo where directory ownership doesn't match the running user — a check that commonly trips on CIFS mounts (`detected dubious ownership in repository`). Run this once per client (WSL or native Linux) for any git repo you'll use under `/mnt/shared`:
-```bash
-git config --global --add safe.directory /mnt/shared/claudia/magiq
-```
-The target path doesn't need to exist yet — git ignores the config entry until it does, so this is safe to run before cloning.
-
-**Python virtualenvs can't be created directly on this mount.** `python3 -m venv` fails with `Error: [Errno 95] Operation not supported: 'lib' -> '/mnt/shared/.../.venv/lib64'` — CIFS doesn't support the symlink `venv` creates by default. Two ways around it:
-
-- **Recommended:** create the venv on local disk instead (e.g. `~/.venvs/<name>`), and just `cd` into the mounted repo after activating it — the venv doesn't need to live inside the mount, it only needs to be active when you run something:
-  ```bash
-  python3 -m venv ~/.venvs/tower
-  source ~/.venvs/tower/bin/activate
-  cd /mnt/shared/claudia/magiq
-  pip install -r tower/requirements.txt
-  python tower/start.py
-  ```
-- **Alternative**, if you specifically want the venv inside the repo folder: force copies instead of symlinks — `python3 -m venv --copies .venv`.
-
-### 14.4 — Docker containers (on `cortex`)
-
-Native CIFS volume driver — self-contained in compose, no host fstab dependency:
-
-```yaml
-volumes:
-  shared_data:
-    driver: local
-    driver_opts:
-      type: cifs
-      o: "username=svc-shared,password=YOUR_SYNOLOGY_SMB_PASSWORD,vers=3.0,uid=1000,gid=1000"
-      device: "//<ds923-tailscale-ip>/shared"
-```
-Reference as `shared_data:/data/shared` in any service that needs it.
-
-**NIC note:** check whether the DS923 is on 2.5GbE or 1GbE — caps shared-folder throughput at ~125MB/s if it's still 1GbE. Irrelevant for config/logs, worth knowing if you ever stage large files (datasets, model files) through it before moving to local NVMe.
+> Moved to `/mnt/shared/cortex/docs/setup/06-shared-storage-ds923.md` as of 2026-08-25.
 
 ---
 
 ## Stage 15 — Hermes Agent: Claudia (Work) + Claudette (Personal)
 
-**Status update (2026-07-04):** the Windows-PC Docker Hermes install (`hermes`/`hermes-dashboard` containers) referenced earlier in this project's history is **retired**. Claudia (bare-metal, this stage) is now the sole work-profile agent. Her working directory is the **magiq folder** (`/mnt/shared/claudia/magiq/` — the AIS-OS system, git-tracked, migrated from the old OneDrive path), not a generic `workspace/` dir. `workspace/` still exists as a scratch/non-persistent dir but is no longer the cwd — see §15.5. Custom skills that used to live only in the Windows Docker install now have a canonical copy in the magiq repo at `references/hermes-skills/` — see §15.3b for a fresh install (reconciled against Claudia's live profile 2026-07-04).
-
-**Architecture decision:** bare-metal profiles, not Docker containers. Hermes is a Python CLI agent — same installation model as Ollama. Two Docker containers would add 2× Python runtime overhead competing with each other and with Ollama on the same shared DDR5 pool, which contradicts the project's resource-contention priority. Hermes's built-in **profiles** feature handles multiple agents natively: one binary install, two `HERMES_HOME` dirs, auto-generated `claudia`/`claudette` command aliases, separate systemd services per agent, separate `SOUL.md`/memory/config/sessions. Both profiles hit `http://localhost:11434` (the same bare-metal Ollama) with no duplication. The `local` terminal backend gives both profiles direct access to `/mnt/shared` (Stage 14) without any Docker passthrough.
-
-**Naming:**
-- `claudia` — work agent (professional context, work projects, Magiq, dev tasks)
-- `claudette` — personal agent (personal context, home, life admin)
-
-**Shared folder collaboration (Claude + Hermes):** The DS923 SMB share mounted at `/mnt/shared` serves as the shared workspace. Claude (claude.ai Cowork or computer use) writes context files, handoffs, and outputs into this tree; Claudia and Claudette can read from and write to it. See the folder structure in §15.4.
-
----
-
-### 15.1 — Install Hermes (Bare Metal, as `chase`)
-
-**Prerequisites:**
-```bash
-sudo apt install -y curl xz-utils build-essential
-```
-
-`build-essential` is required if you want the Hermes Desktop TUI later; it compiles native Node modules. Skip it if you're CLI-only and want to shave the install time.
-
-**Install:**
-```bash
-curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser
-```
-
-`--skip-browser` skips Playwright/Chromium — browser automation isn't needed for this setup, and the Playwright `--with-deps` step requires root. Add browser support later if needed (`hermes setup` will guide you through it).
-
-**Reload shell and verify:**
-```bash
-source ~/.bashrc
-hermes --version
-hermes doctor
-```
-
-`hermes doctor` prints everything missing. Resolve any red items before continuing.
-
----
-
-### 15.2 — Configure the Default Profile for Ollama
-
-The default profile (`~/.hermes/`) serves as the base. Configure Ollama as the provider here — profiles cloned from it will inherit this.
-
-```bash
-# Set Ollama as the LLM provider (local, no API key needed)
-hermes config set model.provider ollama
-hermes config set model.default hermes3:8b
-hermes config set model.base_url http://localhost:11434
-```
-
-Verify the model responds before creating profiles:
-```bash
-hermes chat -q "Reply with one word: ready"
-```
-
-If this hangs or errors, check Ollama is running (`sudo systemctl status ollama`) and the model is pulled (`ollama list`).
-
----
+> Stages 15.1–15.2 (bare-metal install, Ollama config) moved to `/mnt/shared/cortex/docs/setup/07-hermes-install.md` as of 2026-08-25.
 
 ### 15.3 — Create Claudia (Work) and Claudette (Personal) Profiles
 
@@ -1726,76 +929,7 @@ docker compose up -d homepage
 
 ## Stage 22 — Secrets Hygiene: `.env` Variable Substitution
 
-**Why:** `docker-compose.yml` lives on the NAS share (`/mnt/shared/claudia/magiq`) that both Windows and an AI assistant (Claude/Cowork) can read and edit for routing/label changes. The file used to carry real secrets in plaintext (`MYSQL_ROOT_PASSWORD`, `SA_PASSWORD`, the CIFS `shared_data` password) — the version on the share had those hand-redacted to `xxxx`/`xxx` specifically so an AI session never saw the real values. That redaction is exactly why `~/stack/docker-compose.yml` and the share copy could never just be the same file (a symlink would've meant either the AI sees real secrets, or `~/stack` runs on fake ones) — so they were kept as two manually-synced copies instead. That's the actual root cause of the Seq/Portainer/Traefik-dashboard routing bugs hit on 2026-07-05: the manual copy step is a single point of failure, and it silently fell out of sync.
-
-**Fix:** pull the three secrets out of `docker-compose.yml` entirely, replace them with `${VAR}` references, and keep the real values in a `.env` file that exists **only on cortex, only in `~/stack/`, never on the NAS share**. Docker Compose auto-substitutes `${VAR}` from a `.env` file in the same directory as the compose file at parse time — no extra flags needed since every command in this guide already runs from `~/stack`. This makes the shared compose file permanently secret-free, which is what actually makes a symlink (or any sync method) safe.
-
-### 22.1 — Variables now used in `docker-compose.yml`
-
-```yaml
-# top of the file:
-# SECRETS: this file must never contain literal passwords — only ${VAR} references.
-# Real values live in ~/stack/.env on cortex ONLY.
-```
-
-- `MYSQL_ROOT_PASSWORD` — mysql service
-- `MSSQL_SA_PASSWORD` — sqlserver service (note: different name from the container's own runtime env var `SA_PASSWORD` used inside the healthcheck's `$$SA_PASSWORD` — that's the container's internal env, unrelated to compose-level substitution, no collision)
-- `CIFS_SHARED_PASSWORD` — the `shared_data` volume's CIFS mount options
-- `SEQ_FIRSTRUN_ADMINPASSWORD` — seq service. Added 2026-07-05: Seq 2025.2.x requires an explicit first-run admin password (or an explicit no-auth opt-out) and crash-loops on boot without one — this wasn't a secret in the original Stage 10.3 setup because older Seq versions allowed interactive account creation in the browser on first load. Log in as `admin` with this password.
-- `CF_DNS_API_TOKEN` — Traefik's DNS-01 resolver **and** the DDNS updater (Stage 23). Scoped Cloudflare token, `Zone:Read` + `DNS:Edit` on your zone only (§4.5.1). Added when ACME moved HTTP-01→DNS-01.
-- `AUTHENTIK_SECRET_KEY`, `AUTHENTIK_PG_PASS`, `AUTHENTIK_BOOTSTRAP_PASSWORD` — the Authentik identity stack (Stage 23). Generate with `openssl rand`; `AUTHENTIK_PG_PASS` is shared by the `authentik-postgresql` container and the Authentik server/worker. Optional `AUTHENTIK_TAG` pins the image version.
-
-> Full annotated placeholders for every variable above live in `cortex/.env.example` — copy that, don't hand-write the list.
-
-### 22.2 — `cortex/` subfolder in the repo
-
-Both files now live in their own subfolder rather than the repo root — `docker-compose.yml` and `.env.example` moved to `/mnt/shared/claudia/magiq/cortex/` (`Z:\claudia\magiq\cortex\` from Windows). This groups everything specific to cortex's Docker stack in one place instead of mixing it into the repo root alongside AIOS's own files. Nothing in `docker-compose.yml` itself needed to change for this move — every path it references (`/mnt/shared/claudia/magiq/...`) is already absolute, none of them relative to the compose file's own location.
-
-```
-/mnt/shared/claudia/magiq/
-└── cortex/
-    ├── docker-compose.yml   # secret-free, ${VAR} references only
-    └── .env.example         # placeholders only, safe to keep here
-```
-
-### 22.3 — Create `~/stack/.env` on cortex
-
-Use `cortex/.env.example` as the template, but land the filled-in version directly on cortex — **never** through the `/mnt/shared/claudia/magiq` share:
-
-```bash
-# on cortex:
-cd ~/stack
-scp <your-machine>:/path/to/magiq/cortex/.env.example .env   # or paste manually via nano — either way, land it directly on cortex
-nano .env   # fill in every real value (DB passwords, CIFS, Seq, CF_DNS_API_TOKEN, AUTHENTIK_*)
-chmod 600 .env
-```
-
-Use the values that were already live in the old `~/stack/docker-compose.yml` before this change — check `docker inspect mysql-1 --format '{{.Config.Env}}'` (or the equivalent container name) if you need to recover what's currently actually running before it gets recreated.
-
-### 22.4 — Symlink `~/stack/docker-compose.yml` to the share
-
-With secrets fully out of the file, this is now safe — an AI session editing `cortex/docker-compose.yml` on the share is editing the exact file cortex runs from, with zero manual sync step to fall out of date:
-
-```bash
-cd ~/stack
-mv docker-compose.yml docker-compose.yml.bak-presymlink   # keep the old real-secrets version until .env is confirmed working
-ln -s /mnt/shared/claudia/magiq/cortex/docker-compose.yml docker-compose.yml
-ls -la docker-compose.yml   # confirm it shows as a symlink pointing at the share
-```
-
-`~/stack/.env` is untouched by this — it's a separate, cortex-local file, and Compose reads it the same way whether `docker-compose.yml` itself is a real file or a symlink (substitution is based on the *directory* Compose runs from, i.e. `~/stack`, not on where the compose file's target physically lives).
-
-### 22.5 — Verify
-
-```bash
-cd ~/stack
-python3 -c "import yaml; yaml.safe_load(open('docker-compose.yml'))" && echo "YAML OK"
-docker compose config | grep -A2 MYSQL_ROOT_PASSWORD   # confirm substitution resolves to your real value, not blank/${...}
-docker compose up -d
-docker compose ps
-```
-
-`docker compose config` renders the fully-resolved config with substitutions applied — this is the one command that actually proves `.env` is being read correctly before anything restarts. This resync (from whatever `~/stack/docker-compose.yml` was running before) is also what should resolve the Seq/Portainer/Traefik-dashboard routing issues hit on 2026-07-05, since it pulls in the router/label config that had drifted out of sync.
+> Moved to `/mnt/shared/cortex/docs/setup/22-secrets-local-env.md` as of 2026-08-25.
 
 ---
 

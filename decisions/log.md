@@ -289,109 +289,39 @@ unnecessary complexity for Q2.
 
 ## 2026-07-05 — Admin-UI gap fill: Uptime Kuma, CloudBeaver, Traefik dashboard, Homepage
 
-**Decision:** Added four services to cortex's `docker-compose.yml` to close gaps found in an audit of tailnet admin UIs: Uptime Kuma (`status.ramonedevelopment.com`) for uptime/availability history, CloudBeaver (`sql.ramonedevelopment.com`) as a web SQL client for MySQL + SQL Server (previously TCP-only), Traefik's built-in dashboard (`traefik.ramonedevelopment.com`, via `--api.dashboard=true` + `api@internal`), and Homepage (`home.ramonedevelopment.com`) as a landing page for all tailnet subdomains.
-
-**Why:** Netdata covers resource pressure but not per-service up/down history (Kuma). MySQL/SQL Server had no browser-based admin tool (CloudBeaver). Traefik's routing table grew past what's easy to reason about from logs alone once ADO MCP, Tower, Kuma, and CloudBeaver all started routing through it (dashboard). Nine-plus tailnet subdomains is past the point of reliably remembering them (Homepage).
-
-**Homepage over Dashy:** both are YAML-config, git-trackable. Homepage supports Docker-label auto-discovery (`homepage.*` labels alongside the `traefik.*` labels already written for routing) — a new service's dashboard tile is the same edit as adding its routing labels, no second file to maintain. Dashy's differentiator is an in-browser drag-and-drop config editor, which doesn't solve a real problem here since direct YAML editing is already this project's norm.
-
-**Pattern followed:** all four use the same tailnet-only Traefik entrypoint + §10.3b real-cert-via-public-ACME pattern as every existing service. No new security model introduced. Homepage's config bind-mounts into the magiq repo itself (`homepage-config/`), same convention as Tower's bind mount — editable directly, versioned with everything else.
-
-**Alternatives considered:** Grafana/Prometheus for monitoring (rejected — Netdata already covers metrics, a second monitoring stack contradicts the resource-contention priority baked into this whole project). Adminer instead of CloudBeaver (rejected — Adminer doesn't support SQL Server, would need two separate tools instead of one).
-
-**Owner:** Chase Ramone
-
-**Full detail:** `AI-X1-Pro-Setup-Guide.md` Stages 18–21.
+> Moved to `/mnt/shared/cortex/decisions/log.md` (2026-08-25).
 
 ---
 
 ## 2026-07-05 — Secrets extracted from docker-compose.yml to local-only .env
 
-**Decision:** Removed literal password values (`MYSQL_ROOT_PASSWORD`, `SA_PASSWORD`, CIFS `shared_data` password) from `docker-compose.yml` entirely, replaced with `${VAR}` references. Real values now live only in `~/stack/.env` on cortex — never on the `/mnt/shared/claudia/magiq` NAS share, never in anything an AI session reads.
-
-**Why:** The share copy of `docker-compose.yml` had these hand-redacted to `xxxx`/`xxx` specifically to keep secrets away from Claude/Cowork sessions doing routing edits. That redaction was the actual reason `~/stack/docker-compose.yml` and the share copy stayed as two manually-synced files instead of a symlink — and the manual sync silently fell out of date, causing real routing regressions (Seq and Portainer 404s, Traefik dashboard cert failure) after the 2026-07-05 admin-UI additions. Variable substitution removes the reason for the two-copy setup entirely.
-
-**Alternatives considered:** Keep manual copy process but make it more careful (rejected — same single point of failure, just slower to fail). Docker secrets / external secret store (rejected — adds infra for a single-operator box where a local `.env` file already fully satisfies "never exposed to the AI editing the routing file").
-
-**Follow-up enabled:** `~/stack/docker-compose.yml` can now be safely symlinked to the share copy (Stage 22.4) — same "single NAS share, not git-sync between clones" principle already applied to Tower and mcp-azure-devops, now extended to the compose file itself.
-
-**Owner:** Chase Ramone
-
-**Full detail:** `AI-X1-Pro-Setup-Guide.md` Stage 22.
+> Moved to `/mnt/shared/cortex/decisions/log.md` (2026-08-25).
 
 ---
 
 ## 2026-07-05 — docker-compose.yml relocated to cortex/ subfolder, symlinked from ~/stack
 
-**Decision:** Moved `docker-compose.yml` and `.env.example` out of the magiq repo root into a new `cortex/` subfolder (`/mnt/shared/claudia/magiq/cortex/`). `~/stack/docker-compose.yml` on cortex becomes a symlink to `cortex/docker-compose.yml` on the share instead of a manually-synced copy.
-
-**Why:** Follow-on to the same-day secrets-extraction decision (docker-compose.yml → ${VAR} substitution). With secrets fully out of the compose file, the manual-copy step between `~/stack` and the share was pure liability with no remaining upside — a symlink removes the single point of failure that caused the Seq/Portainer/Traefik-dashboard drift bug. Grouping the file under `cortex/` alongside its own `.env.example` also keeps cortex-Docker-stack-specific files out of the repo root, separate from AIOS's own files.
-
-**Confirmed safe:** every path inside docker-compose.yml is already absolute (`/mnt/shared/claudia/magiq/...`), none relative to the compose file's own location — the move required zero changes to the file's contents.
-
-**Owner:** Chase Ramone
-
-**Full detail:** `AI-X1-Pro-Setup-Guide.md` Stage 22.2–22.5.
+> Moved to `/mnt/shared/cortex/decisions/log.md` (2026-08-25).
 
 ---
 
 ## 2026-07-05 — Seq requires SEQ_FIRSTRUN_ADMINPASSWORD (Seq 2025.2.x behavior change)
 
-**Decision:** Added `SEQ_FIRSTRUN_ADMINPASSWORD` as a required secret (via `${VAR}` substitution, same pattern as the MySQL/SQL Server/CIFS passwords) to the `seq` service.
-
-**Why:** The `seq` container was crash-looping on boot with `No default admin password was supplied; set firstRun.adminPassword or SEQ_FIRSTRUN_ADMINPASSWORD, or opt out of authentication using firstRun.noAuthentication/SEQ_FIRSTRUN_NOAUTHENTICATION`. Seq 2025.2.x (the current `datalust/seq:latest`) requires this explicitly — the original Stage 10.3 setup never set it because older Seq versions allowed interactive admin account creation via the browser on first load. Because the container never stayed up, Traefik's Docker provider never got a stable container to register a router for, which surfaced as `router not found: seq@docker` — not a routing or labels bug, a downstream symptom of Seq itself failing to start.
-
-**Chose real admin password over `SEQ_FIRSTRUN_NOAUTHENTICATION=true`:** matches the defense-in-depth posture already used for Open WebUI (`WEBUI_AUTH=true`) and Portainer (own admin account) — both already have their own auth layer on top of Tailscale-only reachability, not just Tailscale alone.
-
-**Owner:** Chase Ramone
-
-**Full detail:** `AI-X1-Pro-Setup-Guide.md` Stage 22.1, `cortex/.env.example`.
+> Moved to `/mnt/shared/cortex/decisions/log.md` (2026-08-25).
 
 ---
 
 ## 2026-07-05 — Explicit loadbalancer port required for multi-port images (Seq, Portainer)
 
-**Decision:** Added `traefik.http.services.<name>.loadbalancer.server.port` labels to `seq` (port 80) and `portainer` (port 9000) — the two services in this file whose images expose multiple ports and had no explicit port label.
-
-**Why:** Seq's router registered correctly in Traefik (confirmed via `/api/http/routers/seq@docker`) but still 404'd. Checking `/api/http/services/seq-stack@docker` would have shown Traefik's auto-selected backend port — Seq's image exposes four ports (80 plain UI, 443 TLS UI, 5341 plain ingestion, 45341 TLS ingestion) and without an explicit label, Traefik's docker provider has to guess which one is the actual web UI, and got it wrong. Portainer has the identical exposure pattern (8000 edge agent, 9000 plain UI, 9443 TLS UI) and was fixed proactively before it caused the same symptom.
-
-**Pattern going forward:** any service whose image `EXPOSE`s more than one port needs an explicit `loadbalancer.server.port` label — don't rely on Traefik's auto-detection for those. Single-port images (Open WebUI, Tower, CloudBeaver, Kuma, mcp-azure-devops — the latter three already had explicit labels anyway) aren't at risk from this specific bug, but there's no real downside to labeling explicitly across the board going forward.
-
-**Owner:** Chase Ramone
-
-**Full detail:** `AI-X1-Pro-Setup-Guide.md` Stage 22.1 area / `cortex/docker-compose.yml` inline comments.
+> Moved to `/mnt/shared/cortex/decisions/log.md` (2026-08-25).
 
 ---
 
 ## 2026-07-13 — Authentik added as the identity provider (SSO) for the cortex stack
 
-**Decision:** Added Authentik (`authentik-postgresql` + `authentik-server` + `authentik-worker`) to `cortex/docker-compose.yml` at `login.ramonedevelopment.com`, tailnet-only, `public` cert resolver — same pattern as every other admin UI. Purpose: one identity for the tailnet admin fleet.
+> Moved to `/mnt/shared/cortex/decisions/log.md` (2026-08-25).
 
-**Integration split:**
-- **Forward-auth (embedded outpost)** for the three UIs that had *no login of their own* — `homepage`, `redis-stack` (RedisInsight), and the Traefik dashboard. A reusable `authentik` forwardauth middleware is defined once on `authentik-server`; each protected host gets `middlewares=authentik@docker` plus a sibling `-outpost` router for the `/outpost.goauthentik.io/` callback path.
-- **Native OIDC (follow-up, not in compose)** for the self-login apps — `portainer`, `seq`, `open-webui`, `cloudbeaver`, `uptime-kuma`. Stacking forward-auth on those = double login; OIDC federates the account instead. Configured per-app in the Authentik UI after first boot (needs providers minted first, so it can't live in the compose file).
-
-**Deliberately excluded:** `mcp-azure-devops` (machine API — a browser redirect breaks the MCP client), `netdata` (`network_mode: host`, bypasses Traefik entirely — a Traefik middleware can't reach it; stays ufw+tailnet-locked), `tower` (its own `TOWER_TOKEN` bearer auth + programmatic API), and Authentik itself.
-
-**Redis reused, Postgres new:** Authentik hard-requires PostgreSQL and the stack had none (only mysql + mssql) — hence a dedicated `authentik-postgresql`. Redis is *not* dedicated: Authentik points at the existing `redis-stack` (DB 0), which nothing else in the stack wires an app to. Chose reuse over a dedicated redis container to honor the lean-by-default rule; minor coupling accepted (a manual redis-stack flush would drop Authentik sessions).
-
-**host-net Traefik gotcha (why the loopback publish exists):** `traefik` runs `network_mode: host`, so it is NOT on the compose bridge network and cannot resolve `authentik-server` by Docker service name for the forward-auth sub-request. Fix: publish the server on `127.0.0.1:9000:9000` (host loopback only, never tailscale/public) and point the middleware at `http://127.0.0.1:9000/outpost.goauthentik.io/auth/traefik`. Normal UI routing is unaffected — Traefik's docker provider dials the container's bridge IP directly, same as tower/portainer.
-
-**Hostname:** `login.ramonedevelopment.com`. `auth.` intentionally avoided — reserved for the future `magiq-auth` migration off the Windows box. No DNS/cert change needed: dnsmasq already wildcards `*.ramonedevelopment.com` to cortex and DNS-01 mints the cert on demand.
-
-**Ordering caveat:** the forward-auth labels are inert until a Proxy Provider + Application exist in the Authentik UI for each protected host. Until then that host 302-loops — expected, not a routing bug.
-
-**Secrets added** (`cortex/.env.example`, real values only in `~/stack/.env`): `AUTHENTIK_SECRET_KEY`, `AUTHENTIK_PG_PASS`, `AUTHENTIK_BOOTSTRAP_PASSWORD`, optional `AUTHENTIK_TAG` (default 2025.12).
-
-**Owner:** Chase Ramone
-
-**Full detail:** `cortex/docker-compose.yml` inline comments, `C:\Users\chase\.claude\plans\kind-squishing-bubble.md`.
-
-**Amendment 2026-07-13 (same day):** switched the forward-auth group from single-application to **domain-level** per operator request ("one login for the entire domain and all its apps"). Removed the per-host `homepage-outpost` / `redisinsight-outpost` / `traefik-outpost` routers — domain-level serves `/outpost.goauthentik.io/` centrally on `login.` and shares one `ramonedevelopment.com` session cookie. Each protected host now carries only `middlewares=authentik@docker`. Authentik side = a SINGLE proxy provider (Forward auth → domain level, cookie domain `ramonedevelopment.com`) bound to the embedded outpost. Self-login apps (portainer/seq/open-webui/cloudbeaver) still reach seamless single-login only via native OIDC (phase 2b) — stacking forward-auth on them would double-prompt.
-
-**Amendment 2026-07-13 (same day, #2):** reverted the forward-auth group from domain-level BACK to **single-application**. Domain-level forward auth is broken on non-443 ports (authentik issue #12503): the tailnet entrypoint is `:8443`, so the browser Host header carries `home.ramonedevelopment.com:8443`, which fails the outpost's cookie-domain suffix match against `ramonedevelopment.com` — the request falls through to the authentik core and returns 404 (confirmed via `logger=authentik.asgi ... host=...:8443 ... status=404`). Single-application mode matches by exact `external_host` (including `:8443`), so it works. Restored the per-host `homepage-outpost` / `redisinsight-outpost` / `traefik-outpost` routers. Cost: one Authentik proxy provider + application per protected host (vs. one for the whole domain) and separate per-app cookies — but the UX is still effectively single sign-on (one credential entry at Authentik; subsequent apps pass through the existing Authentik session). "One login for the whole domain" as a single shared proxy cookie is not achievable while everything runs on `:8443`.
-
-**Amendment 2026-07-14:** moved the tailnet Traefik entrypoint from `100.90.195.22:8443` to `100.90.195.22:443` and re-adopted **domain-level** forward auth (reverting the single-app amendment above). Rationale: domain-level forward auth needs the default HTTPS port so the browser Host header has no `:port` (authentik #12503). To free `:443` on the tailscale IP, the public `websecure`/`web` entrypoints were pinned from all-interfaces (`:443`/`:80`) to the LAN NIC IP (`192.168.0.253:443`/`:80`, enp196s0) — transparent to the router's existing port-forward, keeps whoami-test/future magiq-auth public. Tailnet services stay tailnet-only (still bound to the tailscale IP alone), now reached without the `:8443` suffix. Swept `:8443` out of every `homepage.href` tile, the Authentik href, mcp-ado's `/mcp` URL, and `HOMEPAGE_ALLOWED_HOSTS` (now bare `home.ramonedevelopment.com`). Per-host `-outpost` routers removed again; back to one domain-level proxy provider. **Prereq before deploy:** cortex's LAN IP `192.168.0.253` must be DHCP-reserved/static or the public path breaks on lease renewal.
+---
 
 ## 2026-07-14 — Control Tower exposed publicly behind Authentik (group-restricted)
 
