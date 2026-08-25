@@ -300,33 +300,6 @@ services:
     # On the :443 tailnet entrypoint that's the bare hostname (no port) — updated 2026-07-14
     # when the entrypoint moved 8443→443; it previously had to include ":8443". Confirmed 2026-07-05.
 
-  mcp-azure-devops:
-    build:
-      context: /mnt/shared/claudia/magiq/mcp/azure-devops
-      dockerfile: Dockerfile.gateway
-    mem_limit: 1g
-    restart: unless-stopped
-    <<: *default-logging
-    env_file:
-      - /mnt/shared/claudia/magiq/.env
-    networks:
-      - default
-      - cortex_edge
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.mcp-ado.rule=Host(`mcp-ado.ramonedevelopment.com`)"
-      - "traefik.http.routers.mcp-ado.entrypoints=tailnet"
-      - "traefik.http.routers.mcp-ado.tls.certresolver=public"
-      - "traefik.http.services.mcp-ado.loadbalancer.server.port=8000"
-      - "homepage.group=Ops"
-      - "homepage.name=Azure DevOps MCP"
-      - "homepage.icon=azure-devops.png"
-      - "homepage.href=https://mcp-ado.ramonedevelopment.com/mcp"
-      - "homepage.description=ADO MCP gateway (API endpoint, not a browser UI)"
-    # Tailnet-only router, gets a real LE cert via the public `public` resolver — now DNS-01
-    # (Cloudflare), see traefik service. Service stays unreachable from the public internet
-    # (entrypoints=tailnet only); with DNS-01 not even the ACME challenge is public anymore.
-
   mysql:
     image: mysql:8.4
     restart: unless-stopped
@@ -493,52 +466,6 @@ services:
       interval: 15s
       timeout: 10s
       retries: 5
-
-  # ── AIS-OS Control Tower
-  tower:
-    build:
-      context: /mnt/shared/claudia/magiq
-      dockerfile: tower/Dockerfile
-    restart: unless-stopped
-    <<: *default-logging
-    user: "1000:1000"
-    env_file:
-      - /mnt/shared/claudia/magiq/.env
-    volumes:
-      - /mnt/shared/claudia/magiq:/app
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    networks:
-      - default
-      - cortex_edge
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.tower.rule=Host(`tower.ramonedevelopment.com`)"
-      # PUBLIC + tailnet: listens on both the public (websecure, LAN-NIC :443,
-      # router-forwarded from WAN) and tailnet entrypoints. Tailnet clients reach
-      # it via split-DNS→tailscale IP; public clients via Cloudflare/WAN→forward.
-      - "traefik.http.routers.tower.entrypoints=tailnet,websecure"
-      - "traefik.http.routers.tower.tls.certresolver=public"
-      - "traefik.http.services.tower.loadbalancer.server.port=8765"
-      # Authentik forward-auth — SINGLE-APPLICATION with a group-restricted
-      # policy (only members of the `tower-users` group get in), because this is
-      # the one host reachable from the public internet. Distinct from the
-      # domain-level gate on the tailnet-only UIs: single-app exact-host match
-      # (tower.ramonedevelopment.com) takes precedence over the domain-level
-      # provider, so tower's own restrictive policy applies. Needs the per-host
-      # -outpost router for the /outpost.goauthentik.io/ callback path, on BOTH
-      # entrypoints so the login round-trip completes from public and tailnet.
-      # Tower keeps its own TOWER_TOKEN bearer auth underneath — defense in depth.
-      - "traefik.http.routers.tower.middlewares=authentik@docker"
-      - "traefik.http.routers.tower-outpost.rule=Host(`tower.ramonedevelopment.com`) && PathPrefix(`/outpost.goauthentik.io/`)"
-      - "traefik.http.routers.tower-outpost.entrypoints=tailnet,websecure"
-      - "traefik.http.routers.tower-outpost.tls.certresolver=public"
-      - "traefik.http.routers.tower-outpost.service=authentik@docker"
-      - "homepage.group=Ops"
-      - "homepage.name=AIS-OS Tower"
-      - "homepage.icon=dashboard.png"
-      - "homepage.href=https://tower.ramonedevelopment.com"
-      - "homepage.description=ADO sprint dashboard, Hermes inbox, decisions, interrupts"
 
   traefik:
     image: traefik:v3.6
