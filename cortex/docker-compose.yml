@@ -309,6 +309,9 @@ services:
     <<: *default-logging
     env_file:
       - /mnt/shared/claudia/magiq/.env
+    networks:
+      - default
+      - cortex_edge
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.mcp-ado.rule=Host(`mcp-ado.ramonedevelopment.com`)"
@@ -505,6 +508,9 @@ services:
       - /mnt/shared/claudia/magiq:/app
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - default
+      - cortex_edge
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.tower.rule=Host(`tower.ramonedevelopment.com`)"
@@ -671,6 +677,11 @@ services:
   #
   # tenant1 / tenant2 / www / traefik-dashboard: same pattern, see legacy Windows dynamic.yml
   # for the full router/service list to port over.
+
+networks:
+  cortex_edge:
+    external: true
+    name: cortex_edge
 
 volumes:
   authentik_pg:
