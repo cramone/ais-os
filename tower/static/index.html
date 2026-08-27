@@ -593,6 +593,19 @@
   .tag:hover { border-color: var(--accent); color: var(--accent); }
   .tag-add { color: var(--accent); border-style: dashed; }
 
+  /* Document ids (MM-014) and structural tags written by the review-cycle skill.
+     A doc-id chip is a link to the review/plan it names, not a toggle. */
+  .tag-docid {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px;
+    letter-spacing: 0.02em;
+    background: rgba(88,166,255,0.1); color: var(--accent);
+    border-color: rgba(88,166,255,0.3);
+  }
+  .tag-docid:hover { background: rgba(88,166,255,0.18); border-color: var(--accent); }
+  .tag-doctype { background: var(--surface2); color: var(--muted); border-color: var(--border); }
+  .tag-fixed { cursor: default; }
+  .tag-fixed:hover { border-color: var(--border); color: var(--muted); }
+
   /* ACTIVITY FEED */
   .comment-feed { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; min-height: 80px; }
   .comment-item { font-size: 11px; }
@@ -3457,7 +3470,7 @@
           <div class="interrupt-title">${i.title}</div>
           <div class="interrupt-meta">
             ${f.source && i.source ? `<span class="source-tag src-${(i.source || '').toLowerCase()}">${i.source}</span>` : ''}
-            ${(i.tags || []).map(t => `<span class="tag tag-${t} active">${_tagLabel(t)}</span>`).join('')}
+            ${_tagChips(board, i)}
             <span class="interrupt-age">${_ago(new Date(i.capturedAt))}</span>
           </div>
         </div>
@@ -3479,7 +3492,7 @@
         <div class="interrupt-title" style="white-space:normal">${i.title}</div>
         <div class="interrupt-meta" style="margin-top:4px">
           ${f.source && i.source ? `<span class="source-tag src-${(i.source || '').toLowerCase()}">${i.source}</span>` : ''}
-          ${(i.tags || []).map(t => `<span class="tag tag-${t} active">${_tagLabel(t)}</span>`).join('')}
+          ${_tagChips(board, i)}
         </div>
         <div class="interrupt-meta" style="margin-top:4px;display:flex;gap:6px;align-items:center">
           ${i.dueDate ? `<span class="due-chip ${_dueClass(i.dueDate)}">${_dueLabel(i.dueDate)}</span>` : ''}
@@ -3599,6 +3612,40 @@
       'complete': 'Complete'
     };
     return map[t] || t;
+  }
+
+  // Document ids minted by the review-cycle skill: MM-014, SS-003, …
+  const DOC_ID_RE = /^[A-Z]{2,5}-\d{3}$/;
+  const DOC_TYPE_TAGS = ['review', 'plan', 'gate'];
+  function _isDocId(t) { return DOC_ID_RE.test(t); }
+  function _tagClass(t) {
+    if (_isDocId(t)) return 'tag-docid';
+    if (DOC_TYPE_TAGS.includes(t)) return 'tag-doctype';
+    return `tag-${t}`;
+  }
+
+  // Tag chips for a row or card. Doc-id chips open the document they name;
+  // everything else is display-only here (editing lives in the drilldown).
+  function _tagChips(board, i) {
+    return (i.tags || []).map(t => _isDocId(t)
+      ? `<span class="tag tag-docid active" title="Open ${t}"
+           onclick="event.stopPropagation();openItemDoc('${board.kind}','${i.id}')">${t}</span>`
+      : `<span class="tag ${_tagClass(t)} active">${_tagLabel(t)}</span>`
+    ).join('');
+  }
+
+  // Open the review/plan a todo points at. `source` holds the repo-relative
+  // path; the plans viewer serves paths relative to the project's plans dir,
+  // and Tower serves no reviews tree yet, so reviews report their path instead.
+  function openItemDoc(kind, id) {
+    const board = _board(kind);
+    if (!board) return;
+    const item = (board.all() || []).find(x => x.id === id);
+    const src = item && item.source;
+    if (!src) { alert('This item has no source document.'); return; }
+    const m = src.replace(/\\/g, '/').match(/^projects\/([^/]+)\/plans\/(.+)$/);
+    if (m) { loadPlansFile(m[1], m[2]); return; }
+    alert(`Document: ${src}\n\nTower serves the plans tree only — open reviews from the repo.`);
   }
 
   function _dueClass(dueDate) {
@@ -3841,11 +3888,23 @@
   function _renderDrilldownTags(panel, board, item) {
     const container = panel.querySelector('.tags-row');
     if (!container) return;
+    // Builtins first, then any tag the item carries that isn't one — the
+    // review-cycle skill writes document ids, `review`/`plan`/`gate` and the
+    // workstream slug, and those were previously invisible and unremovable here.
+    const custom = (item.tags || []).filter(t => !BUILTIN_TAGS.includes(t));
     container.innerHTML = BUILTIN_TAGS.map(t => {
       const active = (item.tags || []).includes(t);
       return `<div class="tag tag-${t} ${active ? 'active' : ''}"
         onclick="toggleItemTag('${board.kind}','${item.id}','${t}')">${_tagLabel(t)}</div>`;
     }).join('') +
+    custom.map(t => _isDocId(t)
+      // A doc id is a link to its document, not a toggle — removing it by
+      // mis-click would sever the todo from the review or plan it tracks.
+      ? `<div class="tag tag-docid active tag-fixed" title="Open ${t}"
+           style="cursor:pointer" onclick="openItemDoc('${board.kind}','${item.id}')">${t}</div>`
+      : `<div class="tag ${_tagClass(t)} active"
+           onclick="toggleItemTag('${board.kind}','${item.id}','${t}')">${_tagLabel(t)}</div>`
+    ).join('') +
       `<div class="tag" style="border-style:dashed;cursor:pointer"
         onclick="promptItemTag('${board.kind}','${item.id}')">+ add</div>`;
   }
