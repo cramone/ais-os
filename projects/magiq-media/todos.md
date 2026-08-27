@@ -232,3 +232,125 @@ Naming" topic: `D:\source\github\magiq-media\docs\adrs\deployment-and-resource-n
 no two environments share one AWS account+region.
 
 ---
+
+
+## Asset custody — parked 2026-08-25, separate session
+
+**Review:** `reviews/asset-custody/asset-custody-review-2026-08-25.md` (no plan yet — create
+`plans/asset-custody/` when it is sequenced).
+**Decision:** `docs/adrs/ownership-and-authorization.md` in the magiq-media repo — already written.
+
+**Why parked:** raised while classifying `Asset` for the ownership ADR. Split out because the
+spec-drift review corrects documentation against code, and **this one changes code**.
+
+**The short version.** `Asset` needs a third concept the codebase lacks — **custody**, which unlike
+provenance *transfers*, and unlike authorization attaches to the resource. Split `Asset.OwnerId` into
+`UploadedBy` (immutable) and `CustodianId` (transfers to whoever detaches the asset from a role).
+
+**Blocked by X-11.32 (High).** Detach never reaches the Asset aggregate: `DetachFromMediaItem` exists
+but nothing dispatches it, there is no unassign consumer, and `ApplyAssetAssignmentCommand` is
+attach-only. So after the first assignment an asset can never return to standalone and **can never be
+reassigned to a different MediaItem**. Custody has no transfer point to hang on.
+
+**Sequencing is fixed:** wire detach (X-11.32) → model custody → authorization replaces the interim
+owner checks. **Do not remove `AssetOwnership.CheckOwner` before the last step** — it currently guards
+8 commands including delete, and removing it early widens X-11.30.
+
+**Settle before coding:** the Asset-side handler runs in `EventConsumers` with no HTTP actor, so the
+**detaching user's identity must travel on the integration event**. Cheap to decide now, expensive later.
+
+**Not blocking the spec work.** The rule applied throughout: the spec describes what the code does
+today, the ADR holds the decision. No spec file was renamed — including the four provenance aggregates
+(`Collection`, `Folder`, `MediaItem`, `MediaProfile`) whose rename to `CreatedBy` is decided but unbuilt.
+
+---
+
+
+## Projection rebuild — parked 2026-08-25, separate session
+
+**Review:** `reviews/projection-rebuild/projection-rebuild-review-2026-08-25.md` (no plan yet).
+
+**Why parked:** raised while writing the consistency model (W25). Changes code, so it is out of scope for
+the spec-drift review — same split as `asset-custody`.
+
+**The short version.** **Seven write-side reference indexes cannot be rebuilt by replay at all** — they are
+fed by integration events from another module and **nothing re-emits integration events**. Replaying the
+source aggregate leaves them exactly as broken. Each backs a **guard** (asset status, checkout gating,
+RecordType deprecation, profile defaults, registration capability), so staleness is a wrong authorization
+decision rather than a wrong screen. **The two uniqueness counters are worse** — written by command
+handlers, not events, so nothing reproduces them, and they already drift (X-11.39, X-11.43).
+
+**Why it matters more than it looks:** it compounds with **X-11.44** (no outbox — a publish that fails
+after commit is only repairable by rebuild), and with there being **no lag metric at all**, so divergence
+is discovered rather than detected. The blue-green rebuild runbook has also only ever been run against dev,
+which projects synchronously and therefore has neither lag nor a queue.
+
+**Start with divergence detection, not the rebuild tool** — question 7 in the review. Comparing
+`ProjectedVersion` against aggregate version is small, and it tells you whether the rest is urgent. **Do not
+start by building a bespoke rebuild for seven tables**: if they become versioned manifest tables, the
+existing blue-green rotation already does the work.
+
+---
+
+## Production readiness gate — created 2026-08-25
+
+**`plans/prod-readiness/prod-readiness-gate.md`** — the triage of all 42 open code findings from the
+spec-drift review. **Check it before setting `PROD_ENABLED` or `STAGING_ENABLED` to `true`.**
+
+**Nothing is in production today** (both flags unset, only dev/qa deploy), so nothing is exploitable — the
+risk is that these ship silently when the flags flip. Note `STAGING_ENABLED` does not de-risk prod: staging
+runs as `Development`, so it never exercises the async projection path or the queue behaviour prod uses.
+
+**Two 🔴 security blockers:** **X-11.31** — an unprivileged tenant member can disable the guards tenant-wide
+via the policy setters; **five handlers, the smallest fix and the largest effect, do this first**. Then
+**X-11.30** — 86 of 132 write commands have no authorization at all.
+
+**Six 🟠 blockers** on data loss and compliance: X-11.6 (saga DLQ unreachable, events lost), X-11.44 (no
+outbox), X-11.16 (fan-out failures discarded), X-11.17 ⚖️ (registration-locked folders archived anyway),
+X-11.41 (moved items archived under their old folder), X-11.21 (idempotency header name).
+
+**Four decisions still owed** — idempotency adopt-or-retire is the live one; BI-1 owns 16 of the 17
+remaining CI warnings.
+
+---
+
+## Two decisions blocking code work — 2026-08-25
+
+**Review:** `reviews/pending-decisions/pending-decisions-review-2026-08-25.md`. **No research left — both
+need a call, not investigation.**
+
+**1. Idempotency — adopt or retire (X-11.21, 🟠).** The middleware is deployed and works: global on the
+`Api` host, table provisioned by CDK, covering every write endpoint. **Nothing sends the header.** Three
+code comments claim the feature does not exist. And the header is **`Idempotency-Key`** while every
+document said `IdempotencyKey` — so a client following the published contract got **zero replay protection,
+silently, with a 2xx**. *Recommendation: adopt* — it is built and paid for, and only the name and the
+OpenAPI declaration are missing. Note it is replay **rejection** (bare 409), not replay, and the key is
+burnt **before** execution, so a failed request blocks its own retry for 24h.
+
+**2. BI-1 — the bulk-import spec.** Two fully specified aggregates with **no class, no command, no
+projector, no queue, no table, no route**. They own **all 16** remaining CI warnings and those warnings are
+correct — the missing sections cannot honestly be written. Build / delete / badge-as-design. *The question
+is not whether the design is good but whether it is being built, and roughly when.* If badging, put the
+deadline in the exemption comment — W18 retired the truncation guard's exemption on principle.
+
+**Neither blocks the two 🔴 security items** — those are independent and should start regardless.
+
+---
+
+## The three code workstreams — reviews written 2026-08-25
+
+Each has its own review so it can be worked in a separate session. All start from
+`plans/prod-readiness/prod-readiness-gate.md`.
+
+- **`reviews/authorization/authorization-review-2026-08-25.md`** — both 🔴. X-11.30, 31, 34, 35, 23.
+  **X-11.31 first: five handlers.** Open question 1 (does magiq-auth issue roles?) changes the shape of
+  everything else — answer it early, but do not wait for it to fix the five setters.
+- **`reviews/archive-cascade/archive-cascade-review-2026-08-25.md`** — four 🟠. X-11.15–11.19, 11.41.
+  **X-11.16 first — it closes X-11.18.** The design decision the workstream turns on is open question 1:
+  on a per-child failure, abort the level or continue and report?
+- **`reviews/event-reliability/event-reliability-review-2026-08-25.md`** — two 🟠. X-11.5, 11.6, 11.44.
+  **X-11.6 first — it is the one losing events today.** Open question 1 (outbox or documented deviation)
+  gates X-11.44.
+
+---
+

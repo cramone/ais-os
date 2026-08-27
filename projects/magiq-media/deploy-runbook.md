@@ -113,7 +113,7 @@ all). Missing either one leaves the corresponding job dormant.
    redeploys unchanged app code against the new table. Table exists, empty,
    unused — no behavior change.
 3. Branch magiq-media off `develop`. Implement the read model / projection
-   that uses the new table (`ITenantScoped`, `LastObservedAtUtc`, idempotent
+   that uses the new table (`ITenantScoped`, `ProjectedVersion`, idempotent
    on `ProjectedVersion`, per the module conventions). PR, review, merge to
    magiq-media `develop`.
 4. CI builds and pushes images for the new SHA, then bumps `config/dev.json`
