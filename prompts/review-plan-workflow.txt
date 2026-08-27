@@ -1,0 +1,1145 @@
+# Build: review → plan workflow for projects/
+
+## Deliverable
+
+Workspace automation, not documentation prose:
+
+1. `.claude/skills/review-cycle/SKILL.md` — single file, no subfolders. Every
+   workspace skill here is a lone SKILL.md; match that. The prompt template goes
+   inline in the skill body.
+2. A `## Review → Plan cycle` section appended to the CLAUDE.md of each project
+   that adopts this. That section is also the **adoption marker** — the skill
+   operates only on projects that have it. Only magiq-media has this structure
+   today; do not assume the other six projects do.
+3. Root `CLAUDE.md` gets a one-line pointer only. The convention already lives at
+   project level and two copies will drift.
+4. A patch to `C:\Users\chase\.claude\skills\ado-create-from-plan\SKILL.md` — see
+   § ADO hand-off. Without it, every plan this workflow creates is invisible to
+   ADO work-item creation.
+
+Skill `description` must disambiguate from the review skills already installed
+(`/code-review`, `/security-review`, `caveman-review`). Those review a diff or a
+PR. This one operates the `projects/<slug>/reviews/` ↔ `projects/<slug>/plans/`
+workstream cycle and the Control Tower todo store. Say that explicitly and name
+the folders. Suggested triggers: "create a review for <project>", "write the plan
+for <workstream>", "what's unblocked", "close out <workstream>", "archive
+<workstream>".
+
+Do not create new top-level folders. Do not create a global registry file.
+
+## Ground truth — read before writing anything
+
+- `projects/magiq-media/CLAUDE.md` § "Review → Plan" — the existing convention.
+  You are EXTENDING it, not replacing it. Its three rules — folder name is the
+  link, name the plan after the review, **archive both sides together** — stay
+  verbatim. The third is the one most likely to get dropped; it is in scope.
+- `projects/magiq-media/reviews/README.md` and `plans/README.md` — index format
+  and the status words in use today.
+- `.claude/skills/project-todos/SKILL.md` — the only sanctioned way to touch todos.
+- `tower/interrupts/store.py` — the actual helper signatures. `create_item`
+  accepts `source=` and `tags=` at creation even though the skill doc shows only
+  `title`/`priority`/`due_date`; use them, don't create-then-patch.
+- `C:\Users\chase\.claude\skills\ado-create-from-plan\SKILL.md` — needs patching,
+  see below.
+- Root `CLAUDE.md` § "Core rule" — build only what gets used. If a step below adds
+  structure that will not be reused, say so instead of building it.
+
+magiq-media is the reference implementation. The workflow must work for any
+adopting project, including one with no `reviews/` or `plans/` folder yet.
+
+**Dates come from the session environment, never from memory or inference.** Every
+`created:` field and every dated filename uses that date.
+
+## Todo store — exact mechanics
+
+`tower/data/todos/{project-slug}.json`. Slug == the folder name under `projects/`.
+Never hand-edit. Always go through `tower.interrupts.store`, run from repo root.
+
+- status: `new` | `in-progress` | `deferred` | `done` — these four exist, no others
+- priority: `urgent` | `normal` | `low`
+- `source`: repo-relative path of the review or plan file
+- `adoItemId`: set when the work is tracked on an ADO board (in live use today)
+- tags: `review` or `plan`, plus the workstream slug, plus a state tag where the
+  mapping below calls for one
+- every status change gets an `append_activity` comment saying why
+
+**Last write wins.** `save_interrupts` rewrites the whole file and the Control
+Tower UI writes the same store. Re-read immediately before every mutation; never
+cache item state across a long session.
+
+## Three document types
+
+| type | Lives in | Consumes | Produced by |
+|---|---|---|---|
+| `review` | `reviews/<ws>/` | code / spec | Workflow 1 |
+| `plan` | `plans/<ws>/` | one or more reviews | Workflow 2a |
+| `gate` | `plans/<ws>/` | one or more **plans** | by hand, rarely |
+
+A `gate` triages across workstreams and answers "which of these block a release".
+`plans/prod-readiness/prod-readiness-gate.md` is the existing one, and every code
+workstream is told to start from it. A gate has no review and does not need one —
+the invariant "a plan cannot exist without a review" does not apply to `type: gate`.
+
+## Naming — fixed
+
+- workstream slug: kebab-case from the review topic, e.g. `archive-cascade`
+- review: `projects/<project>/reviews/<workstream>/<workstream>-review-<YYYY-MM-DD>.md`
+- prompt: `projects/<project>/reviews/<workstream>/<review-filename>-prompt.md`
+  — NOT a bare `prompt.md`. A workstream folder can hold several reviews;
+  `archive-cascade/` and `event-reliability/` each hold two today, and a fixed
+  filename would overwrite.
+- plan: `projects/<project>/plans/<workstream>/<primary-review-filename>.md`
+
+**Multi-review tiebreak:** when a folder holds several reviews feeding one plan,
+the plan is named after the **primary** review — the one whose findings dominate —
+and `consumes:` lists all of them. The shared folder name carries the trace, per
+the existing convention.
+
+- archives: `reviews/<ws>/Archive/` and `plans/<ws>/Archive/`. **`Archive`, capital
+  A.** `reviews/archived/` exists and is empty — a stray from an earlier pass.
+  Verify it is still empty, then delete it; do not add a second casing.
+
+## Referring to a plan — always by filename
+
+**A workstream folder can hold more than one plan.** `plans/spec-drift-review/`
+holds two right now — `spec-repo-drift-review.md` (Active) and
+`spec-ddd-coverage-review-2026-08-24.md` (In progress) — with different statuses.
+A `<project>/<workstream>` reference is therefore ambiguous and must not be used
+for anything that resolves to a status.
+
+- `depends-on` entries are **`<project>/<workstream>/<plan-filename>`**. Always
+  three parts. This is the only form written by this workflow.
+- `raised-by` entries stay **`<project>/<workstream>`** — two parts. Provenance is
+  workstream-level, and the origin frequently has no plan yet, so there is nothing
+  to name.
+- If you encounter a two-part `depends-on` (hand-written or legacy), resolve it to
+  the single plan in that folder whose `status` is `active`. **Zero matches or more
+  than one → stop and ask.** Never pick one and continue.
+- On resolution, rewrite the entry to its three-part form so the ambiguity is
+  fixed once rather than re-resolved every session.
+
+## Status vocabularies — separate, then mapped
+
+Reviews and plans have different lifecycles. Do not share one enum.
+
+**Review status:** `draft` → `findings-agreed` → `done` | `parked` | `superseded`
+
+**Plan status:** `active` | `blocked` | `parked` | `superseded` | `done`
+
+Front-matter is authoritative. It maps to the todo store and the README words;
+never invent a fourth vocabulary.
+
+| Front-matter | Todo status | Todo tag | README word |
+|---|---|---|---|
+| review `draft` | `new` | — | Draft |
+| review `findings-agreed` | `in-progress` | — | Active |
+| plan `active` | `in-progress` | — | Active |
+| plan `blocked` | `deferred` | `blocked` | Active (blocked) |
+| `parked` | `deferred` | `parked` | Parked |
+| `superseded` | `done` | `superseded` | Superseded |
+| `done` | `done` | — | Done |
+
+**Everything is indexed from creation, including `draft`.** A review that exists
+but is not in `reviews/README.md` is invisible to the next session, which is the
+failure this convention exists to prevent. `Draft` is a real README status, not a
+pre-index state.
+
+`blocked` is DERIVED from unmet dependencies, never set by hand. `parked` is a
+deliberate human call and must carry a reason.
+
+**`findings-agreed` has a defined transition.** I say the findings are agreed; you
+move the review to `findings-agreed` and comment the todo. Until that transition
+happens the plan gate stays shut, no matter how few open questions remain. It is
+not a state you infer from the document.
+
+## Front-matter — required on every review, plan and gate
+
+This is what makes cross-project links and dependency gating work. Every field
+mandatory; use `-` or `[]` for empty.
+
+Review:
+    ---
+    type: review
+    project: <slug>                  # project that OWNS the code/spec reviewed
+    workstream: <slug>
+    raised-by: [<project>/<workstream>, ...]   # list; [] if raised directly
+    status: draft | findings-agreed | done | parked | superseded
+    outcome: pending | plan | parked | decision-only | folded-into:<workstream> | withdrawn
+    todo-id: <uuid from the todo store>
+    created: YYYY-MM-DD
+    ---
+
+Plan:
+    ---
+    type: plan
+    project: <slug>
+    workstream: <slug>
+    consumes: [reviews/<workstream>/<review-file>.md, ...]
+    depends-on: [<project>/<workstream>/<plan-file>.md, ...]   # three-part; [] if none
+    blocked-by-external: []                          # see below
+    status: active | blocked | parked | superseded | done
+    todo-id: <uuid>
+    branches: []                     # append each branch as it is cut
+    ado: -                           # or {project: <board>, epicId: <id>}
+    created: YYYY-MM-DD
+    ---
+
+Gate:
+    ---
+    type: gate
+    project: <slug>
+    workstream: <slug>
+    consumes: [plans/<workstream>/<plan-file>.md, ...]
+    status: active | superseded | done
+    todo-id: <uuid> | -
+    created: YYYY-MM-DD
+    ---
+
+Optional on any of them, when a file deliberately breaks the convention:
+    exception: <one-line reason>
+
+Derive the graph by grepping these fields. Do not maintain a separate index.
+
+**No `open-questions` count field.** Count `**Open**` markers in the review's
+`## Open Questions` section — a stored count is a second source of truth and will
+drift from the body.
+
+**`branches` is a list.** `architecture-review-remediation` spans ~57 branches
+across 3 repos; a scalar cannot represent that.
+
+## Path references and who may edit a closed file
+
+`consumes:` and `depends-on:` hold paths, and archiving moves files. Two rules
+keep them from rotting — this repo has already lost links this way, and
+`reviews/README.md` carries a whole "References repaired in the move" section
+from the last reorganisation, including two links that had been broken for months.
+
+1. **A file at `status: done` is frozen.** No edits, no status changes, no
+   re-scoping.
+2. **Except for reference repair.** Archiving, and only archiving, may rewrite
+   `consumes:` and `depends-on:` on a frozen file so the paths still resolve.
+   The same carve-out covers a `folded-into` review being added to an
+   already-archived plan's `consumes:`. Every such edit is reported, never silent.
+
+## External blockers
+
+Some work is blocked outside this workspace. `authorization/` X-11.30 waits on the
+`magiq-auth` team to issue role claims; the hand-off doc is written and unsent.
+A `depends-on` entry would resolve to a plan file that never exists, so the gating
+rules would stop and ask on every session, forever.
+
+Use a separate field with a different remedy — chase a human, not a status:
+    blocked-by-external:
+      - owner: <team or person>
+        ask: <path to the written hand-off, or `-` if unwritten>
+        sent: true | false
+        since: YYYY-MM-DD
+
+Rules:
+- An external blocker sets plan `status: blocked` and todo `deferred` + tag
+  `blocked`, same as an internal one.
+- `sent: false` is the actionable state — surface it as **the critical path**, not
+  as an errand. An unsent ask is work we own; a sent ask is work we wait on.
+- Never convert an external blocker into a `depends-on` entry, even when the other
+  team's repo happens to exist as a project folder here.
+
+## Finding ids and severity
+
+**Ids must be workstream-scoped.** Live schemes already in use: `X-11.30` and
+`X-9.6` (the global drift register), `S13`, `INV-4`, `A1`. A new review numbering
+`1..n` produces plans citing "finding 3" ambiguously.
+
+- New review → prefix with an abbreviation of the workstream, e.g. `AC-1`, `AC-2`
+  for `archive-cascade`.
+- A finding that belongs in the global drift register gets an `X-` number there
+  instead, and the review cites that number rather than minting a local one. When
+  in doubt, ask which register it belongs to — do not mint both.
+- Ids are stable once written. Plans reference them; never renumber.
+
+**Severity uses the project's existing scale.** magiq-media reviews use
+High/Medium/Low in prose and 🔴/🟠 in `prod-readiness-gate.md`. Match the file you
+are writing into; do not introduce a third scale.
+
+## Findings discovered during execution
+
+Work uncovers new problems. This happens constantly here — X-11.1 was surfaced
+while *working* Phase 1 of the DDD plan, and a second defect
+(`ProcessingJobFailureCategory` missing `ValidationTimeout`) surfaced while fixing
+X-11.5. Without a rule, these get appended to the plan as fresh checklist items,
+bypassing review, agreement and id discipline.
+
+- A new finding **never** becomes a new checklist item in the plan it was found in.
+- It goes to the global drift register with an `X-` number, or to a new review in
+  the appropriate workstream. Ask which when it is not obvious.
+- The only edits allowed to a plan's checklist mid-execution are ones that close,
+  split, or correct an item tracing to a finding id the plan already consumes.
+  Splitting an item keeps the original finding id on both halves.
+- If a new finding invalidates the plan's approach, stop. Do not re-plan in place —
+  say so, and we decide whether the review reopens or a new one starts.
+- Record every such diversion in the plan's session log so the trail survives.
+
+## Legacy files — no front-matter, handle explicitly
+
+Roughly twenty review and plan files predate this workflow and carry none.
+
+- **Never infer.** A file with no front-matter has UNKNOWN status. Do not treat it
+  as met, unmet, active, or done. Stop and ask.
+- Do not bulk-rewrite existing files as part of building this. Offer a backfill as
+  a separate reviewable step, one workstream at a time, and only for workstreams
+  we are about to work.
+- Backfill derives status from `plans/README.md` and `reviews/README.md`, which are
+  current — not from guesswork about the body.
+
+## Known exceptions to whitelist
+
+1. `plans/spec-drift-review/spec-repo-drift-review.md` — a review living on the
+   plans side, deliberately: it is its own working checklist and splitting it would
+   separate findings from the boxes tracking them. Documented in the project
+   CLAUDE.md. Give it `type: review` plus an `exception:` line, leave it in place.
+2. `plans/projection-tables/` and `plans/deployment-naming/` — plan folders with no
+   review counterpart, predating the convention. `exception:` line each; do not
+   retro-fit a review to satisfy the invariant.
+3. `plans/prod-readiness/prod-readiness-gate.md` — not an exception. It is
+   `type: gate`, which legitimately has no review.
+
+Any invariant check must skip files carrying `exception:` and **report** them
+rather than "fixing" them.
+
+## Workflow 1 — create a review
+
+Trigger: we are discussing a project's repo code or spec docs and I ask for a review.
+
+1. Resolve project slug and workstream slug. Ambiguous project → ask, do not guess.
+   Confirm the project has the adoption marker. If the target project differs from
+   the one we are discussing, this is a cross-project review: it lands in the
+   TARGET project, and `raised-by` names the origin workstream.
+2. Create `reviews/<workstream>/` in the target project, plus the `reviews/` tree
+   and README if that project has none.
+3. **Create the review todo FIRST**, via `project-todos` on the target project:
+   title = the workstream topic, `source` = the review file path you are about to
+   write, tags = [`review`, `<workstream>`], status `new`. Capture the returned
+   uuid. The file cannot carry a real `todo-id` if the todo does not exist yet.
+4. Write the review with front-matter (`status: draft`, `outcome: pending`,
+   `todo-id` from step 3). Required sections, in order:
+   - `## Scope` — what was read, what was not
+   - `## Findings` — workstream-scoped id, severity, evidence as `file:line`, impact
+   - `## Open Questions` — numbered, each `**Open**` or `**Answered:** <answer>`
+   - `## Dependencies` — other workstreams this needs, and any external blocker;
+     `none` if none
+   - `## Recommended sequencing` — rough; the plan refines it
+5. Write `<review-filename>-prompt.md` beside it (contents below).
+6. Add a row to `reviews/README.md` with status `Draft`. Index at creation — an
+   unindexed review is one the next session will not find.
+7. If cross-project: add this workstream to the origin's `depends-on` once the
+   origin's plan exists, using the three-part form. **If the origin has no plan
+   yet** — the common case, since a review is usually raised before its origin is
+   planned — record it in the origin REVIEW's `## Dependencies` and promote it to
+   plan front-matter when that plan is authored. Either way, comment on the
+   origin's todo naming the new review.
+8. Report back: paths written, todo id, the one-line summary used.
+
+## The prompt file
+
+Pasted into a fresh Claude session with zero context from ours. Must stand alone —
+no "as we discussed", no unresolved pronouns. Contains:
+
+- Project slug and absolute path to the project folder
+- Absolute path to the review file, and the todo id
+- Instruction to set that todo to `in-progress` via `project-todos` as the FIRST
+  action, with a comment noting the session started
+- What to read first, and what is out of scope
+- The finding-id prefix to use, and the severity scale
+- How to work findings: evidence before conclusion, cite `file:line`, do not fix
+  code during a review
+- The rule for anything found outside the review's scope: it does not go in this
+  review's findings — surface it and ask where it belongs
+- The gate, plainly: **do not write the plan until every open question is answered
+  AND I have moved the review to `findings-agreed`**
+- A `## Writing the plan` section giving the plan format: front-matter as above,
+  then phases; each phase a checklist of `- [ ]` items small enough to finish in
+  one session; each item naming the finding id it closes and its acceptance check;
+  phases blocked by a dependency marked as such
+- That checkboxes are ticked in the file as work lands, so a later session resumes
+  from the file, not from chat history
+- End-of-session protocol: update the checklist, update front-matter `status`,
+  append any new branch to `branches`, comment the todo with what moved
+
+## Workflow 2a — the review produces a plan
+
+Preconditions, all three, checked and reported before anything is written:
+- review `status: findings-agreed`
+- zero `**Open**` markers in `## Open Questions`
+- I have said to write the plan
+
+Then:
+1. Resolve dependencies (§ Dependency gating) and write
+   `plans/<workstream>/<primary-review-filename>.md` with plan front-matter,
+   status set from the dependency result.
+2. Review front-matter → `status: done`, `outcome: plan`. Review todo → `done`,
+   comment linking the plan path.
+3. Create the plan todo: same topic title, `source` = plan path, tags = [`plan`,
+   `<workstream>`], status per the mapping table.
+4. Index the plan in `plans/README.md`; update the pairing row in
+   `reviews/README.md`.
+5. The plan must contain a `## Closing out` section stating: the plan todo moves to
+   `done` only after I agree the work is implemented and complete, the close-out
+   comment records every branch it was committed to, and the pair is then archived
+   (§ Archiving).
+
+**Hand-over is complete only when steps 1–4 have all happened.** Plan execution
+does not start before that — not because the review todo says `done`, which step 2
+guarantees by construction, but because a plan whose READMEs and dependency status
+are not yet written is a plan the next session cannot pick up correctly. Report the
+hand-over as done, explicitly, before any execution begins.
+
+## Workflow 2b — the review produces no plan
+
+**Normal, and must be supported.** Four magiq-media workstreams are review-only by
+design: `pending-decisions/` (decisions, not work), `asset-custody/` and
+`projection-rebuild/` (parked), `spec-structure/` (folded into another plan). A
+workflow that closes a review only when a plan is written leaves those open forever.
+
+Set `outcome`, with a reason line in the review body:
+- `parked` — real work, deliberately not now. Review `status: parked`, todo
+  `deferred` + tag `parked`.
+- `decision-only` — evidence complete; what is missing is a decision, not research.
+  Review `status: done`, todo `done` + tag `decision`. Log the call via `/decision`
+  when we make it.
+- `folded-into:<workstream>` — findings consumed by another workstream's plan.
+  Review `status: done`, todo `done`, comment naming the consuming plan, and add
+  this review to that plan's `consumes` — including when that plan is already
+  frozen or archived, per the reference-repair carve-out.
+- `withdrawn` — raised in error or overtaken. Review `status: superseded`, todo
+  `done` + tag `superseded`, reason mandatory.
+
+Update both READMEs in every case. Never leave a review at `outcome: pending` once
+we have stopped working it.
+
+## Dependency gating
+
+Run at plan authoring, at every session start on a plan, and at every phase boundary.
+
+1. **Cycle check first.** Walk the `depends-on` graph. If A depends on B and B on A,
+   directly or transitively, stop, print the cycle, and ask which edge to break.
+   Never report both as blocked and move on.
+2. For each `depends-on` entry, resolve the exact plan file (three-part reference;
+   two-part → resolve-or-ask, per § Referring to a plan) and read its `status`:
+   - review exists but no plan → **unmet**
+   - file with no front-matter → **unknown**: stop and ask, do not assume
+   - `parked` or `superseded` → unmet, and say so explicitly: it is not coming
+     unless someone restarts it
+3. For each `blocked-by-external` entry → unmet. If `sent: false`, name writing and
+   sending that ask as the critical path.
+4. All clear → plan `status: active`, todo `in-progress`, drop `blocked`.
+5. Anything unmet → plan `status: blocked`, todo `deferred` + tag `blocked`, plus a
+   todo comment naming which dependency and its current state.
+6. **Partial blocking is the common case.** If only some phases depend on the
+   blocked item, list the phases that can proceed now and the ones that cannot,
+   and mark the blocked phases in the plan body. Do not block the whole plan.
+7. Never silently proceed past an unmet dependency. Report and ask.
+
+## Archiving — the third rule of the existing convention
+
+A workstream is finished when its plan is `done` and no review in the folder is
+still `pending`. Then, in one step:
+
+1. Move the review(s) to `reviews/<workstream>/Archive/` and the plan to
+   `plans/<workstream>/Archive/`. **Both sides, same session** — a matched pair is
+   what makes the pairing legible after the fact.
+2. **Repair every reference the move breaks.** The plan's `consumes:` paths now
+   point into `reviews/<ws>/Archive/`; any other plan's `depends-on` pointing at the
+   moved plan now points into `plans/<ws>/Archive/`. Grep for both and rewrite them.
+   This is the one operation permitted to edit a frozen file. List every file you
+   touched.
+3. Front-matter status is not otherwise rewritten; `done` already says it.
+4. Move the README rows into the archive section of each README rather than
+   deleting them. A workstream nobody indexed is a workstream the next session
+   cannot find.
+5. Todos stay `done` in the store; do not delete them.
+6. If the workstream folder is left empty apart from `Archive/`, leave it. Do not
+   collapse it into the top-level `plans/Archive/` — that is only for completed
+   work with no live workstream left.
+
+Archiving is never automatic. Propose it; I confirm.
+
+## ADO hand-off
+
+`ado-create-from-plan` currently resolves plans at
+`projects/<project>/plans/<plan-name>.md` — flat — and from a stale root
+(`C:\Users\chase\OneDrive\Magiq\AIS-OS\`). Plans moved into subfolders on
+2026-08-24 and this workflow makes subfolders mandatory, so that skill can no
+longer find any magiq-media plan.
+
+Patch it:
+- resolution order: `projects/<project>/plans/<workstream>/<name>.md`, then
+  `projects/<project>/plans/<name>.md`, then the project root
+- root path `Z:\claudia\magiq\projects\`
+- after creating work items, write the Epic id back into the plan's `ado:`
+  front-matter and set `adoItemId` on the plan's todo
+
+Do not create ADO items as part of the review→plan cycle. Keep it a separate,
+explicit step — most plans never go to the board.
+
+## Query mode
+
+The point of the front-matter is answering one question in a single grep. Support:
+
+- **"what's unblocked"** — plans with `status: active`, grouped by project, with
+  their next unticked checklist item, skipping items in phases marked blocked
+- **"what's blocked and why"** — plans with `status: blocked`, each naming its
+  dependency and whether it is internal, external-sent, or external-unsent
+- **"what's stuck"** — reviews at `outcome: pending` with no activity, and any
+  `blocked-by-external` with `sent: false`
+- **"show the graph"** — `raised-by` / `depends-on` / `consumes` edges as a list# Build: review → plan workflow for projects/
+
+## Deliverable
+
+Workspace automation, not documentation prose:
+
+1. `.claude/skills/review-cycle/SKILL.md` — single file, no subfolders. Every
+   workspace skill here is a lone SKILL.md; match that. The prompt template goes
+   inline in the skill body.
+2. A `## Review → Plan cycle` section appended to the CLAUDE.md of each project
+   that adopts this. That section is the **adoption marker** and carries the
+   project's config:
+
+       ## Review → Plan cycle
+       prefix: MM
+       we-operate: true
+
+   `prefix` seeds document ids. `we-operate: true` means we own this project's
+   code and may raise reviews in it. The skill operates only on projects with
+   this section. Only magiq-media has this structure today; do not assume the
+   other six projects do.
+3. Root `CLAUDE.md` gets a one-line pointer only. The convention already lives at
+   project level and two copies will drift.
+4. A patch to `C:\Users\chase\.claude\skills\ado-create-from-plan\SKILL.md` — see
+   § ADO hand-off. Without it, every plan this workflow creates is invisible to
+   ADO work-item creation.
+
+Skill `description` must disambiguate from the review skills already installed
+(`/code-review`, `/security-review`, `caveman-review`). Those review a diff or a
+PR. This one operates the `projects/<slug>/reviews/` ↔ `projects/<slug>/plans/`
+workstream cycle and the Control Tower todo store. Say that explicitly and name
+the folders. Suggested triggers: "create a review for <project>", "write the plan
+for <workstream>", "what's unblocked", "close out <workstream>", "archive
+<workstream>".
+
+Do not create new top-level folders. Do not create a global registry file.
+
+## Ground truth — read before writing anything
+
+- `projects/magiq-media/CLAUDE.md` § "Review → Plan" — the existing convention.
+  You are EXTENDING it, not replacing it. Its three rules — folder name is the
+  link, name the plan after the review, **archive both sides together** — stay
+  verbatim. The third is the one most likely to get dropped; it is in scope.
+- `projects/magiq-media/reviews/README.md` and `plans/README.md` — index format
+  and the status words in use today.
+- `.claude/skills/project-todos/SKILL.md` — the only sanctioned way to touch todos.
+- `tower/interrupts/store.py` — the actual helper signatures. `create_item`
+  accepts `source=` and `tags=` at creation even though the skill doc shows only
+  `title`/`priority`/`due_date`; use them, don't create-then-patch.
+- `C:\Users\chase\.claude\skills\ado-create-from-plan\SKILL.md` — needs patching.
+- Root `CLAUDE.md` § "Core rule" — build only what gets used. If a step below adds
+  structure that will not be reused, say so instead of building it.
+
+magiq-media is the reference implementation. The workflow must work for any
+adopting project, including one with no `reviews/` or `plans/` folder yet.
+
+**Dates come from the session environment, never from memory or inference.** Every
+`created:` field and every dated filename uses that date.
+
+## Document ids
+
+Every review, plan and gate carries a stable id. Cross-references use ids, never
+paths or folder names.
+
+    id: MM-014
+
+- Format `<PREFIX>-<nnn>`, zero-padded to three, monotonic per project. `PREFIX`
+  comes from the project's adoption marker — never guessed.
+- **Minted by grep:** highest existing `id:` under that project's `reviews/` and
+  `plans/`, **including every `Archive/`**, plus one. No counter file, no registry.
+  A collision is visible rather than silent; if you find one, stop and report it.
+- Never reused, never renumbered. Survives rename, move and archive.
+
+This is why ids exist rather than paths: `plans/` was reorganised on 2026-08-24
+and `reviews/README.md` still carries a "References repaired in the move" section
+listing ten repointed links plus two that had been broken for months. A path is a
+location, and locations change. Resolution is a derived operation — grep
+`id: MM-014` to find the file wherever it now lives.
+
+**Four id spaces, four jobs. Do not conflate them.**
+
+| Id | Scope | Set by |
+|---|---|---|
+| `id: MM-014` | one review / plan / gate document | this workflow |
+| `todo-id: <uuid>` | one Control Tower todo | the todo store |
+| `AC-1`, `X-11.30` | one finding inside a review | the review author |
+| `adoItemId: 34275` | one ADO work item | `ado-create-from-plan` |
+
+## Todo store — exact mechanics
+
+`tower/data/todos/{project-slug}.json`. Slug == the folder name under `projects/`.
+Never hand-edit. Always go through `tower.interrupts.store`, run from repo root.
+
+- status: `new` | `in-progress` | `deferred` | `done` — these four exist, no others
+- priority: `urgent` | `normal` | `low`
+- `source`: repo-relative path of the review or plan file
+- `adoItemId`: set when the work is tracked on an ADO board (in live use today)
+- tags: the document id, plus `review` / `plan` / `gate`, plus the workstream slug,
+  plus a state tag where the mapping below calls for one
+- every status change gets an `append_activity` comment saying why
+
+**Last write wins.** `save_interrupts` rewrites the whole file and the Control
+Tower UI writes the same store. Re-read immediately before every mutation; never
+cache item state across a long session.
+
+## Three document types
+
+| type | Lives in | Consumes | Produced by |
+|---|---|---|---|
+| `review` | `reviews/<ws>/` | code / spec | Workflow 1 |
+| `plan` | `plans/<ws>/` | one or more reviews | Workflow 2a |
+| `gate` | `plans/<ws>/` | one or more **plans** | by hand, rarely |
+
+A `gate` triages across workstreams and answers "which of these block a release".
+`plans/prod-readiness/prod-readiness-gate.md` is the existing one, and every code
+workstream is told to start from it. A gate has no review and does not need one —
+the invariant "a plan cannot exist without a review" does not apply to `type: gate`.
+
+## Naming — fixed
+
+- workstream slug: kebab-case from the review topic, e.g. `archive-cascade`
+- review: `projects/<project>/reviews/<workstream>/<workstream>-review-<YYYY-MM-DD>.md`
+- prompt: `projects/<project>/reviews/<workstream>/<review-filename>-prompt.md`
+  — NOT a bare `prompt.md`. A workstream folder can hold several reviews;
+  `archive-cascade/` and `event-reliability/` each hold two today, and a fixed
+  filename would overwrite.
+- plan: `projects/<project>/plans/<workstream>/<primary-review-filename>.md`
+
+**Multi-review tiebreak:** when a folder holds several reviews feeding one plan,
+the plan is named after the **primary** review — the one whose findings dominate —
+and `consumes:` lists every one of them by id. The shared folder name carries the
+trace, per the existing convention; the ids carry the precision.
+
+- archives: `reviews/<ws>/Archive/` and `plans/<ws>/Archive/`. **`Archive`, capital
+  A.** `reviews/archived/` exists and is empty — a stray from an earlier pass.
+  Verify it is still empty, then delete it; do not add a second casing.
+
+Filenames stay human-readable. **Ids are for machines and cross-references; names
+are for people.** README tables carry both.
+
+## Status vocabularies — separate, then mapped
+
+Reviews and plans have different lifecycles. Do not share one enum.
+
+**Review status:** `draft` → `findings-agreed` → `done` | `parked` | `superseded`
+
+**Plan status:** `active` | `blocked` | `parked` | `superseded` | `done`
+
+**Gate status:** `active` | `superseded` | `done`
+
+Front-matter is authoritative. It maps to the todo store and the README words;
+never invent a fourth vocabulary.
+
+| Front-matter | Todo status | Todo tag | README word |
+|---|---|---|---|
+| review `draft` | `new` | — | Draft |
+| review `findings-agreed` | `in-progress` | — | Active |
+| plan `active` | `in-progress` | — | Active |
+| plan `blocked` | `deferred` | `blocked` | Active (blocked) |
+| `parked` | `deferred` | `parked` | Parked |
+| `superseded` | `done` | `superseded` | Superseded |
+| `done` | `done` | — | Done |
+
+**Everything is indexed from creation, including `draft`.** A review that exists
+but is not in `reviews/README.md` is invisible to the next session, which is the
+failure this convention exists to prevent. `Draft` is a real README status, not a
+pre-index state.
+
+`blocked` is DERIVED from unmet dependencies, never set by hand. `parked` is a
+deliberate human call and must carry a reason.
+
+**`findings-agreed` has a defined transition.** I say the findings are agreed; you
+move the review to `findings-agreed` and comment the todo. Until that transition
+happens the plan gate stays shut, no matter how few open questions remain. It is
+not a state you infer from the document.
+
+## Front-matter — required on every review, plan and gate
+
+Every field mandatory; use `-` or `[]` for empty.
+
+Review:
+    ---
+    id: <PREFIX>-<nnn>
+    type: review
+    project: <slug>                  # project that OWNS the code/spec reviewed
+    workstream: <slug>
+    raised-by: [<id>, ...]           # origin documents; [] if raised directly
+    status: draft | findings-agreed | done | parked | superseded
+    outcome: pending | plan | parked | decision-only | folded-into:<id> | withdrawn
+    todo-id: <uuid from the todo store>
+    created: YYYY-MM-DD
+    ---
+
+Plan:
+    ---
+    id: <PREFIX>-<nnn>
+    type: plan
+    project: <slug>
+    workstream: <slug>
+    consumes: [<review-id>, ...]
+    depends-on: [<plan-id>, ...]     # ids, any project; [] if none
+    blocked-by-external: []          # see below
+    status: active | blocked | parked | superseded | done
+    todo-id: <uuid>
+    branches: []                     # append each branch as it is cut
+    ado: -                           # or {project: <board>, epicId: <id>}
+    created: YYYY-MM-DD
+    ---
+
+Gate:
+    ---
+    id: <PREFIX>-<nnn>
+    type: gate
+    project: <slug>
+    workstream: <slug>
+    consumes: [<plan-id>, ...]
+    supersedes: <gate-id> | -
+    status: active | superseded | done
+    todo-id: <uuid> | -
+    created: YYYY-MM-DD
+    ---
+
+Optional on any of them, when a file deliberately breaks the convention:
+    exception: <one-line reason>
+
+Derive the graph by grepping these fields. Do not maintain a separate index.
+
+**No `open-questions` count field.** Count `**Open**` markers in the review's
+`## Open Questions` section — a stored count is a second source of truth and will
+drift from the body.
+
+**`branches` is a list.** `architecture-review-remediation` spans ~57 branches
+across 3 repos; a scalar cannot represent that.
+
+**A gate has no `depends-on`.** It is the consumer, never the dependent. Nothing
+blocks a gate; the gate reports what is blocked.
+
+## Frozen documents
+
+A file at `status: done` is frozen: no edits, no status changes, no re-scoping.
+
+Because cross-references are ids rather than paths, moving a file breaks nothing,
+so there is no reference-repair exception to make. The two narrow cases that may
+still touch a frozen file:
+
+- a `folded-into` review being added to an already-closed plan's `consumes:`
+- a `supersedes:` pointer written onto a gate being replaced
+
+Both are additive, both are reported, neither changes status.
+
+## External blockers
+
+Some work is blocked outside this workspace. `authorization/` X-11.30 waits on the
+`magiq-auth` team to issue role claims; the hand-off doc is written and unsent.
+
+Use a separate field with a different remedy — chase a human, not a status:
+    blocked-by-external:
+      - owner: <team or person>
+        ask: <path to the written hand-off, or `-` if unwritten>
+        sent: true | false
+        since: YYYY-MM-DD
+
+Rules:
+- An external blocker sets plan `status: blocked` and todo `deferred` + tag
+  `blocked`, same as an internal one.
+- `sent: false` is the actionable state — surface it as **the critical path**, not
+  as an errand. An unsent ask is work we own; a sent ask is work we wait on.
+- Never convert an external blocker into a `depends-on` entry.
+
+## Cross-project work — ownership decides the mechanism
+
+`magiq-auth` is both a project folder here and another team's repo. Which it is
+for a given piece of work is settled by the adoption marker, not by the folder.
+
+- **Target project has `we-operate: true`** → we own its code. Raise the review
+  there: review file, todo and id all land in the TARGET project. The todo is
+  tagged with the **origin's document id** and **inherits the origin's priority**,
+  so it does not sit at `normal` while blocking urgent work. The origin document
+  lists the new review in `raised-by` / `depends-on` by id.
+- **Target has no adoption marker, or `we-operate: false`** → we do not own it.
+  **Do not create a review there.** It is a `blocked-by-external` entry on the
+  origin plan, with a hand-off doc. This is exactly the X-11.30 /
+  `magiq-auth-role-claims-requirements.md` case.
+
+Nothing orphans, because **query mode sweeps every project's todo store, not one**.
+A foreign-tagged todo surfaces from both ends: by id from the origin, by project
+from the target.
+
+## Finding ids and severity
+
+**Finding ids are workstream-scoped.** Live schemes already in use: `X-11.30` and
+`X-9.6` (the global drift register), `S13`, `INV-4`, `A1`. A new review numbering
+`1..n` produces plans citing "finding 3" ambiguously.
+
+- New review → prefix with an abbreviation of the workstream, e.g. `AC-1`, `AC-2`
+  for `archive-cascade`.
+- A finding belonging in the global drift register gets an `X-` number there
+  instead, and the review cites that number rather than minting a local one. When
+  in doubt, ask which register it belongs to — do not mint both.
+- Ids are stable once written. Plans reference them; never renumber.
+- Finding ids are a different space from document ids. `AC-1` is a finding;
+  `MM-014` is the review it lives in.
+
+**Two scales, kept apart:**
+
+- **Severity** — `High | Medium | Low`. A property of the finding. Every review,
+  no exceptions, no emoji.
+- **Gate status** — 🔴 / 🟠. A property of the *release decision*, owned solely by
+  `type: gate` documents. Means "blocks the flag flip", not "is bad".
+
+A High finding is not automatically a gate blocker; the gate decides. That is
+already how this repo works — `prod-readiness-gate.md` triages 42 open drift
+findings into 2 🔴 and 6 🟠. A review must not pre-empt that call.
+
+## Legacy files — no ids, no front-matter
+
+Roughly twenty review and plan files predate this workflow and carry neither.
+
+- **Never infer.** A file with no front-matter has UNKNOWN status and no id. Do not
+  treat it as met, unmet, active, or done. Stop and ask.
+- Do not bulk-rewrite existing files as part of building this. Offer a backfill as
+  a separate reviewable step, one workstream at a time, and only for workstreams
+  we are about to work.
+- Backfill derives status from `plans/README.md` and `reviews/README.md`, which are
+  current — not from guesswork about the body — and mints ids in the order the
+  files were created, oldest first, so the numbering reads chronologically.
+
+## Known exceptions to whitelist
+
+1. `plans/spec-drift-review/spec-repo-drift-review.md` — a review living on the
+   plans side, deliberately: it is its own working checklist and splitting it would
+   separate findings from the boxes tracking them. Documented in the project
+   CLAUDE.md. Give it `type: review` plus an `exception:` line, leave it in place.
+2. `plans/projection-tables/` and `plans/deployment-naming/` — plan folders with no
+   review counterpart, predating the convention. `exception:` line each; do not
+   retro-fit a review to satisfy the invariant.
+3. `plans/prod-readiness/prod-readiness-gate.md` — not an exception. It is
+   `type: gate`, which legitimately has no review.
+
+Any invariant check must skip files carrying `exception:` and **report** them
+rather than "fixing" them.
+
+## Workflow 1 — create a review
+
+Trigger: we are discussing a project's repo code or spec docs and I ask for a review.
+
+1. Resolve project slug and workstream slug. Ambiguous project → ask, do not guess.
+   Read the target's adoption marker. **No marker, or `we-operate: false` → stop**
+   and propose an external hand-off instead (§ Cross-project work).
+2. Mint the document id from the target project's prefix.
+3. Create `reviews/<workstream>/` in the target project, plus the `reviews/` tree
+   and README if that project has none.
+4. **Create the review todo**, via `project-todos` on the target project: title =
+   the workstream topic, `source` = the review file path you are about to write,
+   tags = [`<document-id>`, `review`, `<workstream>`], status `new`. Cross-project:
+   add the origin's id as a tag and inherit its priority. Capture the returned uuid
+   — the file cannot carry a real `todo-id` if the todo does not exist yet.
+5. Write the review with front-matter (`status: draft`, `outcome: pending`, the id
+   from step 2, `todo-id` from step 4). Required sections, in order:
+   - `## Scope` — what was read, what was not
+   - `## Findings` — finding id, severity (High/Medium/Low), evidence as
+     `file:line`, impact
+   - `## Open Questions` — numbered, each `**Open**` or `**Answered:** <answer>`
+   - `## Dependencies` — other documents this needs by id, and any external
+     blocker; `none` if none
+   - `## Recommended sequencing` — rough; the plan refines it
+6. Write `<review-filename>-prompt.md` beside it (contents below).
+7. Add a row to `reviews/README.md` carrying **id and name**, status `Draft`. Index
+   at creation — an unindexed review is one the next session will not find.
+8. If cross-project: add this review's id to the origin document's `depends-on`
+   (or `## Dependencies` if the origin has no plan yet, promoted when it does), and
+   comment on the origin's todo naming the new id.
+9. Report back: id, paths written, todo id, the one-line summary used.
+
+## The prompt file
+
+Pasted into a fresh Claude session with zero context from ours. Must stand alone —
+no "as we discussed", no unresolved pronouns. Contains:
+
+- Project slug and absolute path to the project folder
+- The review's document id, its absolute path, and the todo id
+- Instruction to set that todo to `in-progress` via `project-todos` as the FIRST
+  action, with a comment noting the session started
+- What to read first, and what is out of scope
+- The finding-id prefix to use, and that severity is High/Medium/Low — never 🔴/🟠,
+  which belong to the gate
+- How to work findings: evidence before conclusion, cite `file:line`, do not fix
+  code during a review
+- The rule for anything found outside the review's scope: it does not go in this
+  review's findings — surface it and ask where it belongs
+- The gate, plainly: **do not write the plan until every open question is answered
+  AND I have moved the review to `findings-agreed`**
+- A `## Writing the plan` section giving the plan format: front-matter as above
+  (mint a fresh id for the plan), then phases; each phase a checklist of `- [ ]`
+  items small enough to finish in one session; each item naming the finding id it
+  closes and its acceptance check; phases blocked by a dependency marked as such
+- That checkboxes are ticked in the file as work lands, so a later session resumes
+  from the file, not from chat history
+- End-of-session protocol: update the checklist, update front-matter `status`,
+  append any new branch to `branches`, comment the todo with what moved
+
+## Workflow 2a — the review produces a plan
+
+Preconditions, all three, checked and reported before anything is written:
+- review `status: findings-agreed`
+- zero `**Open**` markers in `## Open Questions`
+- I have said to write the plan
+
+Then:
+1. Mint the plan's id. Resolve dependencies (§ Dependency gating) and write
+   `plans/<workstream>/<primary-review-filename>.md` with plan front-matter,
+   `consumes` listing every review id it takes, status set from the dependency
+   result.
+2. Review front-matter → `status: done`, `outcome: plan`. Review todo → `done`,
+   comment naming the plan's id and path.
+3. Create the plan todo: same topic title, `source` = plan path, tags =
+   [`<plan-id>`, `plan`, `<workstream>`], status per the mapping table.
+4. Index the plan in `plans/README.md` with id and name; update the pairing row in
+   `reviews/README.md`.
+5. The plan must contain a `## Closing out` section stating: the plan todo moves to
+   `done` only after I agree the work is implemented and complete, the close-out
+   comment records every branch it was committed to, and the pair is then archived
+   (§ Archiving).
+
+**Hand-over is complete only when steps 1–4 have all happened.** Plan execution
+does not start before that — not because the review todo says `done`, which step 2
+guarantees by construction, but because a plan whose READMEs and dependency status
+are not yet written is a plan the next session cannot pick up correctly. Report the
+hand-over as done, explicitly, before any execution begins.
+
+## Workflow 2b — the review produces no plan
+
+**Normal, and must be supported.** Four magiq-media workstreams are review-only by
+design: `pending-decisions/` (decisions, not work), `asset-custody/` and
+`projection-rebuild/` (parked), `spec-structure/` (folded into another plan). A
+workflow that closes a review only when a plan is written leaves those open forever.
+
+Set `outcome`, with a reason line in the review body:
+- `parked` — real work, deliberately not now. Review `status: parked`, todo
+  `deferred` + tag `parked`.
+- `decision-only` — evidence complete; what is missing is a decision, not research.
+  Review `status: done`, todo `done` + tag `decision`. Log the call via `/decision`
+  when we make it.
+- `folded-into:<id>` — findings consumed by another document. Review `status:
+  done`, todo `done`, comment naming the consuming id, and add this review's id to
+  that document's `consumes` — including when it is already closed, per § Frozen
+  documents.
+- `withdrawn` — raised in error or overtaken. Review `status: superseded`, todo
+  `done` + tag `superseded`, reason mandatory.
+
+Update both READMEs in every case. Never leave a review at `outcome: pending` once
+we have stopped working it.
+
+## Dependency gating
+
+Run at plan authoring, at every session start on a plan, and at every phase boundary.
+
+1. **Cycle check first.** Walk the `depends-on` graph by id. If A depends on B and
+   B on A, directly or transitively, stop, print the cycle, and ask which edge to
+   break. Never report both as blocked and move on.
+2. For each `depends-on` id, grep for that `id:` and read its `status`:
+   - id not found anywhere → **stop and ask**. A dangling id is a data error, not
+     a blocked state.
+   - review exists but has produced no plan → **unmet**
+   - file with no front-matter → **unknown**: stop and ask, do not assume
+   - `parked` or `superseded` → unmet, and say so explicitly: it is not coming
+     unless someone restarts it
+3. For each `blocked-by-external` entry → unmet. If `sent: false`, name writing and
+   sending that ask as the critical path.
+4. All clear → plan `status: active`, todo `in-progress`, drop `blocked`.
+5. Anything unmet → plan `status: blocked`, todo `deferred` + tag `blocked`, plus a
+   todo comment naming which id and its current state.
+6. **Partial blocking is the common case.** If only some phases depend on the
+   blocked item, list the phases that can proceed now and the ones that cannot,
+   and mark the blocked phases in the plan body. Do not block the whole plan.
+7. Never silently proceed past an unmet dependency. Report and ask.
+
+## Findings discovered during execution
+
+Work uncovers new problems constantly here — X-11.1 surfaced while *working*
+Phase 1 of the DDD plan, and a second defect (`ProcessingJobFailureCategory`
+missing `ValidationTimeout`) surfaced while fixing X-11.5. Without a rule these get
+appended to the plan as fresh checklist items, bypassing review, agreement and id
+discipline.
+
+- A new finding **never** becomes a new checklist item in the plan it was found in.
+- It goes to the global drift register with an `X-` number, or to a new review in
+  the appropriate workstream. Ask which when it is not obvious.
+- The only edits allowed to a plan's checklist mid-execution are ones that close,
+  split, or correct an item tracing to a finding id the plan already consumes.
+  Splitting an item keeps the original finding id on both halves.
+- If a new finding invalidates the plan's approach, stop. Do not re-plan in place —
+  say so, and we decide whether the review reopens or a new one starts.
+- Record every such diversion in the plan's session log so the trail survives.
+
+## Gate lifecycle
+
+- **Todo:** one, tagged [`<gate-id>`, `gate`], when the gate is worked as a unit.
+  `prod-readiness-gate.md` qualifies — every code workstream starts from it.
+- **Active:** while any consumed plan is open. Derive that half automatically from
+  the `consumes` ids.
+- **Done:** every consumed plan `done` or `superseded` **and** I confirm the gate's
+  question is answered — flags flipped, release cut. Never auto-close. The plans
+  finishing is necessary, not sufficient.
+- **A consumed plan archiving changes nothing.** `consumes` holds ids; archived is
+  still `done`. Keep the entry.
+- **Never auto-archived.** A gate outlives its plans — a release gate is re-read at
+  the next release. It goes `superseded` only when a newer gate replaces it, with
+  `supersedes:` on the successor pointing back. Otherwise it stays where it is.
+- A gate may be added to at any time; it is not frozen until `done`.
+
+## Archiving — the third rule of the existing convention
+
+A workstream is finished when its plan is `done` and no review in the folder is
+still `pending`. Then, in one step:
+
+1. Move the review(s) to `reviews/<workstream>/Archive/` and the plan to
+   `plans/<workstream>/Archive/`. **Both sides, same session** — a matched pair is
+   what makes the pairing legible after the fact.
+2. **No reference repair is needed.** `consumes` and `depends-on` hold ids, which
+   the move does not touch. Confirm that by re-running a resolve of every id in the
+   moved files; if any fails, something used a path and must be fixed.
+3. Move the README rows into the archive section of each README, keeping id and
+   name, rather than deleting them. A workstream nobody indexed is a workstream the
+   next session cannot find.
+4. Todos stay `done` in the store; do not delete them.
+5. If the workstream folder is left empty apart from `Archive/`, leave it. Do not
+   collapse it into the top-level `plans/Archive/` — that is only for completed
+   work with no live workstream left.
+
+Archiving is never automatic. Propose it; I confirm.
+
+## ADO hand-off
+
+`ado-create-from-plan` currently resolves plans at
+`projects/<project>/plans/<plan-name>.md` — flat — and from a stale root
+(`C:\Users\chase\OneDrive\Magiq\AIS-OS\`). Plans moved into subfolders on
+2026-08-24 and this workflow makes subfolders mandatory, so that skill can no
+longer find any magiq-media plan.
+
+Patch it:
+- accept a document id as input as well as a plan name
+- resolution order: `projects/<project>/plans/<workstream>/<name>.md`, then
+  `projects/<project>/plans/<name>.md`, then the project root
+- root path `Z:\claudia\magiq\projects\`
+- after creating work items, write the Epic id into the plan's `ado:` front-matter
+  and set `adoItemId` on the plan's todo
+
+Do not create ADO items as part of the review→plan cycle. Keep it a separate,
+explicit step — most plans never go to the board.
+
+## Query mode
+
+The point of the ids and front-matter is answering one question in a single grep.
+**Every query sweeps all adopting projects, not the current one** — that is what
+stops cross-project work from orphaning. Resolve ids to titles in the output; ids
+are for references, names are for reading.
+
+- **"what's unblocked"** — plans with `status: active`, grouped by project, with
+  their next unticked checklist item, skipping items in phases marked blocked
+- **"what's blocked and why"** — plans with `status: blocked`, each naming its
+  dependency id and whether it is internal, external-sent, or external-unsent
+- **"what's stuck"** — reviews at `outcome: pending` with no recent activity, and
+  any `blocked-by-external` with `sent: false`
+- **"show the graph"** — `raised-by` / `depends-on` / `consumes` edges as an id
+  list, with titles
+- **"what does <id> block"** — the reverse edge: everything whose `depends-on`
+  contains that id
+
+Read-only. No writes from query mode.
+
+## Invariants
+
+- Every review, plan and gate has an `id`. Ids are never reused or renumbered.
+- All cross-references are ids. A path in `consumes` or `depends-on` is a bug.
+- A dangling id is a data error — stop and ask, never treat it as a blocked state.
+- A `plan` cannot exist without a review. A `gate` can — it consumes plans.
+- A gate has no `depends-on` and is never auto-closed or auto-archived.
+- Plan execution does not start until hand-over is complete: plan written, review
+  closed, both READMEs updated, dependency status resolved.
+- A review with any `**Open**` question, or not yet at `findings-agreed`, cannot
+  produce a plan.
+- A review must reach a terminal `outcome`; `pending` is not a resting state.
+- A plan cannot be marked `done` without my explicit agreement plus at least one
+  recorded branch.
+- A finished workstream is archived on both sides, in the same session.
+- A `done` file is frozen; only additive `consumes` / `supersedes` edits touch it.
+- A finding discovered during execution never becomes a checklist item in the plan
+  that found it.
+- Severity is High/Medium/Low. 🔴/🟠 appear only in `type: gate` documents.
+- One workstream slug, used identically for the review folder, plan folder, and
+  both todos.
+- Finding ids are stable and workstream-scoped; never renumbered.
+- Every status change is written to BOTH file front-matter and the todo store. If
+  they disagree, the file is authoritative — reconcile and say so.
+- Files carrying `exception:` are reported by any check, never rewritten.
+- Reviews are raised only in projects with `we-operate: true`.
+
+## Before you build
+
+**Answer these two before writing any file:**
+1. Anything above that conflicts with the existing magiq-media convention.
+2. One skill or two — `review-cycle` alone, or `review-cycle` plus a separate
+   `workstream-query` for read mode.
+
+**Proceed on these, stating the assumption in your report:**
+3. Front-matter and id backfill of the ~20 legacy files — default **no**; offer it
+   per-workstream when we next touch one.
+4. Patching `ado-create-from-plan` — default **separate task**, do not fold it in.
+5. Steps that cannot be automated — default is to list them, not to build around
+   them.
+
+Then build deliverables 1–3. Report every assumption you took. Do not scaffold
+folders for projects that have no review yet.
+
+Read-only. No writes from query mode.
+
+## Invariants
+
+- A `plan` cannot exist without a review. A `gate` can — it consumes plans.
+- Plan execution does not start until hand-over is complete: plan written, review
+  closed, both READMEs updated, dependency status resolved.
+- A review with any `**Open**` question, or not yet at `findings-agreed`, cannot
+  produce a plan.
+- A review must reach a terminal `outcome`; `pending` is not a resting state.
+- A plan cannot be marked `done` without my explicit agreement plus at least one
+  recorded branch.
+- A finished workstream is archived on both sides, in the same session, with every
+  broken reference repaired.
+- A `done` file is frozen. Only archiving may edit it, and only to repair paths.
+- A finding discovered during execution never becomes a checklist item in the plan
+  that found it.
+- One workstream slug, used identically for the review folder, plan folder, and
+  both todos.
+- `depends-on` is always a three-part reference. `raised-by` is always two-part.
+- Finding ids are stable and workstream-scoped; never renumbered.
+- Every status change is written to BOTH file front-matter and the todo store. If
+  they disagree, the file is authoritative — reconcile and say so.
+- Files carrying `exception:` are reported by any check, never rewritten.
+- The skill operates only on projects carrying the adoption marker.
+
+## Before you build
+
+Read the ground-truth files, then tell me:
+- anything above that conflicts with the existing magiq-media convention
+- any step that cannot be automated and needs me in the loop
+- whether this should be one skill or two (create-review vs work-plan), given
+  query mode has to live somewhere
+- whether the front-matter backfill is worth doing at all, given the READMEs
+  already carry status in prose
+- whether patching `ado-create-from-plan` should be its own task
+
+Then build it. Do not scaffold folders for projects that have no review yet.

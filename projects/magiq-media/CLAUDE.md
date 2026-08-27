@@ -123,6 +123,20 @@ it would separate the findings from the boxes tracking them.
 > is the AI-operating-system layer — memory, todos, meetings, the decision
 > journal, and in-flight plans — not spec custody.
 
+## Review → Plan cycle
+
+prefix: MM
+we-operate: true
+
+This section is the adoption marker for the [[review-cycle]] and [[workstream-query]] skills. `prefix`
+seeds document ids (`MM-001`, `MM-002`, …), minted per project and never reused. `we-operate: true` means
+we own this project's code and may raise reviews in it — a project without this section is out of scope,
+and work it owns is tracked as an external blocker rather than a review.
+
+The skills automate the convention above; they do not replace it. Everything in § Review → Plan still
+holds. What they add: a stable `id` on every review, plan and gate so cross-references survive archiving,
+front-matter status that keeps the Control Tower todos in step, and dependency gating between workstreams.
+
 ## Key Conventions
 
 - All commands return `Result<T, DomainError>` — no domain exceptions escape handlers

@@ -57,6 +57,13 @@ Helpers (project-local):
 - `agenda-generator` — meeting agendas per project/meeting type
 - `note-capture` — free-form notes to `context/adhoc-notes.md`
 
+Project work cycle:
+- `review-cycle` — create reviews, write plans, gate on dependencies, archive finished workstreams
+- `workstream-query` — read-only: what's unblocked, what's blocked and why, what's stuck
+
+Both operate on `projects/<slug>/reviews/` ↔ `projects/<slug>/plans/`. A project opts in with a
+`## Review → Plan cycle` section in its own `CLAUDE.md`; the convention itself lives there, not here.
+
 ### `/level-up` rule
 
 - Find one meaningful improvement
