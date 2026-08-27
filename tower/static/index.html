@@ -235,11 +235,13 @@
   .panel-title { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
   .panel-count { font-size: 10px; color: var(--muted); }
   .panel-body { padding: 8px; max-height: 260px; overflow-y: auto; }
-  /* Plans / Spec Files: two-pane layout fills the viewport, panes scroll internally */
+  /* Plans / Reviews / Spec Files: two-pane layout fills the viewport, panes scroll internally */
   .filepage-grid { display: grid; grid-template-columns: 280px 1fr; gap: 12px; height: calc(100vh - 250px); min-height: 420px; }
   /* height is refined at runtime by _sizeFilePage() from the grid's actual top */
   .filepage-grid .panel { display: flex; flex-direction: column; min-height: 0; }
   .filepage-grid .panel-body { flex: 1; min-height: 0; max-height: none; overflow-y: auto; }
+  .doc-file-item:hover { background: var(--surface2); color: var(--text) !important; }
+  .doc-file-item.active { background: rgba(88,166,255,0.1); color: var(--accent) !important; }
   .panel-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--surface2); }
   .panel-tab {
     padding: 6px 12px; font-size: 11px; color: var(--muted); cursor: pointer;
@@ -944,6 +946,7 @@
           <div class="project-tabs">
             <button class="project-tab active" data-ptab="todos" onclick="setProjectTab('todos')">✅ Todos</button>
             <button class="project-tab" data-ptab="plans" onclick="setProjectTab('plans')">📋 Plans</button>
+            <button class="project-tab" data-ptab="reviews" onclick="setProjectTab('reviews')">🔎 Reviews</button>
             <button class="project-tab" data-ptab="spec" onclick="setProjectTab('spec')">📁 Spec Files</button>
             <button class="project-tab" data-ptab="notes" onclick="setProjectTab('notes')">📝 Notes</button>
             <button class="project-tab" data-ptab="decisions" onclick="setProjectTab('decisions')">⚖️ Decisions</button>
@@ -1011,11 +1014,35 @@
                 <div class="panel-header">
                   <div class="panel-title" id="plans-file-title">Select a plan</div>
                   <div style="display:flex;gap:6px;align-items:center">
-                    <button onclick="openPlansReader()" class="section-expand-btn" title="Read full-screen">⛶</button>
+                    <button onclick="openDocFileReader('plans')" class="section-expand-btn" title="Read full-screen">⛶</button>
                   </div>
                 </div>
                 <div class="panel-body expandable-body" id="plans-file-content">
                   <div style="padding:20px;font-size:12px;color:var(--muted)">Click a plan in the tree to view its content.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Reviews -->
+          <div id="project-reviews-section" data-ptab-panel="reviews" style="margin-bottom:16px;display:none">
+            <div class="filepage-grid">
+              <div class="panel">
+                <div class="panel-header">
+                  <div class="panel-title">🔎 Reviews</div>
+                  <div style="font-size:10px;color:var(--muted)" id="reviews-file-count"></div>
+                </div>
+                <div class="panel-body expandable-body" id="reviews-file-tree" style="padding:6px 8px"></div>
+              </div>
+              <div class="panel">
+                <div class="panel-header">
+                  <div class="panel-title" id="reviews-file-title">Select a review</div>
+                  <div style="display:flex;gap:6px;align-items:center">
+                    <button onclick="openDocFileReader('reviews')" class="section-expand-btn" title="Read full-screen">⛶</button>
+                  </div>
+                </div>
+                <div class="panel-body expandable-body" id="reviews-file-content">
+                  <div style="padding:20px;font-size:12px;color:var(--muted)">Click a review in the tree to view its content.</div>
                 </div>
               </div>
             </div>
@@ -1035,7 +1062,7 @@
                 <div class="panel-header">
                   <div class="panel-title" id="spec-file-title">Select a file</div>
                   <div style="display:flex;gap:6px;align-items:center">
-                    <button onclick="openSpecReader()" class="section-expand-btn" title="Read full-screen">⛶</button>
+                    <button onclick="openDocFileReader('spec')" class="section-expand-btn" title="Read full-screen">⛶</button>
                   </div>
                 </div>
                 <div class="panel-body expandable-body" id="spec-file-content">
@@ -2418,24 +2445,19 @@
     // Decisions card — rendered via renderProjectDecisions()
     renderProjectDecisions(slug);
 
-    // Track current project for spec/plans viewers
+    // Track current project for the spec/plans/reviews viewers
     _specCurrentSlug = slug;
-    // Reset plans viewer state on project switch
-    const plansSection = document.getElementById('project-plans-section');
-    const plansContentEl = document.getElementById('plans-file-content');
-    const plansTitleEl = document.getElementById('plans-file-title');
-    // Reset + auto-load plans
-    if (plansContentEl) plansContentEl.innerHTML = '<div style="padding:20px;font-size:12px;color:var(--muted)">Click a plan to view its content.</div>';
-    if (plansTitleEl) plansTitleEl.textContent = 'Select a plan';
-    _lastPlansContent = null; _lastSpecContent = null;
-    loadPlansTree(slug);
-
-    // Reset + auto-load spec
-    const specContentEl = document.getElementById('spec-file-content');
-    const specTitleEl = document.getElementById('spec-file-title');
-    if (specContentEl) specContentEl.innerHTML = '<div style="padding:20px;font-size:12px;color:var(--muted)">Click a file to view its content.</div>';
-    if (specTitleEl) specTitleEl.textContent = 'Select a file';
-    loadSpecTree(slug);
+    // Reset + auto-load each document viewer on project switch
+    [['plans', 'Select a plan', 'Click a plan to view its content.'],
+     ['reviews', 'Select a review', 'Click a review to view its content.'],
+     ['spec', 'Select a file', 'Click a file to view its content.']].forEach(([type, title, hint]) => {
+      const contentEl = document.getElementById(`${type}-file-content`);
+      const titleEl = document.getElementById(`${type}-file-title`);
+      if (contentEl) contentEl.innerHTML = `<div style="padding:20px;font-size:12px;color:var(--muted)">${hint}</div>`;
+      if (titleEl) titleEl.textContent = title;
+      _docState[type] = { path: null, content: null, title: '' };
+      loadDocTree(slug, type);
+    });
 
     // Auto-load todos
     loadTodos(slug);
@@ -2455,10 +2477,10 @@
       b.classList.toggle('active', b.dataset.ptab === key));
     document.querySelectorAll('[data-ptab-panel]').forEach(p =>
       p.style.display = p.dataset.ptabPanel === key ? '' : 'none');
-    if (key === 'plans' || key === 'spec') _sizeFilePage();
+    if (DOC_VIEWERS[key]) _sizeFilePage();
   }
 
-  // Make the visible Plans/Spec two-pane grid fill from its own top to the
+  // Make the visible Plans/Reviews/Spec two-pane grid fill from its own top to the
   // viewport bottom. The top varies (project header/overview height), so it's
   // computed at runtime rather than a fixed CSS offset.
   function _sizeFilePageOnce() {
@@ -2795,42 +2817,35 @@
     renderProjectDecisions(_currentProjectSlug);
   }
 
-  // ── Spec Viewer ────────────────────────────────────────────────────────────
+  // ── Document viewers (spec / plans / reviews) ──────────────────────────────
+  // Three project tabs are the same two-pane markdown browser over a different
+  // folder under projects/{slug}/ — only the folder, icon and wording differ.
+  // Server side: _doc_tree/_doc_read/_doc_write in server.py.
+  const DOC_VIEWERS = {
+    spec:    { icon: '📁', empty: 'No spec files found.', pick: 'Select a file first.' },
+    plans:   { icon: '📋', empty: 'No plans found.',      pick: 'Select a plan first.' },
+    reviews: { icon: '🔎', empty: 'No reviews found.',    pick: 'Select a review first.' },
+  };
   let _specCurrentSlug = null;
 
-  async function toggleSpecViewer() {
-    const section = document.getElementById('project-spec-section');
-    if (!section) return;
-    const isVisible = section.style.display !== 'none';
-    if (isVisible) {
-      section.style.display = 'none';
-      const btn = document.getElementById('spec-toggle-btn');
-      if (btn) btn.textContent = '📄 View Spec';
-      return;
-    }
-    section.style.display = '';
-    const btn = document.getElementById('spec-toggle-btn');
-    if (btn) btn.textContent = '📄 Hide Spec';
-    if (_specCurrentSlug) await loadSpecTree(_specCurrentSlug);
-  }
-
-  async function loadSpecTree(slug) {
+  async function loadDocTree(slug, type) {
     _specCurrentSlug = slug;
-    const treeEl = document.getElementById('spec-file-tree');
-    const countEl = document.getElementById('spec-file-count');
+    const treeEl = document.getElementById(`${type}-file-tree`);
+    const countEl = document.getElementById(`${type}-file-count`);
     if (!treeEl) return;
 
     treeEl.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--muted)">Loading...</div>';
 
-    const r = await fetch(`/api/projects/${slug}/spec`);
+    const r = await fetch(`/api/projects/${slug}/${type}`);
     const data = await r.json();
 
     if (data.error || !data.files.length) {
-      treeEl.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--muted)">No spec files found.</div>';
+      treeEl.innerHTML = `<div style="padding:8px;font-size:11px;color:var(--muted)">${DOC_VIEWERS[type].empty}</div>`;
+      if (countEl) countEl.textContent = '';
       return;
     }
 
-    if (countEl) countEl.textContent = `${data.files.length} files`;
+    if (countEl) countEl.textContent = `${data.files.length} file${data.files.length !== 1 ? 's' : ''}`;
 
     // Group files by directory
     const grouped = {};
@@ -2845,7 +2860,7 @@
       <div style="margin-bottom:6px">
         ${dir ? `<div style="font-size:10px;color:var(--muted);padding:4px 2px;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${dir}">📂 ${dir}</div>` : ''}
         ${files.map(f => `
-          <div class="spec-file-item" onclick="loadSpecFile('${slug}', '${f.path.replace(/'/g, "\\'")}')"
+          <div class="doc-file-item" onclick="loadDocFile('${slug}', '${type}', '${f.path.replace(/'/g, "\\'")}')"
             style="padding:4px 6px 4px ${dir ? '14px' : '6px'};font-size:11px;color:var(--muted);cursor:pointer;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
             title="${f.path}">
             📄 ${f.name}
@@ -2853,45 +2868,34 @@
         `).join('')}
       </div>
     `).join('');
-
-    if (!document.getElementById('spec-tree-style')) {
-      const s = document.createElement('style');
-      s.id = 'spec-tree-style';
-      s.textContent = '.spec-file-item:hover { background: var(--surface2); color: var(--text) !important; } .spec-file-item.active { background: rgba(88,166,255,0.1); color: var(--accent) !important; }';
-      document.head.appendChild(s);
-    }
   }
 
-  async function loadSpecFile(slug, path) {
-    _currentSpecPath = path;
-    const contentEl = document.getElementById('spec-file-content');
-    const titleEl = document.getElementById('spec-file-title');
+  async function loadDocFile(slug, type, path) {
+    _specCurrentSlug = slug;
+    _docState[type].path = path;
+    const contentEl = document.getElementById(`${type}-file-content`);
+    const titleEl = document.getElementById(`${type}-file-title`);
+    const treeEl = document.getElementById(`${type}-file-tree`);
     if (!contentEl) return;
 
-    document.querySelectorAll('.spec-file-item').forEach(el => el.classList.remove('active'));
-    const active = [...document.querySelectorAll('.spec-file-item')].find(el => el.title === path);
-    if (active) active.classList.add('active');
+    if (treeEl) {
+      treeEl.querySelectorAll('.doc-file-item').forEach(el => el.classList.remove('active'));
+      const active = [...treeEl.querySelectorAll('.doc-file-item')].find(el => el.title === path);
+      if (active) active.classList.add('active');
+    }
 
     if (titleEl) {
       titleEl.textContent = path.split('/').pop();
-      // Inject edit button if not already there
-      if (titleEl.parentElement && !document.getElementById('spec-edit-btn')) {
-        const btn = document.createElement('button');
-        btn.id = 'spec-edit-btn';
-        btn.textContent = '✏️ Edit';
-        btn.style.cssText = 'background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;margin-left:auto';
-        btn.onclick = () => toggleFileEdit('spec');
-        titleEl.parentElement.appendChild(btn);
-      }
+      _ensureEditBtn(type);
     }
     // Reset edit mode state on new file
-    const editBtn = document.getElementById('spec-edit-btn');
+    const editBtn = document.getElementById(`${type}-edit-btn`);
     if (editBtn) { editBtn.dataset.mode = ''; editBtn.textContent = '✏️ Edit'; }
     contentEl.style.maxHeight = '';
     contentEl.style.overflowY = 'auto';
     contentEl.innerHTML = '<div style="padding:12px;font-size:11px;color:var(--muted)">Loading...</div>';
 
-    const r = await fetch(`/api/projects/${slug}/spec/file?path=${encodeURIComponent(path)}`);
+    const r = await fetch(`/api/projects/${slug}/${type}/file?path=${encodeURIComponent(path)}`);
     const data = await r.json();
 
     if (data.error) {
@@ -2899,32 +2903,15 @@
       return;
     }
 
-    _lastSpecContent = data.content;
-    _lastSpecTitle = path.split('/').pop();
+    _docState[type].content = data.content;
+    _docState[type].title = path.split('/').pop();
     contentEl.innerHTML = _renderMarkdown(data.content);
   }
 
-  function openSpecReader() {
-    if (!_lastSpecContent) { alert('Select a file first.'); return; }
-    openDocReader(_lastSpecTitle, _lastSpecContent, '📁');
-  }
-
-  // ── Plans Viewer ───────────────────────────────────────────────────────────
-
-  async function togglePlansViewer() {
-    const section = document.getElementById('project-plans-section');
-    if (!section) return;
-    const isVisible = section.style.display !== 'none';
-    if (isVisible) {
-      section.style.display = 'none';
-      const btn = document.getElementById('plans-toggle-btn');
-      if (btn) btn.textContent = '📋 View Plans';
-      return;
-    }
-    section.style.display = '';
-    const btn = document.getElementById('plans-toggle-btn');
-    if (btn) btn.textContent = '📋 Hide Plans';
-    if (_specCurrentSlug) await loadPlansTree(_specCurrentSlug);
+  function openDocFileReader(type) {
+    const st = _docState[type];
+    if (!st.content) { alert(DOC_VIEWERS[type].pick); return; }
+    openDocReader(st.title, st.content, DOC_VIEWERS[type].icon);
   }
 
   // ── Todos (driven by the shared item-board template; see BOARDS.todo) ────────
@@ -2954,97 +2941,6 @@
       _todoCache = r.ok ? await r.json() : [];
     } catch { _todoCache = []; }
     renderTodos();
-  }
-
-  async function loadPlansTree(slug) {
-    const treeEl = document.getElementById('plans-file-tree');
-    const countEl = document.getElementById('plans-file-count');
-    if (!treeEl) return;
-
-    treeEl.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--muted)">Loading...</div>';
-
-    const r = await fetch(`/api/projects/${slug}/plans`);
-    const data = await r.json();
-
-    if (data.error || !data.files.length) {
-      treeEl.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--muted)">No plans found.</div>';
-      return;
-    }
-
-    if (countEl) countEl.textContent = `${data.files.length} file${data.files.length !== 1 ? 's' : ''}`;
-
-    const grouped = {};
-    data.files.forEach(f => {
-      const parts = f.path.split('/');
-      const dir = parts.length > 1 ? parts.slice(0, -1).join('/') : '';
-      if (!grouped[dir]) grouped[dir] = [];
-      grouped[dir].push(f);
-    });
-
-    treeEl.innerHTML = Object.entries(grouped).sort().map(([dir, files]) => `
-      <div style="margin-bottom:6px">
-        ${dir ? `<div style="font-size:10px;color:var(--muted);padding:4px 2px;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${dir}">📂 ${dir}</div>` : ''}
-        ${files.map(f => `
-          <div class="plans-file-item" onclick="loadPlansFile('${slug}', '${f.path.replace(/'/g, "\\'")}')"
-            style="padding:4px 6px 4px ${dir ? '14px' : '6px'};font-size:11px;color:var(--muted);cursor:pointer;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
-            title="${f.path}">
-            📄 ${f.name}
-          </div>
-        `).join('')}
-      </div>
-    `).join('');
-
-    if (!document.getElementById('plans-tree-style')) {
-      const s = document.createElement('style');
-      s.id = 'plans-tree-style';
-      s.textContent = '.plans-file-item:hover { background: var(--surface2); color: var(--text) !important; } .plans-file-item.active { background: rgba(88,166,255,0.1); color: var(--accent) !important; }';
-      document.head.appendChild(s);
-    }
-  }
-
-  async function loadPlansFile(slug, path) {
-    _currentPlansPath = path;
-    const contentEl = document.getElementById('plans-file-content');
-    const titleEl = document.getElementById('plans-file-title');
-    if (!contentEl) return;
-
-    document.querySelectorAll('.plans-file-item').forEach(el => el.classList.remove('active'));
-    const active = [...document.querySelectorAll('.plans-file-item')].find(el => el.title === path);
-    if (active) active.classList.add('active');
-
-    if (titleEl) {
-      titleEl.textContent = path.split('/').pop();
-      if (titleEl.parentElement && !document.getElementById('plans-edit-btn')) {
-        const btn = document.createElement('button');
-        btn.id = 'plans-edit-btn';
-        btn.textContent = '✏️ Edit';
-        btn.style.cssText = 'background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;margin-left:auto';
-        btn.onclick = () => toggleFileEdit('plans');
-        titleEl.parentElement.appendChild(btn);
-      }
-    }
-    const editBtn = document.getElementById('plans-edit-btn');
-    if (editBtn) { editBtn.dataset.mode = ''; editBtn.textContent = '✏️ Edit'; }
-    contentEl.style.maxHeight = '';
-    contentEl.style.overflowY = 'auto';
-    contentEl.innerHTML = '<div style="padding:12px;font-size:11px;color:var(--muted)">Loading...</div>';
-
-    const r = await fetch(`/api/projects/${slug}/plans/file?path=${encodeURIComponent(path)}`);
-    const data = await r.json();
-
-    if (data.error) {
-      contentEl.innerHTML = `<div style="padding:12px;color:var(--danger);font-size:11px">${data.error}</div>`;
-      return;
-    }
-
-    _lastPlansContent = data.content;
-    _lastPlansTitle = path.split('/').pop();
-    contentEl.innerHTML = _renderMarkdown(data.content);
-  }
-
-  function openPlansReader() {
-    if (!_lastPlansContent) { alert('Select a plan first.'); return; }
-    openDocReader(_lastPlansTitle, _lastPlansContent, '📋');
   }
 
   // Configure marked.js
@@ -3089,12 +2985,12 @@
   });
 
   // ── Markdown file viewer/editor ────────────────────────────────────────────
-  let _currentSpecPath  = null;
-  let _currentPlansPath = null;
-  let _lastSpecContent  = null;
-  let _lastSpecTitle    = '';
-  let _lastPlansContent = null;
-  let _lastPlansTitle   = '';
+  // Per-viewer state: which file is open and its last-rendered content.
+  const _docState = {
+    spec:    { path: null, content: null, title: '' },
+    plans:   { path: null, content: null, title: '' },
+    reviews: { path: null, content: null, title: '' },
+  };
 
   function _makeEditBtn(type) {
     const btn = document.createElement('button');
@@ -3106,20 +3002,18 @@
   }
 
   function _ensureEditBtn(type) {
-    const headerId = type === 'spec' ? null : null; // injected below via _injectEditBtns
     if (!document.getElementById(`${type}-edit-btn`)) {
-      const header = document.getElementById(type === 'spec' ? 'spec-file-title' : 'plans-file-title');
+      const header = document.getElementById(`${type}-file-title`);
       if (header && header.parentElement) header.parentElement.appendChild(_makeEditBtn(type));
     }
   }
 
   async function toggleFileEdit(type) {
-    const contentId = type === 'spec' ? 'spec-file-content' : 'plans-file-content';
     const btn = document.getElementById(`${type}-edit-btn`);
-    const contentEl = document.getElementById(contentId);
+    const contentEl = document.getElementById(`${type}-file-content`);
     if (!contentEl || !_currentProjectSlug) return;
 
-    const currentPath = type === 'spec' ? _currentSpecPath : _currentPlansPath;
+    const currentPath = _docState[type].path;
     if (!currentPath) { alert('Select a file first.'); return; }
 
     if (btn && btn.dataset.mode === 'edit') {
@@ -3635,17 +3529,16 @@
   }
 
   // Open the review/plan a todo points at. `source` holds the repo-relative
-  // path; the plans viewer serves paths relative to the project's plans dir,
-  // and Tower serves no reviews tree yet, so reviews report their path instead.
+  // path; the viewers serve paths relative to the project's plans/reviews dir.
   function openItemDoc(kind, id) {
     const board = _board(kind);
     if (!board) return;
     const item = (board.all() || []).find(x => x.id === id);
     const src = item && item.source;
     if (!src) { alert('This item has no source document.'); return; }
-    const m = src.replace(/\\/g, '/').match(/^projects\/([^/]+)\/plans\/(.+)$/);
-    if (m) { loadPlansFile(m[1], m[2]); return; }
-    alert(`Document: ${src}\n\nTower serves the plans tree only — open reviews from the repo.`);
+    const m = src.replace(/\\/g, '/').match(/^projects\/([^/]+)\/(plans|reviews)\/(.+)$/);
+    if (m) { setProjectTab(m[2]); loadDocFile(m[1], m[2], m[3]); return; }
+    alert(`Document: ${src}\n\nTower serves the plans and reviews trees only.`);
   }
 
   function _dueClass(dueDate) {

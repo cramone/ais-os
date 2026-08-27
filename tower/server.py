@@ -358,100 +358,97 @@ def push_ado(interrupt_id: str) -> dict[str, Any]:
         raise HTTPException(500, str(e))
 
 
-# --- Spec viewer ---
-
-@app.get("/api/projects/{slug}/spec")
-def project_spec_tree(slug: str) -> dict:
-    """Return the spec directory file tree for a project."""
-    spec_dir = config.PROJECTS_DIR / slug / "spec"
-    if not spec_dir.exists():
-        return {"files": [], "error": "no spec directory"}
-
-    files = []
-    for root, dirs, filenames in os.walk(spec_dir):
-        dirs.sort()
-        for fname in sorted(filenames):
-            if fname.endswith(('.md', '.json', '.txt')):
-                full = os.path.join(root, fname)
-                rel = os.path.relpath(full, spec_dir).replace('\\', '/')
-                files.append({"path": rel, "name": fname})
-
-    return {"files": files}
-
-
-@app.get("/api/projects/{slug}/spec/file")
-def project_spec_file(slug: str, path: str) -> dict:
-    """Return the content of a single spec file."""
-    spec_dir = config.PROJECTS_DIR / slug / "spec"
-    target = (spec_dir / path).resolve()
-    if not str(target).startswith(str(spec_dir.resolve())):
-        raise HTTPException(400, "Invalid path")
-    if not target.exists():
-        raise HTTPException(404, "File not found")
-    content = target.read_text(encoding="utf-8", errors="replace")
-    return {"path": path, "content": content}
+# --- Document viewers (spec / plans / reviews) ---
+# All three tabs are the same two-pane markdown browser over a different
+# sub-folder of projects/{slug}/, so they share one set of helpers.
 
 
 class FileWriteRequest(BaseModel):
     content: str
 
-@app.put("/api/projects/{slug}/spec/file")
-def write_spec_file(slug: str, path: str, body: FileWriteRequest) -> dict:
-    """Overwrite a single spec file."""
-    spec_dir = config.PROJECTS_DIR / slug / "spec"
-    target = (spec_dir / path).resolve()
-    if not str(target).startswith(str(spec_dir.resolve())):
-        raise HTTPException(400, "Invalid path")
-    if not target.exists():
-        raise HTTPException(404, "File not found")
-    target.write_text(body.content, encoding="utf-8")
-    return {"ok": True}
 
-
-# --- Plans viewer ---
-
-@app.get("/api/projects/{slug}/plans")
-def project_plans_tree(slug: str) -> dict:
-    """Return the plans directory file tree for a project."""
-    plans_dir = config.PROJECTS_DIR / slug / "plans"
-    if not plans_dir.exists():
-        return {"files": [], "error": "no plans directory"}
+def _doc_tree(slug: str, folder: str) -> dict:
+    """Return the {folder} directory file tree for a project."""
+    base = config.PROJECTS_DIR / slug / folder
+    if not base.exists():
+        return {"files": [], "error": f"no {folder} directory"}
 
     files = []
-    for root, dirs, filenames in os.walk(plans_dir):
+    for root, dirs, filenames in os.walk(base):
         dirs.sort()
         for fname in sorted(filenames):
             if fname.endswith(('.md', '.json', '.txt')):
                 full = os.path.join(root, fname)
-                rel = os.path.relpath(full, plans_dir).replace('\\', '/')
+                rel = os.path.relpath(full, base).replace('\\', '/')
                 files.append({"path": rel, "name": fname})
 
     return {"files": files}
 
 
-@app.get("/api/projects/{slug}/plans/file")
-def project_plans_file(slug: str, path: str) -> dict:
-    """Return the content of a single plans file."""
-    plans_dir = config.PROJECTS_DIR / slug / "plans"
-    target = (plans_dir / path).resolve()
-    if not str(target).startswith(str(plans_dir.resolve())):
+def _doc_target(slug: str, folder: str, path: str):
+    """Resolve path inside projects/{slug}/{folder}, rejecting traversal."""
+    base = (config.PROJECTS_DIR / slug / folder).resolve()
+    target = (base / path).resolve()
+    if not target.is_relative_to(base):
         raise HTTPException(400, "Invalid path")
     if not target.exists():
         raise HTTPException(404, "File not found")
-    content = target.read_text(encoding="utf-8", errors="replace")
-    return {"path": path, "content": content}
+    return target
+
+
+def _doc_read(slug: str, folder: str, path: str) -> dict:
+    target = _doc_target(slug, folder, path)
+    return {"path": path, "content": target.read_text(encoding="utf-8", errors="replace")}
+
+
+def _doc_write(slug: str, folder: str, path: str, content: str) -> dict:
+    _doc_target(slug, folder, path).write_text(content, encoding="utf-8")
+    return {"ok": True}
+
+
+@app.get("/api/projects/{slug}/spec")
+def project_spec_tree(slug: str) -> dict:
+    return _doc_tree(slug, "spec")
+
+
+@app.get("/api/projects/{slug}/spec/file")
+def project_spec_file(slug: str, path: str) -> dict:
+    return _doc_read(slug, "spec", path)
+
+
+@app.put("/api/projects/{slug}/spec/file")
+def write_spec_file(slug: str, path: str, body: FileWriteRequest) -> dict:
+    return _doc_write(slug, "spec", path, body.content)
+
+
+@app.get("/api/projects/{slug}/plans")
+def project_plans_tree(slug: str) -> dict:
+    return _doc_tree(slug, "plans")
+
+
+@app.get("/api/projects/{slug}/plans/file")
+def project_plans_file(slug: str, path: str) -> dict:
+    return _doc_read(slug, "plans", path)
+
 
 @app.put("/api/projects/{slug}/plans/file")
 def write_plans_file(slug: str, path: str, body: FileWriteRequest) -> dict:
-    """Overwrite a single plans file."""
-    plans_dir = config.PROJECTS_DIR / slug / "plans"
-    target = (plans_dir / path).resolve()
-    if not str(target).startswith(str(plans_dir.resolve())):
-        raise HTTPException(400, "Invalid path")
-    if not target.exists():
-        raise HTTPException(404, "File not found")
-    target.write_text(body.content, encoding="utf-8")
-    return {"ok": True}
+    return _doc_write(slug, "plans", path, body.content)
+
+
+@app.get("/api/projects/{slug}/reviews")
+def project_reviews_tree(slug: str) -> dict:
+    return _doc_tree(slug, "reviews")
+
+
+@app.get("/api/projects/{slug}/reviews/file")
+def project_reviews_file(slug: str, path: str) -> dict:
+    return _doc_read(slug, "reviews", path)
+
+
+@app.put("/api/projects/{slug}/reviews/file")
+def write_reviews_file(slug: str, path: str, body: FileWriteRequest) -> dict:
+    return _doc_write(slug, "reviews", path, body.content)
 
 
 # --- Todos ---
