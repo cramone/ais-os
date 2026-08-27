@@ -28,7 +28,7 @@ def delete_decision(date: str, title: str) -> bool:
     new_blocks = [b for b in blocks if not _block_matches(b, date, title)]
     if len(new_blocks) == len(blocks):
         return False
-    log_path.write_text(preamble + "".join(new_blocks), encoding="utf-8")
+    log_path.write_text(preamble + "".join(new_blocks), encoding="utf-8", newline="\n")
     return True
 
 
@@ -55,7 +55,7 @@ def rename_decision(date: str, old_title: str, new_title: str) -> bool:
         new_blocks.append(block)
     if not updated:
         return False
-    log_path.write_text(preamble + "".join(new_blocks), encoding="utf-8")
+    log_path.write_text(preamble + "".join(new_blocks), encoding="utf-8", newline="\n")
     return True
 
 
@@ -70,7 +70,7 @@ def add_decision(date: str, title: str, project: str | None = None) -> bool:
     project_line = f"**Project:** {project}\n\n" if project else "**Project:** \n\n"
     new_block = f"## {date} — {title}\n\n{project_line}**Decision:** \n\n**Why:** \n"
     body = (preamble + "".join(blocks)).rstrip()
-    log_path.write_text(body + "\n\n---\n\n" + new_block, encoding="utf-8")
+    log_path.write_text(body + "\n\n---\n\n" + new_block, encoding="utf-8", newline="\n")
     return True
 
 

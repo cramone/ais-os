@@ -402,7 +402,7 @@ def _doc_read(slug: str, folder: str, path: str) -> dict:
 
 
 def _doc_write(slug: str, folder: str, path: str, content: str) -> dict:
-    _doc_target(slug, folder, path).write_text(content, encoding="utf-8")
+    _doc_target(slug, folder, path).write_text(content, encoding="utf-8", newline="\n")
     return {"ok": True}
 
 
@@ -608,7 +608,7 @@ def write_memory(slug: str, body: MemoryWriteRequest) -> dict:
     memory_file = config.PROJECTS_DIR / slug / "MEMORY.md"
     if not memory_file.exists():
         raise HTTPException(404, "No MEMORY.md for this project")
-    memory_file.write_text(body.content, encoding="utf-8")
+    memory_file.write_text(body.content, encoding="utf-8", newline="\n")
     return {"ok": True}
 
 
@@ -653,10 +653,10 @@ def add_note(slug: str, body: NoteAddRequest) -> dict:
     now = _datetime.datetime.now(_datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
     new_block = f"\n## {body.title.strip()}\n_Captured: {now}_\n\n"
     if not notes_file.exists():
-        notes_file.write_text(f"# Notes\n{new_block}", encoding="utf-8")
+        notes_file.write_text(f"# Notes\n{new_block}", encoding="utf-8", newline="\n")
     else:
         content = notes_file.read_text(encoding="utf-8", errors="replace")
-        notes_file.write_text(content.rstrip() + new_block, encoding="utf-8")
+        notes_file.write_text(content.rstrip() + new_block, encoding="utf-8", newline="\n")
     return {"ok": True}
 
 
@@ -678,7 +678,7 @@ def rename_note(slug: str, index: int, body: NoteRenameRequest) -> dict:
     note_blocks[index] = _re.sub(
         r'^## .+$', f'## {body.title.strip()}', note_blocks[index], count=1, flags=_re.MULTILINE
     )
-    notes_file.write_text('\n'.join(header_blocks + note_blocks), encoding="utf-8")
+    notes_file.write_text('\n'.join(header_blocks + note_blocks), encoding="utf-8", newline="\n")
     return {"ok": True}
 
 
@@ -695,7 +695,7 @@ def delete_note(slug: str, index: int) -> Response:
     if index < 0 or index >= len(note_blocks):
         raise HTTPException(404, "Note index out of range")
     note_blocks.pop(index)
-    notes_file.write_text('\n'.join(header_blocks + note_blocks), encoding="utf-8")
+    notes_file.write_text('\n'.join(header_blocks + note_blocks), encoding="utf-8", newline="\n")
     return Response(status_code=204)
 
 
@@ -751,7 +751,7 @@ def promote_note(slug: str, index: int, body: NotePromoteRequest = NotePromoteRe
 
     # Remove the note only after the todo is safely written.
     note_blocks.pop(index)
-    notes_file.write_text('\n'.join(header_blocks + note_blocks), encoding="utf-8")
+    notes_file.write_text('\n'.join(header_blocks + note_blocks), encoding="utf-8", newline="\n")
     return {"ok": True, "todo": todo}
 
 
