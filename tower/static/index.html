@@ -513,20 +513,41 @@
   #interrupts-list, #todos-list {
     background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
   }
+  /* Row controls (due chip, status, buttons) line up with the TITLE, not with
+     the vertical centre — the body's height varies with its meta line. */
   .interrupt-row {
-    display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+    display: flex; align-items: flex-start; gap: 10px; padding: 9px 12px;
     border-bottom: 1px solid var(--border); cursor: pointer;
   }
   .interrupt-row:last-child { border-bottom: none; }
   .interrupt-row:hover { background: var(--surface2); }
   .priority-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .interrupt-row > .priority-dot { margin-top: 5px; }
   .p-urgent { background: var(--danger); box-shadow: 0 0 5px var(--danger); }
   .p-high { background: var(--warn); }
   .p-normal { background: var(--accent); }
   .p-low { background: var(--muted); }
   .interrupt-info { flex: 1; min-width: 0; }
+  .interrupt-body { flex: 1; min-width: 0; }
   .interrupt-title { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .interrupt-meta { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  /* One line, always: chips are spaced and never wrap the row to a second
+     line. Tag counts past the cap collapse into a +N chip (see _tagChips). */
+  .interrupt-meta {
+    display: flex; align-items: center; gap: 6px; flex-wrap: nowrap;
+    overflow: hidden; font-size: 10px; color: var(--muted); margin-top: 3px;
+  }
+  .interrupt-meta > * { flex-shrink: 0; }
+  /* Meta-line tags run one size down from the drilldown's, so a tagged row is
+     the same height as an untagged one. */
+  .interrupt-meta .tag { font-size: 10px; padding: 1px 6px; }
+  /* Short form of the item's uuid — click to copy the full one. */
+  .item-id {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px;
+    padding: 1px 5px; border-radius: 3px; cursor: pointer;
+    background: var(--surface2); color: var(--muted); border: 1px solid var(--border);
+  }
+  .item-id:hover { color: var(--accent); border-color: var(--accent); }
+  .item-id.copied { color: var(--accent2); border-color: rgba(63,185,80,0.4); }
   .interrupt-source {
     font-size: 10px; padding: 2px 6px; border-radius: 3px; flex-shrink: 0;
     background: var(--surface2); color: var(--muted); border: 1px solid var(--border);
@@ -591,6 +612,7 @@
   .tag {
     font-size: 11px; padding: 2px 8px; border-radius: 10px; cursor: pointer;
     background: var(--surface2); color: var(--muted); border: 1px solid var(--border);
+    white-space: nowrap;
   }
   .tag:hover { border-color: var(--accent); color: var(--accent); }
   .tag-add { color: var(--accent); border-style: dashed; }
@@ -3363,8 +3385,9 @@
         <div class="interrupt-body">
           <div class="interrupt-title">${i.title}</div>
           <div class="interrupt-meta">
+            ${_idChip(i)}
             ${f.source && i.source ? `<span class="source-tag src-${(i.source || '').toLowerCase()}">${i.source}</span>` : ''}
-            ${_tagChips(board, i)}
+            ${_tagChips(board, i, 3)}
             <span class="interrupt-age">${_ago(new Date(i.capturedAt))}</span>
           </div>
         </div>
@@ -3384,11 +3407,12 @@
     return `
       <div class="int-card prio-${i.priority || 'normal'}" draggable="true" data-id="${i.id}" data-status="${i.status}" onclick="openItemDrilldown('${board.kind}','${i.id}')">
         <div class="interrupt-title" style="white-space:normal">${i.title}</div>
-        <div class="interrupt-meta" style="margin-top:4px">
+        <div class="interrupt-meta" style="margin-top:4px;flex-wrap:wrap">
           ${f.source && i.source ? `<span class="source-tag src-${(i.source || '').toLowerCase()}">${i.source}</span>` : ''}
           ${_tagChips(board, i)}
         </div>
-        <div class="interrupt-meta" style="margin-top:4px;display:flex;gap:6px;align-items:center">
+        <div class="interrupt-meta" style="margin-top:4px">
+          ${_idChip(i)}
           ${i.dueDate ? `<span class="due-chip ${_dueClass(i.dueDate)}">${_dueLabel(i.dueDate)}</span>` : ''}
           <span class="interrupt-age">${_ago(new Date(i.capturedAt))}</span>
           ${f.delete ? `<button class="action-btn danger todo-delete-btn" title="Delete" style="margin-left:auto" onclick="event.stopPropagation();itemDelete('${board.kind}','${i.id}')">✕</button>` : ''}
@@ -3520,12 +3544,47 @@
 
   // Tag chips for a row or card. Doc-id chips open the document they name;
   // everything else is display-only here (editing lives in the drilldown).
-  function _tagChips(board, i) {
-    return (i.tags || []).map(t => _isDocId(t)
+  // `max` caps how many chips render — the rest collapse into a +N chip so a
+  // heavily-tagged item can't wrap its row onto a second line.
+  function _tagChips(board, i, max = Infinity) {
+    const tags = i.tags || [];
+    const shown = tags.slice(0, max);
+    const rest  = tags.length - shown.length;
+    const chips = shown.map(t => _isDocId(t)
       ? `<span class="tag tag-docid active" title="Open ${t}"
            onclick="event.stopPropagation();openItemDoc('${board.kind}','${i.id}')">${t}</span>`
       : `<span class="tag ${_tagClass(t)} active">${_tagLabel(t)}</span>`
-    ).join('');
+    );
+    if (rest > 0) chips.push(`<span class="tag tag-fixed" title="${tags.slice(max).join(', ')}">+${rest}</span>`);
+    return chips.join('');
+  }
+
+  // Short id chip — enough to eyeball, click copies the full uuid.
+  function _idChip(i) {
+    return `<span class="item-id" title="${i.id} — click to copy"
+      onclick="event.stopPropagation();copyItemId(this,'${i.id}')">${(i.id || '').slice(0, 8)}</span>`;
+  }
+
+  // navigator.clipboard is undefined on plain http (Tower is reachable over the
+  // tailnet by IP), so fall back to the execCommand path before giving up.
+  async function copyItemId(el, id) {
+    let ok = false;
+    try {
+      if (navigator.clipboard) { await navigator.clipboard.writeText(id); ok = true; }
+    } catch { /* fall through */ }
+    if (!ok) {
+      const ta = document.createElement('textarea');
+      ta.value = id;
+      ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { ok = document.execCommand('copy'); } catch { ok = false; }
+      ta.remove();
+    }
+    const prev = el.textContent;
+    el.classList.add('copied');
+    el.textContent = ok ? 'copied' : id;
+    setTimeout(() => { el.textContent = prev; el.classList.remove('copied'); }, ok ? 900 : 2500);
   }
 
   // Open the review/plan a todo points at. `source` holds the repo-relative
