@@ -336,6 +336,16 @@
     transition: border-color 0.15s, color 0.15s;
   }
   .section-expand-btn:hover { border-color: var(--accent); color: var(--accent); }
+  /* Doc viewer header actions (⛶ / Copy / Edit) — one size so they line up */
+  .doc-hdr-actions { display: flex; gap: 6px; align-items: center; }
+  .doc-hdr-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    height: 24px; padding: 0 8px; box-sizing: border-box; flex-shrink: 0;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 4px; cursor: pointer; font-size: 11px; line-height: 1; white-space: nowrap;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .doc-hdr-btn:hover { border-color: var(--accent); color: var(--accent); }
   .todo-row:hover .todo-delete-btn { opacity: 1 !important; }
   .todo-row:hover .todo-edit-btn { opacity: 1 !important; }
   /* Todo cards + kanban */
@@ -1035,8 +1045,8 @@
               <div class="panel">
                 <div class="panel-header">
                   <div class="panel-title" id="plans-file-title">Select a plan</div>
-                  <div style="display:flex;gap:6px;align-items:center">
-                    <button onclick="openDocFileReader('plans')" class="section-expand-btn" title="Read full-screen">⛶</button>
+                  <div class="doc-hdr-actions" id="plans-file-actions">
+                    <button onclick="openDocFileReader('plans')" class="doc-hdr-btn" title="Read full-screen">⛶</button>
                   </div>
                 </div>
                 <div class="panel-body expandable-body" id="plans-file-content">
@@ -1059,8 +1069,8 @@
               <div class="panel">
                 <div class="panel-header">
                   <div class="panel-title" id="reviews-file-title">Select a review</div>
-                  <div style="display:flex;gap:6px;align-items:center">
-                    <button onclick="openDocFileReader('reviews')" class="section-expand-btn" title="Read full-screen">⛶</button>
+                  <div class="doc-hdr-actions" id="reviews-file-actions">
+                    <button onclick="openDocFileReader('reviews')" class="doc-hdr-btn" title="Read full-screen">⛶</button>
                   </div>
                 </div>
                 <div class="panel-body expandable-body" id="reviews-file-content">
@@ -1083,8 +1093,8 @@
               <div class="panel">
                 <div class="panel-header">
                   <div class="panel-title" id="spec-file-title">Select a file</div>
-                  <div style="display:flex;gap:6px;align-items:center">
-                    <button onclick="openDocFileReader('spec')" class="section-expand-btn" title="Read full-screen">⛶</button>
+                  <div class="doc-hdr-actions" id="spec-file-actions">
+                    <button onclick="openDocFileReader('spec')" class="doc-hdr-btn" title="Read full-screen">⛶</button>
                   </div>
                 </div>
                 <div class="panel-body expandable-body" id="spec-file-content">
@@ -2908,8 +2918,8 @@
 
     if (titleEl) {
       titleEl.textContent = path.split('/').pop();
-      _ensureEditBtn(type);
     }
+    _ensureDocBtns(type);
     // Reset edit mode state on new file
     const editBtn = document.getElementById(`${type}-edit-btn`);
     if (editBtn) { editBtn.dataset.mode = ''; editBtn.textContent = '✏️ Edit'; }
@@ -3017,16 +3027,60 @@
   function _makeEditBtn(type) {
     const btn = document.createElement('button');
     btn.id = `${type}-edit-btn`;
+    btn.className = 'doc-hdr-btn';
     btn.textContent = '✏️ Edit';
-    btn.style.cssText = 'background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;flex-shrink:0';
     btn.onclick = () => toggleFileEdit(type);
     return btn;
   }
 
-  function _ensureEditBtn(type) {
-    if (!document.getElementById(`${type}-edit-btn`)) {
-      const header = document.getElementById(`${type}-file-title`);
-      if (header && header.parentElement) header.parentElement.appendChild(_makeEditBtn(type));
+  function _makeCopyBtn(type) {
+    const btn = document.createElement('button');
+    btn.id = `${type}-copy-btn`;
+    btn.className = 'doc-hdr-btn';
+    btn.textContent = '⧉ Copy';
+    btn.title = 'Copy markdown';
+    btn.onclick = () => copyDocMarkdown(type);
+    return btn;
+  }
+
+  // Buttons live in the header's action row so they align with the ⛶ button.
+  function _ensureDocBtns(type) {
+    const actions = document.getElementById(`${type}-file-actions`);
+    if (!actions) return;
+    if (!document.getElementById(`${type}-copy-btn`)) actions.appendChild(_makeCopyBtn(type));
+    if (!document.getElementById(`${type}-edit-btn`)) actions.appendChild(_makeEditBtn(type));
+  }
+
+  // Tower is often served over plain http, where navigator.clipboard is undefined —
+  // fall back to the execCommand path in that case.
+  async function _copyText(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch { /* fall through */ }
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:-1000px;left:-1000px;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch { ok = false; }
+    ta.remove();
+    return ok;
+  }
+
+  async function copyDocMarkdown(type) {
+    // Prefer unsaved editor text when the editor is open.
+    const editor = document.getElementById(`md-editor-${type}`);
+    const md = editor ? editor.value : (_docState[type] && _docState[type].content);
+    if (!md) { alert('Select a file first.'); return; }
+    const btn = document.getElementById(`${type}-copy-btn`);
+    const ok = await _copyText(md);
+    if (btn) {
+      btn.textContent = ok ? '✓ Copied' : '✕ Failed';
+      setTimeout(() => { btn.textContent = '⧉ Copy'; }, 1200);
     }
   }
 
