@@ -126,12 +126,57 @@ High
 | decisions/log.md | Architecture and design decisions (append-only) — currently empty |
 | adrs/ | Formal ADRs for architectural decisions — currently empty |
 | spec/ | Spec files — currently empty (target-architecture spec not started) |
+| reviews/ | Reviews, one subfolder per workstream — findings are argued here before a plan exists |
 | plans/ | Implementation plans for the *current* codebase — the most detailed, up-to-date technical context in this workspace |
 
 ## Decisions
 
 All architecture and design decisions go in decisions/log.md.
 Formal ADRs go in adrs/.
+
+---
+
+## Review → Plan
+
+**Work goes through a review before it gets a plan.** The review argues the findings; the plan sequences
+them and tracks execution. Don't open a plan for something that hasn't been reviewed — if the reasoning
+isn't written down somewhere, that gap is the first thing to fix.
+
+`reviews/` and `plans/` mirror each other, one subfolder per workstream:
+
+```
+reviews/<workstream>/<review>.md   →   plans/<workstream>/<plan>.md
+reviews/<workstream>/Archive/      →   plans/<workstream>/Archive/
+```
+
+Three rules:
+
+1. **The folder name is the link.** A review and the plan that consumes it share the workstream slug.
+2. **The plan is named after its primary review.** Same filename, different tree.
+3. **Both sides archive together**, in the same session.
+
+**Reviews raised from the code repo.** Analysis documents written into
+`D:\source\github\magiq-auth\reports\` are working notes, not cycle documents. When one becomes work we
+intend to sequence, it is adapted into a review here — findings only; design detail belongs in the plan.
+The original stays in the repo as the source artefact and is cited by the review's `## Scope`.
+
+## Review → Plan cycle
+
+prefix: MA
+we-operate: true
+
+This section is the adoption marker for the [[review-cycle]] and [[workstream-query]] skills. `prefix`
+seeds document ids (`MA-001`, `MA-002`, …), minted per project and never reused. `we-operate: true` means
+we own this project's code and may raise reviews in it.
+
+Note the asymmetry with `magiq-media`: that project's `authorization/` workstream treats magiq-auth as an
+**external** dependency (X-11.30, role claims). That is a statement about who does the work, not about
+adoption — with `we-operate: true` here, cross-project reviews raised by magiq-media land in this project
+tagged with the origin's id and inheriting its priority.
+
+The five files in `plans/` predate this cycle. They carry no ids and no front-matter — treat them as
+**legacy / UNKNOWN status** per the skill's § Legacy files. Backfill one workstream at a time, when that
+workstream is next picked up. Do not bulk-rewrite.
 
 ---
 
