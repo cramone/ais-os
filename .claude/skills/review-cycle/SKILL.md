@@ -226,7 +226,9 @@ Contents:
 - How to work findings: evidence before conclusion, cite `file:line`, **do not fix code during a review**
 - What to do with anything found outside scope: it does not go in this review's findings — surface it and ask where it belongs
 - The gate, plainly: **do not write the plan until every open question is answered AND Chase has moved the review to `findings-agreed`**
-- A `## Writing the plan` section giving the plan format: front-matter as above with a freshly minted id, then phases; each phase a checklist of `- [ ]` items small enough to finish in one session; each item naming the finding id it closes and its acceptance check; phases blocked by a dependency marked as such
+- A `## Writing the plan` section giving the plan format: front-matter as above with a freshly minted id, then phases. **A phase is a `## Phase <N> — <name>` heading**, an intro line, then a checklist of `- [ ]` items small enough to finish in one session; each item naming the finding id it closes and its acceptance check; phases blocked by a dependency marked as such. The heading shape is not cosmetic — [[ado-create-from-plan]] reads `## Phase <N> — <name>` to find Features, and `## ADO mapping` keys its branch table on the same `<N> — <name>`
+- That `ado:` in the plan front-matter is left as `-`. Pushing a plan to the board is a separate, explicit step run through [[ado-create-from-plan]] once the plan is `active` — never during the review, and most plans never go to the board at all. The field is a slot for that step to fill, not something to populate by hand
+- Whether this workstream is board-tracked. If it is, the plan ends with an `## ADO mapping` block giving a branch per phase and a type per item (`bugfix` · `feat` · `refactor` · `infra` · `chore`); if it is not, the block is omitted entirely rather than filled with placeholders. Severity is never repeated there — it lives on the finding in the review
 - That checkboxes are ticked in the file as work lands, so a later session resumes from the file rather than from chat history
 - End-of-session protocol: update the checklist, update front-matter `status`, append any new branch to `branches`, comment the todo with what moved
 
@@ -326,7 +328,7 @@ Work uncovers new problems constantly here — X-11.1 surfaced while *working* P
 
 - A new finding **never** becomes a new checklist item in the plan that found it.
 - It goes to the global drift register with an `X-` number, or to a new review in the appropriate workstream. Ask which when it is not obvious.
-- The only mid-execution checklist edits allowed are ones that close, split, or correct an item tracing to a finding id the plan already consumes. Splitting keeps the original finding id on both halves.
+- The only mid-execution checklist edits allowed are ones that close, split, or correct an item tracing to a finding id the plan already consumes. Splitting keeps the original finding id on both halves. One further exception: [[ado-create-from-plan]] appends `AB#<story-id>` to an item when the plan is pushed to the board — that annotates an existing item rather than adding one, and it is what stops a re-run duplicating the hierarchy.
 - If a new finding invalidates the plan's approach, **stop**. Do not re-plan in place — say so, and Chase decides whether the review reopens or a new one starts.
 - Record every such diversion in the plan's session log.
 
@@ -380,9 +382,34 @@ Roughly twenty review and plan files predate this skill and carry neither ids no
 
 ## ADO
 
-`ado-create-from-plan` resolves plans flat at `projects/<project>/plans/<name>.md` and from a stale root (`C:\Users\chase\OneDrive\Magiq\AIS-OS\`). Plans moved into subfolders on 2026-08-24, so it can no longer find any magiq-media plan. **It needs patching before it works with this cycle** — treat that as its own task.
+**Never create ADO items as part of the review → plan cycle.** It is a separate, explicit step, and most plans never go to the board at all. `ado:` stays `-` until someone runs [[ado-create-from-plan]] on purpose.
 
-Do not create ADO items as part of the review → plan cycle. Keep it a separate, explicit step; most plans never go to the board. When it does run, the Epic id lands in the plan's `ado:` front-matter and `adoItemId` on the plan's todo.
+When it does run, it reads the plan shape this skill writes: phase → Feature, `- [ ]` item → User Story, the item's acceptance check → acceptance criteria verbatim, the finding id → Story title prefix and tag, and the finding's severity → story points. It refuses a plan that is `blocked`, `parked` or `superseded`, and skips phases the plan marks blocked — board items nobody can start are worse than none.
+
+It writes back three ways, and all three matter: `ado: {project, epicId}` into the plan front-matter, `AB#<story-id>` appended to each checklist item, and `adoItemId` (the Epic) onto the plan's todo. Without the write-back a re-run duplicates the hierarchy and a ticked checkbox never closes its Story.
+
+### `## ADO mapping` — optional, board-tracked plans only
+
+Two things the board wants that a plan otherwise has no reason to carry. Add this block **only** when the workstream is tracked on ADO; omit it entirely otherwise rather than filling it with placeholders.
+
+```markdown
+## ADO mapping
+
+| Phase | Branch |
+|---|---|
+| 1 — stop the stranding | `fix/archive-cascade-report` |
+| 2 — bound the subtree | `fix/archive-cascade-bounds` |
+
+| Item | Type |
+|---|---|
+| AC-1 | bugfix |
+| AC-4 | refactor |
+```
+
+- **Branch per phase** — the Feature's branch. A phase is one branch, an item is one PR, matching the `Story/Bug = one PR` rule the architecture-review workstream already runs on.
+- **Type per item** — `bugfix` · `feat` · `refactor` · `infra` · `chore`. Drives default task generation. **No type means no tasks generated** — that is correct behaviour, not a gap to paper over with a guess.
+
+Severity is not repeated here. It lives on the finding in the review, and `ado-create-from-plan` reads it from the review named in `consumes`.
 
 ## Invariants
 
