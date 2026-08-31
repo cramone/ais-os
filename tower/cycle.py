@@ -346,6 +346,37 @@ def annotate(slug: str, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return items
 
 
+def comment(slug: str, doc_id: str, text: str, author: str = "Claude") -> dict[str, Any]:
+    """Append a session-log entry to a document's card. Resolves by document id.
+
+    The card is the running history of a review or plan: what was picked up, what
+    moved, where to resume. Status lives in front-matter and is projected; a comment
+    is the *narrative* beside it, and the only writable thing on a cycle card.
+
+    One call on purpose. Doing this through the store directly means resolving the
+    todos file, then the card's uuid, then appending — three steps, and a log that
+    costs three steps is a log that does not get written.
+
+    Creates the card first if the projection has not rendered it yet, so a comment
+    can be the first thing that happens to a freshly written document.
+    """
+    from tower.interrupts.store import append_activity, load_interrupts, save_interrupts
+
+    path = config.todos_file(slug)
+    items = load_interrupts(path) if path.exists() else []
+    items, changed = reconcile(slug, items)
+    if changed:
+        save_interrupts(path, items)
+
+    todo_id = todo_id_for(slug, doc_id)
+    if not any(i["id"] == todo_id for i in items):
+        # Reconcile creates cards for indexed documents; a miss means the id is unknown.
+        raise CycleViolation(
+            f"{doc_id} resolves to no document in {slug}, so there is no card to comment on."
+        )
+    return append_activity(path, todo_id, "comment", text.strip(), author=author)
+
+
 def assert_not_cycle(slug: str, item: dict[str, Any], action: str) -> None:
     """Raise CycleViolation if `item` is a cycle todo. Guards status writes and delete."""
     doc_id = todo_doc_id(item)

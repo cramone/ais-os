@@ -104,7 +104,7 @@ Front-matter is authoritative. It maps to the todo store and the README words:
 - **Index everything from creation, including `draft`.** A review that exists but is not in `reviews/README.md` is invisible to the next session — the exact failure this convention prevents.
 - `blocked` is **derived** from unmet dependencies, never set by hand.
 - `parked` is a deliberate human call and must carry a reason.
-- **`findings-agreed` is a transition Chase makes, not one you infer.** Chase says the findings are agreed; you move the review and comment the todo. Until then the plan gate stays shut, however few open questions remain.
+- **`findings-agreed` is a transition Chase makes, not one you infer.** Chase says the findings are agreed; you set the front-matter and comment the card with what settled it. Until then the plan gate stays shut, however few open questions remain.
 
 ## Front-matter
 
@@ -181,7 +181,7 @@ Notes:
 - priority: `urgent` | `normal` | `low`
 - `source` — repo-relative path of the review or plan file
 - tags — the document id, plus `review` / `plan` / `gate`, plus the workstream slug, plus a state tag where the mapping calls for one
-- every status change gets an `append_activity` comment saying why
+- every status change gets a card comment saying why — `cycle.comment(slug, doc_id, text)`, see § The card is the session log
 
 Create with id, source and tags in one call — `create_item` takes them, despite the `project-todos` doc showing only `title`/`priority`/`due_date`:
 
@@ -208,7 +208,32 @@ The rest follows automatically and must not be done by hand:
 - **Never repair a `source` path.** Resolution is by id, so archiving and renaming self-heal.
 - **Never hand-edit a cycle todo's status or state tags in the store.** They are overwritten on the next read from the document.
 
-Still yours to set on the board, because they are not in front-matter: **priority, due date, and comments.** A comment is session log, not state — keep using them to record why a status moved.
+Still yours to set on the board, because they are not in front-matter: **priority, due date, and comments.**
+
+## The card is the session log
+
+**Status says where a document is. The card's comments say how it got there and where to pick it up.** Front-matter carries one word; a workstream picked up three weeks later needs the narrative beside it. Write that as you go — not reconstructed at the end, when the detail that mattered is gone.
+
+One call, which resolves by document id and creates the card if the projection has not rendered it yet:
+
+```bash
+python -c "from tower import cycle; cycle.comment('magiq-media', 'MM-026', 'X-11.41 closed. Items moved out of a folder now produce real refusals rather than silent ones. X-11.17 next; it needs gate decision 5 first.')"
+```
+
+**Comment on these, every time:**
+
+- **Picking a document up** — what you are starting, and the state you found it in. This is the entry that tells the next session the difference between "not started" and "started and abandoned".
+- **A finding closed** — its id, what actually changed, and anything the finding's own text got wrong.
+- **A decision taken** — what was decided and what it rules out. Log it via [[decision]] as well when it is architectural; the card entry is the pointer.
+- **A blocker found** — what blocks, whose it is, and whether the ask is written and sent.
+- **A branch cut** — the name. It goes in `branches:` too, but the card is where you see *when*.
+- **Putting it down** — what moved, what did not, and **the next concrete action**. This is the one that answers "where am I up to", so never skip it, including when a session ends having achieved nothing.
+
+**Do not comment on:** individual file edits, commands run, or anything already written in the document body. A card is a log of decisions and outcomes, not a transcript. If a comment could be replaced by reading one paragraph of the plan, it is noise.
+
+**Shape.** Lead with the outcome, not the activity — *"X-11.16 closed"*, not *"worked on the archive cascade"*. Name finding and document ids so entries are greppable. Two or three sentences. The timestamp and author are recorded for you, so do not write the date.
+
+**Never record status in a comment as the record.** Front-matter is the record and the board projects it; a comment saying "moved to blocked" is fine as narrative but it is not what makes it blocked.
 
 Documents with no front-matter are invisible to the projection. Legacy files get no card and keep whatever board state they already had, which is correct: their status is UNKNOWN and must not be inferred.
 
@@ -247,7 +272,7 @@ Contents:
 
 - Project slug and the absolute path to the project folder
 - The review's document id, its absolute path, and the todo id
-- Instruction to set that todo to `in-progress` via [[project-todos]] as the **first** action, with a comment noting the session started
+- Instruction that the **first** action is a card comment recording what is being picked up and the state it was found in — `cycle.comment('<slug>', '<id>', '…')`. The card's status is projected from front-matter and is not settable from the board, so do not try
 - What to read first, and what is out of scope
 - The finding-id prefix to use, and that severity is High/Medium/Low — never 🔴/🟠, which belong to the gate
 - How to work findings: evidence before conclusion, cite `file:line`, **do not fix code during a review**
@@ -257,7 +282,7 @@ Contents:
 - That `ado:` in the plan front-matter is left as `-`. Pushing a plan to the board is a separate, explicit step run through [[ado-create-from-plan]] once the plan is `active` — never during the review, and most plans never go to the board at all. The field is a slot for that step to fill, not something to populate by hand
 - Whether this workstream is board-tracked. If it is, the plan ends with an `## ADO mapping` block giving a branch per phase and a type per item (`bugfix` · `feat` · `refactor` · `infra` · `chore`); if it is not, the block is omitted entirely rather than filled with placeholders. Severity is never repeated there — it lives on the finding in the review
 - That checkboxes are ticked in the file as work lands, so a later session resumes from the file rather than from chat history
-- End-of-session protocol: update the checklist, update front-matter `status`, append any new branch to `branches`, comment the todo with what moved
+- End-of-session protocol: update the checklist, update front-matter `status`, append any new branch to `branches`, and **write the closing card comment** — what moved, what did not, and the next concrete action (§ The card is the session log)
 
 ## Workflow 2a — the review produces a plan
 
@@ -270,8 +295,8 @@ Preconditions, all three, checked and reported before anything is written:
 Then:
 
 1. **Mint the plan id.** Resolve dependencies (§ Dependency gating) and write `plans/<workstream>/<primary-review-filename>.md`, `consumes` listing every review id it takes, status from the dependency result.
-2. **Close the review.** Front-matter → `status: done`, `outcome: plan`. Its card follows on the next board read; add a comment naming the plan's id and path.
-3. **Do not create the plan todo.** The projection makes it from the plan's front-matter. Comment it with the hand-over once it exists.
+2. **Close the review.** Front-matter → `status: done`, `outcome: plan`. Its card follows on the next board read; comment it with the plan's id and what the review concluded.
+3. **Do not create the plan todo.** The projection makes it from the plan's front-matter. Comment it with the hand-over — which reviews it consumes, and the first phase to work.
 4. **Index it** in `plans/README.md` with id and name; update the pairing row in `reviews/README.md`.
 5. The plan must contain a `## Closing out` section stating: the plan todo moves to `done` only after Chase agrees the work is implemented and complete, the close-out comment records every branch it was committed to, and the pair is then archived.
 
@@ -304,7 +329,7 @@ Run at plan authoring, at every session start on a plan, and at every phase boun
    - `parked` or `superseded` → unmet, and say so explicitly: it is not coming unless someone restarts it
 3. **Each `blocked-by-external` entry** → unmet. If `sent: false`, name writing and sending that ask as the critical path.
 4. **All clear** → plan `status: active`, todo `in-progress`, drop `blocked`.
-5. **Anything unmet** → plan `status: blocked`, todo `deferred` + tag `blocked`, plus a todo comment naming which id and its current state.
+5. **Anything unmet** → plan `status: blocked`, plus a card comment naming which id blocks it, that id's current state, and — for an external blocker — whether the ask is written and sent.
 6. **Partial blocking is the common case.** If only some phases depend on the blocked item, list the phases that can proceed now and the ones that cannot, and mark the blocked phases in the plan body. Do not block the whole plan.
 7. **Never silently proceed past an unmet dependency.** Report and ask.
 
@@ -451,6 +476,7 @@ Severity is not repeated here. It lives on the finding in the review, and `ado-c
 - A review with any `**Open**` question, or not yet at `findings-agreed`, cannot produce a plan.
 - A review must reach a terminal `outcome`; `pending` is not a resting state.
 - A plan is not `done` without Chase's explicit agreement plus at least one recorded branch.
+- Every session that touches a review or plan leaves at least two card comments: what it picked up, and what it put down with the next concrete action. A session that ends with nothing moved still writes the second one.
 - A finished workstream archives on both sides, in the same session.
 - A `done` file is frozen; only additive `consumes` / `supersedes` edits touch it.
 - A finding discovered during execution never becomes a checklist item in the plan that found it.

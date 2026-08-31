@@ -1,7 +1,7 @@
 # Review-cycle documents on the Control Tower board
 
 **Added 2026-08-31.** Implemented in `tower/cycle.py`, wired into `tower/server.py` at three points
-and `tower/static/index.html` at three more.
+and `tower/static/index.html` at four more.
 
 ## The problem it fixes
 
@@ -37,7 +37,28 @@ the gesture would be lying about what it could do.
 | board → document | — | Nothing. `PATCH` of a cycle todo's status returns 409 |
 
 **Status is the only projected field.** Priority, due date and comments are not in front-matter, so
-they stay board-editable. A comment is session log, not state — keep using them.
+they stay board-editable.
+
+### Comments are the session log
+
+The one writable thing on a cycle card, and the reason the card is worth opening. Status says *where*
+a document is; the log says *how it got there and where to pick it up* — which is the question a
+workstream returned to three weeks later actually asks.
+
+```python
+from tower import cycle
+cycle.comment('magiq-media', 'MM-026', 'X-11.41 closed. Items moved out of a folder now produce '
+                                       'real refusals rather than silent ones. X-11.17 next.')
+```
+
+`comment()` resolves by **document id**, not todo uuid, and reconciles first so it works on a
+document whose card has not been rendered yet — a comment can be the first thing that happens to a
+freshly written review. An unknown id raises `CycleViolation` rather than silently doing nothing.
+
+The rule for what belongs in one lives in SKILL.md § The card is the session log: comment on picking
+a document up, each finding closed, each decision taken, each blocker found, each branch cut, and on
+putting it down with the next concrete action. Not on file edits or commands run — a card is a log of
+outcomes, not a transcript.
 
 ## Deterministic ids
 
@@ -98,7 +119,8 @@ are managed.
 | Badge | glyph + **type word** + id — `◇ REVIEW · MM-003`, `▤ PLAN · MM-004`, `⛌ GATE · MM-0xx` |
 | Tooltip | id, type, workstream, status, what that phase means, and the file path |
 | Footnote | *projection-tables — review status set in MM-003* |
-| Done / delete | Suppressed, on both the kanban card and the list row |
+| Done / delete | Suppressed, on the kanban card, the list row and the drilldown's **Mark Done** |
+| Comments | **Left writable everywhere** — the note box in the drilldown is the session log |
 | Dangling id | Red `⚠ MM-0xx missing` badge — the card is tagged but no document has that id |
 
 **Colour encodes the phase**, because that is the question the card is being asked:
@@ -171,9 +193,9 @@ Run both after any backfill.
 Server — three edits in `tower/server.py`: the `cycle.reconcile` / `cycle.annotate` calls in
 `get_todos`, and the `cycle.assert_not_cycle` guard in `patch_todo` and `delete_todo`.
 
-Frontend — three in `tower/static/index.html`: the `.cycle-card` CSS block, the `_cycleBadge` helper
-plus its use in `_itemCardHTML` and `_itemRowHTML`, and the `data-cycle` skip in the `dragstart`
-wiring.
+Frontend — four in `tower/static/index.html`: the `.cycle-card` CSS block, the `_cycleBadge` helper
+plus its use in `_itemCardHTML` and `_itemRowHTML`, the `data-cycle` skip in the `dragstart` wiring,
+and the `isCycle` guard hiding **Mark Done** in `openItemDrilldown`.
 
 `tower/cycle.py` has no other callers and imports nothing from the server, so it can be left in place
 or deleted. No data schema changed: cycle todos are ordinary todos that carry an id tag, and every

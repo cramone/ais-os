@@ -3915,9 +3915,17 @@
     if (statusEl) statusEl.textContent = item.status;
     if (ageEl) ageEl.textContent = `Captured ${_ago(new Date(item.capturedAt))}`;
 
-    // Header action buttons
+    // Header action buttons.
+    // A cycle card's status is projected from its document, so Mark Done would 409.
+    // Hide it rather than offer an action that cannot work; the source line below
+    // points at the file where status actually lives. Comments stay writable — the
+    // note box is the session log, and it is the whole point of opening this panel.
     const markDoneBtn = panel.querySelector('.dd-mark-done');
-    if (markDoneBtn) markDoneBtn.onclick = () => itemMarkDone(kind, id);
+    const isCycle = !!(item.cycle && !item.cycle.dangling);
+    if (markDoneBtn) {
+      markDoneBtn.style.display = isCycle ? 'none' : '';
+      markDoneBtn.onclick = () => itemMarkDone(kind, id);
+    }
     const adoBtn = panel.querySelector('.dd-push-ado');
     if (adoBtn) { adoBtn.style.display = f.ado ? '' : 'none'; adoBtn.onclick = () => pushInterruptToADO(id); }
     const editBtn = panel.querySelector('.dd-edit-btn');
