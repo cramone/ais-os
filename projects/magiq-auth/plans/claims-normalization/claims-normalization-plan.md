@@ -1,3 +1,21 @@
+---
+id: MA-002
+type: plan
+project: magiq-auth
+workstream: claims-normalization
+consumes: []
+depends-on: []
+blocked-by-external: []
+status: done
+todo-id: faf9c5fc-7d1b-55b4-8c32-bb027792d7f2
+branches: [magiq-auth#253]
+ado: -
+created: 2026-06-27
+exception: no separate review — this plan predates the cycle and carries its own argument in its Problem / Background section, which is where the reasoning a review would hold already lives. Splitting it retrospectively would move text, not add rigour.
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MA-002.** **Verified against `develop` 2026-08-31.** `IMagiqJwtTokenFactory` and `MagiqJwtTokenFactory` exist under `src/MagiqAuth.Web/Api/v1/Services/`, are registered in `DependencyRegistrar`, and are used by both `JwtAuthV1Controller` and `JwtAuthV2Controller`. Landed as `ed026f3 standardized claims AB#33710 (#253)`.
+
 # Plan: Consistent Claims — Central JWT Token Factory
 
 ## Goal

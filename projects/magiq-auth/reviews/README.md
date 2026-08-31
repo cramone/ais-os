@@ -38,13 +38,13 @@ Paired prompt: `validateuser-lockout-review-2026-08-28-prompt.md`. Paste-ready, 
 
 ---
 
-## Legacy documents
+## Plans without reviews
 
-The five files in `plans/` (`claims-normalization.done`, `client-credentials-plan.done`,
-`customer-deletion-plan.md`, `external-providers-plan.md`, `tenant-switching-plan.md`) predate this
-cycle. They carry no ids and no front-matter, so their status is **UNKNOWN** — not met, not unmet, not
-done. Several analysis documents in the code repo (`PRODUCTION_CODE_AUDIT_REPORT.md`,
-`AuditLogging-Separation-Plan.md`, `sync-to-async-review-plan.md`) are in the same position.
+The five plans in `plans/` (MA-002…MA-006) predate this cycle. As of 2026-08-31 they each carry an
+id, front-matter and a workstream folder, but **no review** — each argues its own case in its
+Problem / Background section, so each takes an `exception:` line saying so rather than having a
+review retrofitted. See `plans/README.md` for the per-plan verification against the code repo.
 
-Backfill one workstream at a time, when that workstream is next picked up, deriving status from
-`plans/README.md` rather than from guesswork about the body. **Do not bulk-rewrite.**
+Several analysis documents in the code repo remain outside the cycle entirely:
+`PRODUCTION_CODE_AUDIT_REPORT.md`, `AuditLogging-Separation-Plan.md`, `sync-to-async-review-plan.md`.
+Adapt one into a review here when it becomes work we intend to sequence.

@@ -1,3 +1,21 @@
+---
+id: MA-006
+type: plan
+project: magiq-auth
+workstream: external-providers
+consumes: []
+depends-on: []
+blocked-by-external: []
+status: active
+todo-id: f8ec5346-2f60-5c40-b33a-a2a160576eda
+branches: []
+ado: -
+created: 2026-06-27
+exception: no separate review — this plan predates the cycle and carries its own argument in its Problem / Background section, which is where the reasoning a review would hold already lives. Splitting it retrospectively would move text, not add rigour.
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MA-006.** **Not started, verified 2026-08-31.** `ExternalProviderConfig.cs` still lives under `MagiqAuth.Core/Configuration/`, so provider config is still `appsettings.json`-driven; the two `ExternalProvider.cs` files are view models, not the DB-backed table this plan proposes. Same note as MA-005: filed `active` because the sources say *Open*, but nothing is in flight.
+
 # External Provider Config — DB Migration Plan
 
 ## Problem

@@ -225,7 +225,9 @@ def _heading_of(path: Path) -> str:
                     break
                 stripped = line.strip()
                 if stripped.startswith("# "):
-                    return stripped[2:].strip()
+                    # Drop a leading "Plan:" / "Review:" — the badge already says which.
+                    return re.sub(r"^(plan|review|gate)\s*[:—-]\s*", "",
+                                  stripped[2:].strip(), flags=re.I)
                 match = re.search(r"<title>(.*?)</title>", stripped, re.I)
                 if match:
                     # A <title> carries entities (&amp;, &mdash;); a card title should not.

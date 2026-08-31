@@ -1,3 +1,21 @@
+---
+id: MA-005
+type: plan
+project: magiq-auth
+workstream: customer-deletion
+consumes: []
+depends-on: []
+blocked-by-external: []
+status: active
+todo-id: 0d54f7a7-fc09-593f-81ab-9ef7d0f52a44
+branches: []
+ado: -
+created: 2026-06-27
+exception: no separate review — this plan predates the cycle and carries its own argument in its Problem / Background section, which is where the reasoning a review would hold already lives. Splitting it retrospectively would move text, not add rigour.
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MA-005.** **Not started, verified 2026-08-31** — no branch cut (`feat/customer-deletion` is a suggestion in the plan, not a ref) and no code. Filed `active` because `CLAUDE.md` and `plans/README.md` both say *Open*, not parked. **Four decisions are unresolved and they gate the work**: the MySQL username collision on name reuse (the plan recommends keying off `CustomerGuid` rather than `Name`), the hard-delete retention window, the authorization policy tier, and whether IS4 `PersistedGrant` revocation needs new wiring. If these are not being worked, `parked` with that reason is the truer status.
+
 # Customer Deletion — Implementation Plan
 
 Branch suggestion: `feat/customer-deletion`

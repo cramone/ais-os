@@ -1,3 +1,21 @@
+---
+id: MA-004
+type: plan
+project: magiq-auth
+workstream: tenant-switching
+consumes: []
+depends-on: []
+blocked-by-external: []
+status: active
+todo-id: 2406d66c-721a-51ad-a615-a8217c229efc
+branches: [features/chase/tenant-switching-v1]
+ado: -
+created: 2026-06-27
+exception: no separate review — this plan predates the cycle and carries its own argument in its Problem / Background section, which is where the reasoning a review would hold already lives. Splitting it retrospectively would move text, not add rigour.
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MA-004.** **Half shipped, verified 2026-08-31.** The v1 cookie switch exists on `features/chase/tenant-switching-v1` (2026-06-02). The v2 half — the OIDC RFC 8693 token-exchange grant for VSTO — is **not built**: `git grep 'token-exchange\|TokenExchange'` over `develop` `.cs` returns nothing. The audit-logging gap fixes on both mechanisms are also outstanding. Neither mechanism replaces the other; a client needing both calls both.
+
 # Tenant Switching v2 — OIDC Token Exchange + Cookie Switch + Audit
 
 **Branch base:** `develop`

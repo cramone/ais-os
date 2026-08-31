@@ -1,3 +1,23 @@
+---
+id: MA-003
+type: plan
+project: magiq-auth
+workstream: client-credentials
+consumes: []
+depends-on: []
+blocked-by-external: []
+status: done
+todo-id: 49291ca3-4bee-557e-8c04-4723e9248e4f
+branches: [magiq-auth#254]
+ado: -
+created: 2026-06-27
+exception: no separate review — this plan predates the cycle and carries its own argument in its Problem / Background section, which is where the reasoning a review would hold already lives. Splitting it retrospectively would move text, not add rigour.
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MA-003.** **Verified against `develop` 2026-08-31.** The `ApiClient` aggregate, `ApiClientsController` and the EF mappings all exist; landed as `431f954 [Feat] Client Credentials Flow (#254)`.
+>
+> **Two residues, neither of which reopens this plan.** (1) The legacy fallback is still live and still correct to keep: `MagiqClientStore.cs:32` holds `_legacyFallbackSecret = new("secret".Sha256())` and returns it when a client has no secret hash, guarded by a TODO that says to remove it once every `AppRegistration`/`Customer` client has a real secret. That confirmation has not been done. (2) `DefaultMagiqClientStore.cs:127` hardcodes `new Secret("secret".Sha256())` with **no** fallback guard and no TODO. It is `internal` and the only `IClientStore` registration is `MagiqClientStore` (`ServiceCollectionExtensions.cs:115`), so it reads as dead code — worth confirming and deleting rather than leaving a second hardcoded secret in the tree.
+
 # Client Credentials Flow — Implementation Plan
 
 **Branch:** `feat/client-credentials`  

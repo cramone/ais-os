@@ -64,24 +64,24 @@ Empty solution folders already exist in the repo staking out this shape: `AuthSe
   - Cookie-based web session switch: `POST /api/v2/auth/switch` (Bearer JWT in, rewritten MAGIQ/Perf/Doc cookies out) — for browser/webview clients.
   - OIDC-native token exchange (RFC 8693): `POST /connect/token` with `grant_type=urn:ietf:params:oauth:grant-type:token-exchange` — for headless bearer-only clients (e.g. the VSTO Office add-in).
   - A client needing both (e.g. VSTO embedding a cookie-checking MAGIQ view) calls both endpoints — neither replaces the other.
-- **External IdP / SSO:** Azure AD per customer via OIDC dynamic schemes. Currently config-driven (`appsettings.json` → `ExternalProviders`); a plan exists to move this to a DB-backed `ExternalProvider` table for zero-restart provider management (`plans/external-providers-plan.md`).
+- **External IdP / SSO:** Azure AD per customer via OIDC dynamic schemes. Currently config-driven (`appsettings.json` → `ExternalProviders`); a plan exists to move this to a DB-backed `ExternalProvider` table for zero-restart provider management (MA-006, `plans/external-providers/external-providers-plan.md`).
 
 ## In-Flight / Planned Work (see `plans/`)
 
 | Plan | Status | Summary |
 |---|---|---|
-| `claims-normalization.done` | Done | Central `IMagiqJwtTokenFactory`, fixed silent `JwtTokenBuilder.AddClaims` no-op bug, aligned claim type names across JWT/OIDC paths |
-| `client-credentials-plan.done` | Done | OAuth2 client-credentials grant (`ApiClient` entity) + fixed hardcoded `"secret".Sha256()` across all OIDC clients |
-| `tenant-switching-plan.md` | In progress | Cookie switch (v1, built) + new OIDC token-exchange grant for VSTO + audit-logging gap fixes for both mechanisms |
-| `customer-deletion-plan.md` | Open — has unresolved decisions | Soft/hard delete design; open items: MySQL username collision on name reuse (recommends keying off `CustomerGuid` instead of `Name`), hard-delete retention window length, authorization policy tier, whether IS4 PersistedGrant revocation needs new wiring |
-| `external-providers-plan.md` | Open | Move Azure AD SSO config from `appsettings.json` to a DB-backed `ExternalProvider` table with dynamic ASP.NET Core scheme registration (no restart needed) |
+| MA-002 `claims-normalization/` | Done | Central `IMagiqJwtTokenFactory`, fixed silent `JwtTokenBuilder.AddClaims` no-op bug, aligned claim type names across JWT/OIDC paths |
+| MA-003 `client-credentials/` | Done | OAuth2 client-credentials grant (`ApiClient` entity) + fixed hardcoded `"secret".Sha256()` across all OIDC clients |
+| MA-004 `tenant-switching/` | Active — v1 cookie switch built; **v2 token exchange not built** | Cookie switch (v1, built) + new OIDC token-exchange grant for VSTO + audit-logging gap fixes for both mechanisms |
+| MA-005 `customer-deletion/` | Active — not started, 4 decisions unresolved | Soft/hard delete design; open items: MySQL username collision on name reuse (recommends keying off `CustomerGuid` instead of `Name`), hard-delete retention window length, authorization policy tier, whether IS4 PersistedGrant revocation needs new wiring |
+| MA-006 `external-providers/` | Active — not started | Move Azure AD SSO config from `appsettings.json` to a DB-backed `ExternalProvider` table with dynamic ASP.NET Core scheme registration (no restart needed) |
 
 ## Known Issues / Security Debt
 
 From `PRODUCTION_CODE_AUDIT_REPORT.md` (2026-06-01 audit) and related cleanup plans in the code repo:
 - Hardcoded service credentials in `MagiqAuthenticationService.CallWebService()` (Critical — Documents API creds committed to source).
 - `EncryptionService` AES methods use ECB mode (Critical — breaks performance-session cookie confidentiality).
-- Hardcoded OIDC client secret (`"secret".Sha256()`) — **fixed** by `client-credentials-plan.done`, but confirm rollout to all existing `AppRegistration`/`Customer` clients is complete before removing the legacy fallback.
+- Hardcoded OIDC client secret (`"secret".Sha256()`) — **fixed** by MA-003, but the fallback is still live and TODO-guarded in `MagiqClientStore.cs:32` — confirm every `AppRegistration`/`Customer` client has a real secret before removing it. A **second, unguarded** hardcoded secret sits in `DefaultMagiqClientStore.cs:127`, which appears to be dead code; confirm and delete.
 - Two competing logging systems (custom SQL-backed `ILogger` vs. `Microsoft.Extensions.Logging`) being separated into `IAuditLogger` (audit events) vs. diagnostics — see `AuditLogging-Separation-Plan.md` in the code repo.
 - `sync-to-async-review-plan.md` in the code repo tracks an ongoing async-conversion PR review (includes a Redis `RemoveByPrefixAsync` N-round-trip fix for Valkey Serverless).
 
