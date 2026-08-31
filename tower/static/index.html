@@ -397,21 +397,56 @@
   .kanban-col.drop-target { border-color: var(--accent); background: rgba(88,166,255,0.06); }
 
   /* CYCLE CARDS — review/plan/gate documents projected onto the board.
-     Their status comes from the document's front-matter and is not the board's to
-     change, so they do not drag. The look has to say "derived", not "disabled". */
+     Status comes from the document's front-matter and is not the board's to change,
+     so they do not drag. The look says "derived", not "disabled".
+
+     Colour encodes the PHASE, because that is the question being asked of the card:
+       review (amber)  — findings still being argued, nothing sequenced yet
+       plan   (blue)   — findings agreed, work sequenced and being executed
+       gate   (purple) — a release decision over plans, not a work item
+     Amber → blue reads as the cycle's own direction of travel. */
   .int-card.cycle-card {
     cursor: pointer;
-    border-left: 2px solid var(--purple);
-    background: linear-gradient(90deg, rgba(188,140,255,0.05), transparent 60%);
+    border-left: 3px solid var(--muted);
+    background: linear-gradient(90deg, rgba(139,148,158,0.05), transparent 60%);
   }
-  .int-card.cycle-card:hover { border-left-color: var(--accent); }
+  .int-card.cycle-review {
+    border-left-color: var(--warn);
+    background: linear-gradient(90deg, rgba(210,153,34,0.07), transparent 60%);
+  }
+  .int-card.cycle-plan {
+    border-left-color: var(--accent);
+    background: linear-gradient(90deg, rgba(88,166,255,0.07), transparent 60%);
+  }
+  .int-card.cycle-gate {
+    border-left-color: var(--purple);
+    background: linear-gradient(90deg, rgba(188,140,255,0.07), transparent 60%);
+  }
+
   .cycle-badge {
     display: inline-flex; align-items: center; gap: 4px;
-    padding: 1px 6px; border-radius: 10px;
-    background: rgba(188,140,255,0.14); color: var(--purple);
-    border: 1px solid rgba(188,140,255,0.3);
+    padding: 1px 7px; border-radius: 10px;
+    background: rgba(139,148,158,0.14); color: var(--muted);
+    border: 1px solid rgba(139,148,158,0.3);
     font-size: 10px; font-weight: 600; letter-spacing: 0.02em;
     white-space: nowrap;
+  }
+  .cycle-badge .cycle-type {
+    text-transform: uppercase; font-size: 9px; letter-spacing: 0.06em;
+    opacity: 0.85;
+  }
+  .cycle-badge .cycle-sep { opacity: 0.4; }
+  .cycle-badge.t-review {
+    background: rgba(210,153,34,0.15); color: var(--warn);
+    border-color: rgba(210,153,34,0.35);
+  }
+  .cycle-badge.t-plan {
+    background: rgba(88,166,255,0.15); color: var(--accent);
+    border-color: rgba(88,166,255,0.35);
+  }
+  .cycle-badge.t-gate {
+    background: rgba(188,140,255,0.15); color: var(--purple);
+    border-color: rgba(188,140,255,0.35);
   }
   .cycle-badge.dangling {
     background: rgba(248,81,73,0.14); color: var(--danger);
@@ -422,6 +457,9 @@
     display: block; margin-top: 4px;
     color: var(--muted); font-size: 10px; font-style: italic;
   }
+  /* Workstream pairing: a review and its plan share this, so the phase a workstream
+     has reached is legible from two cards rather than one. */
+  .cycle-ws { opacity: 0.75; font-weight: 500; }
   .kanban-col-head { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); display: flex; justify-content: space-between; padding: 0 2px 2px; }
 
   /* DECISIONS + SYNC PANELS */
@@ -3489,6 +3527,13 @@
   // Glyph per document type. A gate is a release decision, not a work item, so it
   // gets its own mark rather than sharing the plan's.
   const _CYCLE_GLYPH = { review: '◇', plan: '▤', gate: '⛌' };
+  // What each phase means, spelled out in the tooltip — the colour and word tell you
+  // which phase, this tells you what that phase implies about the work.
+  const _CYCLE_PHASE = {
+    review: 'Review phase — findings are being argued. No work is sequenced yet, and no plan exists until the findings are agreed.',
+    plan: 'Plan phase — findings are agreed and the work is sequenced. This is what execution tracks against.',
+    gate: 'Gate — a release decision over one or more plans. Not a work item; it reports what blocks a release.',
+  };
 
   function _cycleBadge(cy) {
     if (!cy) return '';
@@ -3496,9 +3541,18 @@
       return `<span class="cycle-badge dangling" title="This card is tagged ${cy.id} but no document with that id exists. A dangling id is a data error — find or fix the document.">
         <span class="cycle-glyph">⚠</span>${cy.id} missing</span>`;
     }
-    const glyph = _CYCLE_GLYPH[cy.type] || '◈';
-    return `<span class="cycle-badge" title="${cy.id} — ${cy.type}, status &quot;${cy.status}&quot; from ${cy.path}. Status is set in the document, not here.">
-      <span class="cycle-glyph">${glyph}</span>${cy.id}</span>`;
+    const type = cy.type || 'doc';
+    const glyph = _CYCLE_GLYPH[type] || '◈';
+    const phase = _CYCLE_PHASE[type] || '';
+    const title = `${cy.id} — ${type}${cy.workstream ? ` in ${cy.workstream}` : ''}, status "${cy.status}".\n\n${phase}\n\nFrom ${cy.path}. Status is set in the document, not here.`;
+    return `<span class="cycle-badge t-${type}" title="${_attr(title)}">
+      <span class="cycle-glyph">${glyph}</span><span class="cycle-type">${type}</span><span class="cycle-sep">·</span>${cy.id}</span>`;
+  }
+
+  // Attribute-safe: titles carry quotes and newlines that would otherwise break out.
+  function _attr(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+                    .replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '&#10;');
   }
 
   function _itemCardHTML(board, i) {
@@ -3508,8 +3562,9 @@
     // would just come back on the next load. Everything else stays editable.
     const cy = i.cycle;
     const locked = !!cy && !cy.dangling;
+    const cycleCls = cy ? ` cycle-card${locked ? ` cycle-${cy.type}` : ''}` : '';
     return `
-      <div class="int-card prio-${i.priority || 'normal'}${cy ? ' cycle-card' : ''}" draggable="${locked ? 'false' : 'true'}" data-id="${i.id}" data-status="${i.status}"${locked ? ' data-cycle="1"' : ''} onclick="openItemDrilldown('${board.kind}','${i.id}')">
+      <div class="int-card prio-${i.priority || 'normal'}${cycleCls}" draggable="${locked ? 'false' : 'true'}" data-id="${i.id}" data-status="${i.status}"${locked ? ` data-cycle="1" data-cycle-type="${cy.type}"` : ''} onclick="openItemDrilldown('${board.kind}','${i.id}')">
         <div class="interrupt-title" style="white-space:normal">${i.title}</div>
         <div class="interrupt-meta" style="margin-top:4px;flex-wrap:wrap">
           ${_cycleBadge(cy)}
@@ -3522,7 +3577,7 @@
           <span class="interrupt-age">${_ago(new Date(i.capturedAt))}</span>
           ${f.delete && !locked ? `<button class="action-btn danger todo-delete-btn" title="Delete" style="margin-left:auto" onclick="event.stopPropagation();itemDelete('${board.kind}','${i.id}')">✕</button>` : ''}
         </div>
-        ${locked ? `<span class="cycle-locknote">status set in ${cy.id}</span>` : ''}
+        ${locked ? `<span class="cycle-locknote">${cy.workstream ? `<span class="cycle-ws">${cy.workstream}</span> — ` : ''}${cy.type} status set in ${cy.id}</span>` : ''}
       </div>`;
   }
 

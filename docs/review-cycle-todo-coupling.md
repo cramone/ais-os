@@ -94,11 +94,25 @@ are managed.
 
 | Element | Behaviour |
 |---|---|
-| Card | `draggable="false"`, `data-cycle="1"`, purple left border and tint |
-| Badge | `◇` review · `▤` plan · `⛌` gate, then the document id. Tooltip gives type, status and file path |
-| Footnote | *status set in MM-004* |
+| Card | `draggable="false"`, `data-cycle="1"`, `data-cycle-type`, left border and tint coloured by type |
+| Badge | glyph + **type word** + id — `◇ REVIEW · MM-003`, `▤ PLAN · MM-004`, `⛌ GATE · MM-0xx` |
+| Tooltip | id, type, workstream, status, what that phase means, and the file path |
+| Footnote | *projection-tables — review status set in MM-003* |
 | Done / delete | Suppressed, on both the kanban card and the list row |
 | Dangling id | Red `⚠ MM-0xx missing` badge — the card is tagged but no document has that id |
+
+**Colour encodes the phase**, because that is the question the card is being asked:
+
+| Type | Colour | Means |
+|---|---|---|
+| review | amber (`--warn`) | Findings still being argued. Nothing sequenced; no plan exists until findings are agreed |
+| plan | blue (`--accent`) | Findings agreed, work sequenced. This is what execution tracks against |
+| gate | purple (`--purple`) | A release decision over plans. Not a work item |
+
+Amber → blue reads as the cycle's own direction of travel, so a workstream's phase is legible from
+the colours alone. The footnote carries the workstream slug, so a review and its plan are visibly a
+pair — `projection-tables` on both MM-002 and MM-003 says that workstream has finished arguing and is
+now sequenced.
 
 `dragstart` is also skipped for `data-cycle` elements, so a drag cannot start from a source that
 ignores the `draggable` attribute.
