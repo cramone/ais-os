@@ -1,3 +1,8 @@
+---
+type: plan
+exception: no review — predates the convention, archived as done
+---
+
 # Implementation Plan — Asset Download Endpoints
 
 **Scope:** Add presigned S3 GET URL endpoints for original assets and renditions.

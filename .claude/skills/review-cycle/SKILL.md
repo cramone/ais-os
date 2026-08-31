@@ -212,7 +212,13 @@ Still yours to set on the board, because they are not in front-matter: **priorit
 
 Documents with no front-matter are invisible to the projection. Legacy files get no card and keep whatever board state they already had, which is correct: their status is UNKNOWN and must not be inferred.
 
-**`cycle.check(slug)`** reports what the projection stays deliberately quiet about: duplicate ids, front-matter with a malformed or missing `id:`, statuses outside the vocabulary, and `consumes` / `depends-on` entries naming a document that does not exist. Run it when a workstream looks wrong, and after any backfill.
+**`cycle.check(slug)`** reports what the projection stays deliberately quiet about: duplicate ids, front-matter with a malformed or missing `id:`, statuses outside the vocabulary, a `todo-id` that is not the derived one, `consumes` / `depends-on` entries naming a document that does not exist, and — the one no render can see — **a plan with no review**.
+
+A plan proves it has a review one of two ways: front-matter `consumes:` naming at least one review id, or the legacy folder pairing `plans/<ws>/` ↔ `reviews/<ws>/` (with `plans/Archive/` pairing to `reviews/Archive/`). Anything else is flagged, including a plan sitting loose at the `plans/` root. **The bias is deliberate** — a new unpaired plan should trip this.
+
+**`exception:` silences every check on a file, and `cycle.known_exceptions(slug)` lists them.** That is the § Known exceptions rule made real: skip, and report, never "fix". It also means the silence is never free — someone has to write a sentence and stand behind it.
+
+Run both after any backfill. Duplicate ids and hand-allocated `todo-id`s are the live risks while ids are still being minted into legacy files.
 
 ## Workflow 1 — create a review
 

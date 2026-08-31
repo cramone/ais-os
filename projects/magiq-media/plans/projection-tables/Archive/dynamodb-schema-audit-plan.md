@@ -1,3 +1,8 @@
+---
+type: plan
+exception: no review — predates the convention. Archived 'in progress' with the DocumentSigning module never audited
+---
+
 # DynamoDB Schema Audit & Correction Plan — CDK + Spec
 
 **Status:** In progress. Started 2026-06-16. Catalog, AssetManagement, Registration, Metadata, ChangeRequests, Processing modules audited as of 2026-06-17 — DocumentSigning remains.

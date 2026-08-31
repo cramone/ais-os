@@ -1,3 +1,8 @@
+---
+type: doc
+exception: not a plan — an ADO work-item id index (6 Epics, 18 Features, 71 Stories, 74 Tasks) for architecture-review-remediation-pr-plan.md
+---
+
 # Architecture-Review Remediation — ADO Work-Item Index
 
 _Media project (dev.azure.com/MAGIQSoftware, project "Media"). Created 2026-07-20 from architecture-review-remediation-pr-plan.md. **Status: COMPLETE** — all items created, parent-linked, and dependency-linked. Owner/assignee context: Chase. Tag on Epics: `arch-review-remediation`._

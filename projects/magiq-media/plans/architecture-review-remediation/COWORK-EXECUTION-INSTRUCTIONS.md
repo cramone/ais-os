@@ -1,3 +1,8 @@
+---
+type: doc
+exception: not a plan — a standalone operating brief for an execution session. The plan it operates is architecture-review-remediation-pr-plan.md; the live state is IMPLEMENTATION-PLAN.md
+---
+
 # magiq-media Remediation — Cowork Execution Instructions
 
 _Standalone operating brief for a Claude Cowork project that executes the architecture-review remediation. Give Claude this file at the start of any execution session. It tells Claude how to **start**, **continue**, and **end** the work._

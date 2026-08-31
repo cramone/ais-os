@@ -33,7 +33,7 @@ leave, not to rest in.
 | — | `archive-cascade/` | `archive-cascade-scale-review.md` | **Draft** | pending | *(not yet planned — measure before building; no telemetry on either path)* |
 | — | `event-reliability/` | `event-reliability-review-2026-08-25.md` | **Active** | pending | *(no plan — being worked directly; X-11.6 and X-11.5 core closed, X-11.44 decision-gated)* |
 | — | `event-reliability/` | `outbox-implementation-review-2026-08-27.md` | **Draft** | pending | *(not yet planned — the work is almost entirely in `aspnetcore-platform`)* |
-| — | `Archive/` | 3 reviews, all consumed | Done | plan | `plans/Archive/` |
+| — | `Archive/` | 4 reviews — 3 consumed, plus `request-response-review.md` moved here 2026-08-31 | Done | plan | `plans/Archive/` |
 
 Two rows need reading twice. **`event-reliability/`'s parent review is `Active` with outcome `pending`** —
 findings agreed and being worked without a plan, which is the one shape the cycle does not model. It
@@ -57,6 +57,10 @@ is why this table is one row per review rather than one per folder.
 > **Renamed 2026-08-27:** `event-reliability/prompt.md` → `outbox-implementation-review-2026-08-27-prompt.md`.
 > A bare `prompt.md` in a folder holding two reviews was ambiguous about which one it drives; it drives
 > the outbox one. Nothing referenced the old path.
+>
+> **Moved 2026-08-31:** `plans/archive-cascade/prompt.md` → `archive-cascade/archive-cascade-scale-review-prompt.md`.
+> Same fault twice over — a bare `prompt.md`, and on the plans side. It drives the scale review, which
+> is where it now sits. Nothing referenced the old path.
 
 ---
 
@@ -157,6 +161,7 @@ Cross-cutting: `cross-module-integration-review.md` (the seams between modules) 
 | `api-rest-review.md` | `plans/Archive/api-consistency-remediation-plan.md` |
 | `architecture-spec-review.md` | `plans/Archive/s13-uniqueness-atomicity-remediation-plan.md` + its implementation runbook (finding S13) |
 | `handler-status-code-review.md` | Folded into the API-consistency plan (status-code stage) |
+| `request-response-review.md` | *(none — moved here from `plans/Archive/` on 2026-08-31; it is a review, and was the only one in the plans tree without a working-checklist reason to be there)* |
 
 > S13's subject — name-reservation atomicity and name-release paths — is live again as **X-9.6** in the
 > drift review. Read the S13 review before re-deriving that history.

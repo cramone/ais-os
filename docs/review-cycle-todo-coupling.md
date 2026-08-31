@@ -127,8 +127,33 @@ python -c "from tower import cycle; [print(p) for p in cycle.check('magiq-media'
 ```
 
 Reports duplicate ids, front-matter with a missing or malformed `id:`, statuses outside the
-vocabulary, and `consumes` / `depends-on` entries naming a document that does not exist. Run it after
-any backfill — duplicate ids are the live risk while ids are still being minted into legacy files.
+vocabulary, a `todo-id` that is not the derived one, `consumes` / `depends-on` naming a document that
+does not exist, and **a plan with no review**.
+
+That last one is the invariant no board render can see, so it is worth stating how it is decided. A
+plan proves it has a review either by front-matter `consumes:` naming at least one review id, or by
+the legacy folder pairing `plans/<ws>/` ↔ `reviews/<ws>/` — the convention every pre-cycle plan was
+filed under. `plans/Archive/` at the root pairs with `reviews/Archive/`. Anything else is flagged,
+including a plan sitting loose at the `plans/` root with no workstream folder.
+
+The bias is deliberate: a new unpaired plan should trip this, and the only way to silence it is an
+`exception:` line — a sentence someone has to write and stand behind.
+
+### `exception:` and `known_exceptions()`
+
+SKILL.md § Known exceptions: *any check must skip files carrying `exception:` and report them, never
+"fix" them.* `check()` does the skipping; `known_exceptions(slug)` does the reporting, so a
+deliberate deviation stays visible instead of becoming invisible.
+
+```bash
+python -c "from tower import cycle; [print(f'{r}\n    {w}') for r, w in cycle.known_exceptions('magiq-media')]"
+```
+
+An `exception:` block needs no `id:` — a file carrying one but no id is skipped by every check *and*
+never indexed, so it gets no board card. That is what lets an archived, dead plan be marked as a
+known deviation without adding noise to the board.
+
+Run both after any backfill.
 
 ## Failure modes
 

@@ -1,3 +1,8 @@
+---
+type: plan
+exception: no review — predates the convention, and archived at 'design locked, not yet implemented', so no work exists for a retrospective review to record
+---
+
 # Metadata Field-Name Collision Prevention & General Metadata — Implementation Plan
 
 **Status:** Design locked. Not yet implemented — no spec or code changes made.

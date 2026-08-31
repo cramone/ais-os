@@ -301,12 +301,53 @@ def assert_not_cycle(slug: str, item: dict[str, Any], action: str) -> None:
 # --- integrity check ---------------------------------------------------------
 
 
+def known_exceptions(slug: str) -> list[tuple[str, str]]:
+    """Files carrying `exception:`, as (rel path, reason).
+
+    SKILL.md § Known exceptions: *any check must skip files carrying `exception:` and
+    report them, never "fix" them.* `check()` does the skipping; this does the
+    reporting, so a deliberate deviation stays visible instead of becoming invisible.
+    """
+    found: list[tuple[str, str]] = []
+    root = config.PROJECTS_DIR / slug
+    for folder in DOC_FOLDERS:
+        base = root / folder
+        if not base.is_dir():
+            continue
+        for path in sorted(base.rglob("*")):
+            if path.suffix not in (".md", ".html") or not path.is_file():
+                continue
+            fields = parse_front_matter(path)
+            if fields and fields.get("exception"):
+                rel = path.relative_to(config.PROJECTS_DIR.parent).as_posix()
+                found.append((rel, fields["exception"]))
+    return found
+
+
+def _review_folders(slug: str) -> set[str]:
+    """Workstream folder names under reviews/ that actually contain a review."""
+    base = config.PROJECTS_DIR / slug / "reviews"
+    if not base.is_dir():
+        return set()
+    names: set[str] = set()
+    for path in base.rglob("*"):
+        if path.suffix in (".md", ".html") and path.is_file() and path.name != "README.md":
+            # reviews/<ws>/... and reviews/<ws>/Archive/... both credit <ws>.
+            names.add(path.relative_to(base).parts[0] if len(path.relative_to(base).parts) > 1
+                      else "Archive" if path.parent.name == "Archive" else "")
+    return {n for n in names if n}
+
+
 def check(slug: str) -> list[str]:
     """Problems the projection cannot fix by itself. Empty list means clean.
 
-    Covers what `reconcile` deliberately stays quiet about: it skips malformed and
+    Covers what `reconcile` deliberately stays quiet about — it skips malformed and
     dangling records rather than guessing, which is right for a board render and wrong
-    as a permanent silence.
+    as a permanent silence — plus the structural invariant no render can see:
+    **a plan cannot exist without a review.**
+
+    Files carrying `exception:` are skipped entirely and reported by
+    `known_exceptions()` instead.
     """
     problems: list[str] = []
     root = config.PROJECTS_DIR / slug
@@ -318,7 +359,7 @@ def check(slug: str) -> list[str]:
             continue
         for path in sorted(base.rglob("*.md")):
             fields = parse_front_matter(path)
-            if not fields:
+            if not fields or fields.get("exception"):
                 continue
             rel = path.relative_to(config.PROJECTS_DIR.parent).as_posix()
             doc_id = fields.get("id", "")
@@ -332,6 +373,12 @@ def check(slug: str) -> list[str]:
                 to_todo(fields.get("type", ""), fields.get("status", ""))
             except CycleViolation as exc:
                 problems.append(f"{doc_id} ({rel}): {exc}")
+            expected = todo_id_for(slug, doc_id)
+            if fields.get("todo-id") not in (None, "-", expected):
+                problems.append(
+                    f"{doc_id}: `todo-id` is {fields.get('todo-id')}, but the derived id "
+                    f"is {expected}. Derive it — never allocate one"
+                )
 
     for doc_id, rel in seen.items():
         fields = parse_front_matter(config.PROJECTS_DIR.parent / rel) or {}
@@ -344,4 +391,60 @@ def check(slug: str) -> list[str]:
                     problems.append(
                         f"{doc_id}: `{field}` names {ref}, which resolves to no document"
                     )
+
+    problems.extend(_check_plans_have_reviews(slug, seen))
+    return problems
+
+
+def _check_plans_have_reviews(slug: str, seen: dict[str, str]) -> list[str]:
+    """`A plan cannot exist without a review.` A gate can — it consumes plans.
+
+    Two ways a plan proves it has one, matching how the tree actually works:
+
+    - **Cycle-compliant** — front-matter `consumes:` names at least one review id.
+    - **Legacy** — the workstream folder pairing: `plans/<ws>/` ↔ `reviews/<ws>/`, which
+      is the convention every pre-cycle plan was filed under. `plans/Archive/` at the
+      root pairs with `reviews/Archive/`.
+
+    Anything else is flagged. That bias is deliberate: a new unpaired plan should trip
+    this, and the way to silence it is an `exception:` line saying why — which is a
+    sentence someone has to write and stand behind.
+    """
+    problems: list[str] = []
+    base = config.PROJECTS_DIR / slug / "plans"
+    if not base.is_dir():
+        return problems
+
+    paired = _review_folders(slug)
+    for path in sorted(base.rglob("*")):
+        if path.suffix not in (".md", ".html") or not path.is_file():
+            continue
+        if path.name == "README.md":
+            continue
+        rel = path.relative_to(config.PROJECTS_DIR.parent).as_posix()
+        fields = parse_front_matter(path) or {}
+        if fields.get("exception"):
+            continue
+        if fields.get("type") in ("gate", "review", "doc"):
+            continue  # a gate consumes plans; a review here is its own exception case
+
+        parts = path.relative_to(base).parts
+        workstream = parts[0] if len(parts) > 1 else ""
+
+        doc_id = fields.get("id", "")
+        if DOC_ID_RE.match(doc_id):
+            if is_empty_list(fields.get("consumes")):
+                problems.append(
+                    f"{doc_id} ({rel}): plan has no review — `consumes:` is empty. "
+                    "A plan cannot exist without a review"
+                )
+            continue
+
+        if not workstream:
+            problems.append(f"{rel}: plan sits at the plans/ root, outside any workstream folder")
+        elif workstream not in paired:
+            problems.append(
+                f"{rel}: plan has no review — reviews/{workstream}/ holds none. "
+                "Pair it, or add an `exception:` line saying why it has none"
+            )
     return problems

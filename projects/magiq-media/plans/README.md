@@ -12,12 +12,22 @@ this list: _Draft_ — a review exists, not yet agreed · _Active_ — being wor
 waiting on a dependency, which is derived, never set by hand · _Parked_ — real but deliberately not being
 worked · _Superseded_ — replaced by another plan, kept for reasoning · _Done_ — closed out.
 
-**Document ids — backfill started 2026-08-31.** `projection-tables/` (MM-001, MM-002) and
-`deployment-naming/` (MM-004) now carry `id:` and front-matter, each paired with a retrospective
-review in `reviews/`. Every other plan in this tree is still legacy: no id, no front-matter, status
-**UNKNOWN** per the `review-cycle` skill's § Legacy files — do not treat any of them as met, unmet,
-active or done, and do not name one in a `depends-on`. Continue one workstream at a time, when that
-workstream is next picked up. Do not bulk-rewrite.
+**Document ids — backfill started 2026-08-31.** `projection-tables/` (MM-001, MM-002),
+`deployment-naming/` (MM-004) and `prod-readiness/` (MM-006, the gate) carry `id:` and front-matter.
+Every other plan here is still legacy: no id, status **UNKNOWN** per the `review-cycle` skill's
+§ Legacy files — do not treat any of them as met, unmet, active or done, and do not name one in a
+`depends-on`. Continue one workstream at a time. Do not bulk-rewrite.
+
+**Every plan is now either paired with a review or marked `exception:`.** A sweep on 2026-08-31 found
+seven plans with no review — all archived, all predating the convention — and four documents living
+in `plans/` that are not plans at all (an operating brief, an ADO id index, a resume manifest, a
+hand-off doc). None were back-filled with a review: three of the seven never shipped, so a
+retrospective review would be inventing the argument the cycle exists to make. Each carries a
+one-line `exception:` saying why instead.
+
+`cycle.check('magiq-media')` enforces this from here — a new plan whose workstream has no review is
+flagged, and the only way to silence it is an `exception:` line someone has to write and stand
+behind. `cycle.known_exceptions('magiq-media')` lists all seventeen.
 
 ---
 
@@ -132,11 +142,20 @@ The consequence the ADR most needs to carry: renaming a stateful resource makes 
 
 ## `Archive/` — completed, no live workstream
 
-`api-consistency-remediation-plan.md` (Stage 5 acceptance was blocked on a spec-tree truncation
-incident — worth a look before assuming it is finished) · `request-response-review.md` ·
-`Endpoint-ReadModel-Separation.md` · `docs-migration-plan.md` (the spec/ADR move to
-`D:\source\github\magiq-media\docs\`; the GitHub Actions wiki-publish step is still unbuilt) ·
-`s13-implementation-plan-for-claude-code.md` · `s13-uniqueness-atomicity-remediation-plan.md`.
+Paired with `reviews/Archive/`: `api-consistency-remediation-plan.md` ← `api-rest-review.md` (Stage 5
+acceptance was blocked on a spec-tree truncation incident — worth a look before assuming it is
+finished; `handler-status-code-review.md` folded into its status-code stage) ·
+`s13-uniqueness-atomicity-remediation-plan.md` and its runbook
+`s13-implementation-plan-for-claude-code.md` ← `architecture-spec-review.md`.
+
+Unpaired, and marked `exception:` 2026-08-31 rather than back-filled:
+`Endpoint-ReadModel-Separation.md` (archived at 0 of 76 items ticked) · `docs-migration-plan.md` (the
+spec/ADR move to `D:\source\github\magiq-media\docs\` did happen 2026-07-07, but the GitHub
+Actions wiki-publish step it specifies is still unbuilt).
+
+> **Moved 2026-08-31:** `request-response-review.md` → `reviews/Archive/`. It is a review — 866 lines
+> titled "Request/Response Model Review" — and was the only one sitting in the plans tree without the
+> working-checklist justification that keeps `spec-drift-review/spec-repo-drift-review.md` there.
 
 ---
 
@@ -173,7 +192,7 @@ settings when convenient.
 
 ---
 
-## `prod-readiness/` — the gate, created 2026-08-25
+## `prod-readiness/` — MM-006, the gate, created 2026-08-25
 
 **`prod-readiness-gate.md` is a gate, not a backlog.** It triages the **42 open code findings** from the
 spec-drift review into what must close before `PROD_ENABLED` (or `STAGING_ENABLED`) is set to `true`, and

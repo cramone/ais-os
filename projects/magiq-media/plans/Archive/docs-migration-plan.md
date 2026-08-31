@@ -1,3 +1,8 @@
+---
+type: plan
+exception: no review — predates the convention. Archived at 'Draft, not yet executed'; the spec/ADR move did happen 2026-07-07 but the GitHub Actions wiki-publish step it specifies was never built
+---
+
 # Plan: Move spec/ADRs into magiq-media/docs, auto-publish to the ADO wiki
 
 **Owner:** Chase Ramone

@@ -1,3 +1,8 @@
+---
+type: plan
+exception: no review — predates the convention, archived as done. Its subject was superseded by MM-002's schema-versioned rotation
+---
+
 # Projection Replay — Platform Implementation Plan
 
 ## Context

@@ -1,3 +1,8 @@
+---
+type: plan
+exception: no review — predates the convention. Archived 'substantially complete 2026-07-15' with integration tests, a projector replay and the security-review run still outstanding; see its Remaining work section
+---
+
 # MediaContentType → MediaCategory + MIME Classification Remediation Plan
 
 _Author: Claude (investigation for Chase Ramone), 2026-07-15._

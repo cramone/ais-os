@@ -1,3 +1,8 @@
+---
+type: doc
+exception: not a plan — resume notes from an interrupted ADO creation run, superseded by architecture-review-ado-workitems.md
+---
+
 # ADO Work-Item Creation — Resume Manifest
 
 _Media project (dev.azure.com/MAGIQSoftware, project "Media", id 85df5236-7642-447d-8088-a4d30099cc90)._

@@ -1,3 +1,8 @@
+---
+type: doc
+exception: not a plan — a hand-off doc, superseded by deploy-runbook.md in the project root
+---
+
 # Deploy Handoff — Tom
 
 _Created: 2026-07-03_

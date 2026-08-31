@@ -1,3 +1,8 @@
+---
+type: plan
+exception: no review — predates the review-then-plan convention, and archived with 0 of 76 checklist items ticked, so there is no shipped work for a retrospective review to record
+---
+
 # Plan: Endpoint Response Model Separation from ReadModel Types
 
 **Date:** 2026-06-18  
