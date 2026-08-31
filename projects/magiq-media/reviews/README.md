@@ -17,21 +17,23 @@ reasoning · _Done_ — closed out with a terminal outcome.
 _decision-only_ · _folded-into_ · _withdrawn_. _pending_ means it has not ended yet — it is a state to
 leave, not to rest in.
 
-| Workstream | Review | Status | Outcome | Its plan |
-|---|---|---|---|---|
-| `architecture-review-remediation/` | 11 module + cross-cutting reviews, read as one body | Done | plan | `plans/architecture-review-remediation/` |
-| `spec-drift-review/` | `spec-ddd-coverage-review-2026-08-24.md` | Done | plan | `plans/spec-drift-review/` — same filename |
-| `spec-structure/` | `spec-structure-recommendation-2026-08-25.md` | Done | folded-into: `spec-drift-review` | *(no plan of its own — most of it lands in the DDD plan's Phases 2/4a/5)* |
-| `design/` | `mediaitem-edit-lifecycle-as-is-vs-recommended.html` | Done | plan | `plans/design/mediaitem-edit-session-design.html` |
-| `asset-custody/` | `asset-custody-review-2026-08-25.md` | **Parked** | parked | *(none — parked 2026-08-25, not started; blocked by X-11.32)* |
-| `projection-rebuild/` | `projection-rebuild-review-2026-08-25.md` | **Parked** | parked | *(none — parked 2026-08-25, not started)* |
-| `pending-decisions/` | `pending-decisions-review-2026-08-25.md` | Done | decision-only | *(none — decisions, not work; evidence is complete)* |
-| `authorization/` | `authorization-review-2026-08-25.md` | Done | plan | `plans/authorization/` — **Active**, X-11.30 open and blocked on `magiq-auth` |
-| `archive-cascade/` | `archive-cascade-review-2026-08-25.md` | Done | plan | `plans/archive-cascade/` — **Active**, X-11.41 next |
-| `archive-cascade/` | `archive-cascade-scale-review.md` | **Draft** | pending | *(not yet planned — measure before building; no telemetry on either path)* |
-| `event-reliability/` | `event-reliability-review-2026-08-25.md` | **Active** | pending | *(no plan — being worked directly; X-11.6 and X-11.5 core closed, X-11.44 decision-gated)* |
-| `event-reliability/` | `outbox-implementation-review-2026-08-27.md` | **Draft** | pending | *(not yet planned — the work is almost entirely in `aspnetcore-platform`)* |
-| `Archive/` | 3 reviews, all consumed | Done | plan | `plans/Archive/` |
+| Id | Workstream | Review | Status | Outcome | Its plan |
+|---|---|---|---|---|---|
+| MM-003 | `projection-tables/` | `projection-tables-review-2026-08-31.md` | Done | plan | MM-002 — **Parked** on Phase B only; Phase A shipped |
+| MM-005 | `deployment-naming/` | `deployment-naming-review-2026-08-31.md` | Done | plan | MM-004 — **Active**, one item left (the ADR, DN-1) |
+| — | `architecture-review-remediation/` | 11 module + cross-cutting reviews, read as one body | Done | plan | `plans/architecture-review-remediation/` |
+| — | `spec-drift-review/` | `spec-ddd-coverage-review-2026-08-24.md` | Done | plan | `plans/spec-drift-review/` — same filename |
+| — | `spec-structure/` | `spec-structure-recommendation-2026-08-25.md` | Done | folded-into: `spec-drift-review` | *(no plan of its own — most of it lands in the DDD plan's Phases 2/4a/5)* |
+| — | `design/` | `mediaitem-edit-lifecycle-as-is-vs-recommended.html` | Done | plan | `plans/design/mediaitem-edit-session-design.html` |
+| — | `asset-custody/` | `asset-custody-review-2026-08-25.md` | **Parked** | parked | *(none — parked 2026-08-25, not started; blocked by X-11.32)* |
+| — | `projection-rebuild/` | `projection-rebuild-review-2026-08-25.md` | **Parked** | parked | *(none — parked 2026-08-25, not started)* |
+| — | `pending-decisions/` | `pending-decisions-review-2026-08-25.md` | Done | decision-only | *(none — decisions, not work; evidence is complete)* |
+| — | `authorization/` | `authorization-review-2026-08-25.md` | Done | plan | `plans/authorization/` — **Active**, X-11.30 open and blocked on `magiq-auth` |
+| — | `archive-cascade/` | `archive-cascade-review-2026-08-25.md` | Done | plan | `plans/archive-cascade/` — **Active**, X-11.41 next |
+| — | `archive-cascade/` | `archive-cascade-scale-review.md` | **Draft** | pending | *(not yet planned — measure before building; no telemetry on either path)* |
+| — | `event-reliability/` | `event-reliability-review-2026-08-25.md` | **Active** | pending | *(no plan — being worked directly; X-11.6 and X-11.5 core closed, X-11.44 decision-gated)* |
+| — | `event-reliability/` | `outbox-implementation-review-2026-08-27.md` | **Draft** | pending | *(not yet planned — the work is almost entirely in `aspnetcore-platform`)* |
+| — | `Archive/` | 3 reviews, all consumed | Done | plan | `plans/Archive/` |
 
 Two rows need reading twice. **`event-reliability/`'s parent review is `Active` with outcome `pending`** —
 findings agreed and being worked without a plan, which is the one shape the cycle does not model. It
@@ -39,13 +41,73 @@ either gets a plan or a terminal outcome; leaving it here indefinitely is the dr
 catch. **`archive-cascade/` and `event-reliability/` each hold two reviews at different statuses**, which
 is why this table is one row per review rather than one per folder.
 
-> **No document ids yet.** The `review-cycle` skill mints `MM-nnn` ids and the front-matter that carries
-> them; these files predate it, so `folded-into` above names a workstream rather than an id. Backfill is
-> deliberately deferred — do it a workstream at a time, when that workstream is next picked up.
+> **Backfill started 2026-08-31.** The `review-cycle` skill mints `MM-nnn` ids and the front-matter that
+> carries them. Two workstreams are now under the cycle — `projection-tables/` (MM-001 · MM-002 · MM-003)
+> and `deployment-naming/` (MM-004 · MM-005) — each with a retrospective review written *after* its plan,
+> because in both cases the plan predates the cycle and the work had already shipped. Every remaining row
+> is still legacy: no id, no front-matter, status **UNKNOWN** per the skill's § Legacy files, and
+> `folded-into` above names a workstream rather than an id. Continue a workstream at a time, when that
+> workstream is next picked up. Do not bulk-rewrite.
+>
+> **The two retrospective reviews carry an `exception:` line.** They have no paste-ready prompt file and
+> no session was ever run from them — they exist to record verified state, not to drive work. That also
+> retires the `review-cycle` skill's § Known exceptions entry claiming `plans/projection-tables/` and
+> `plans/deployment-naming/` should never be retro-fitted with a review.
 >
 > **Renamed 2026-08-27:** `event-reliability/prompt.md` → `outbox-implementation-review-2026-08-27-prompt.md`.
 > A bare `prompt.md` in a folder holding two reviews was ambiguous about which one it drives; it drives
 > the outbox one. Nothing referenced the old path.
+
+---
+
+## `projection-tables/` — MM-003, retrospective · 2026-08-31
+
+One review, written after the fact to bring MM-002 under the cycle. `plans/README.md` had carried
+MM-002 as *Parked — written and ready, not being worked*; **Phase A had in fact shipped**, roughly a
+month earlier.
+
+Verified against three repos at source level — `magiq-media` and `cdk-magiq-media` on
+`feature/change-requests`, `aspnetcore-platform` on `main`. Every one of MM-002 § 11's
+*Definition of done* items traces to code: `-v{n}` physical naming, version-string metadata with no
+runtime counter, CDK-owned tables built from the committed `projection-tables.manifest.json`, a CI
+drift gate, and an operator tool that holds **no** `CreateTable` right — the broad `table/media-*`
+control-plane wildcard MM-002 set out to remove is gone.
+
+**Nothing has been compiled or run.** The manifest tool's own introducing commit is titled *"added
+projection manifest untested"*. One green `dotnet test` converts this review from source-level to
+verified — recommended sequencing item 2.
+
+**PT-2 is the finding to remember.** Phase B — version-aware projectors, the zero-window mechanism —
+is deliberately deferred, and `docs/adrs/persistence-and-eventing.md` records both the deferral and
+its trigger: the first breaking read-model change. **Nothing monitors that trigger.** No check fails
+or warns when a developer bumps a `schemaVersion`. The drift gate already has the hook to enforce it.
+
+**PT-4:** the work straddles a merge boundary. `develop` (2026-07-29) has the platform and manifest
+work; `feature/change-requests` (2026-08-27, pushed, unmerged) has the later refinements. Reading
+either alone gives a wrong answer, which is how the README came to say *Parked*.
+
+## `deployment-naming/` — MM-005, retrospective · 2026-08-31
+
+One review, same shape and same reason. `plans/README.md` had carried MM-004 as *Parked — four open
+decisions, ADR-first*. Three of those decisions were taken and implemented. The fourth is the ADR,
+and it is the one thing left.
+
+**DN-1 — the ADR was never written, and the repo says so.** MM-004's header names
+`docs/adrs/deployment-and-resource-naming.md` as a deliverable, due *before* the code. It does not
+exist on any branch, and `docs/adrs/README.md:20` carries the row marked ⚠ **not written** with its
+own warning underneath. The consequence that most needs recording — CloudFormation *replaces* renamed
+stateful resources, so every non-prod tier loses data on cutover — currently lives only in a planning
+repo that is not code-reviewed.
+
+Everything else verified in both repos: `resourceName` returns the bare name, `bucketName` is
+`{name}-{account}-{region}`, `TableSuffix` is always `''`, and a residual-suffix grep over tracked
+`.ts` sources returns zero hits. **DN-3:** decision 4 resolved as *keep and repurpose* rather than
+remove — `ENVIRONMENT_NAME` now selects the Secrets Manager overlay only, a contract documented in a
+component README rather than in the missing ADR. Which is DN-1 restated.
+
+**DN-4:** `lib/constructs/compute/media-api-function.construct.js` is untracked build output from
+May 2026 that still shows `-${config.env}`. Its `.ts` source no longer exists. It will mislead the
+next grep, as it did this one.
 
 ---
 

@@ -1,6 +1,36 @@
+---
+id: MM-001
+type: plan
+project: magiq-media
+workstream: projection-tables
+consumes: []
+depends-on: []
+blocked-by-external: []
+status: superseded
+todo-id: 8f9d3a14-4198-5e7e-a02c-e8ed12d23a12
+branches: []
+ado: -
+created: 2026-07-24
+exception: no review — predates the cycle, and superseded before the "a plan cannot exist without a review" rule applied. Retro-fitting one would document a design that was replaced rather than built.
+---
+
 # Hot-Swappable Projection Table Rotation (Blue-Green) — Implementation Plan
 
-**Status:** Ready to implement · **Author:** Chase (via Claude analysis session, 2026-07-24)
+> **Superseded by MM-002** (`schema-versioned-projection-tables-plan.md`), which shipped Phase A.
+> Nothing in this plan was built as written. Archived 2026-08-31.
+>
+> **Kept for two things it settled and MM-002 inherited:** the discovery of the platform Replay
+> subsystem's actual state, and the *rotation-unit* decision in the addendum below — rotate by
+> TableId, so co-located read models share a version and rotate together. MM-002 § 3.1 carries that
+> forward verbatim.
+>
+> **What changed and why:** naming the rebuild target `{base}_v{n}` and creating/dropping those
+> tables at runtime meant CDK could not own them, which forced a broad `table/media-*` control-plane
+> IAM grant and drifted the physical tables from IaC. MM-002 replaces the runtime counter with a
+> source-controlled schema version in the table name. Full rationale:
+> `docs/adrs/persistence-and-eventing.md` § Schema-Versioned Projection Table Rotation.
+
+**Status:** ~~Ready to implement~~ — **superseded**, see above · **Author:** Chase (via Claude analysis session, 2026-07-24)
 **Scope:** `aspnetcore-platform` (platform SDK) + `magiq-media` (app + CLI)
 **Goal:** Rebuild a read-model (projection) DynamoDB table into a new versioned table and cut live reads/writes over to it **without redeploying the application** — with atomic cutover and instant rollback.
 

@@ -1,9 +1,33 @@
+---
+id: MM-002
+type: plan
+project: magiq-media
+workstream: projection-tables
+consumes: [MM-003]
+depends-on: []
+blocked-by-external: []
+status: parked
+todo-id: e9fa6eb2-3337-5f33-9ea8-9290013e2b3e
+branches: [magiq-media#165, magiq-media@68b943a8, aspnetcore-platform#27, cdk-magiq-media#57, cdk-magiq-media@c49fb9f]
+ado: -
+created: 2026-07-24
+exception: legacy filename — predates the "plan is named after its primary review" rule. Kept as-is; MM-003 is the link.
+---
+
 # Migration Plan — Schema-Versioned, CDK-Owned Projection Tables
 
-**Status:** Proposed. Supersedes the runtime-versioned (`_v{n}`) design in
-`hot-swappable-projection-rotation-plan.md`. Nothing is deployed to a real environment yet, so this is
-a **greenfield redesign, not a live-data migration** — we replace the mechanism, there is no `_v{n}`
-data in production to carry over.
+> **Phase A shipped.** Verified against source 2026-08-31 by MM-003 — every § 11 *Definition of done*
+> item traces to code across `magiq-media`, `cdk-magiq-media` and `aspnetcore-platform`. Nothing has
+> been compiled or run; see MM-003 § Scope.
+>
+> **Parked on Phase B only** (§ 3.6, § 4.7 — version-aware projectors). Deferred by the decision in
+> `docs/adrs/persistence-and-eventing.md`: Phase B waits for the first breaking read-model change
+> that needs a zero read/write window. That trigger is not monitored — MM-003 PT-2.
+
+**Status:** ~~Proposed~~ — Phase A implemented (see the note above). Supersedes the runtime-versioned
+(`_v{n}`) design in MM-001, `Archive/hot-swappable-projection-rotation-plan.md`. Nothing was deployed
+to a real environment when this was written, so it was a **greenfield redesign, not a live-data
+migration** — we replaced the mechanism; there was no `_v{n}` data in production to carry over.
 
 **Repos touched:** `aspnetcore-platform` (platform SDK), `magiq-media` (app + operator tool),
 `cdk-magiq-media` (infra). Plus README, spec, ADR, and runbook updates.

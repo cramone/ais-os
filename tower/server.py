@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from tower import config
+from tower import config, cycle
 from tower.interrupts.ado_push import push_to_ado
 from tower.interrupts.email import generate_email_draft
 from tower.interrupts.store import (
@@ -526,7 +526,18 @@ def _load_todos(slug: str) -> list[dict[str, Any]]:
 
 @app.get("/api/projects/{slug}/todos")
 def get_todos(slug: str) -> list[dict[str, Any]]:
-    return _load_todos(slug)
+    """Todos for a project, with cycle todos reconciled against their documents.
+
+    Front-matter is authoritative (review-cycle SKILL.md § Todo store), so any cycle
+    todo whose status has drifted from its review or plan is corrected here before the
+    board sees it. That covers the paths PATCH cannot: a Claude session editing a plan
+    directly, a hand edit, or a store rebuilt from scratch after `tower/data/` was lost.
+    """
+    items = _load_todos(slug)
+    items, changed = cycle.reconcile(slug, items)
+    if changed:
+        save_interrupts(config.todos_file(slug), items)
+    return cycle.annotate(slug, items)
 
 
 @app.post("/api/projects/{slug}/todos", status_code=201)
@@ -543,10 +554,26 @@ def post_todo(slug: str, body: InterruptCreate) -> dict[str, Any]:
 
 @app.patch("/api/projects/{slug}/todos/{todo_id}")
 def patch_todo(slug: str, todo_id: str, body: InterruptUpdate) -> dict[str, Any]:
+    """Update a todo. A cycle todo's status is owned by its document, not the board.
+
+    Priority, due date and comments are not in front-matter, so they stay editable
+    here. Status is refused: the board is a projection, and letting it write would
+    reintroduce the two-writers problem the projection exists to remove.
+    """
     path = config.todos_file(slug)
-    _load_todos(slug)
+    items = _load_todos(slug)
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+
+    if "status" in updates:
+        item = next((i for i in items if i["id"] == todo_id), None)
+        if item is None:
+            raise HTTPException(404, f"Todo {todo_id!r} not found")
+        try:
+            cycle.assert_not_cycle(slug, item, "set")
+        except cycle.CycleViolation as exc:
+            raise HTTPException(409, str(exc))
+
     try:
-        updates = {k: v for k, v in body.model_dump().items() if v is not None}
         return update_interrupt(path, todo_id, **updates)
     except KeyError:
         raise HTTPException(404, f"Todo {todo_id!r} not found")
@@ -554,8 +581,16 @@ def patch_todo(slug: str, todo_id: str, body: InterruptUpdate) -> dict[str, Any]
 
 @app.delete("/api/projects/{slug}/todos/{todo_id}", status_code=204)
 def delete_todo(slug: str, todo_id: str) -> Response:
+    """Delete a todo. Cycle todos are refused — the card is derived, so it would
+    reappear on the next board load anyway. Archive or supersede the document instead."""
     path = config.todos_file(slug)
-    _load_todos(slug)
+    items = _load_todos(slug)
+    item = next((i for i in items if i["id"] == todo_id), None)
+    if item is not None:
+        try:
+            cycle.assert_not_cycle(slug, item, "delete")
+        except cycle.CycleViolation as exc:
+            raise HTTPException(409, str(exc))
     delete_interrupt(path, todo_id)
     return Response(status_code=204)
 

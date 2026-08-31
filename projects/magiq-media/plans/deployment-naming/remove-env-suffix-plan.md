@@ -1,4 +1,30 @@
+---
+id: MM-004
+type: plan
+project: magiq-media
+workstream: deployment-naming
+consumes: [MM-005]
+depends-on: []
+blocked-by-external: []
+status: active
+todo-id: 18a58118-5e58-5288-b177-36e0ec67a4fa
+branches: [magiq-media#159, magiq-media#163]
+ado: -
+created: 2026-07-21
+exception: legacy filename — predates the "plan is named after its primary review" rule. Kept as-is; MM-005 is the link.
+---
+
 # Plan — Remove the Environment-Name Suffix from Resource Naming
+
+> **Code complete, one item outstanding.** Verified against source 2026-08-31 by MM-005: change
+> inventory items 1–3, 7 and 19 all land in both repos, and decision 4 resolved as *keep and
+> repurpose* — `ENVIRONMENT_NAME` now selects the Secrets Manager overlay only. Nothing was
+> compiled, deployed or `cdk diff`ed; see MM-005 § Scope.
+>
+> **Outstanding: item 13 — the ADR.** `docs/adrs/deployment-and-resource-naming.md` was named as a
+> deliverable in the header below, and was meant to land *before* the code. It does not exist, and
+> `docs/adrs/README.md:20` flags the gap itself. This is finding MM-005 DN-1 and the only thing
+> between this plan and `done`.
 
 **Created:** 2026-07-21 · **Owner:** Chase Ramone · **Scope choice:** naming only
 (runtime behavior unchanged) · **Deliverable:** this plan + the ADR topic doc

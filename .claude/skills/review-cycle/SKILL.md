@@ -51,7 +51,7 @@ Ids exist rather than paths because locations change: `plans/` was reorganised o
 | Id | Scope | Set by |
 |---|---|---|
 | `id: MM-014` | one review / plan / gate document | this skill |
-| `todo-id: <uuid>` | one Control Tower todo | the todo store |
+| `todo-id: <uuid>` | one Control Tower todo | **derived** — `uuid5` of `<slug>:<doc-id>` |
 | `AC-1`, `X-11.30` | one finding inside a review | the review author |
 | `adoItemId: 34275` | one ADO work item | `ado-create-from-plan` |
 
@@ -193,6 +193,27 @@ python -c "from tower.interrupts.store import create_item; from tower import con
 
 **The store is disposable; the documents are not.** `tower/data/` is gitignored, so todo state is local-only — not versioned, not backed up, not visible to another clone. Front-matter is the durable record. If the store is lost or diverges, rebuild it from front-matter using the status mapping table above; never the other way round.
 
+**The board is a projection of the documents. It holds no cycle state of its own.** `tower/cycle.py` renders every review, plan and gate as a card on each board read — full docs in `docs/review-cycle-todo-coupling.md`. Cycle cards **do not drag**, have no Done or delete button, and carry a badge showing their document id. `PATCH`ing their status returns **409**.
+
+That is why there is no sync to keep honest: there is one writer, and it is the file.
+
+**So the only way a cycle status changes is you writing it into front-matter.** That makes the rule below non-negotiable, because nothing else can correct a lapse:
+
+> **Whenever you change what is true about a review or plan, write `status:` in the same edit.** Findings agreed → `findings-agreed`. Plan authored → `active`. Dependency unmet → `blocked`. Work finished and Chase agrees → `done`. Never "I'll update the board after" — there is no board update, only this one.
+
+The rest follows automatically and must not be done by hand:
+
+- **Never create a todo for a review or plan.** `reconcile()` creates it on the next board read, with a deterministic id derived from `<slug>:<doc-id>`. This retires the old chicken-and-egg step where a todo had to exist before the file could carry a real `todo-id`.
+- **`todo-id` is derivable, not allocated.** If you need it, `cycle.todo_id_for(slug, doc_id)`. Delete `tower/data/` entirely and every card returns with the same id and status.
+- **Never repair a `source` path.** Resolution is by id, so archiving and renaming self-heal.
+- **Never hand-edit a cycle todo's status or state tags in the store.** They are overwritten on the next read from the document.
+
+Still yours to set on the board, because they are not in front-matter: **priority, due date, and comments.** A comment is session log, not state — keep using them to record why a status moved.
+
+Documents with no front-matter are invisible to the projection. Legacy files get no card and keep whatever board state they already had, which is correct: their status is UNKNOWN and must not be inferred.
+
+**`cycle.check(slug)`** reports what the projection stays deliberately quiet about: duplicate ids, front-matter with a malformed or missing `id:`, statuses outside the vocabulary, and `consumes` / `depends-on` entries naming a document that does not exist. Run it when a workstream looks wrong, and after any backfill.
+
 ## Workflow 1 — create a review
 
 Trigger: Chase is discussing a project's repo code or spec docs and asks for a review.
@@ -200,7 +221,7 @@ Trigger: Chase is discussing a project's repo code or spec docs and asks for a r
 1. **Resolve target.** Project slug and workstream slug. Ambiguous project → ask, do not guess. Read the target's adoption marker. **No marker, or `we-operate: false` → stop** and propose an external hand-off (§ Cross-project work).
 2. **Mint the id** from the target project's prefix.
 3. **Create folders.** `reviews/<workstream>/`, plus the `reviews/` tree and `README.md` if the project has none.
-4. **Create the review todo** on the target project: title = the workstream topic, `source` = the review path you are about to write, tags = [`<id>`, `review`, `<workstream>`], status `new`. Cross-project → also tag the origin's id and inherit its priority. Capture the uuid; the file cannot carry a real `todo-id` before the todo exists.
+4. **Do not create the todo.** The board projects it from the file on the next read, with the id `cycle.todo_id_for(<slug>, <doc-id>)` — put that value in `todo-id` and it will match. Cross-project → set the origin's id as a tag and inherit its priority once the card exists; those are board fields the projection leaves alone.
 5. **Write the review** with front-matter (`status: draft`, `outcome: pending`, the id from step 2, the uuid from step 4). Required sections, in order:
    - `## Scope` — what was read, what was not
    - `## Findings` — finding id, severity (High/Medium/Low), evidence as `file:line`, impact
@@ -243,8 +264,8 @@ Preconditions, all three, checked and reported before anything is written:
 Then:
 
 1. **Mint the plan id.** Resolve dependencies (§ Dependency gating) and write `plans/<workstream>/<primary-review-filename>.md`, `consumes` listing every review id it takes, status from the dependency result.
-2. **Close the review.** Front-matter → `status: done`, `outcome: plan`. Review todo → `done`, comment naming the plan's id and path.
-3. **Create the plan todo:** same topic title, `source` = plan path, tags = [`<plan-id>`, `plan`, `<workstream>`], status per the mapping table.
+2. **Close the review.** Front-matter → `status: done`, `outcome: plan`. Its card follows on the next board read; add a comment naming the plan's id and path.
+3. **Do not create the plan todo.** The projection makes it from the plan's front-matter. Comment it with the hand-over once it exists.
 4. **Index it** in `plans/README.md` with id and name; update the pairing row in `reviews/README.md`.
 5. The plan must contain a `## Closing out` section stating: the plan todo moves to `done` only after Chase agrees the work is implemented and complete, the close-out comment records every branch it was committed to, and the pair is then archived.
 
@@ -375,7 +396,9 @@ Roughly twenty review and plan files predate this skill and carry neither ids no
 ## Known exceptions
 
 1. `plans/spec-drift-review/spec-repo-drift-review.md` — a review living on the plans side, deliberately: it is its own working checklist and splitting it would separate the findings from the boxes tracking them. `type: review` plus an `exception:` line; leave it in place.
-2. `plans/projection-tables/` and `plans/deployment-naming/` — plan folders with no review counterpart, predating the convention. `exception:` line each; do not retro-fit a review to satisfy the invariant.
+2. ~~`plans/projection-tables/` and `plans/deployment-naming/` — plan folders with no review counterpart~~ — **retired 2026-08-31.** Both were backfilled: MM-003 and MM-005 are *retrospective* reviews, written after their plans to record verified state rather than to argue work not yet done. Each carries an `exception:` line saying so and has no prompt file, because no session was ever run from it. The plans keep their legacy filenames (also `exception:`-marked) rather than being renamed after their reviews — ids are the link, so renaming would be churn.
+
+   **The general rule this establishes:** where a plan predates the cycle and its work has already shipped, a retrospective review is the right way in, not a reason to leave the workstream outside. It is not licence to retro-fit a review for work that has *not* happened — that is fabricating the argument the cycle exists to make.
 3. `plans/prod-readiness/prod-readiness-gate.md` — not an exception. It is `type: gate`, which legitimately has no review.
 
 **Any check must skip files carrying `exception:` and report them, never "fix" them.**
@@ -427,7 +450,7 @@ Severity is not repeated here. It lives on the finding in the review, and `ado-c
 - A finding discovered during execution never becomes a checklist item in the plan that found it.
 - Severity is High/Medium/Low. 🔴/🟠 appear only in `type: gate` documents.
 - One workstream slug, used identically for the review folder, plan folder and both todos.
-- Every status change is written to BOTH file front-matter and the todo store. If they disagree, **the file is authoritative** — reconcile and say so.
+- **Status is written to the file, and only to the file.** The board is a projection: `tower/cycle.py` renders each document as a card on every read, and cycle cards cannot be dragged, closed or deleted. There is one writer, so there is nothing to reconcile.
 - Reviews are raised only in projects with `we-operate: true`.
 
 ## Related

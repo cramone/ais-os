@@ -395,6 +395,33 @@
   .int-card.prio-low    { border-left-color: var(--muted); }
   .kanban-col { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px; min-height: 80px; display: flex; flex-direction: column; gap: 8px; transition: border-color 0.15s, background 0.15s; }
   .kanban-col.drop-target { border-color: var(--accent); background: rgba(88,166,255,0.06); }
+
+  /* CYCLE CARDS — review/plan/gate documents projected onto the board.
+     Their status comes from the document's front-matter and is not the board's to
+     change, so they do not drag. The look has to say "derived", not "disabled". */
+  .int-card.cycle-card {
+    cursor: pointer;
+    border-left: 2px solid var(--purple);
+    background: linear-gradient(90deg, rgba(188,140,255,0.05), transparent 60%);
+  }
+  .int-card.cycle-card:hover { border-left-color: var(--accent); }
+  .cycle-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 1px 6px; border-radius: 10px;
+    background: rgba(188,140,255,0.14); color: var(--purple);
+    border: 1px solid rgba(188,140,255,0.3);
+    font-size: 10px; font-weight: 600; letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  .cycle-badge.dangling {
+    background: rgba(248,81,73,0.14); color: var(--danger);
+    border-color: rgba(248,81,73,0.35);
+  }
+  .cycle-badge .cycle-glyph { font-size: 11px; line-height: 1; }
+  .cycle-locknote {
+    display: block; margin-top: 4px;
+    color: var(--muted); font-size: 10px; font-style: italic;
+  }
   .kanban-col-head { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); display: flex; justify-content: space-between; padding: 0 2px 2px; }
 
   /* DECISIONS + SYNC PANELS */
@@ -3440,6 +3467,7 @@
           <div class="interrupt-title">${i.title}</div>
           <div class="interrupt-meta">
             ${_idChip(i)}
+            ${_cycleBadge(i.cycle)}
             ${f.source && i.source ? `<span class="source-tag src-${(i.source || '').toLowerCase()}">${i.source}</span>` : ''}
             ${_tagChips(board, i, 3)}
             <span class="interrupt-age">${_ago(new Date(i.capturedAt))}</span>
@@ -3450,18 +3478,41 @@
           : '<div class="due-none">No due date</div>'}
         <div class="status-tag status-${i.status}">${i.status}</div>
         ${f.ado ? `<button class="action-btn" onclick="event.stopPropagation();pushInterruptToADO('${i.id}')">-&gt; ADO</button>` : ''}
-        <button class="action-btn done" onclick="event.stopPropagation();itemMarkDone('${board.kind}','${i.id}')">Done</button>
-        ${f.delete ? `<button class="action-btn danger" title="Delete" onclick="event.stopPropagation();itemDelete('${board.kind}','${i.id}')">✕</button>` : ''}
+        ${i.cycle && !i.cycle.dangling
+          ? ''
+          : `<button class="action-btn done" onclick="event.stopPropagation();itemMarkDone('${board.kind}','${i.id}')">Done</button>
+             ${f.delete ? `<button class="action-btn danger" title="Delete" onclick="event.stopPropagation();itemDelete('${board.kind}','${i.id}')">✕</button>` : ''}`}
       </div>
     `;
   }
 
+  // Glyph per document type. A gate is a release decision, not a work item, so it
+  // gets its own mark rather than sharing the plan's.
+  const _CYCLE_GLYPH = { review: '◇', plan: '▤', gate: '⛌' };
+
+  function _cycleBadge(cy) {
+    if (!cy) return '';
+    if (cy.dangling) {
+      return `<span class="cycle-badge dangling" title="This card is tagged ${cy.id} but no document with that id exists. A dangling id is a data error — find or fix the document.">
+        <span class="cycle-glyph">⚠</span>${cy.id} missing</span>`;
+    }
+    const glyph = _CYCLE_GLYPH[cy.type] || '◈';
+    return `<span class="cycle-badge" title="${cy.id} — ${cy.type}, status &quot;${cy.status}&quot; from ${cy.path}. Status is set in the document, not here.">
+      <span class="cycle-glyph">${glyph}</span>${cy.id}</span>`;
+  }
+
   function _itemCardHTML(board, i) {
     const f = board.features;
+    // A cycle card is a projection of a review/plan/gate document. Its status lives in
+    // front-matter, so it does not drag and cannot be deleted from here — the card
+    // would just come back on the next load. Everything else stays editable.
+    const cy = i.cycle;
+    const locked = !!cy && !cy.dangling;
     return `
-      <div class="int-card prio-${i.priority || 'normal'}" draggable="true" data-id="${i.id}" data-status="${i.status}" onclick="openItemDrilldown('${board.kind}','${i.id}')">
+      <div class="int-card prio-${i.priority || 'normal'}${cy ? ' cycle-card' : ''}" draggable="${locked ? 'false' : 'true'}" data-id="${i.id}" data-status="${i.status}"${locked ? ' data-cycle="1"' : ''} onclick="openItemDrilldown('${board.kind}','${i.id}')">
         <div class="interrupt-title" style="white-space:normal">${i.title}</div>
         <div class="interrupt-meta" style="margin-top:4px;flex-wrap:wrap">
+          ${_cycleBadge(cy)}
           ${f.source && i.source ? `<span class="source-tag src-${(i.source || '').toLowerCase()}">${i.source}</span>` : ''}
           ${_tagChips(board, i)}
         </div>
@@ -3469,8 +3520,9 @@
           ${_idChip(i)}
           ${i.dueDate ? `<span class="due-chip ${_dueClass(i.dueDate)}">${_dueLabel(i.dueDate)}</span>` : ''}
           <span class="interrupt-age">${_ago(new Date(i.capturedAt))}</span>
-          ${f.delete ? `<button class="action-btn danger todo-delete-btn" title="Delete" style="margin-left:auto" onclick="event.stopPropagation();itemDelete('${board.kind}','${i.id}')">✕</button>` : ''}
+          ${f.delete && !locked ? `<button class="action-btn danger todo-delete-btn" title="Delete" style="margin-left:auto" onclick="event.stopPropagation();itemDelete('${board.kind}','${i.id}')">✕</button>` : ''}
         </div>
+        ${locked ? `<span class="cycle-locknote">status set in ${cy.id}</span>` : ''}
       </div>`;
   }
 
@@ -3493,6 +3545,9 @@
 
     let dragId = null;
     container.querySelectorAll('.int-card').forEach(card => {
+      // Cycle cards carry data-cycle and draggable="false"; belt and braces so a
+      // dragstart from any source (keyboard, extension) still can't start one.
+      if (card.dataset.cycle) return;
       card.addEventListener('dragstart', () => { dragId = card.dataset.id; card.classList.add('dragging'); });
       card.addEventListener('dragend', () => card.classList.remove('dragging'));
     });

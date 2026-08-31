@@ -12,6 +12,13 @@ this list: _Draft_ — a review exists, not yet agreed · _Active_ — being wor
 waiting on a dependency, which is derived, never set by hand · _Parked_ — real but deliberately not being
 worked · _Superseded_ — replaced by another plan, kept for reasoning · _Done_ — closed out.
 
+**Document ids — backfill started 2026-08-31.** `projection-tables/` (MM-001, MM-002) and
+`deployment-naming/` (MM-004) now carry `id:` and front-matter, each paired with a retrospective
+review in `reviews/`. Every other plan in this tree is still legacy: no id, no front-matter, status
+**UNKNOWN** per the `review-cycle` skill's § Legacy files — do not treat any of them as met, unmet,
+active or done, and do not name one in a `depends-on`. Continue one workstream at a time, when that
+workstream is next picked up. Do not bulk-rewrite.
+
 ---
 
 ## `authorization/` — the missing authorization layer, opened 2026-08-26
@@ -87,19 +94,32 @@ Largest workstream, tracked on the ADO **Media** board: 169 work items across 6 
 
 ## `projection-tables/` — projection table rotation and schema versioning
 
-| Plan | Status | What it is |
-|---|---|---|
-| `schema-versioned-projection-tables-plan.md` | **Parked** | Schema-versioned, CDK-owned projection tables. **Supersedes** the rotation plan below. Greenfield — nothing deployed, so no live-data migration. Written and ready; not being worked, and nothing blocks it — it is waiting on a go/no-go, not on a dependency. |
-| `hot-swappable-projection-rotation-plan.md` | Superseded | Blue-green runtime rotation (`_v{n}`). Kept for the discovery and the rotation-unit decision. |
-| `Archive/projection-replay-platform.md` | Done | Platform-side projection replay. |
-| `Archive/dynamodb-schema-audit-plan.md` | Done | CDK ↔ spec table audit; DocumentSigning was never covered. |
+**Under the cycle since 2026-08-31.** Paired with `reviews/projection-tables/` (MM-003).
+
+| Id | Plan | Status | What it is |
+|---|---|---|---|
+| MM-002 | `schema-versioned-projection-tables-plan.md` | **Parked** | Schema-versioned, CDK-owned projection tables. **Phase A shipped** — verified at source level by MM-003 against all three repos. Parked on **Phase B only** (version-aware projectors), deferred by the decision in `docs/adrs/persistence-and-eventing.md` until the first breaking read-model change needs a zero read/write window. |
+| MM-001 | `Archive/hot-swappable-projection-rotation-plan.md` | Superseded | Blue-green **runtime** rotation (`_v{n}`). Never built as written — the runtime counter meant CDK could not own the tables, which forced a broad `table/media-*` control-plane grant. Kept for the discovery and the rotation-unit decision, both of which MM-002 § 3.1 carries forward. Archived 2026-08-31. |
+| — | `Archive/projection-replay-platform.md` | Done | Platform-side projection replay. |
+| — | `Archive/dynamodb-schema-audit-plan.md` | Done | CDK ↔ spec table audit; DocumentSigning was never covered. |
+
+**Read MM-003 before touching this.** Two things it found that the plan does not say: Phase B's
+deferral has a **trigger nobody monitors** — no check fires when a `schemaVersion` bumps (PT-2) — and
+the implementation **straddles a merge boundary**, with `develop` (2026-07-29) holding the platform
+and manifest work and `feature/change-requests` (2026-08-27, pushed, unmerged) holding the later
+refinements (PT-4). Nothing here has been compiled or run.
 
 ## `deployment-naming/` — resource naming and environments
 
-| Plan | Status | What it is |
-|---|---|---|
-| `remove-env-suffix-plan.md` | **Parked** | Drop the `-{env}` suffix from every resource name. Four open decisions at the top of the plan; ADR-first. Renames every non-prod stateful resource — CloudFormation *replaces* them, so dev/qa/staging lose data. |
-| `Archive/deploy-handoff-tom.md` | Superseded | The dispatch-only deploy model, replaced by `deploy-runbook.md` in the project root. |
+**Under the cycle since 2026-08-31.** Paired with `reviews/deployment-naming/` (MM-005).
+
+| Id | Plan | Status | What it is |
+|---|---|---|---|
+| MM-004 | `remove-env-suffix-plan.md` | **Active** | Drop the `-{env}` suffix from every resource name. **Code complete in both repos**, verified at source level by MM-005; three of the four opening decisions were taken and implemented. **One item outstanding — the ADR** (`docs/adrs/deployment-and-resource-naming.md`, change-inventory item 13), which was meant to land *before* the code and never did. `docs/adrs/README.md:20` flags the gap itself. That is finding DN-1 and the only thing between this plan and `done`. |
+| — | `Archive/deploy-handoff-tom.md` | Superseded | The dispatch-only deploy model, replaced by `deploy-runbook.md` in the project root. |
+
+The consequence the ADR most needs to carry: renaming a stateful resource makes CloudFormation
+*replace* it, so dev/qa/staging lose data on cutover. Prod naming is unchanged either way.
 
 ## `design/` — feature design and per-module remediation
 
