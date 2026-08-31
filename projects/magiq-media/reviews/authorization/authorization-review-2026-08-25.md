@@ -1,3 +1,15 @@
+---
+id: MM-028
+type: review
+project: magiq-media
+workstream: authorization
+raised-by: []
+status: done
+outcome: plan
+todo-id: 05d35681-0946-5a57-bf37-11d44b8cb5f4
+created: 2026-08-25
+---
+
 # Authorization — the missing layer
 
 _Opened 2026-08-25 from the spec-drift review (W22). **Both 🔴 blockers on the prod-readiness gate are

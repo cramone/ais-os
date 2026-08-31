@@ -1,3 +1,15 @@
+---
+id: MM-025
+type: review
+project: magiq-media
+workstream: archive-cascade
+raised-by: []
+status: done
+outcome: plan
+todo-id: ccd21a75-6bd6-551e-8b5a-37b08670f4f7
+created: 2026-08-25
+---
+
 # Archive cascade — failures that vanish, and the records they strand
 
 _Opened 2026-08-25 from the spec-drift review (W21, W24). **Four 🟠 gate blockers are here**, and three of

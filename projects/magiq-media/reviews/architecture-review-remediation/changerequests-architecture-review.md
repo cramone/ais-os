@@ -1,3 +1,17 @@
+---
+id: MM-012
+type: review
+project: magiq-media
+workstream: architecture-review-remediation
+raised-by: []
+status: done
+outcome: plan
+todo-id: 84bdee8c-bdf1-5a29-81f9-537bad837867
+created: 2026-07-19
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-012.** One of 11 read as a single body of work; all consumed together by MM-018.
+
 # ChangeRequests — Module Architecture Review (Specification vs Repository)
 
 _Module: **ChangeRequests** (bounded context) — magiq-media · Aggregate: **MediaChangeRequest** (implemented as `ChangeRequest`)_

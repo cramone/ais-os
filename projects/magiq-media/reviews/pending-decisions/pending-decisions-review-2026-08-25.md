@@ -1,3 +1,17 @@
+---
+id: MM-031
+type: review
+project: magiq-media
+workstream: pending-decisions
+raised-by: []
+status: done
+outcome: decision-only
+todo-id: f9600ca6-4b0e-5bbf-bb1d-553d94c41dea
+created: 2026-08-25
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-031.** No plan and no research left — the evidence is complete and the code understood. **Two decisions are outstanding and neither is logged in decisions/log.md** (checked 2026-08-31): X-11.21 idempotency, adopt or retire — the middleware is deployed and nothing sends the header, and the header name mismatch means clients following the contract got zero protection silently; and BI-1 — build, delete the spec, or badge it design-only with a deadline. Log both via /decision when made.
+
 # Two decisions blocking code work
 
 _Opened 2026-08-25. **Parked deliberately** — both surfaced during the spec-drift review. Neither is a

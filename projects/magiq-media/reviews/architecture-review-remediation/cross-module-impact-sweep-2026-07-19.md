@@ -1,3 +1,17 @@
+---
+id: MM-013
+type: review
+project: magiq-media
+workstream: architecture-review-remediation
+raised-by: []
+status: done
+outcome: plan
+todo-id: bc39928e-5c33-5d60-b97e-a7675b3ef416
+created: 2026-07-19
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-013.** One of 11 read as a single body of work; all consumed together by MM-018.
+
 # magiq-media — Fresh Cross-Module Impact Sweep (code-first, all modules)
 
 **Date:** 2026-07-19

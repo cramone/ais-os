@@ -1,3 +1,17 @@
+---
+id: MM-035
+type: review
+project: magiq-media
+workstream: event-reliability
+raised-by: []
+status: draft
+outcome: pending
+todo-id: 595f8315-407a-56cd-ac1c-2cd6a1c25f8c
+created: 2026-08-27
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-035.** Not yet planned; the work is almost entirely in `aspnetcore-platform`. Verdict: `Magiq.Platform.Messaging.Outbox` has never been run — zero adopters, zero tests, the drain is invoked by nothing and sent messages are never marked sent, so adopting it as-is would produce **unbounded duplicate publication** of every event. Read it before anyone treats 'adopt IOutbox' as the small option.
+
 # Implementing `IOutbox` — what adopting it would actually involve
 
 _Opened 2026-08-27, from **gate decision 6** and open question 1 of

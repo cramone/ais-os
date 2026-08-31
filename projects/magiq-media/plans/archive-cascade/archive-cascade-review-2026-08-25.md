@@ -1,3 +1,20 @@
+---
+id: MM-026
+type: plan
+project: magiq-media
+workstream: archive-cascade
+consumes: [MM-025]
+depends-on: []
+blocked-by-external: []
+status: active
+todo-id: 7298bd1a-a2bb-5310-9699-e714b03cd379
+branches: []
+ado: -
+created: 2026-08-25
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-026.** X-11.16, X-11.18 and X-11.15 closed 2026-08-27; **X-11.41 next**, X-11.17 narrowed but open, X-11.19 open. Never compiled — no .NET SDK in those sessions; run `dotnet test tests/modules/Catalog/` before treating any of it as closed.
+
 # Archive cascade — plan
 
 _Opened 2026-08-27. Named for the review it consumes,

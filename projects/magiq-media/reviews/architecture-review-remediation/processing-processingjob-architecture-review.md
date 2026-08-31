@@ -1,3 +1,17 @@
+---
+id: MM-016
+type: review
+project: magiq-media
+workstream: architecture-review-remediation
+raised-by: []
+status: done
+outcome: plan
+todo-id: e6ccad00-3fa1-5f9e-ab5c-bbe2a6a05a09
+created: 2026-07-19
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-016.** One of 11 read as a single body of work; all consumed together by MM-018.
+
 # Processing — ProcessingJob Aggregate Architecture Review (Specification vs Repository)
 
 _Context: **Processing** · Aggregate: **`ProcessingJob`** — magiq-media_

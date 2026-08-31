@@ -1,3 +1,17 @@
+---
+id: MM-027
+type: review
+project: magiq-media
+workstream: asset-custody
+raised-by: []
+status: parked
+outcome: parked
+todo-id: 86cca013-6ce3-55db-a32a-2349b60d640f
+created: 2026-08-25
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-027.** Parked reason, from reviews/README.md: raised while classifying `Asset` for the ownership ADR and split out so the spec-drift work could continue. The decision is already recorded in docs/adrs/ownership-and-authorization.md — what is parked is the work, and it is **blocked by X-11.32**, the detach half of the asset lifecycle never reaching the Asset aggregate. Sequencing is fixed: wire detach → model custody → let authorization replace the interim owner checks. Do not remove `AssetOwnership.CheckOwner` before the last step; it currently guards 8 commands.
+
 # Asset Custody — review
 
 _Opened 2026-08-25. **Parked deliberately** — raised while classifying `Asset` for the ownership ADR during

@@ -1,3 +1,18 @@
+---
+id: MM-022
+type: review
+project: magiq-media
+workstream: spec-drift-review
+raised-by: []
+status: findings-agreed
+outcome: pending
+todo-id: ac8b9c69-85b3-53d3-b2ea-9f36205e4dc6
+created: 2026-08-21
+exception: a review living in plans/ deliberately — it is its own working checklist, and splitting it would separate the findings from the boxes tracking them. SKILL.md § Known exceptions #1.
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-022.** 58 of 213 findings still open. The ✓ column in the file is the working checklist. Its 154 closed findings live in Archive/spec-repo-drift-review-completed.md; the id sets do not overlap.
+
 # Spec ↔ Repo Drift Review — open findings
 
 _magiq-media · original review 2026-08-21 · **split 2026-08-24** — resolved findings moved to

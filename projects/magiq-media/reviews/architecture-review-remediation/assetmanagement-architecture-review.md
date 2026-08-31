@@ -1,3 +1,17 @@
+---
+id: MM-007
+type: review
+project: magiq-media
+workstream: architecture-review-remediation
+raised-by: []
+status: done
+outcome: plan
+todo-id: 85405a86-1f02-5213-b9b6-02c9ef0602c0
+created: 2026-07-19
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-007.** One of 11 read as a single body of work; all consumed together by MM-018.
+
 # AssetManagement — Module Architecture Review (Specification vs Repository)
 
 _Module: **AssetManagement** (bounded context) — magiq-media_

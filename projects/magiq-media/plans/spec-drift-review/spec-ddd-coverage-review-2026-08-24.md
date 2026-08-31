@@ -1,3 +1,20 @@
+---
+id: MM-024
+type: plan
+project: magiq-media
+workstream: spec-drift-review
+consumes: [MM-023]
+depends-on: []
+blocked-by-external: []
+status: active
+todo-id: 7ca3bb24-b8d6-5212-9cd6-455fd7a58a08
+branches: []
+ado: -
+created: 2026-08-24
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-024.** Six phases. **Phase 1 complete 2026-08-25** — 15 of 17 truncated spec tails recovered, 3 quarantined to docs/spec/_recovered/, 2 unrecoverable. D2 resolved; **D1 and D3-D6 still block Phases 2 and 4**.
+
 # DDD Spec Coverage — Remediation Plan
 
 _Consumes `reviews/spec-drift-review/spec-ddd-coverage-review-2026-08-24.md` and

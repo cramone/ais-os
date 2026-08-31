@@ -1,3 +1,20 @@
+---
+id: MM-018
+type: plan
+project: magiq-media
+workstream: architecture-review-remediation
+consumes: [MM-007, MM-008, MM-009, MM-010, MM-011, MM-012, MM-013, MM-014, MM-015, MM-016, MM-017]
+depends-on: []
+blocked-by-external: []
+status: active
+todo-id: 8fea7195-9d6b-54fd-bcd0-0174e2d7d5c9
+branches: []
+ado: -
+created: 2026-07-20
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-018.** The live tracker and source of truth for state: status columns in §5, session log in §9. 169 ADO work items across 6 Epics, every row still To Do — the session log has one entry, 2026-07-20 'Plan created. Nothing started.'
+
 # magiq-media — Architecture-Review Remediation: Implementation Working Plan
 
 _Cross-session operating plan + live tracker. Working directory: `Z:\claudia\magiq\projects\magiq-media\plans\architecture-review-remediation`._

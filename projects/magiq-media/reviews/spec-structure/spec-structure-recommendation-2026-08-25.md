@@ -1,3 +1,17 @@
+---
+id: MM-033
+type: review
+project: magiq-media
+workstream: spec-structure
+raised-by: []
+status: done
+outcome: folded-into:MM-024
+todo-id: a1652504-6d8f-5bf7-b8a5-4638cc3bf3c4
+created: 2026-08-25
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-033.** No plan of its own — most of it lands in MM-024's Phases 2/4a/5; four items are new.
+
 # Spec structure — what the 16 dimensions need, and what this repo already has
 
 _Written 2026-08-25 for Chase Ramone. Scope: `D:\source\github\magiq-media\docs\` as it stands today —

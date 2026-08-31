@@ -1,3 +1,17 @@
+---
+id: MM-015
+type: review
+project: magiq-media
+workstream: architecture-review-remediation
+raised-by: []
+status: done
+outcome: plan
+todo-id: ef23a9cf-d794-5f88-8212-085d5c475fcf
+created: 2026-07-19
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-015.** One of 11 read as a single body of work; all consumed together by MM-018.
+
 # RecordType — Module Architecture Review (Specification vs Repository)
 
 _Context: **Metadata** · Aggregate: **RecordType** — magiq-media_

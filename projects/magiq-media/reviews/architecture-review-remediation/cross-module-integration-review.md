@@ -1,3 +1,17 @@
+---
+id: MM-014
+type: review
+project: magiq-media
+workstream: architecture-review-remediation
+raised-by: []
+status: done
+outcome: plan
+todo-id: 4bca2d64-5ca9-5eaa-a5cb-aa1644f778c0
+created: 2026-07-19
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-014.** One of 11 read as a single body of work; all consumed together by MM-018.
+
 # Cross-Module Integration Architecture Review — magiq-media
 
 > **Scope (bounded context):** the whole `magiq-media` bounded context as an event-driven system — the *seams between* the seven modules (`AssetManagement`, `Catalog` [Collection/Folder/MediaItem/MediaProfile], `ChangeRequests`, `Metadata`, `Processing`, `Registration`, `DocumentSigning`). Integration events, cross-module command dispatch, sagas/process managers, write-side reference/ACL models, and the SNS/SQS/DLQ topology. Intra-aggregate internals are out of scope (covered by the per-module reviews).

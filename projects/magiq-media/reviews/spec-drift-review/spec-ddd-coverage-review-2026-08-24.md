@@ -1,3 +1,17 @@
+---
+id: MM-023
+type: review
+project: magiq-media
+workstream: spec-drift-review
+raised-by: []
+status: done
+outcome: plan
+todo-id: a6b48c43-c295-5044-900e-58a0d71200c6
+created: 2026-08-24
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-023.** Spec only, no code read — every finding is 'the spec does not say', never 'the code does not do'.
+
 # magiq-media — DDD Spec Coverage Review
 
 **Date:** 2026-08-24

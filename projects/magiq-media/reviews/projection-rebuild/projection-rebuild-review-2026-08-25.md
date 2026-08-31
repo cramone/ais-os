@@ -1,3 +1,17 @@
+---
+id: MM-032
+type: review
+project: magiq-media
+workstream: projection-rebuild
+raised-by: []
+status: parked
+outcome: parked
+todo-id: cfc4736b-a986-5a2c-ad84-15065103942f
+created: 2026-08-25
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-032.** Parked reason, from reviews/README.md: split out for the same reason as asset-custody — the spec-drift plan corrects documentation, this one changes code. Seven write-side reference indexes cannot be rebuilt by replaying anything, and each backs a guard, so a stale row is a wrong authorization decision. The two uniqueness counters are worse — no replay reproduces them. **Start at question 7, divergence detection, not at the rebuild tool.**
+
 # Projection Rebuild — the indexes replay cannot fix
 
 _Opened 2026-08-25. **Parked deliberately** — raised while writing `shared/consistency-model.md` (W25), and

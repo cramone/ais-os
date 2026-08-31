@@ -1,3 +1,17 @@
+---
+id: MM-034
+type: review
+project: magiq-media
+workstream: archive-cascade
+raised-by: []
+status: draft
+outcome: pending
+todo-id: bfe54e3a-eca7-5a2b-8cd9-50175d0ddb73
+created: 2026-08-27
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-034.** Not yet planned. The cascade holds a whole subtree in memory and must finish in one invocation, so it has a hard ceiling; the X-11.16 fix made hitting it loud rather than silent. Tier 1 raised the ceiling ~100×. **Measure before building** — there is no telemetry on either path.
+
 # Archive cascade at scale — the ceiling, and what a resumable cascade costs
 
 _Opened 2026-08-27, from the question "if the collection was really large, would this approach work?"_

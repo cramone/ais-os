@@ -1,3 +1,20 @@
+---
+id: MM-019
+type: plan
+project: magiq-media
+workstream: architecture-review-remediation
+consumes: [MM-007, MM-008, MM-009, MM-010, MM-011, MM-012, MM-013, MM-014, MM-015, MM-016, MM-017]
+depends-on: []
+blocked-by-external: []
+status: parked
+todo-id: cc4d0d99-19c6-5f03-acdc-5aa6a17546e6
+branches: []
+ado: -
+created: 2026-07-20
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-019.** Parked reason: deferred in **sequencing only**. Both halves remain pre-production gates — see MM-006. Owner is Chase on every item, and the ADO items are drafted in the file rather than created.
+
 # Authorization + Transactional-Outbox — Deferred Remediation Plan
 
 _magiq-media · Companion to `architecture-review-remediation-pr-plan.md`._

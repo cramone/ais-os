@@ -12,11 +12,12 @@ this list: _Draft_ — a review exists, not yet agreed · _Active_ — being wor
 waiting on a dependency, which is derived, never set by hand · _Parked_ — real but deliberately not being
 worked · _Superseded_ — replaced by another plan, kept for reasoning · _Done_ — closed out.
 
-**Document ids — backfill started 2026-08-31.** `projection-tables/` (MM-001, MM-002),
-`deployment-naming/` (MM-004) and `prod-readiness/` (MM-006, the gate) carry `id:` and front-matter.
-Every other plan here is still legacy: no id, status **UNKNOWN** per the `review-cycle` skill's
-§ Legacy files — do not treat any of them as met, unmet, active or done, and do not name one in a
-`depends-on`. Continue one workstream at a time. Do not bulk-rewrite.
+**Backfill completed for every live workstream, 2026-08-31.** MM-001…MM-035 gave every live review
+and plan an id and front-matter, so each now appears on the Control Tower board. Statuses were
+transcribed from this file and `reviews/README.md`, never inferred from a file body;
+`scripts/backfill_magiq_media.py` is kept as the record of what was written and why. `Archive/`
+is deliberately still legacy — those documents are finished and cards for them would only pad the
+Done column.
 
 **Every plan is now either paired with a review or marked `exception:`.** A sweep on 2026-08-31 found
 seven plans with no review — all archived, all predating the convention — and four documents living
@@ -35,9 +36,9 @@ behind. `cycle.known_exceptions('magiq-media')` lists all seventeen.
 
 **Both 🔴 prod-readiness blockers live here.** Paired with `reviews/authorization/`.
 
-| Plan | Status | What it is |
-|---|---|---|
-| `authorization-review-2026-08-25.md` | **Active** | Named for the review it consumes, per the folder convention. **X-11.31 and X-11.23 closed 2026-08-26; X-11.30 open at 81 commands, 61 HTTP-reachable.** |
+| Id | Plan | Status | What it is |
+|---|---|---|---|
+| MM-029 | `authorization-review-2026-08-25.md` | **Blocked** | Consumes MM-028. **X-11.31 and X-11.23 closed 2026-08-26; X-11.30 open at 81 commands, 61 HTTP-reachable.** Status is `blocked`, not `active`: the remaining work *is* X-11.30 and it waits on another team, recorded as a `blocked-by-external` entry with `sent: false`. |
 
 The step that reshaped the workstream: **`magiq-auth` issues no `roles` claim and no `actor_type`
 claim** — verified against its source, not its docs. So a role check admits nobody, `ActorType` is
@@ -53,9 +54,9 @@ unsent — the critical path rather than an errand.
 
 Paired with `reviews/archive-cascade/`. Two 🟠 gate blockers closed, two still open.
 
-| Plan | Status | What it is |
-|---|---|---|
-| `archive-cascade-review-2026-08-25.md` | **Active** | Named for the review it consumes. **X-11.16 and X-11.18 closed 2026-08-27; X-11.41, X-11.17, X-11.15, X-11.19 open.** |
+| Id | Plan | Status | What it is |
+|---|---|---|---|
+| MM-026 | `archive-cascade-review-2026-08-25.md` | **Active** | Consumes MM-025. **X-11.16, X-11.18 and X-11.15 closed 2026-08-27; X-11.41 next, X-11.17 narrowed but open, X-11.19 open.** The second review in this workstream is MM-034, still `draft`. |
 
 The decision the workstream turned on — the review's open question 1 — was answered **continue and
 suppress ancestors**, not abort: the cascade archives everything it can, records every refusal, and
@@ -75,11 +76,11 @@ compile risks in order.
 
 The current live workstream.
 
-| Plan | Status | What it is |
-|---|---|---|
-| `spec-repo-drift-review.md` | **Active** | 58 open findings across spec, ADRs, CDK and platform. The working checklist — tick the ✓ column as items land. |
-| `spec-ddd-coverage-review-2026-08-24.md` | **Active** | Remediation plan for the DDD coverage review of the same name. Six phases from "stop the file truncation" through the saga specs, authorization matrix and MediaItem state matrix. **Phase 1 complete 2026-08-25** — a full-history search recovered 15 of the 17 truncated spec tails (7 only from `Media.wiki`'s history). Dating the sources then split them: 12 link/row tails restored and checked against code, 3 prose tails **quarantined to `docs/spec/_recovered/`** because they predate the 2026-08-24 correction pass, 2 unrecoverable. Phase 3 drops from 3–5 days to ~1 day over 5 files. The check also surfaced **X-11.1 (High)** in the drift review: the spec's traceability tables name projector classes that don't exist, 69 times. D2 resolved; D1, D3–D6 still block Phases 2 and 4. §2 draws the ownership line against the drift review so nothing is worked twice. |
-| `Archive/spec-repo-drift-review-completed.md` | Done | The 154 closed findings plus the full session log for every pass. Split out 2026-08-24; the id sets do not overlap. |
+| Id | Plan | Status | What it is |
+|---|---|---|---|
+| MM-022 | `spec-repo-drift-review.md` | **Active** | 58 open findings across spec, ADRs, CDK and platform. The working checklist — tick the ✓ column as items land. |
+| MM-024 | `spec-ddd-coverage-review-2026-08-24.md` | **Active** | Remediation plan for the DDD coverage review of the same name. Six phases from "stop the file truncation" through the saga specs, authorization matrix and MediaItem state matrix. **Phase 1 complete 2026-08-25** — a full-history search recovered 15 of the 17 truncated spec tails (7 only from `Media.wiki`'s history). Dating the sources then split them: 12 link/row tails restored and checked against code, 3 prose tails **quarantined to `docs/spec/_recovered/`** because they predate the 2026-08-24 correction pass, 2 unrecoverable. Phase 3 drops from 3–5 days to ~1 day over 5 files. The check also surfaced **X-11.1 (High)** in the drift review: the spec's traceability tables name projector classes that don't exist, 69 times. D2 resolved; D1, D3–D6 still block Phases 2 and 4. §2 draws the ownership line against the drift review so nothing is worked twice. |
+| — | `Archive/spec-repo-drift-review-completed.md` | Done | The 154 closed findings plus the full session log for every pass. Split out 2026-08-24; the id sets do not overlap. |
 
 Recent: X-9.6 (name-reservation atomicity docs), X-9.7 (`MoveMediaItem` used `SwapAsync` — every
 folder-to-folder move 409'd) and X-9.8 (`GuidFactory` byte order — every id in the system unsortable)
@@ -93,14 +94,14 @@ needs a platform package release. See `todos.md` in the project root.
 
 Largest workstream, tracked on the ADO **Media** board: 169 work items across 6 Epics.
 
-| Plan | Status | What it is |
-|---|---|---|
-| `COWORK-EXECUTION-INSTRUCTIONS.md` | Active | **Start here.** How to operate a session — start, continue, end. |
-| `IMPLEMENTATION-PLAN.md` | Active | The live tracker and source of truth for state. Status columns in §5, session log in §9. |
-| `architecture-review-remediation-pr-plan.md` | Active | The rationale — why each finding groups into which PR, in what order. |
-| `architecture-review-ado-workitems.md` | Done | ID index: Epic → Feature → Story → Task, with board URLs and dependency links. |
-| `architecture-review-authz-and-outbox-deferred-plan.md` | **Parked** | Authorization (C0–C8) and the transactional outbox (B4/INV-2). Deferred in sequencing only — both remain pre-production gates. |
-| `Archive/ado-creation-resume-manifest.md` | Done | Resume notes from the interrupted ADO creation run; superseded by the ID index. |
+| Id | Plan | Status | What it is |
+|---|---|---|---|
+| — | `COWORK-EXECUTION-INSTRUCTIONS.md` | `exception:` | **Start here.** How to operate a session — start, continue, end. Not a plan, so it carries no id. |
+| **MM-018** | `IMPLEMENTATION-PLAN.md` | **Active** | **The plan for this workstream.** The live tracker and source of truth for state — status columns in §5, session log in §9. Consumes MM-007…MM-017. All 169 items still To Do. |
+| — | `architecture-review-remediation-pr-plan.md` | `exception:` | The rationale — why each finding groups into which PR, in what order. The rationale companion to MM-018; execution state lives there, so this carries no id. |
+| — | `architecture-review-ado-workitems.md` | `exception:` | ID index: Epic → Feature → Story → Task, with board URLs and dependency links. Not a plan. |
+| MM-019 | `architecture-review-authz-and-outbox-deferred-plan.md` | **Parked** | Authorization (C0–C8) and the transactional outbox (B4/INV-2). Deferred in sequencing only — both remain pre-production gates. |
+| — | `Archive/ado-creation-resume-manifest.md` | `exception:` | Resume notes from the interrupted ADO creation run; superseded by the ID index. |
 
 ## `projection-tables/` — projection table rotation and schema versioning
 
@@ -133,9 +134,9 @@ The consequence the ADR most needs to carry: renaming a stateful resource makes 
 
 ## `design/` — feature design and per-module remediation
 
-| Plan | Status | What it is |
-|---|---|---|
-| `mediaitem-edit-session-design.html` | Active | MediaItem edit-session design. |
+| Id | Plan | Status | What it is |
+|---|---|---|---|
+| MM-021 | `mediaitem-edit-session-design.html` | **Active** | MediaItem edit-session design. Consumes MM-020. HTML, so its front-matter is wrapped in an HTML comment. Verified 2026-08-31: 5 of 7 commands built; `AddSessionEditor` / `RemoveSessionEditor` are not, so the collaborative half is unbuilt and only the solo path ships. |
 | `Archive/metadata-collision-prevention.md` | Done | Metadata field-name collision prevention. |
 | `Archive/content-category-remediation-plan.md` | Done | `MediaContentType` → `MediaCategory` + MIME classification. |
 | `Archive/asset-download-endpoints.md` | Done | Presigned S3 GET endpoints for originals and renditions. |

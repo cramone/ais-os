@@ -21,18 +21,18 @@ leave, not to rest in.
 |---|---|---|---|---|---|
 | MM-003 | `projection-tables/` | `projection-tables-review-2026-08-31.md` | Done | plan | MM-002 — **Parked** on Phase B only; Phase A shipped |
 | MM-005 | `deployment-naming/` | `deployment-naming-review-2026-08-31.md` | Done | plan | MM-004 — **Active**, one item left (the ADR, DN-1) |
-| — | `architecture-review-remediation/` | 11 module + cross-cutting reviews, read as one body | Done | plan | `plans/architecture-review-remediation/` |
-| — | `spec-drift-review/` | `spec-ddd-coverage-review-2026-08-24.md` | Done | plan | `plans/spec-drift-review/` — same filename |
-| — | `spec-structure/` | `spec-structure-recommendation-2026-08-25.md` | Done | folded-into: `spec-drift-review` | *(no plan of its own — most of it lands in the DDD plan's Phases 2/4a/5)* |
-| — | `design/` | `mediaitem-edit-lifecycle-as-is-vs-recommended.html` | Done | plan | `plans/design/mediaitem-edit-session-design.html` |
-| — | `asset-custody/` | `asset-custody-review-2026-08-25.md` | **Parked** | parked | *(none — parked 2026-08-25, not started; blocked by X-11.32)* |
-| — | `projection-rebuild/` | `projection-rebuild-review-2026-08-25.md` | **Parked** | parked | *(none — parked 2026-08-25, not started)* |
-| — | `pending-decisions/` | `pending-decisions-review-2026-08-25.md` | Done | decision-only | *(none — decisions, not work; evidence is complete)* |
-| — | `authorization/` | `authorization-review-2026-08-25.md` | Done | plan | `plans/authorization/` — **Active**, X-11.30 open and blocked on `magiq-auth` |
-| — | `archive-cascade/` | `archive-cascade-review-2026-08-25.md` | Done | plan | `plans/archive-cascade/` — **Active**, X-11.41 next |
-| — | `archive-cascade/` | `archive-cascade-scale-review.md` | **Draft** | pending | *(not yet planned — measure before building; no telemetry on either path)* |
-| — | `event-reliability/` | `event-reliability-review-2026-08-25.md` | **Active** | pending | *(no plan — being worked directly; X-11.6 and X-11.5 core closed, X-11.44 decision-gated)* |
-| — | `event-reliability/` | `outbox-implementation-review-2026-08-27.md` | **Draft** | pending | *(not yet planned — the work is almost entirely in `aspnetcore-platform`)* |
+| MM-007…MM-017 | `architecture-review-remediation/` | 11 module + cross-cutting reviews, read as one body | Done | plan | `plans/architecture-review-remediation/` |
+| MM-023 | `spec-drift-review/` | `spec-ddd-coverage-review-2026-08-24.md` | Done | plan | `plans/spec-drift-review/` — same filename |
+| MM-033 | `spec-structure/` | `spec-structure-recommendation-2026-08-25.md` | Done | folded-into: MM-024 | *(no plan of its own — most of it lands in the DDD plan's Phases 2/4a/5)* |
+| MM-020 | `design/` | `mediaitem-edit-lifecycle-as-is-vs-recommended.html` | Done | plan | `plans/design/mediaitem-edit-session-design.html` |
+| MM-027 | `asset-custody/` | `asset-custody-review-2026-08-25.md` | **Parked** | parked | *(none — parked 2026-08-25, not started; blocked by X-11.32)* |
+| MM-032 | `projection-rebuild/` | `projection-rebuild-review-2026-08-25.md` | **Parked** | parked | *(none — parked 2026-08-25, not started)* |
+| MM-031 | `pending-decisions/` | `pending-decisions-review-2026-08-25.md` | Done | decision-only | *(none — decisions, not work; evidence is complete)* |
+| MM-028 | `authorization/` | `authorization-review-2026-08-25.md` | Done | plan | MM-029 — **Active (blocked)**, X-11.30 waiting on `magiq-auth`; the ask is written and unsent |
+| MM-025 | `archive-cascade/` | `archive-cascade-review-2026-08-25.md` | Done | plan | MM-026 — **Active**, X-11.41 next |
+| MM-034 | `archive-cascade/` | `archive-cascade-scale-review.md` | **Draft** | pending | *(not yet planned — measure before building; no telemetry on either path)* |
+| MM-030 | `event-reliability/` | `event-reliability-review-2026-08-25.md` | **Active** | pending | *(no plan — being worked directly; X-11.6 and X-11.5 core closed, X-11.44 decision-gated)* |
+| MM-035 | `event-reliability/` | `outbox-implementation-review-2026-08-27.md` | **Draft** | pending | *(not yet planned — the work is almost entirely in `aspnetcore-platform`)* |
 | — | `Archive/` | 4 reviews — 3 consumed, plus `request-response-review.md` moved here 2026-08-31 | Done | plan | `plans/Archive/` |
 
 Two rows need reading twice. **`event-reliability/`'s parent review is `Active` with outcome `pending`** —
@@ -41,13 +41,21 @@ either gets a plan or a terminal outcome; leaving it here indefinitely is the dr
 catch. **`archive-cascade/` and `event-reliability/` each hold two reviews at different statuses**, which
 is why this table is one row per review rather than one per folder.
 
-> **Backfill started 2026-08-31.** The `review-cycle` skill mints `MM-nnn` ids and the front-matter that
-> carries them. Two workstreams are now under the cycle — `projection-tables/` (MM-001 · MM-002 · MM-003)
-> and `deployment-naming/` (MM-004 · MM-005) — each with a retrospective review written *after* its plan,
-> because in both cases the plan predates the cycle and the work had already shipped. Every remaining row
-> is still legacy: no id, no front-matter, status **UNKNOWN** per the skill's § Legacy files, and
-> `folded-into` above names a workstream rather than an id. Continue a workstream at a time, when that
-> workstream is next picked up. Do not bulk-rewrite.
+> **Backfill completed for every live workstream, 2026-08-31.** All 12 rows above now carry an `MM-nnn`
+> id and front-matter, so each appears on the Control Tower board — the reason the backfill was finished
+> rather than continued piecemeal: a half-populated board reads as "there is no work here", which is how
+> `archive-cascade`'s and `event-reliability`'s draft reviews came to be invisible.
+>
+> **Every status was transcribed from this table and from `plans/README.md`**, which the skill names as
+> the derivation source. None was inferred from a file body. The one place the two disagreed — the
+> authorization plan, filed *Active* in the heading but described in its own prose as blocked on another
+> team — was resolved to `blocked` with a `blocked-by-external` entry, because that is what the prose and
+> the skill both say. See `scripts/backfill_magiq_media.py` for the full transcription, kept as the record.
+>
+> **Only `Archive/` is left legacy.** Those documents are finished and their pairing is already recorded
+> below; cards for them would pad the Done column and tell you nothing. Ids are minted oldest-first, so
+> MM-007 onward reads chronologically — but MM-001…MM-006 were already taken and two of them predate
+> MM-007, so the sequence is not globally ordered. Ids are never renumbered; that stays as it is.
 >
 > **The two retrospective reviews carry an `exception:` line.** They have no paste-ready prompt file and
 > no session was ever run from them — they exist to record verified state, not to drive work. That also

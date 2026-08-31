@@ -1,3 +1,17 @@
+---
+id: MM-009
+type: review
+project: magiq-media
+workstream: architecture-review-remediation
+raised-by: []
+status: done
+outcome: plan
+todo-id: 511c752b-c374-52da-b44f-3f902ca87988
+created: 2026-07-19
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-009.** One of 11 read as a single body of work; all consumed together by MM-018.
+
 # Folder — Aggregate Architecture Review (Specification vs Repository)
 
 _Context: **Catalog** (bounded context) — magiq-media_

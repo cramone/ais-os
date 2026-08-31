@@ -29,6 +29,7 @@ paths do not. A todo whose plan was archived last week still resolves, and its s
 
 from __future__ import annotations
 
+import html
 import re
 import uuid
 from pathlib import Path
@@ -41,6 +42,10 @@ _FIELD_RE = re.compile(r"^([a-z-]+):\s*(.*)$")
 
 # Folders scanned for cycle documents, relative to projects/<slug>/.
 DOC_FOLDERS = ("reviews", "plans")
+
+# Document file types. `.html` is not incidental — the design workstream keeps both
+# its review and its plan as HTML, with the front-matter wrapped in an HTML comment.
+DOC_SUFFIXES = (".md", ".html")
 
 # Front-matter status -> (todo status, required state tag). The tag is additive;
 # every cycle todo also carries its document id, type and workstream.
@@ -88,15 +93,31 @@ def parse_front_matter(path: Path) -> dict[str, str] | None:
     Values are returned raw (unquoted, unparsed) — callers that need a list read
     the bracket form themselves. Only the first block is considered, and only when
     the file opens with it; a `---` rule further down the body is not front-matter.
+
+    Two openings are accepted. Markdown uses a bare `---` fence. **HTML documents
+    wrap the same block in a comment**, because a bare fence at the top of an .html
+    file renders as visible text on the page:
+
+        <!--
+        ---
+        id: MM-020
+        ---
+        -->
+
+    The design workstream keeps both its review and its plan as HTML, so this is not
+    a hypothetical.
     """
     try:
         with path.open(encoding="utf-8", errors="replace") as fh:
-            if fh.readline().rstrip("\n") != "---":
+            first = fh.readline().strip()
+            if first == "<!--":
+                first = fh.readline().strip()
+            if first != "---":
                 return None
             fields: dict[str, str] = {}
             for line in fh:
                 line = line.rstrip("\n")
-                if line == "---":
+                if line.strip() == "---":
                     return fields
                 match = _FIELD_RE.match(line)
                 if match:
@@ -107,12 +128,19 @@ def parse_front_matter(path: Path) -> dict[str, str] | None:
 
 
 def write_status(path: Path, status: str) -> None:
-    """Rewrite the front-matter `status:` line in place, leaving all else untouched."""
+    """Rewrite the front-matter `status:` line in place, leaving all else untouched.
+
+    Handles both openings `parse_front_matter` accepts — the bare `---` fence and the
+    HTML-comment-wrapped form.
+    """
     text = path.read_text(encoding="utf-8", errors="replace")
     lines = text.split("\n")
-    if not lines or lines[0].strip() != "---":
+    start = 0
+    if lines and lines[0].strip() == "<!--":
+        start = 1
+    if len(lines) <= start or lines[start].strip() != "---":
         raise CycleViolation(f"{path.name} has no front-matter to update.")
-    for index in range(1, len(lines)):
+    for index in range(start + 1, len(lines)):
         if lines[index].strip() == "---":
             break
         if lines[index].startswith("status:"):
@@ -143,7 +171,9 @@ def index_documents(slug: str) -> dict[str, dict[str, Any]]:
         base = root / folder
         if not base.is_dir():
             continue
-        for path in base.rglob("*.md"):
+        for path in sorted(base.rglob("*")):
+            if path.suffix not in DOC_SUFFIXES or not path.is_file():
+                continue
             fields = parse_front_matter(path)
             if not fields:
                 continue
@@ -185,9 +215,38 @@ def to_todo(doc_type: str, doc_status: str) -> tuple[str, str | None]:
 # --- projection --------------------------------------------------------------
 
 
+def _heading_of(path: Path) -> str:
+    """The document's first `# ` heading, or `<title>` for HTML. Empty if neither."""
+    try:
+        with path.open(encoding="utf-8", errors="replace") as fh:
+            for _ in range(80):  # headings live near the top; do not read whole files
+                line = fh.readline()
+                if not line:
+                    break
+                stripped = line.strip()
+                if stripped.startswith("# "):
+                    return stripped[2:].strip()
+                match = re.search(r"<title>(.*?)</title>", stripped, re.I)
+                if match:
+                    # A <title> carries entities (&amp;, &mdash;); a card title should not.
+                    return html.unescape(match.group(1)).strip()
+    except OSError:
+        pass
+    return ""
+
+
 def _title_for(doc: dict[str, Any]) -> str:
-    """A readable title for an auto-created card: `MM-002 — projection-tables plan`."""
+    """A readable title for an auto-created card.
+
+    Prefers the document's own H1, because `MM-034 — archive-cascade review` tells you
+    nothing you could not read off the badge, while "Archive cascade — scale ceiling"
+    is the thing you are actually deciding whether to pick up. Falls back to the
+    workstream and type when a document has no heading.
+    """
     fields = doc["fields"]
+    heading = _heading_of(doc["path"])
+    if heading:
+        return heading
     workstream = fields.get("workstream") or "unassigned"
     return f"{fields.get('id', '?')} — {workstream} {doc['type'] or 'document'}"
 
@@ -315,7 +374,7 @@ def known_exceptions(slug: str) -> list[tuple[str, str]]:
         if not base.is_dir():
             continue
         for path in sorted(base.rglob("*")):
-            if path.suffix not in (".md", ".html") or not path.is_file():
+            if path.suffix not in DOC_SUFFIXES or not path.is_file():
                 continue
             fields = parse_front_matter(path)
             if fields and fields.get("exception"):
@@ -357,7 +416,9 @@ def check(slug: str) -> list[str]:
         base = root / folder
         if not base.is_dir():
             continue
-        for path in sorted(base.rglob("*.md")):
+        for path in sorted(base.rglob("*")):
+            if path.suffix not in DOC_SUFFIXES or not path.is_file():
+                continue
             fields = parse_front_matter(path)
             if not fields or fields.get("exception"):
                 continue
@@ -417,7 +478,7 @@ def _check_plans_have_reviews(slug: str, seen: dict[str, str]) -> list[str]:
 
     paired = _review_folders(slug)
     for path in sorted(base.rglob("*")):
-        if path.suffix not in (".md", ".html") or not path.is_file():
+        if path.suffix not in DOC_SUFFIXES or not path.is_file():
             continue
         if path.name == "README.md":
             continue

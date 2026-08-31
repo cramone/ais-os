@@ -1,3 +1,24 @@
+---
+id: MM-029
+type: plan
+project: magiq-media
+workstream: authorization
+consumes: [MM-028]
+depends-on: []
+blocked-by-external:
+  - owner: magiq-auth team
+    ask: docs/spec/shared/magiq-auth-role-claims-requirements.md
+    sent: false
+    since: 2026-08-26
+status: blocked
+todo-id: 2354d6c2-43ad-5fc2-bb89-e7c62e996a83
+branches: []
+ado: -
+created: 2026-08-25
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-029.** X-11.31 and X-11.23 closed 2026-08-26; X-11.34 and X-11.35 verified and both hold. **X-11.30 is the only 🔴 left on MM-006** — 81 of 132 write commands with no authorization, 61 HTTP-reachable — and it is blocked outside this repo: magiq-auth issues no `roles` claim and no `actor_type` claim, so the role branch admits nobody and `ActorType` is always "User" over HTTP. **The ask is written and unsent** — that makes sending it the critical path, not an errand.
+
 # Authorization — plan
 
 _Opened 2026-08-26. Consumes `reviews/authorization/authorization-review-2026-08-25.md`._

@@ -1,3 +1,17 @@
+---
+id: MM-030
+type: review
+project: magiq-media
+workstream: event-reliability
+raised-by: []
+status: findings-agreed
+outcome: pending
+todo-id: 57f79a46-e83d-5be0-ae03-8269516a4cbc
+created: 2026-08-25
+---
+
+> **Backfilled into the review cycle 2026-08-31 as MM-030.** reviews/README.md flags this row as one to read twice: findings agreed and being worked **with no plan**, which is the one shape the cycle does not model. It needs either a plan or a terminal outcome. X-11.6 and the X-11.5 core closed 2026-08-27; X-11.44 is decision-gated, not work-gated.
+
 # Event reliability — three ways work disappears silently
 
 _Opened 2026-08-25 from the spec-drift review (W19, W25). **Two 🟠 gate blockers.** This was the
