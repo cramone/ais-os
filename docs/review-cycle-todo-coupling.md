@@ -116,7 +116,8 @@ are managed.
 | Element | Behaviour |
 |---|---|
 | Card | `draggable="false"`, `data-cycle="1"`, `data-cycle-type`, left border and tint coloured by type |
-| Badge | glyph + **type word** + id — `◇ REVIEW · MM-003`, `▤ PLAN · MM-004`, `⛌ GATE · MM-0xx` |
+| Badge | glyph + **type word** + id — `◇ REVIEW · MM-003`, `▤ PLAN · MM-004`, `⛌ GATE · MM-0xx`. **Click it to open the document.** |
+| Doc-id tag | Suppressed when it repeats the card's own badge; a tag naming a *different* document still gets a chip |
 | Tooltip | id, type, workstream, status, what that phase means, and the file path |
 | Footnote | *projection-tables — review status set in MM-003* |
 | Done / delete | Suppressed, on the kanban card, the list row and the drilldown's **Mark Done** |
@@ -135,6 +136,15 @@ nowhere, and it is the one that answers "does closing this free anything up". De
 Only unmet `depends-on` and **unsent** external asks raise a warning chip. A dependency counts as met
 at `done` or `superseded` — `parked` is deliberately *not* met, per SKILL.md § Dependency gating:
 *"it is not coming unless someone restarts it"*.
+
+## Quick search
+
+A search box over the live todo tabs — list and kanban both — matching **name, document id, tags and
+content**, where content is every activity comment (for a cycle card, its session log). Space-separated
+terms are ANDed, so `archive x-11.41` narrows rather than widens. The count reads `6 of 42 match`.
+
+Hidden on the Archived tab, which has its own richer filter bar. Two filter UIs over one list would be
+ambiguous about which is in force.
 
 ## Archiving a card
 

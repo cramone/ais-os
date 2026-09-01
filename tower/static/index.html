@@ -453,6 +453,9 @@
     border-color: rgba(248,81,73,0.35);
   }
   .cycle-badge .cycle-glyph { font-size: 11px; line-height: 1; }
+  /* The badge opens the document, so it has to look clickable. */
+  .cycle-badge.cycle-open { cursor: pointer; }
+  .cycle-badge.cycle-open:hover { filter: brightness(1.35); text-decoration: underline; }
   .cycle-locknote {
     display: block; margin-top: 4px;
     color: var(--muted); font-size: 10px; font-style: italic;
@@ -500,6 +503,10 @@
   .dep-row .dep-status { color: var(--muted); font-size: 11px; }
   .dep-row .dep-title { color: var(--text); opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dep-none { color: var(--muted); font-size: 12px; font-style: italic; }
+
+  /* QUICK SEARCH over the live todo tabs */
+  .todo-search-wrap { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .todo-search-wrap .arch-input { min-width: 260px; }
 
   /* ARCHIVE FILTER BAR */
   .archive-filters {
@@ -1136,7 +1143,7 @@
               <button type="submit" class="capture-submit">Capture</button>
             </form>
 
-            <!-- Status tabs -->
+            <!-- Status tabs + quick search -->
             <div class="interrupts-controls">
               <div class="interrupt-tabs todo-tabs">
                 <div class="interrupt-tab active" data-tab="open">Open</div>
@@ -1144,6 +1151,13 @@
                 <div class="interrupt-tab" data-tab="done">Done</div>
                 <div class="interrupt-tab" data-tab="all">All</div>
                 <div class="interrupt-tab" data-tab="archived">🗄 Archived</div>
+              </div>
+              <!-- Hidden on the Archived tab, which has its own richer filter bar —
+                   two filter UIs over one list would be ambiguous. -->
+              <div id="todo-search-wrap" class="todo-search-wrap">
+                <input type="search" id="todo-search" class="arch-input"
+                       placeholder="Filter by name, id, tag or content…" />
+                <span id="todo-search-count" class="arch-count"></span>
               </div>
             </div>
 
@@ -3194,6 +3208,37 @@
     }
   }
 
+  // Quick search over the live tabs. Matches name, document id, tags, and content —
+  // where "content" is the item's own text: every activity comment, which for a cycle
+  // card is its session log. Space-separated terms must all match (AND), so
+  // "archive x-11.41" narrows rather than widens.
+  let _todoQuery = '';
+
+  function _itemHaystack(i) {
+    const parts = [
+      i.title || '',
+      (i.tags || []).join(' '),
+      i.source || '',
+      i.cycle && i.cycle.id ? i.cycle.id : '',
+      i.cycle && i.cycle.workstream ? i.cycle.workstream : '',
+      ...(i.activity || []).map(a => a.text || ''),
+    ];
+    return parts.join('  ').toLowerCase();
+  }
+
+  function _matchesQuery(i, q) {
+    if (!q) return true;
+    const hay = _itemHaystack(i);
+    return q.toLowerCase().split(/\s+/).filter(Boolean).every(term => hay.includes(term));
+  }
+
+  function _wireTodoSearch() {
+    const el = document.getElementById('todo-search');
+    if (!el || el.dataset.wired) return;
+    el.dataset.wired = '1';
+    el.addEventListener('input', () => { _todoQuery = el.value; renderTodos(); });
+  }
+
   async function itemSetArchived(kind, id, archived) {
     const board = _board(kind);
     const r = await fetch(board.base(id), {
@@ -3619,6 +3664,11 @@
 
   function _renderItemBoard(board) {
     let pool = board.all();
+    // Quick search applies to every live view of the todo board, list and kanban
+    // alike. The archived tab is excluded below — it has its own filter bar.
+    if (board.kind === 'todo' && _todoQuery && board.tab() !== 'archived') {
+      pool = pool.filter(i => _matchesQuery(i, _todoQuery));
+    }
     if (board.features.sourceFilter) {
       const f = board.filter();
       if (f === 'zendesk') pool = pool.filter(i => i.zendeskTicket);
@@ -3635,6 +3685,15 @@
     _set(board.els.triage.today, dueToday.length);
     _set(board.els.triage.open, open.length);
     _set(board.els.triage.done, done.length);
+
+    if (board.kind === 'todo') {
+      _wireTodoSearch();
+      const wrap = document.getElementById('todo-search-wrap');
+      const cnt = document.getElementById('todo-search-count');
+      if (wrap) wrap.style.display = board.tab() === 'archived' ? 'none' : '';
+      if (cnt) cnt.textContent = _todoQuery
+        ? `${pool.length} of ${board.all().length} match` : '';
+    }
 
     document.querySelectorAll(board.els.viewBtn).forEach(b =>
       b.classList.toggle('active', b.dataset[board.els.viewAttr] === board.view()));
@@ -3685,7 +3744,7 @@
           <div class="interrupt-title">${i.title}</div>
           <div class="interrupt-meta">
             ${_idChip(i)}
-            ${_cycleBadge(i.cycle)}
+            ${_cycleBadge(board, i)}
             ${_depChips(i.cycle)}
             ${f.source && i.source ? `<span class="source-tag src-${(i.source || '').toLowerCase()}">${i.source}</span>` : ''}
             ${_tagChips(board, i, 3)}
@@ -3756,7 +3815,10 @@
     gate: 'Gate — a release decision over one or more plans. Not a work item; it reports what blocks a release.',
   };
 
-  function _cycleBadge(cy) {
+  // The badge is also the way in to the document. It already names the id, so a
+  // separate doc-id chip beside it said the same thing twice; _tagChips drops that one.
+  function _cycleBadge(board, i) {
+    const cy = i && i.cycle;
     if (!cy) return '';
     if (cy.dangling) {
       return `<span class="cycle-badge dangling" title="This card is tagged ${cy.id} but no document with that id exists. A dangling id is a data error — find or fix the document.">
@@ -3765,8 +3827,9 @@
     const type = cy.type || 'doc';
     const glyph = _CYCLE_GLYPH[type] || '◈';
     const phase = _CYCLE_PHASE[type] || '';
-    const title = `${cy.id} — ${type}${cy.workstream ? ` in ${cy.workstream}` : ''}, status "${cy.status}".\n\n${phase}\n\nFrom ${cy.path}. Status is set in the document, not here.`;
-    return `<span class="cycle-badge t-${type}" title="${_attr(title)}">
+    const title = `${cy.id} — ${type}${cy.workstream ? ` in ${cy.workstream}` : ''}, status "${cy.status}".\n\n${phase}\n\nClick to open ${cy.path}. Status is set in the document, not here.`;
+    return `<span class="cycle-badge t-${type} cycle-open" title="${_attr(title)}"
+        onclick="event.stopPropagation();openItemDoc('${board.kind}','${i.id}')">
       <span class="cycle-glyph">${glyph}</span><span class="cycle-type">${type}</span><span class="cycle-sep">·</span>${cy.id}</span>`;
   }
 
@@ -3788,7 +3851,7 @@
       <div class="int-card prio-${i.priority || 'normal'}${cycleCls}" draggable="${locked ? 'false' : 'true'}" data-id="${i.id}" data-status="${i.status}"${locked ? ` data-cycle="1" data-cycle-type="${cy.type}"` : ''} onclick="openItemDrilldown('${board.kind}','${i.id}')">
         <div class="interrupt-title" style="white-space:normal">${i.title}</div>
         <div class="interrupt-meta" style="margin-top:4px;flex-wrap:wrap">
-          ${_cycleBadge(cy)}
+          ${_cycleBadge(board, i)}
           ${_depChips(cy)}
           ${f.source && i.source ? `<span class="source-tag src-${(i.source || '').toLowerCase()}">${i.source}</span>` : ''}
           ${_tagChips(board, i)}
@@ -3938,14 +4001,20 @@
   // `max` caps how many chips render — the rest collapse into a +N chip so a
   // heavily-tagged item can't wrap its row onto a second line.
   function _tagChips(board, i, max = Infinity) {
-    const tags = i.tags || [];
+    // Drop the tag that merely repeats this card's own badge — the badge already
+    // shows the id and is now the way in to the document. A doc-id tag naming some
+    // *other* document (a cross-project origin) still earns a chip.
+    // Filtered before the slice, so the "+N" overflow count stays truthful.
+    const ownId = i.cycle && !i.cycle.dangling ? i.cycle.id : null;
+    const tags = (i.tags || []).filter(t => t !== ownId);
     const shown = tags.slice(0, max);
     const rest  = tags.length - shown.length;
-    const chips = shown.map(t => _isDocId(t)
-      ? `<span class="tag tag-docid active" title="Open ${t}"
-           onclick="event.stopPropagation();openItemDoc('${board.kind}','${i.id}')">${t}</span>`
-      : `<span class="tag ${_tagClass(t)} active">${_tagLabel(t)}</span>`
-    );
+    const chips = shown
+      .map(t => _isDocId(t)
+        ? `<span class="tag tag-docid active" title="Open ${t}"
+             onclick="event.stopPropagation();openItemDoc('${board.kind}','${i.id}')">${t}</span>`
+        : `<span class="tag ${_tagClass(t)} active">${_tagLabel(t)}</span>`
+      );
     if (rest > 0) chips.push(`<span class="tag tag-fixed" title="${tags.slice(max).join(', ')}">+${rest}</span>`);
     return chips.join('');
   }
@@ -3983,7 +4052,9 @@
   function openItemDoc(kind, id) {
     const board = _board(kind);
     if (!board) return;
-    const item = (board.all() || []).find(x => x.id === id);
+    // Archived rows live in their own cache, so board.all() alone cannot find them.
+    const item = (board.all() || []).find(x => x.id === id)
+      || (_todoArchiveCache || []).find(x => x.id === id);
     const src = item && item.source;
     if (!src) { alert('This item has no source document.'); return; }
     const m = src.replace(/\\/g, '/').match(/^projects\/([^/]+)\/(plans|reviews)\/(.+)$/);
