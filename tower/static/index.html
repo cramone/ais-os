@@ -517,6 +517,13 @@
      its status comes from its document, so the board cannot move it. */
   .kanban.dragging-cycle .kanban-col:not(.drop-target) { opacity: 0.55; }
 
+  /* Provenance — where this document came from. Deliberately the quietest of the
+     chips: it never gates anything, it is there so the link can be walked upward. */
+  .dep-chip.from {
+    background: rgba(139,148,158,0.10);
+    border-style: dashed;
+  }
+
   /* Terminal document, unfinished chain. Purple rather than amber: amber means
      "this is stuck waiting on something", this means "this is done but its story
      is not over" — a different thing, and worth distinguishing at a glance. */
@@ -3892,6 +3899,17 @@
     const chip = (cls, ids, label, title) =>
       `<span class="dep-chip ${cls}${ids.length ? ' dep-link' : ''}" data-dep-ids="${ids.join(',')}" title="${_attr(title)}">${label}</span>`;
 
+    // Where this came from. The reverse of `blocks`, and the half the card was
+    // missing: a plan showed what depended on it but never named the review that
+    // produced it, so the link could only be followed downward.
+    const from = d.consumes || [];
+    if (from.length) {
+      const kind = from.every(e => e.type === 'review') ? 'review'
+        : from.every(e => e.type === 'plan') ? 'plan' : 'document';
+      out.push(chip('from', from.map(e => e.id), `↰ from ${_depLabel(from.map(e => e.id))}`,
+        `Built on ${from.length} ${kind}${from.length > 1 ? 's' : ''}: `
+        + `${from.map(e => `${e.id} (${e.status})`).join(', ')}\nHover or click to highlight them.`));
+    }
     if (d.unmet) {
       const unmet = d.dependsOn.filter(e => !e.met);
       out.push(chip('waiting', unmet.map(e => e.id), `⛓ waits on ${_depLabel(unmet.map(e => e.id))}`,
@@ -4479,7 +4497,10 @@
             <span class="dep-status">${e.sent ? 'ask sent' : 'ASK NOT SENT'}${e.since ? ` · since ${e.since}` : ''}</span>
             <span class="dep-title">${e.ask || ''}</span>
           </div>`).join(''));
-        html += group('Consumes — the reviews it is built on',
+        // A plan consumes reviews; a gate consumes plans. Name whichever it is.
+        const consumedKind = d.consumes.length && d.consumes.every(e => e.type === 'plan')
+          ? 'the plans it triages' : 'the reviews it is built on';
+        html += group(`Consumes — ${consumedKind}`,
           d.consumes.map(e => row(e, e.status === 'missing' ? 'missing' : 'met')).join(''));
         html += group('Blocks — still needed by',
           d.blocks.map(b => row(b, b.status === 'done' || b.status === 'superseded' ? 'met' : 'unmet')).join(''));

@@ -123,7 +123,8 @@ are managed.
 | Done / delete | Suppressed, on the kanban card, the list row and the drilldown's **Mark Done** |
 | Comments | **Left writable everywhere** — the note box in the drilldown is the session log |
 | Dangling id | Red `⚠ MM-0xx missing` badge — the card is tagged but no document has that id |
-| Dependency chips | `⛓ waits on MM-024, MM-031` (amber), `✉ ask unsent — <owner>` (red), `↳ blocks MM-018 +2` (neutral), `⧗ chain open — MM-018, MM-019` (purple). Ids, not counts — the count told you to go looking, the ids are often the answer |
+| Dependency chips | `↰ from MM-025` (dashed, provenance), `⛓ waits on MM-024, MM-031` (amber), `✉ ask unsent — <owner>` (red), `↳ blocks MM-018 +2` (neutral), `⧗ chain open — MM-018, MM-019` (purple). Ids, not counts — the count told you to go looking, the ids are often the answer |
+| Walking the graph | Every chip is a link, so a chain can be followed in **both** directions: `↰ from` goes up to the parent review, `↳ blocks` / `⧗ chain open` go down to the children |
 | `blocks` vs `chain open` | Same edge, framed by whether the document is itself terminal. While it runs, what it blocks is information; once it is done, an open dependent is the reason it cannot be closed out |
 | Dependency highlight | Hover a chip to light up the cards it names and **dim everything else to 0.22**; click to pin it so you can follow a chain without holding the mouse. The chip's own card stays lit with a dashed outline — a link has two ends. Click again, or anywhere else, to clear |
 | Reordering | Drag a card within its column to reorder. **Cycle cards cannot change column** — the target column reads as refused, because status comes from the document |
