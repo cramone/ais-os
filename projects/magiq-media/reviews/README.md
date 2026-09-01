@@ -36,13 +36,22 @@ leave, not to rest in.
 | MM-036 | `bulk-import/` | `bulkfolderimportjob-review-2026-09-01.md` | **Draft** | pending | *(not yet planned — split from MM-022 § C.6; a build-or-withdraw decision, not a fix)* |
 | MM-037 | `bulk-import/` | `bulkmediaimportjob-review-2026-09-01.md` | **Draft** | pending | *(not yet planned — same split; the larger of the two, and **not estimable from its spec** — BMI-E)* |
 | MM-038 | `document-signing/` | `documentsigning-review-2026-09-01.md` | **Parked** | pending | *(none — split from MM-022 § H, parked on arrival because it was already parked by decision)* |
+| MM-039 | `platform-sdk/` | `platform-sdk-error-model-review-2026-09-01.md` | **Findings agreed** | pending | *(not yet planned — the work is in `aspnetcore-platform`. Split from MM-022 § N.2, which had no id and no status)* |
 | — | `Archive/` | 4 reviews — 3 consumed, plus `request-response-review.md` moved here 2026-08-31 | Done | plan | `plans/Archive/` |
 
-**Three workstreams were split out of `spec-drift-review/` on 2026-09-01** — `bulk-import/` (two reviews),
-`document-signing/`, and the outbox trio folded into MM-035. Each was **a decision about whether a feature
-exists**, tracked as rows on a drift checklist, which is the wrong instrument: a checklist asks *is it
-fixed*, and the answer for all three was *nobody has decided whether to build it*. `spec-repo-drift-review.md`
-dropped 69 → 52 open rows and **nothing was closed** in the move.
+**Four workstreams were split out of `spec-drift-review/` on 2026-09-01** — `bulk-import/` (two reviews),
+`document-signing/`, `platform-sdk/`, and the outbox trio folded into MM-035. **In every case the
+checklist was the wrong instrument**, though for two different reasons.
+
+Three of them were **decisions about whether a feature exists**: a checklist asks *is it fixed*, and the
+answer for bulk-import, document-signing and the outbox was *nobody has decided whether to build it*.
+**`platform-sdk/` is the other kind** — a body of requirements against a different repo, which a
+drift checklist can neither plan nor track, and which had sat there as an un-numbered appendix since
+2026-08-21. Its own counts had gone stale in the direction it predicted, precisely because nothing on the
+board was pointing at it.
+
+`spec-repo-drift-review.md` went from 69 to **31** open rows across the day. **Nothing was closed by any
+of the splits** — the rest was closed by Waves 1, 2, 5 and 6.
 
 Two rows need reading twice. **`event-reliability/`'s parent review is `Active` with outcome `pending`** —
 findings agreed and being worked without a plan, which is the one shape the cycle does not model. It
@@ -191,6 +200,26 @@ into the drift review's Tables & infra section.
 leaving it counted as unfinished business. **The cheap half is worth doing regardless of the decision:**
 `api.md` and `context-overview.md` read as shipped contract and need the banner their two sibling files
 already carry.
+
+## `platform-sdk/` — MM-039, split from the drift review · 2026-09-01
+
+Five gaps in `aspnetcore-platform` that the consuming app has worked around locally, plus a ready-to-use
+prompt for that repo. **The one that matters most is the error model:** `DomainError` has no error-code
+concept and `IProblemDetailsFactory` cannot see an `IDomainError`, so `magiq-media` carries **five
+byte-identical `DomainErrorCodes.cs` files** — one per module, because a module cannot reference another
+module's Domain project.
+
+It lived as § N.2 of `spec-repo-drift-review.md` from 2026-08-21: no id, no status, not on the board, and
+not plannable. **Three of its own numbers had gone stale** in exactly the direction it predicted — it
+argued "three copies is the tipping point" and forecast a fourth and fifth, both of which arrived without
+the argument being updated.
+
+**The blocker it never named:** no ASP.NET-side SDK project references `Magiq.Platform.WriteModel.Domain`,
+so the HTTP layer cannot name `IDomainError`. Resolved 2026-09-01 (Chase) — a new
+`Magiq.AspNetCore.FastEndpoints.Errors` package rather than widening `Platform.Abstractions`.
+
+**Closing it closes `X-10.3`** in the drift review (`QueryApi` cannot emit an `errorCode` at all) and
+deletes the five duplicated files.
 
 ## `spec-structure/` — where each dimension should live
 

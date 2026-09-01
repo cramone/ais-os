@@ -75,9 +75,28 @@ The ADR (`docs/adrs/ownership-and-authorization.md`) and the matrix
 > **Two things this changes about the current state, both worth knowing before the flags are flipped:**
 > `ActorType` is always `"User"` over HTTP, so the System branch of `AssetOwnership.CheckOwner` and
 > `ForceReleaseCheckout` never fires for a real caller — those guards are **owner-only in practice** and
-> narrower than they read. And Registration's five decision commands could take a System-actor gate
+> narrower than they read. ~~And Registration's five decision commands could take a System-actor gate
 > today without waiting on anybody, which is worth doing separately if the identity provider work is
-> slow.
+> slow.~~
+>
+> ⛔ **That second claim is wrong — struck 2026-09-01**, after the drift review's Wave 3 checked it
+> against code before implementing it. **The five decision commands cannot be gated ahead of the IdP
+> work; a System gate today is an outage, not a partial fix.** They are reachable **only** over HTTP —
+> no saga, consumer or CLI dispatches them — and over HTTP `ActorType` falls back to `"User"` in two
+> independent places (`HttpExecutionContextAccessor.cs:45`, `JwtClaimsMapper.cs:76`, repeated at
+> `TenantResolutionBuilder.cs:272,408`). With `magiq-auth` issuing no `actor_type`, the gate would 403
+> **every** caller and strand every filing at `Submitted`.
+>
+> **The error was reasoning from the first sentence to the second.** The MediaProfile governance
+> commands tolerate a System gate because the operator CLI's console host defaults to `Actor.System` —
+> a non-HTTP door. **The Registration five have no such door.** And every System check in the tree
+> today is *permissive* (an escape hatch past an owner check), so none is broken by `ActorType` always
+> being `"User"`; they merely never fire. A System-only *deny* gate would be the first **restrictive**
+> use, which is why the precedent does not carry.
+>
+> **So this blocker has no early slice. `magiq-auth-role-claims-requirements.md` is the whole critical
+> path — for Registration too.** Full working in `../spec-drift-review/spec-repo-drift-review.md`,
+> X-11.30 and the Wave 3 log entry.
 
 ### 🟠 Blockers — data loss and compliance
 

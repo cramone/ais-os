@@ -8,9 +8,10 @@ _Status: reference — not a todo_
 
 | Workstream | Folder | Entry point | State |
 |---|---|---|---|
-| Spec ↔ repo drift | `plans/spec-drift-review/` | `spec-repo-drift-review.md` | **Active** — **52** open rows, all code; §I.4 holds 41. *(69 until the 2026-09-01 split; before that the file said 59, corrected 2026-08-31. Plan against the row states, not the headline.)* The DDD plan beside it (MM-024) is **Done**. |
+| Spec ↔ repo drift | `plans/spec-drift-review/` | `spec-repo-drift-review.md` → **§ Execution plan** | **Active** — **18** open rows, all code. ▶ **Review and plan in one; work one wave per session and log it.** **Wave 0 is yours and is not code:** send `magiq-auth-role-claims-requirements.md`, and answer gate decisions 1 and 7. *(69 at the start of 2026-09-01. Four workstreams split out, P-2/P-3 to ADO, then Waves 1, 2, 5, 6 and 7 worked. Plan against the row states, not the headline — it has been wrong three times.)* |
 | Bulk import | `reviews/bulk-import/` | MM-036 (folder) · MM-037 (media) | **Draft, no plan** — split from the drift review 2026-09-01. A build-or-withdraw decision on two fully-specced aggregates with no code. **Yours to make.** |
 | Document signing | `reviews/document-signing/` | MM-038 | **Parked** — split from the drift review 2026-09-01, already parked by your decision. The two publish-honesty banners are worth doing either way. |
+| Platform SDK | `reviews/platform-sdk/` | MM-039 | **Findings agreed, no plan** — split from the drift review 2026-09-01. Five gaps in `aspnetcore-platform`; the error-model one deletes **five** duplicated `DomainErrorCodes.cs` files and closes X-10.3. You chose the new `Magiq.AspNetCore.FastEndpoints.Errors` package. |
 | Architecture-review remediation | `plans/architecture-review-remediation/` | `COWORK-EXECUTION-INSTRUCTIONS.md` → `IMPLEMENTATION-PLAN.md` | Active — 169 ADO items, nothing started |
 | Authz + outbox | `plans/architecture-review-remediation/` | `architecture-review-authz-and-outbox-deferred-plan.md` | **Parked** — deferred in sequencing only, both are pre-prod gates |
 | Projection tables | `plans/projection-tables/` | `schema-versioned-projection-tables-plan.md` | Proposed — supersedes the hot-swap rotation plan beside it |
