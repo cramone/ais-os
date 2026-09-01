@@ -6,7 +6,7 @@ workstream: deployment-naming
 consumes: [MM-005]
 depends-on: []
 blocked-by-external: []
-status: active
+status: done
 todo-id: 18a58118-5e58-5288-b177-36e0ec67a4fa
 branches: [magiq-media#159, magiq-media#163]
 ado: -
@@ -16,15 +16,34 @@ exception: legacy filename — predates the "plan is named after its primary rev
 
 # Plan — Remove the Environment-Name Suffix from Resource Naming
 
-> **Code complete, one item outstanding.** Verified against source 2026-08-31 by MM-005: change
-> inventory items 1–3, 7 and 19 all land in both repos, and decision 4 resolved as *keep and
-> repurpose* — `ENVIRONMENT_NAME` now selects the Secrets Manager overlay only. Nothing was
-> compiled, deployed or `cdk diff`ed; see MM-005 § Scope.
+> **Done — 2026-09-01.** Verified against source 2026-08-31 by MM-005: change inventory items 1–3, 7
+> and 19 all land in both repos, and decision 4 resolved as *keep and repurpose* — `ENVIRONMENT_NAME`
+> now selects the Secrets Manager overlay only.
 >
-> **Outstanding: item 13 — the ADR.** `docs/adrs/deployment-and-resource-naming.md` was named as a
-> deliverable in the header below, and was meant to land *before* the code. It does not exist, and
-> `docs/adrs/README.md:20` flags the gap itself. This is finding MM-005 DN-1 and the only thing
-> between this plan and `done`.
+> **Item 13 — the ADR — closed 2026-09-01.** `docs/adrs/deployment-and-resource-naming.md` is written,
+> `docs/adrs/README.md` links it instead of flagging the gap, and the six inbound citations across both
+> repos (`config.ts`, `magiq-media-stack.ts`, `platform-tables.ts`, `environment-variables.md`,
+> `MediaResourceNaming.cs`, `Media.Shared.Configuration/README.md`) now resolve. The ADR carries the
+> destructive-replacement consequence, the one-environment-per-account invariant, and DN-3. That closes
+> MM-005 DN-1. **Uncommitted** — the files are written on `feature/change-requests` in the app repo and
+> not staged; branch and PR per item 16 still to do.
+>
+> **DN-4 closed 2026-09-01:** the 46 stale untracked `.js` / `.d.ts` build artifacts under
+> `cdk-magiq-media/{lib,bin,test}` are deleted. They were compiled from an older `*.construct.ts`
+> naming scheme, `.gitignore`d, unreferenced (`cdk.json` runs `ts-node --prefer-ts-exts`) and
+> regenerable with `npm run build` — but one of them still contained the old suffix expression and
+> produced the false positive MM-005 recorded.
+>
+> **Verification 2026-09-01 (partial).** `npx jest` in `cdk-magiq-media`: **6/6 pass** — note the suite
+> is assertion-based with *zero snapshots*, so item 5's "regenerate snapshots" was moot; nothing there
+> asserts physical names. `tsc --noEmit`: clean. Item 19 re-grepped in both repos: no residual `-{env}`
+> naming; every surviving `ENVIRONMENT_NAME` hit is a secrets-overlay, CLI or `.env`-loading use, and
+> every `TableSuffix` hit is the explicit opt-in mechanism defaulting to empty.
+>
+> **Still not run — items 17, 18 (app half), 20.** `cdk synth --context env=dev` fails at
+> `MagiqMediaStack/WriteApiDomain` needing AWS calls for account 989143135668 with no credentials, so
+> `cdk diff` against dev and prod (**prod must show no resource-name diffs**) is still outstanding, as
+> is `dotnet test` and the post-deploy `/healthz` probe. These need Chase's environment, not the ADR.
 
 **Created:** 2026-07-21 · **Owner:** Chase Ramone · **Scope choice:** naming only
 (runtime behavior unchanged) · **Deliverable:** this plan + the ADR topic doc

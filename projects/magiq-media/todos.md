@@ -12,7 +12,7 @@ _Status: reference — not a todo_
 | Architecture-review remediation | `plans/architecture-review-remediation/` | `COWORK-EXECUTION-INSTRUCTIONS.md` → `IMPLEMENTATION-PLAN.md` | Active — 169 ADO items, nothing started |
 | Authz + outbox | `plans/architecture-review-remediation/` | `architecture-review-authz-and-outbox-deferred-plan.md` | **Parked** — deferred in sequencing only, both are pre-prod gates |
 | Projection tables | `plans/projection-tables/` | `schema-versioned-projection-tables-plan.md` | Proposed — supersedes the hot-swap rotation plan beside it |
-| Deployment naming | `plans/deployment-naming/` | `remove-env-suffix-plan.md` | **Parked** — 4 decisions open (see the todo below) |
+| Deployment naming | `plans/deployment-naming/` | `remove-env-suffix-plan.md` | **Done** 2026-09-01 — all 4 decisions resolved; ADR written, DN-1/DN-4 closed |
 | Design | `plans/design/` | `mediaitem-edit-session-design.html` | Active |
 
 Each folder has its own `Archive/`; `plans/Archive/` holds finished work with no live workstream.
@@ -203,9 +203,41 @@ client integrated against the old map shape in the meantime?
 
 ---
 
+## Four leftovers found while writing the deployment-naming ADR
+_Captured: 2026-09-01_
+_Status: todo — all found during MM-004's closing fact-check, none block it_
+
+1. **`EnvironmentResetCommand.cs:201` still derives `media-migrations-{env}` from `ENVIRONMENT_NAME`.**
+   The exact suffix pattern MM-004 removed, surviving in the CLI. Against a current deploy it
+   computes a table name that does not exist, so `EnvironmentReset` fails to exclude the migrations
+   table it is trying to protect. Small fix, real consequence. Recorded in the ADR as a known leftover.
+2. **App-side bucket defaults don't match anything provisioned.** `S3AssetStorageOptions` defaults to
+   `media-originals` / `media-renditions`; the real buckets are `magiq-media-originals-{account}-{region}-an`.
+   Harmless in Lambda (CDK injects the resolved names) but a local/CLI fallback points at nothing.
+   `MediaResourceNaming.cs`'s docblock also claims it emits `originals-{account}-{region}` — it emits nothing.
+   Same for the commented bucket example in `.env.example:101`, still written with `${ENVIRONMENT_NAME}`.
+3. **`docs-guard.yml` triggers on `docs/**` but only scans `docs/spec`.** `docs/adrs` is unguarded — and
+   **two ADRs are in fact truncated**: `api-http-conventions.md:99` and `asset-storage-and-processing.md:128`
+   both end on an unterminated table row with no trailing newline. Exactly the failure mode W1 was built
+   to catch, in the one docs subtree the guard doesn't look at. Recover the tails per `CLAUDE.md`, then
+   widen the guard to `docs/`.
+4. **`bucketName()` in `cdk-magiq-media/lib/config.ts` is dead code** — zero call sites since the bucket
+   construct moved to CloudFormation-generated names on 2026-07-24. Keep it (documents the intended
+   shape for a future explicitly-named bucket) or delete it, but it currently reads as the thing that
+   names the buckets and isn't. The CDK test hedges on both forms, so it wouldn't catch a regression.
+
+---
+
 ## Remove environment-name suffix from resource naming
 _Captured: 2026-07-21_
-_Status: todo — plan drafted, awaiting go-ahead_
+_Status: **done 2026-09-01** — code landed 2026-07/08; the ADR, the last item, is written_
+
+> **Closed.** All four decisions below were resolved (1 keep env-named · 2 inject `''` explicitly ·
+> 3 discard + reseed · 4 **kept and repurposed**, not removed — `ENVIRONMENT_NAME` now selects the
+> Secrets Manager overlay only). The "Key risk" and the one-account invariant are now recorded in
+> `docs/adrs/deployment-and-resource-naming.md` rather than only here. **Not yet done:** the ADR edit
+> is uncommitted on `feature/change-requests`, and `cdk diff` (dev + prod), `dotnet test` and the
+> post-deploy `/healthz` probe still need your environment. See MM-004's header for detail.
 
 Treat every deploy as prod-named: drop the `-{env}` suffix from all resource names so the
 "environment" is just the AWS account+region it lands in, with per-env differences delivered

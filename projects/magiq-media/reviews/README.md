@@ -20,7 +20,7 @@ leave, not to rest in.
 | Id | Workstream | Review | Status | Outcome | Its plan |
 |---|---|---|---|---|---|
 | MM-003 | `projection-tables/` | `projection-tables-review-2026-08-31.md` | Done | plan | MM-002 — **Parked** on Phase B only; Phase A shipped |
-| MM-005 | `deployment-naming/` | `deployment-naming-review-2026-08-31.md` | Done | plan | MM-004 — **Active**, one item left (the ADR, DN-1) |
+| MM-005 | `deployment-naming/` | `deployment-naming-review-2026-08-31.md` | Done | plan | MM-004 — **Done** 2026-09-01; DN-1 (the ADR) and DN-4 (stale build output) both closed |
 | MM-007…MM-017 | `architecture-review-remediation/` | 11 module + cross-cutting reviews, read as one body | Done | plan | `plans/architecture-review-remediation/` |
 | MM-023 | `spec-drift-review/` | `spec-ddd-coverage-review-2026-08-24.md` | Done | plan | `plans/spec-drift-review/` — same filename |
 | MM-033 | `spec-structure/` | `spec-structure-recommendation-2026-08-25.md` | Done | folded-into: MM-024 | *(no plan of its own — most of it lands in the DDD plan's Phases 2/4a/5)* |
@@ -99,6 +99,13 @@ work; `feature/change-requests` (2026-08-27, pushed, unmerged) has the later ref
 either alone gives a wrong answer, which is how the README came to say *Parked*.
 
 ## `deployment-naming/` — MM-005, retrospective · 2026-08-31
+
+> **Closed 2026-09-01.** Both open findings are resolved: DN-1's ADR is written at
+> `docs/adrs/deployment-and-resource-naming.md` (README row now links it), and DN-4's stale build
+> output is deleted — 46 `.js`/`.d.ts` artifacts across `cdk-magiq-media/{lib,bin,test}`, not just the
+> one file named below. MM-004 is `done`. Still unrun, and not blocking: `cdk diff` (needs AWS
+> credentials), `dotnet test`, and the post-deploy `/healthz` probe. The findings below are kept
+> as-written — they are the record of what was found.
 
 One review, same shape and same reason. `plans/README.md` had carried MM-004 as *Parked — four open
 decisions, ADR-first*. Three of those decisions were taken and implemented. The fourth is the ADR,

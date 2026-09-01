@@ -126,11 +126,21 @@ refinements (PT-4). Nothing here has been compiled or run.
 
 | Id | Plan | Status | What it is |
 |---|---|---|---|
-| MM-004 | `remove-env-suffix-plan.md` | **Active** | Drop the `-{env}` suffix from every resource name. **Code complete in both repos**, verified at source level by MM-005; three of the four opening decisions were taken and implemented. **One item outstanding — the ADR** (`docs/adrs/deployment-and-resource-naming.md`, change-inventory item 13), which was meant to land *before* the code and never did. `docs/adrs/README.md:20` flags the gap itself. That is finding DN-1 and the only thing between this plan and `done`. |
+| MM-004 | `remove-env-suffix-plan.md` | **Done** (2026-09-01) | Drop the `-{env}` suffix from every resource name. Code complete in both repos, verified at source level by MM-005. The last open item — the ADR, `docs/adrs/deployment-and-resource-naming.md`, change-inventory item 13 — was **written 2026-09-01**, closing DN-1; `docs/adrs/README.md` now links it instead of flagging the gap. DN-4 (stale `.js`/`.d.ts` build output in `cdk-magiq-media`) is cleared too. |
 | — | `Archive/deploy-handoff-tom.md` | Superseded | The dispatch-only deploy model, replaced by `deploy-runbook.md` in the project root. |
 
 The consequence the ADR most needs to carry: renaming a stateful resource makes CloudFormation
-*replace* it, so dev/qa/staging lose data on cutover. Prod naming is unchanged either way.
+*replace* it, so dev/qa/staging lose data on cutover. Prod naming is unchanged either way. It carries
+it, under § Consequences, along with the one-environment-per-account invariant the whole scheme rests
+on — co-locating two tiers in one account would collide every name in the platform.
+
+**Two loose ends, neither blocking `done`.** (a) The ADR and README edit are **written but
+uncommitted**, on `feature/change-requests` in the app repo — item 16 wants them on
+`deploy/chase/<ticket>-remove-env-suffix` with a cross-linked PR. (b) Verification items 17, 18 (the
+`dotnet test` half) and 20 are still unrun: `cdk synth` needs AWS credentials, so `cdk diff` against
+dev and **prod — which must show no resource-name diffs** — is outstanding, as is the post-deploy
+`/healthz` probe. `npx jest` (6/6) and `tsc --noEmit` are green; the jest suite has no snapshots and
+asserts no physical names, so item 5's snapshot regeneration was moot.
 
 ## `design/` — feature design and per-module remediation
 

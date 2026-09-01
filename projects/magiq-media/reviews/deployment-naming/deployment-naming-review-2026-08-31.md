@@ -123,6 +123,31 @@ None. MM-004 depends on no other document in this project.
 
 Item 1 is the whole remaining workstream. Items 2 and 3 are hygiene.
 
+> **Resolved 2026-09-01.**
+>
+> **Item 1 — done.** `docs/adrs/deployment-and-resource-naming.md` is written; `docs/adrs/README.md`
+> links it and both warning blocks are replaced. The ADR carries the destructive-replacement
+> consequence, the one-environment-per-account invariant (cited from `platform-tables.ts` at the
+> `media-folder-locks` table), and DN-3's kept-and-repurposed `ENVIRONMENT_NAME` contract. Six inbound
+> citations across the two repos now resolve. **Written but uncommitted** — MM-004 item 16's `deploy/`
+> branch and cross-linked PRs are still to do. This closes DN-1, and with it MM-004.
+>
+> **Item 2 — done, and larger than DN-4 described.** Not one file: **46** untracked `.js`/`.d.ts`
+> artifacts across `lib/`, `bin/` and `test/`, all deleted. Most were compiled from an older
+> `*.construct.ts` naming scheme the sources no longer use (`api-gateway.construct.js` beside
+> `api-gateway.ts`), and `test/template.test.js` outlived a test file that no longer exists. Safe:
+> zero were tracked, `.gitignore` covers `*.js`/`*.d.ts`, `cdk.json` runs
+> `ts-node --prefer-ts-exts`, and `npm run build` regenerates them.
+>
+> **Item 3 — half done.** `npx jest`: **6/6 pass**. Worth recording — the suite holds **no snapshots**
+> and asserts no physical resource names, so MM-004 item 5's "regenerate snapshots and fix
+> expectations" described a test suite that does not exist. `tsc --noEmit`: clean. Item 19 re-grepped
+> in both repos post-cleanup: no residual `-{env}` naming. **Still unrun:** `cdk synth --context
+> env=dev` fails at `MagiqMediaStack/WriteApiDomain` needing AWS calls for account 989143135668 with
+> no credentials configured, so items 17 (`cdk diff` dev *and* prod — prod must show no resource-name
+> diffs) and 20 (`/healthz`) need a credentialed environment; `dotnet test` needs a .NET SDK. This
+> review therefore remains **source-level plus a green CDK build**, not deploy-verified.
+
 ## Related
 
 - MM-004 — the plan this review consumes, `plans/deployment-naming/remove-env-suffix-plan.md`
