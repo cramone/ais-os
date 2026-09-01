@@ -517,6 +517,17 @@
      its status comes from its document, so the board cannot move it. */
   .kanban.dragging-cycle .kanban-col:not(.drop-target) { opacity: 0.55; }
 
+  /* The item the drilldown is showing. A left bar and a lift rather than a ring,
+     because rings already mean "dependency target" — two meanings sharing one visual
+     would make a highlighted chain unreadable. Survives dep-focus dimming, since the
+     card you are reading about should not fade while you read about it. */
+  .item-selected {
+    background: var(--surface2) !important;
+    box-shadow: inset 3px 0 0 0 var(--accent), 0 2px 10px rgba(0,0,0,0.35);
+  }
+  .int-card.item-selected { border-left-color: var(--accent); }
+  body.dep-focus .item-selected { opacity: 1 !important; filter: none !important; }
+
   /* Provenance — where this document came from. Deliberately the quietest of the
      chips: it never gates anything, it is there so the link can be walked upward. */
   .dep-chip.from {
@@ -3788,7 +3799,7 @@
     if (board.view() === 'kanban') {
       if (listEl) listEl.style.display = 'none';
       if (tabsEl) tabsEl.style.display = 'none';
-      if (kbEl) { kbEl.style.display = ''; _renderItemKanban(board, kbEl, pool); }
+      if (kbEl) { kbEl.style.display = ''; _renderItemKanban(board, kbEl, pool); _markSelected(); }
       return;
     }
     if (kbEl) kbEl.style.display = 'none';
@@ -3817,6 +3828,7 @@
       t.classList.toggle('active', t.dataset.tab === tab));
 
     _renderItemList(board.els.list, _sortByOrder(rows), i => _itemRowHTML(board, i));
+    _markSelected();
   }
 
   function _itemRowHTML(board, i) {
@@ -3941,6 +3953,22 @@
         `Still needed by: ${openBlocks.map(b => `${b.id} (${b.status})`).join(', ')}\nHover or click to highlight them.`));
     }
     return out.join('');
+  }
+
+  // Which item the drilldown is showing. Held as an id rather than an element because
+  // every board re-render replaces the DOM — the mark has to be re-applied, not kept.
+  let _selectedItemId = null;
+  function _markSelected() {
+    document.querySelectorAll('.item-selected').forEach(el => el.classList.remove('item-selected'));
+    if (!_selectedItemId) return;
+    document.querySelectorAll(`.int-card[data-id="${_selectedItemId}"], .interrupt-row[data-id="${_selectedItemId}"]`)
+      .forEach(el => el.classList.add('item-selected'));
+  }
+  function _closeDrilldown() {
+    const panel = document.getElementById('drilldown-panel');
+    if (panel) panel.style.display = 'none';
+    _selectedItemId = null;
+    _markSelected();
   }
 
   // Delegated once, so it survives every re-render. Hover previews the link; click
@@ -4457,6 +4485,8 @@
     const f = board.features;
 
     panel.style.display = '';
+    _selectedItemId = id;
+    _markSelected();
     panel.dataset.board = kind;
     panel.dataset.itemId = id;
     panel.dataset.interruptId = id;   // legacy alias
@@ -5601,9 +5631,7 @@
 
   // Drilldown close
   const drilldownCloseBtn = document.getElementById('drilldown-close');
-  if (drilldownCloseBtn) drilldownCloseBtn.addEventListener('click', function() {
-    document.getElementById('drilldown-panel').style.display = 'none';
-  });
+  if (drilldownCloseBtn) drilldownCloseBtn.addEventListener('click', _closeDrilldown);
 
   document.addEventListener('keydown', e => {
     // Don't fire shortcuts when typing in inputs/textareas
@@ -5613,7 +5641,7 @@
     if (e.key === 'Escape') {
       const panel = document.getElementById('drilldown-panel');
       if (panel && panel.style.display !== 'none') {
-        panel.style.display = 'none';
+        _closeDrilldown();
         e.preventDefault();
       }
       return;
