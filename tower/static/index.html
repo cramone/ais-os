@@ -3159,7 +3159,7 @@
 
     _docState[type].content = data.content;
     _docState[type].title = path.split('/').pop();
-    contentEl.innerHTML = _renderMarkdown(data.content);
+    _renderDocInto(contentEl, data.content, path);
   }
 
   function openDocFileReader(type) {
@@ -3360,6 +3360,33 @@
     return `<pre style="padding:12px;font-size:12px;white-space:pre-wrap;color:var(--text)">${md.replace(/</g,'&lt;')}</pre>`;
   }
 
+  function _isHtmlDoc(path) { return /\.html?$/i.test(path || ''); }
+
+  // Render a document into a container. Markdown goes through marked as before, but
+  // an .html document is a COMPLETE page — doctype, head, its own <style> — and
+  // injecting that inline puts its rules in the app's own cascade. The design docs
+  // define :root custom properties (--bg, --line, --ink) using the same names Tower's
+  // theme does, so opening one repainted the whole app white. An iframe is the only
+  // thing that actually isolates a stylesheet; scoping or stripping would be a guess
+  // about what the document contains.
+  function _renderDocInto(container, content, path) {
+    if (!_isHtmlDoc(path)) {
+      container.style.overflowY = 'auto';
+      container.innerHTML = _renderMarkdown(content);
+      return;
+    }
+    container.innerHTML = '';
+    container.style.overflowY = 'hidden';
+    const frame = document.createElement('iframe');
+    // No scripts: these are static documents, and a sandbox without allow-scripts
+    // also means the frame can never reach the parent. Popups stay allowed so links
+    // still open.
+    frame.setAttribute('sandbox', 'allow-popups allow-popups-to-escape-sandbox');
+    frame.style.cssText = 'width:100%;height:100%;min-height:420px;border:0;background:#fff;border-radius:6px';
+    frame.srcdoc = content;          // property, not attribute — no escaping needed
+    container.appendChild(frame);
+  }
+
   // ── Full-screen document reader (plans / notes / spec) ──────────────────────
   function openDocReader(title, md, icon) {
     const modal = document.getElementById('doc-reader-modal');
@@ -3369,9 +3396,12 @@
     if (!modal || !body) return;
     if (titleEl) titleEl.textContent = title || '';
     if (iconEl) iconEl.textContent = icon || '📄';
-    body.innerHTML = (md && md.trim())
-      ? _renderMarkdown(md)
-      : '<div style="font-size:12px;color:var(--muted);font-style:italic">Empty.</div>';
+    if (!(md && md.trim())) {
+      body.innerHTML = '<div style="font-size:12px;color:var(--muted);font-style:italic">Empty.</div>';
+    } else {
+      // Same isolation as the pane — the full-screen reader shares the app's cascade.
+      _renderDocInto(body, md, title);
+    }
     body.scrollTop = 0;
     modal.style.display = 'flex';
   }
