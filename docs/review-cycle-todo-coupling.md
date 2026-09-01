@@ -123,7 +123,8 @@ are managed.
 | Done / delete | Suppressed, on the kanban card, the list row and the drilldown's **Mark Done** |
 | Comments | **Left writable everywhere** — the note box in the drilldown is the session log |
 | Dangling id | Red `⚠ MM-0xx missing` badge — the card is tagged but no document has that id |
-| Dependency chips | `⛓ waits on MM-024, MM-031` (amber), `✉ ask unsent — <owner>` (red), `↳ blocks MM-018 +2` (neutral). Ids, not counts — the count told you to go looking, the ids are often the answer |
+| Dependency chips | `⛓ waits on MM-024, MM-031` (amber), `✉ ask unsent — <owner>` (red), `↳ blocks MM-018 +2` (neutral), `⧗ chain open — MM-018, MM-019` (purple). Ids, not counts — the count told you to go looking, the ids are often the answer |
+| `blocks` vs `chain open` | Same edge, framed by whether the document is itself terminal. While it runs, what it blocks is information; once it is done, an open dependent is the reason it cannot be closed out |
 | Dependency highlight | Hover a chip to light up the cards it names and **dim everything else to 0.22**; click to pin it so you can follow a chain without holding the mouse. The chip's own card stays lit with a dashed outline — a link has two ends. Click again, or anywhere else, to clear |
 | Reordering | Drag a card within its column to reorder. **Cycle cards cannot change column** — the target column reads as refused, because status comes from the document |
 | Drilldown | A **Dependencies** block: waits-on, external blockers, consumes, and blocks |
@@ -173,6 +174,20 @@ Distinct from archiving a *document*. A document moves to an `Archive/` folder (
 
 - Only a `done` item can be archived — anything else returns 409. The button is on the list row
   **and** the kanban card; Done piles up in both views.
+- **A cycle card is only archivable when its chain is complete.** A review whose plan is still
+  running is `done` as a document and unfinished as a workstream, and filing it away would hide the
+  origin of work still in flight — the next session would find a live plan whose review had vanished
+  from the board. The card shows `🗄 chain open` instead of a button, and the API returns 409 naming
+  what is still open. This is SKILL.md § Archiving's rule — *"a workstream is finished when its plan
+  is `done`"* — applied per card.
+
+`chainComplete` is `dependents closure ∩ non-terminal = ∅`, walked transitively with a visited set,
+so a done review behind a done plan behind an active plan still reports open. `parked` counts as open,
+matching `_MET`: it is not coming unless someone restarts it.
+
+The status itself does **not** change. `done` is the truth about the review — its findings are agreed
+and closed. Chain completeness is a property of the graph, derived per read, and belongs in a chip
+rather than in a status the document does not own.
 - Archived items stay in the same store with every field intact. `GET …/todos` excludes them;
   `?archived=true` returns them.
 - **A cycle card whose document lives under `Archive/` is archived by the projection**, and shows

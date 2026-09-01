@@ -517,6 +517,13 @@
      its status comes from its document, so the board cannot move it. */
   .kanban.dragging-cycle .kanban-col:not(.drop-target) { opacity: 0.55; }
 
+  /* Terminal document, unfinished chain. Purple rather than amber: amber means
+     "this is stuck waiting on something", this means "this is done but its story
+     is not over" — a different thing, and worth distinguishing at a glance. */
+  .dep-chip.chain {
+    background: rgba(188,140,255,0.16); color: var(--purple);
+    border-color: rgba(188,140,255,0.4);
+  }
   .dep-chip.unsent {
     background: rgba(248,81,73,0.16); color: var(--danger);
     border-color: rgba(248,81,73,0.4);
@@ -3847,7 +3854,23 @@
         : `<button class="action-btn" onclick="event.stopPropagation();itemSetArchived('${board.kind}','${i.id}',false)">↩ Restore</button>`;
     }
     if (i.status !== 'done') return '';
+    // A done review whose plan is still running is finished as a document and
+    // unfinished as a workstream. No button rather than a button that 409s.
+    const open = _openChain(i);
+    if (open.length) {
+      const listed = open.map(e => `${e.id} (${e.status})`).join(', ');
+      return `<span class="action-btn" style="opacity:.45;cursor:not-allowed" title="${_attr(
+        `Not archivable yet — work built on ${i.cycle.id} is still open: ${listed}.\n\n`
+        + 'A review is finished when its findings are agreed; the workstream is finished when its plan is done.')
+        }">🗄 chain open</span>`;
+    }
     return `<button class="action-btn" title="Archive — hides it from the board, keeps it in the archive list" onclick="event.stopPropagation();itemSetArchived('${board.kind}','${i.id}',true)">🗄 Archive</button>`;
+  }
+
+  // Everything built on this document, transitively, that has not finished.
+  function _openChain(i) {
+    const d = i.cycle && !i.cycle.dangling ? i.cycle.deps : null;
+    return (d && d.openDependents) || [];
   }
 
   // What this document waits on, and what waits on it. `consumes` is provenance and
@@ -3882,8 +3905,20 @@
       const who = d.external.map(e => e.owner).join(', ');
       out.push(chip('', [], `✉ waiting on ${who}`, `Waiting on ${who}; the ask has been sent.`));
     }
+    // Same edge, framed by whether this document is itself finished. While it is still
+    // running, "blocks X" is information. Once it is done, the fact that something
+    // built on it is still open is the reason it cannot be closed out — so it stops
+    // reading as neutral and starts reading as unfinished business.
+    const terminal = cy.status === 'done' || cy.status === 'superseded';
+    const openChain = d.openDependents || [];
     const openBlocks = (d.blocks || []).filter(b => b.status !== 'done' && b.status !== 'superseded');
-    if (openBlocks.length) {
+    if (terminal && openChain.length) {
+      out.push(chip('chain', openChain.map(e => e.id), `⧗ chain open — ${_depLabel(openChain.map(e => e.id))}`,
+        `${cy.id} is ${cy.status}, but work built on it is still open: `
+        + `${openChain.map(e => `${e.id} (${e.status})`).join(', ')}.\n\n`
+        + 'The review is finished; the workstream is not. It cannot be archived until the chain closes.\n'
+        + 'Hover or click to highlight them.'));
+    } else if (openBlocks.length) {
       out.push(chip('', openBlocks.map(b => b.id), `↳ blocks ${_depLabel(openBlocks.map(b => b.id))}`,
         `Still needed by: ${openBlocks.map(b => `${b.id} (${b.status})`).join(', ')}\nHover or click to highlight them.`));
     }
@@ -3932,7 +3967,27 @@
       const ids = idsOf(chip);
       const key = ids.join(',');
       if (_depPinned === key) { _depPinned = null; _highlightDeps([]); }
-      else { _depPinned = key; _highlightDeps(ids, chip); }
+      else {
+        _depPinned = key;
+        _highlightDeps(ids, chip);
+        // A dependency almost always sits in a different status than the thing that
+        // names it — a done review pointing at an active plan. From a status tab that
+        // means dimming the board and highlighting nothing, so widen to All and
+        // re-apply. Pinning only; switching tabs under a passing mouse would be rude.
+        if (!document.querySelector('.dep-target') && _todoTab !== 'all'
+            && chip.closest('#project-todos-section')) {
+          // Re-find the chip by its *card*, not by its dep-ids: eleven architecture
+          // reviews all name the same pair, so matching on ids alone marks whichever
+          // card renders first as the source.
+          const fromDoc = chip.closest('[data-doc-id]')?.dataset.docId;
+          _todoTab = 'all';
+          renderTodos();
+          const again = fromDoc
+            ? document.querySelector(`[data-doc-id="${fromDoc}"] .dep-chip[data-dep-ids="${key}"]`)
+            : null;
+          _highlightDeps(ids, again || chip);
+        }
+      }
     }, true);
   }
 

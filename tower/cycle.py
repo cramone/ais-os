@@ -423,7 +423,59 @@ def dependency_graph(slug: str) -> dict[str, dict[str, Any]]:
         # is already done by construction. Only `depends-on` and external asks gate.
         entry["unmet"] = sum(1 for e in entry["dependsOn"] if not e["met"])
         entry["unsentAsks"] = sum(1 for e in entry["external"] if not e.get("sent"))
+
+    # Chain completeness: a document is only really finished when everything built on
+    # it is finished too. A review that produced a plan has done its own job the moment
+    # its findings are agreed and closed — but the workstream it started is still
+    # running, and SKILL.md § Archiving is workstream-scoped: "a workstream is finished
+    # when its plan is `done`". Walked transitively, so a done review behind a done plan
+    # behind an active plan still reports open.
+    for doc_id in graph:
+        seen: set[str] = set()
+        stack = [b["id"] for b in graph[doc_id]["blocks"]]
+        open_dependents: list[dict[str, Any]] = []
+        while stack:
+            ref = stack.pop()
+            if ref in seen:
+                continue          # also breaks a dependency cycle rather than hanging
+            seen.add(ref)
+            target = index.get(ref)
+            if not target:
+                continue
+            if target["status"] not in _MET:
+                open_dependents.append(
+                    {"id": ref, "status": target["status"], "type": target["type"]})
+            stack.extend(b["id"] for b in graph.get(ref, {}).get("blocks", []))
+        graph[doc_id]["openDependents"] = sorted(open_dependents, key=lambda e: e["id"])
+        graph[doc_id]["chainComplete"] = (
+            index[doc_id]["status"] in _MET and not open_dependents)
     return graph
+
+
+def assert_archivable(slug: str, item: dict[str, Any]) -> None:
+    """Raise CycleViolation if this card's document still has work built on it.
+
+    A review whose plan is active is `done` as a document and unfinished as a
+    workstream. Filing it away would hide the origin of work still in flight — the
+    next session would find a live plan whose review had vanished from the board.
+    """
+    doc_id = todo_doc_id(item)
+    if not doc_id:
+        return
+    index = index_documents(slug)
+    doc = index.get(doc_id)
+    if not doc:
+        return
+    entry = dependency_graph(slug).get(doc_id, {})
+    open_dependents = entry.get("openDependents") or []
+    if not open_dependents:
+        return
+    listed = ", ".join(f"{e['id']} ({e['status']})" for e in open_dependents)
+    raise CycleViolation(
+        f"{doc_id} is `{doc['status']}`, but work built on it is still open: {listed}. "
+        "A review is finished when its findings are agreed; the workstream is finished "
+        "when its plan is done. Archive it once the chain closes."
+    )
 
 
 def annotate(slug: str, items: list[dict[str, Any]]) -> list[dict[str, Any]]:

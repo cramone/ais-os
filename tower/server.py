@@ -588,7 +588,14 @@ def patch_todo(slug: str, todo_id: str, body: InterruptUpdate) -> dict[str, Any]
         if item is None:
             raise HTTPException(404, f"Todo {todo_id!r} not found")
         try:
+            if want:
+                # A done review whose plan is still active is finished as a document
+                # and unfinished as a workstream. Filing it away would hide the origin
+                # of work still in flight.
+                cycle.assert_archivable(slug, item)
             set_archived(item, want)
+        except cycle.CycleViolation as exc:
+            raise HTTPException(409, str(exc))
         except ValueError as exc:
             raise HTTPException(409, str(exc))
         updates["archivedAt"] = item["archivedAt"]
