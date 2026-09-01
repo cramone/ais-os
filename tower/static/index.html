@@ -495,10 +495,10 @@
      The exclusion lives in this selector rather than in a later override: these are
      id-scoped, so a `.dep-target { opacity: 1 }` rule would lose on specificity and
      dim the very cards it was meant to spotlight. */
-  body.dep-focus #todos-kanban .int-card:not(.dep-target):not(.dep-source),
-  body.dep-focus #todos-list .interrupt-row:not(.dep-target):not(.dep-source),
-  body.dep-focus #interrupts-kanban .int-card:not(.dep-target):not(.dep-source),
-  body.dep-focus #interrupts-list .interrupt-row:not(.dep-target):not(.dep-source) {
+  body.focus-mode #todos-kanban .int-card:not(.dep-target):not(.dep-source):not(.item-selected),
+  body.focus-mode #todos-list .interrupt-row:not(.dep-target):not(.dep-source):not(.item-selected),
+  body.focus-mode #interrupts-kanban .int-card:not(.dep-target):not(.dep-source):not(.item-selected),
+  body.focus-mode #interrupts-list .interrupt-row:not(.dep-target):not(.dep-source):not(.item-selected) {
     opacity: 0.22;
     filter: saturate(0.4);
     transition: opacity 0.12s ease, filter 0.12s ease;
@@ -519,14 +519,13 @@
 
   /* The item the drilldown is showing. A left bar and a lift rather than a ring,
      because rings already mean "dependency target" — two meanings sharing one visual
-     would make a highlighted chain unreadable. Survives dep-focus dimming, since the
-     card you are reading about should not fade while you read about it. */
+     would make a highlighted chain unreadable. Selecting also puts the board into
+     focus-mode, so everything else recedes — the same treatment a dependency gets. */
   .item-selected {
     background: var(--surface2) !important;
     box-shadow: inset 3px 0 0 0 var(--accent), 0 2px 10px rgba(0,0,0,0.35);
   }
   .int-card.item-selected { border-left-color: var(--accent); }
-  body.dep-focus .item-selected { opacity: 1 !important; filter: none !important; }
 
   /* Provenance — where this document came from. Deliberately the quietest of the
      chips: it never gates anything, it is there so the link can be walked upward. */
@@ -3960,9 +3959,10 @@
   let _selectedItemId = null;
   function _markSelected() {
     document.querySelectorAll('.item-selected').forEach(el => el.classList.remove('item-selected'));
-    if (!_selectedItemId) return;
+    if (!_selectedItemId) { _updateFocusMode(); return; }
     document.querySelectorAll(`.int-card[data-id="${_selectedItemId}"], .interrupt-row[data-id="${_selectedItemId}"]`)
       .forEach(el => el.classList.add('item-selected'));
+    _updateFocusMode();
   }
   function _closeDrilldown() {
     const panel = document.getElementById('drilldown-panel');
@@ -3974,18 +3974,26 @@
   // Delegated once, so it survives every re-render. Hover previews the link; click
   // pins it, because following a chain means letting go of the mouse.
   let _depPinned = null;
+  // Focus is shared: a pinned dependency and an open drilldown can both be lit at
+  // once, so one function decides whether anything is focused rather than each
+  // feature toggling the body class and clobbering the other.
+  function _updateFocusMode() {
+    const lit = document.querySelector('.dep-target, .dep-source, .item-selected');
+    document.body.classList.toggle('focus-mode', !!lit);
+  }
+
   function _highlightDeps(ids, chip) {
     document.querySelectorAll('.dep-target, .dep-source')
       .forEach(el => el.classList.remove('dep-target', 'dep-source'));
-    document.body.classList.remove('dep-focus');
-    if (!ids || !ids.length) return;
-    ids.forEach(id => document.querySelectorAll(`[data-doc-id="${id}"]`)
-      .forEach(el => el.classList.add('dep-target')));
-    // The card the chip lives on stays lit too — a link has two ends, and dimming
-    // the one you are pointing at makes the relationship harder to read, not easier.
-    const source = chip && chip.closest('.int-card, .interrupt-row');
-    if (source) source.classList.add('dep-source');
-    document.body.classList.add('dep-focus');
+    if (ids && ids.length) {
+      ids.forEach(id => document.querySelectorAll(`[data-doc-id="${id}"]`)
+        .forEach(el => el.classList.add('dep-target')));
+      // The card the chip lives on stays lit too — a link has two ends, and dimming
+      // the one you are pointing at makes the relationship harder to read, not easier.
+      const source = chip && chip.closest('.int-card, .interrupt-row');
+      if (source) source.classList.add('dep-source');
+    }
+    _updateFocusMode();
   }
   function _wireDepHighlight() {
     if (document.body.dataset.depWired) return;

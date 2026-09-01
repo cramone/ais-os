@@ -127,6 +127,8 @@ are managed.
 | Walking the graph | Every chip is a link, so a chain can be followed in **both** directions: `↰ from` goes up to the parent review, `↳ blocks` / `⧗ chain open` go down to the children |
 | `blocks` vs `chain open` | Same edge, framed by whether the document is itself terminal. While it runs, what it blocks is information; once it is done, an open dependent is the reason it cannot be closed out |
 | Dependency highlight | Hover a chip to light up the cards it names and **dim everything else to 0.22**; click to pin it so you can follow a chain without holding the mouse. The chip's own card stays lit with a dashed outline — a link has two ends. Click again, or anywhere else, to clear |
+| Selection | Opening the drilldown marks its card with a left accent bar and puts the board into the same focus. A bar, not a ring — rings mean *dependency target*, and one visual with two meanings makes a highlighted chain unreadable |
+| Focus is shared | `body.focus-mode` is set by `_updateFocusMode()` from whether **anything** is lit — `.dep-target`, `.dep-source` or `.item-selected`. A pinned dependency and an open drilldown coexist; unpinning one does not undim the board while the other is still active |
 | Reordering | Drag a card within its column to reorder. **Cycle cards cannot change column** — the target column reads as refused, because status comes from the document |
 | Drilldown | A **Dependencies** block: waits-on, external blockers, consumes, and blocks |
 
