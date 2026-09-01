@@ -573,19 +573,43 @@
     padding: 8px 10px; margin-bottom: 10px;
     background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
   }
+  /* Each chip carries its own hue in --tag-h, so a tag is the same colour every time
+     it appears. review / plan / gate are pinned to their badge hues; everything else
+     is hashed from the tag name, which keeps colours stable and distinct without a
+     hand-maintained palette that would go stale the moment a workstream is added. */
   .tagbar-chip {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 2px 8px; border-radius: 10px; cursor: pointer;
-    background: var(--surface2); border: 1px solid var(--border);
-    color: var(--text); font-size: 11px; line-height: 1.6;
-    transition: background 0.1s ease, border-color 0.1s ease;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 9px 3px 7px; border-radius: 11px; cursor: pointer;
+    background: hsl(var(--tag-h) 60% 50% / 0.10);
+    border: 1px solid hsl(var(--tag-h) 60% 60% / 0.35);
+    color: hsl(var(--tag-h) 65% var(--tag-l, 76%));
+    font-size: 11px; line-height: 1.6; font-weight: 500;
+    transition: background 0.1s ease, border-color 0.1s ease, color 0.1s ease;
   }
-  .tagbar-chip:hover { border-color: var(--accent); }
-  .tagbar-chip .tagbar-n { color: var(--muted); font-size: 10px; }
+  /* A dot rather than a coloured background at rest — twenty saturated pills would be
+     louder than the cards they are meant to help you find. */
+  .tagbar-chip::before {
+    content: ''; width: 7px; height: 7px; border-radius: 50%;
+    background: hsl(var(--tag-h) 65% calc(var(--tag-l, 76%) - 14%)); flex: none;
+  }
+  .tagbar-chip:hover {
+    background: hsl(var(--tag-h) 60% 50% / 0.20);
+    border-color: hsl(var(--tag-h) 65% 65%);
+    color: hsl(var(--tag-h) 70% 84%);
+  }
+  .tagbar-chip .tagbar-n {
+    font-size: 10px; font-variant-numeric: tabular-nums;
+    padding: 0 5px; border-radius: 8px;
+    background: hsl(var(--tag-h) 40% 50% / 0.18);
+    color: inherit; opacity: 0.85;
+  }
   .tagbar-chip.on {
-    background: rgba(88,166,255,0.18); border-color: var(--accent); color: var(--accent);
+    background: hsl(var(--tag-h) 65% 50% / 0.30);
+    border-color: hsl(var(--tag-h) 70% 68%);
+    color: hsl(var(--tag-h) 80% 88%);
+    font-weight: 600;
   }
-  .tagbar-chip.on .tagbar-n { color: var(--accent); }
+  .tagbar-chip.on::before { box-shadow: 0 0 0 3px hsl(var(--tag-h) 65% 55% / 0.30); }
   .tagbar-clear { margin-left: auto; }
   .tagbar-empty { color: var(--muted); font-size: 11px; font-style: italic; }
 
@@ -3245,14 +3269,51 @@
   // alone, the badge already names a card's own id, and search covers the rest.
   const _selectedTags = new Set();
 
+  // Hue per tag. The three document types are pinned to the hues their badges already
+  // use, so the toolbar and the cards agree; everything else is hashed from the name,
+  // which is stable across reloads and needs no palette to maintain.
+  const _TAG_HUE = { review: 38, plan: 212, gate: 276 };
+  // FNV-1a. A rolling `h*31+c % 360` was the obvious choice and the wrong one: the
+  // modulo each step kills the avalanche, so tags sharing a prefix land on
+  // neighbouring hues — and alphabetical order then puts those chips side by side.
+  // archive-cascade, asset-custody and authorization came out three shades of the
+  // same green. FNV mixes to 32 bits and is reduced once, at the end.
+  function _tagHash(tag) {
+    let h = 2166136261;
+    for (let n = 0; n < tag.length; n++) {
+      h ^= tag.charCodeAt(n);
+      h = Math.imul(h, 16777619);
+    }
+    return Math.abs(h);
+  }
+
+  function _tagHue(tag) {
+    if (_TAG_HUE[tag] != null) return _TAG_HUE[tag];
+    const hue = _tagHash(tag) % 360;
+    // Skip 60-90: yellow-green goes muddy at this lightness on a dark ground.
+    return (hue >= 60 && hue < 90) ? hue + 40 : hue;
+  }
+
+  // Second dimension, taken from a different slice of the same hash. 22 tags over 360
+  // hues collide about half the time, and alphabetical order can seat the pair next to
+  // each other. Three lightness steps triple the space; taking them from the high bits
+  // of the hue's own hash means a hue collision needs the low bits to match and the
+  // high bits to match as well. A separate second hash did not help — its parity
+  // happened to agree, and document-signing still matched event-reliability exactly.
+  function _tagLight(tag) {
+    if (_TAG_HUE[tag] != null) return 76;      // pinned types keep the badge weight
+    return [64, 71, 78][(_tagHash(tag) >>> 12) % 3];
+  }
+
   function _tagbarTags(items) {
     const counts = new Map();
     items.forEach(i => (i.tags || []).forEach(t => {
       if (_isDocId(t)) return;
       counts.set(t, (counts.get(t) || 0) + 1);
     }));
-    // Commonest first: the tags worth clicking float up without needing a taxonomy.
-    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    // Alphabetical: a tag keeps its place as counts move, so the one you reached for
+    // last time is still where you left it.
+    return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }
 
   function _renderTagbar(pool) {
@@ -3266,8 +3327,9 @@
     if (!shown.size) { bar.style.display = 'none'; return; }
     bar.style.display = '';
     const chips = [...shown.entries()]
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([t, n]) => `<span class="tagbar-chip${_selectedTags.has(t) ? ' on' : ''}" data-tag="${_attr(t)}"
+          style="--tag-h:${_tagHue(t)};--tag-l:${_tagLight(t)}%"
           title="${_attr(`${n} item${n === 1 ? '' : 's'} tagged ${t}. Hover to highlight, click to filter.`)}"
         >${_tagLabel(t)}<span class="tagbar-n">${n}</span></span>`).join('');
     const clear = _selectedTags.size
