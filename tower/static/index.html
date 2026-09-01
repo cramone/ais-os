@@ -495,10 +495,10 @@
      The exclusion lives in this selector rather than in a later override: these are
      id-scoped, so a `.dep-target { opacity: 1 }` rule would lose on specificity and
      dim the very cards it was meant to spotlight. */
-  body.focus-mode #todos-kanban .int-card:not(.dep-target):not(.dep-source):not(.item-selected),
-  body.focus-mode #todos-list .interrupt-row:not(.dep-target):not(.dep-source):not(.item-selected),
-  body.focus-mode #interrupts-kanban .int-card:not(.dep-target):not(.dep-source):not(.item-selected),
-  body.focus-mode #interrupts-list .interrupt-row:not(.dep-target):not(.dep-source):not(.item-selected) {
+  body.focus-mode #todos-kanban .int-card:not(.dep-target):not(.dep-source):not(.item-selected):not(.tag-match),
+  body.focus-mode #todos-list .interrupt-row:not(.dep-target):not(.dep-source):not(.item-selected):not(.tag-match),
+  body.focus-mode #interrupts-kanban .int-card:not(.dep-target):not(.dep-source):not(.item-selected):not(.tag-match),
+  body.focus-mode #interrupts-list .interrupt-row:not(.dep-target):not(.dep-source):not(.item-selected):not(.tag-match) {
     opacity: 0.22;
     filter: saturate(0.4);
     transition: opacity 0.12s ease, filter 0.12s ease;
@@ -566,6 +566,37 @@
   .dep-row .dep-status { color: var(--muted); font-size: 11px; }
   .dep-row .dep-title { color: var(--text); opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dep-none { color: var(--muted); font-size: 12px; font-style: italic; }
+
+  /* TAG TOOLBAR */
+  .tagbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+    padding: 8px 10px; margin-bottom: 10px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  }
+  .tagbar-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px; border-radius: 10px; cursor: pointer;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-size: 11px; line-height: 1.6;
+    transition: background 0.1s ease, border-color 0.1s ease;
+  }
+  .tagbar-chip:hover { border-color: var(--accent); }
+  .tagbar-chip .tagbar-n { color: var(--muted); font-size: 10px; }
+  .tagbar-chip.on {
+    background: rgba(88,166,255,0.18); border-color: var(--accent); color: var(--accent);
+  }
+  .tagbar-chip.on .tagbar-n { color: var(--accent); }
+  .tagbar-clear { margin-left: auto; }
+  .tagbar-empty { color: var(--muted); font-size: 11px; font-style: italic; }
+
+  /* A card matching the hovered tag. Same treatment as a dependency target so the
+     two highlights read identically — you are pointing at something, it lights up. */
+  .tag-match {
+    outline: 2px solid var(--accent2);
+    outline-offset: 1px;
+    box-shadow: 0 0 0 4px rgba(63,185,80,0.16);
+    position: relative; z-index: 2;
+  }
 
   /* QUICK SEARCH over the live todo tabs */
   .todo-search-wrap { display: flex; align-items: center; gap: 8px; margin-left: auto; }
@@ -1226,6 +1257,10 @@
                 <span id="todo-search-count" class="arch-count"></span>
               </div>
             </div>
+
+            <!-- Tag toolbar. Rendered from whatever is on screen, so the counts are
+                 honest for the current tab and filter rather than for the whole store. -->
+            <div id="todo-tagbar" class="tagbar" style="display:none"></div>
 
             <!-- Archive filters — shown only on the Archived tab, because the archive
                  is the one list that grows without bound. -->
@@ -3206,6 +3241,76 @@
     renderTodos();
   }
 
+  // Tag toolbar. Document-id tags are excluded — there are 34 of them in magiq-media
+  // alone, the badge already names a card's own id, and search covers the rest.
+  const _selectedTags = new Set();
+
+  function _tagbarTags(items) {
+    const counts = new Map();
+    items.forEach(i => (i.tags || []).forEach(t => {
+      if (_isDocId(t)) return;
+      counts.set(t, (counts.get(t) || 0) + 1);
+    }));
+    // Commonest first: the tags worth clicking float up without needing a taxonomy.
+    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }
+
+  function _renderTagbar(pool) {
+    const bar = document.getElementById('todo-tagbar');
+    if (!bar) return;
+    const tags = _tagbarTags(pool);
+    // Selected tags must stay clickable even when the filter has hidden every other
+    // card carrying them — otherwise a filter can be entered and never left.
+    const shown = new Map(tags);
+    _selectedTags.forEach(t => { if (!shown.has(t)) shown.set(t, 0); });
+    if (!shown.size) { bar.style.display = 'none'; return; }
+    bar.style.display = '';
+    const chips = [...shown.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([t, n]) => `<span class="tagbar-chip${_selectedTags.has(t) ? ' on' : ''}" data-tag="${_attr(t)}"
+          title="${_attr(`${n} item${n === 1 ? '' : 's'} tagged ${t}. Hover to highlight, click to filter.`)}"
+        >${_tagLabel(t)}<span class="tagbar-n">${n}</span></span>`).join('');
+    const clear = _selectedTags.size
+      ? `<button class="action-btn tagbar-clear" id="tagbar-clear">Clear ${_selectedTags.size} tag${_selectedTags.size === 1 ? '' : 's'}</button>`
+      : '';
+    bar.innerHTML = chips + clear;
+  }
+
+  function _highlightTag(tag) {
+    document.querySelectorAll('.tag-match').forEach(el => el.classList.remove('tag-match'));
+    if (tag) {
+      document.querySelectorAll('#todos-list .interrupt-row, #todos-kanban .int-card')
+        .forEach(el => {
+          const item = (_todoCache || []).concat(_todoArchiveCache || [])
+            .find(i => i.id === el.dataset.id);
+          if (item && (item.tags || []).includes(tag)) el.classList.add('tag-match');
+        });
+    }
+    _updateFocusMode();
+  }
+
+  function _wireTagbar() {
+    const bar = document.getElementById('todo-tagbar');
+    if (!bar || bar.dataset.wired) return;
+    bar.dataset.wired = '1';
+    bar.addEventListener('mouseover', e => {
+      const chip = e.target.closest('.tagbar-chip');
+      if (chip) _highlightTag(chip.dataset.tag);
+    });
+    bar.addEventListener('mouseleave', () => _highlightTag(null));
+    bar.addEventListener('click', e => {
+      if (e.target.closest('#tagbar-clear')) { _selectedTags.clear(); _highlightTag(null); renderTodos(); return; }
+      const chip = e.target.closest('.tagbar-chip');
+      if (!chip) return;
+      const tag = chip.dataset.tag;
+      // Multiple tags narrow rather than widen: "plan" plus "archive-cascade" is the
+      // plan for that workstream, which is the question worth asking.
+      if (_selectedTags.has(tag)) _selectedTags.delete(tag); else _selectedTags.add(tag);
+      _highlightTag(null);
+      renderTodos();
+    });
+  }
+
   // Refetch the board. The GET reconciles cycle cards against their documents, so
   // this is how a status edited in a review or plan file reaches the board without a
   // full page reload — the reason a per-list refresh is worth having next to the
@@ -3812,6 +3917,10 @@
     if (board.kind === 'todo' && _todoQuery && board.tab() !== 'archived') {
       pool = pool.filter(i => _matchesQuery(i, _todoQuery));
     }
+    // Selected tags AND together, so each one narrows.
+    if (board.kind === 'todo' && _selectedTags.size && board.tab() !== 'archived') {
+      pool = pool.filter(i => [..._selectedTags].every(t => (i.tags || []).includes(t)));
+    }
     if (board.features.sourceFilter) {
       const f = board.filter();
       if (f === 'zendesk') pool = pool.filter(i => i.zendeskTicket);
@@ -3832,6 +3941,12 @@
     _wireDepHighlight();
     if (board.kind === 'todo') {
       _wireTodoSearch();
+      _wireTagbar();
+      // Built from the pool before the tag filter would collapse it to the selection,
+      // so counts read as "how many would this add", not "how many are left".
+      const tagPool = board.tab() === 'archived' ? [] : (_todoCache || []).filter(i =>
+        !_todoQuery || _matchesQuery(i, _todoQuery));
+      _renderTagbar(tagPool);
       const wrap = document.getElementById('todo-search-wrap');
       const cnt = document.getElementById('todo-search-count');
       if (wrap) wrap.style.display = board.tab() === 'archived' ? 'none' : '';
@@ -4028,7 +4143,7 @@
   // once, so one function decides whether anything is focused rather than each
   // feature toggling the body class and clobbering the other.
   function _updateFocusMode() {
-    const lit = document.querySelector('.dep-target, .dep-source, .item-selected');
+    const lit = document.querySelector('.dep-target, .dep-source, .item-selected, .tag-match');
     document.body.classList.toggle('focus-mode', !!lit);
   }
 
