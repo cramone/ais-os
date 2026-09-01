@@ -4014,6 +4014,17 @@
       const chip = e.target.closest('.dep-chip.dep-link');
       if (!chip) {
         if (_depPinned) { _depPinned = null; _highlightDeps([]); }
+        // Click-away closes the details panel. Three things are not "away":
+        //   inside the panel — that is reading it, not leaving it;
+        //   a card — which switches the selection, or toggles it shut in openItemDrilldown;
+        //   a text field — clicking the search box means you intend to type, and losing
+        //     the panel you are filtering against would be the opposite of helpful.
+        // A status tab still closes it: switching tab changes what you are looking at.
+        if (!e.target.closest('#drilldown-panel')
+            && !e.target.closest('.int-card, .interrupt-row')
+            && !e.target.closest('input, textarea, select')) {
+          _closeDrilldown();
+        }
         return;
       }
       e.stopPropagation();
@@ -4491,6 +4502,13 @@
     const item = board.all().find(i => i.id === id);
     if (!item) return;
     const f = board.features;
+
+    // Clicking the card whose details are already showing closes them again, so the
+    // same gesture that opened the panel dismisses it.
+    if (_selectedItemId === id && panel.style.display !== 'none') {
+      _closeDrilldown();
+      return;
+    }
 
     panel.style.display = '';
     _selectedItemId = id;
