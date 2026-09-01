@@ -489,6 +489,22 @@
     box-shadow: 0 0 0 4px rgba(88,166,255,0.16);
     position: relative; z-index: 2;
   }
+  /* While a dependency is being followed, everything that is not one end of the link
+     recedes. Ringing the targets alone still leaves them competing with forty other
+     cards; dropping the rest is what makes the relationship read at a glance.
+     The exclusion lives in this selector rather than in a later override: these are
+     id-scoped, so a `.dep-target { opacity: 1 }` rule would lose on specificity and
+     dim the very cards it was meant to spotlight. */
+  body.dep-focus #todos-kanban .int-card:not(.dep-target):not(.dep-source),
+  body.dep-focus #todos-list .interrupt-row:not(.dep-target):not(.dep-source),
+  body.dep-focus #interrupts-kanban .int-card:not(.dep-target):not(.dep-source),
+  body.dep-focus #interrupts-list .interrupt-row:not(.dep-target):not(.dep-source) {
+    opacity: 0.22;
+    filter: saturate(0.4);
+    transition: opacity 0.12s ease, filter 0.12s ease;
+  }
+  /* The source keeps its own, quieter mark — you are pointing at it already. */
+  .dep-source { outline: 1px dashed var(--muted); outline-offset: 1px; }
 
   /* Drag feedback: where the card will land, and which columns will refuse it. */
   .int-card.drop-before { box-shadow: 0 -3px 0 0 var(--accent); }
@@ -3877,11 +3893,18 @@
   // Delegated once, so it survives every re-render. Hover previews the link; click
   // pins it, because following a chain means letting go of the mouse.
   let _depPinned = null;
-  function _highlightDeps(ids) {
-    document.querySelectorAll('.dep-target').forEach(el => el.classList.remove('dep-target'));
+  function _highlightDeps(ids, chip) {
+    document.querySelectorAll('.dep-target, .dep-source')
+      .forEach(el => el.classList.remove('dep-target', 'dep-source'));
+    document.body.classList.remove('dep-focus');
     if (!ids || !ids.length) return;
     ids.forEach(id => document.querySelectorAll(`[data-doc-id="${id}"]`)
       .forEach(el => el.classList.add('dep-target')));
+    // The card the chip lives on stays lit too — a link has two ends, and dimming
+    // the one you are pointing at makes the relationship harder to read, not easier.
+    const source = chip && chip.closest('.int-card, .interrupt-row');
+    if (source) source.classList.add('dep-source');
+    document.body.classList.add('dep-focus');
   }
   function _wireDepHighlight() {
     if (document.body.dataset.depWired) return;
@@ -3889,7 +3912,7 @@
     const idsOf = el => (el.dataset.depIds || '').split(',').filter(Boolean);
     document.body.addEventListener('mouseover', e => {
       const chip = e.target.closest('.dep-chip.dep-link');
-      if (chip && !_depPinned) _highlightDeps(idsOf(chip));
+      if (chip && !_depPinned) _highlightDeps(idsOf(chip), chip);
     });
     document.body.addEventListener('mouseout', e => {
       if (e.target.closest('.dep-chip.dep-link') && !_depPinned) _highlightDeps([]);
@@ -3909,7 +3932,7 @@
       const ids = idsOf(chip);
       const key = ids.join(',');
       if (_depPinned === key) { _depPinned = null; _highlightDeps([]); }
-      else { _depPinned = key; _highlightDeps(ids); }
+      else { _depPinned = key; _highlightDeps(ids, chip); }
     }, true);
   }
 
