@@ -460,6 +460,61 @@
   /* Workstream pairing: a review and its plan share this, so the phase a workstream
      has reached is legible from two cards rather than one. */
   .cycle-ws { opacity: 0.75; font-weight: 500; }
+
+  /* DEPENDENCY CHIPS — what a document waits on, and what waits on it.
+     Waiting is the alarming state, so it takes the warning colour; "blocks N" is
+     neutral information, not a problem. */
+  .dep-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 1px 6px; border-radius: 10px;
+    font-size: 10px; font-weight: 600; white-space: nowrap;
+    background: rgba(139,148,158,0.14); color: var(--muted);
+    border: 1px solid rgba(139,148,158,0.28);
+  }
+  .dep-chip.waiting {
+    background: rgba(210,153,34,0.16); color: var(--warn);
+    border-color: rgba(210,153,34,0.4);
+  }
+  .dep-chip.unsent {
+    background: rgba(248,81,73,0.16); color: var(--danger);
+    border-color: rgba(248,81,73,0.4);
+  }
+
+  /* Dependency block in the drilldown */
+  .dep-section { margin-top: 10px; }
+  .dep-group { margin-bottom: 10px; }
+  .dep-group-head {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted); margin-bottom: 4px;
+  }
+  .dep-row {
+    display: flex; align-items: baseline; gap: 8px;
+    padding: 4px 8px; margin-bottom: 3px; border-radius: 4px;
+    background: var(--surface2); border-left: 2px solid var(--border);
+    font-size: 12px;
+  }
+  .dep-row.unmet { border-left-color: var(--warn); }
+  .dep-row.met { border-left-color: var(--accent2); }
+  .dep-row.missing { border-left-color: var(--danger); }
+  .dep-row .dep-id { font-weight: 600; font-family: ui-monospace, monospace; font-size: 11px; }
+  .dep-row .dep-status { color: var(--muted); font-size: 11px; }
+  .dep-row .dep-title { color: var(--text); opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dep-none { color: var(--muted); font-size: 12px; font-style: italic; }
+
+  /* ARCHIVE FILTER BAR */
+  .archive-filters {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    padding: 10px 12px; margin-bottom: 10px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  }
+  .arch-input, .arch-date {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text); padding: 5px 8px; font-size: 12px; font-family: inherit;
+  }
+  .arch-input { min-width: 180px; }
+  .arch-input.arch-narrow { min-width: 120px; }
+  .arch-label { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; }
+  .arch-count { margin-left: auto; color: var(--muted); font-size: 11px; }
   .kanban-col-head { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); display: flex; justify-content: space-between; padding: 0 2px 2px; }
 
   /* DECISIONS + SYNC PANELS */
@@ -1088,7 +1143,26 @@
                 <div class="interrupt-tab" data-tab="in-progress">In Progress</div>
                 <div class="interrupt-tab" data-tab="done">Done</div>
                 <div class="interrupt-tab" data-tab="all">All</div>
+                <div class="interrupt-tab" data-tab="archived">🗄 Archived</div>
               </div>
+            </div>
+
+            <!-- Archive filters — shown only on the Archived tab, because the archive
+                 is the one list that grows without bound. -->
+            <div id="todo-archive-filters" class="archive-filters" style="display:none">
+              <input type="search" id="arch-q" class="arch-input" placeholder="Filter by name…" />
+              <input type="search" id="arch-tag" class="arch-input arch-narrow" placeholder="Tag…" />
+              <input type="search" id="arch-id" class="arch-input arch-narrow" placeholder="Id, e.g. MM-014…" />
+              <label class="arch-label">Done from <input type="date" id="arch-from" class="arch-date" /></label>
+              <label class="arch-label">to <input type="date" id="arch-to" class="arch-date" /></label>
+              <select id="arch-sort" class="arch-input arch-narrow">
+                <option value="done-desc">Done ↓ newest</option>
+                <option value="done-asc">Done ↑ oldest</option>
+                <option value="name-asc">Name A→Z</option>
+                <option value="name-desc">Name Z→A</option>
+              </select>
+              <button type="button" id="arch-clear" class="action-btn">Clear</button>
+              <span id="arch-count" class="arch-count"></span>
             </div>
 
             <!-- Todos list -->
@@ -1708,6 +1782,12 @@
         <span class="tag">support</span>
         <span class="tag">client</span>
         <span class="tag tag-add">+ add tag</span>
+      </div>
+
+      <!-- Dependencies — cycle documents only; hidden for ordinary todos -->
+      <div class="dd-deps-block" style="display:none">
+        <div class="section-label">Dependencies</div>
+        <div class="dep-section dd-deps"></div>
       </div>
 
       <!-- Activity feed -->
@@ -3029,6 +3109,11 @@
     if (typeof _renderItemBoard === 'function') _renderItemBoard(BOARDS.todo);
   }
 
+  // Archived items are a separate fetch, not a filter over the live list — the
+  // archive grows without bound and there is no reason to ship it on every board load.
+  let _todoArchiveCache = [];
+  let _archFilters = { q: '', tag: '', id: '', from: '', to: '', sort: 'done-desc' };
+
   async function loadTodos(slug) {
     _todoSlug = slug;
     const listEl = document.getElementById('todos-list');
@@ -3037,7 +3122,91 @@
       const r = await fetch(`/api/projects/${slug}/todos`);
       _todoCache = r.ok ? await r.json() : [];
     } catch { _todoCache = []; }
+    if (_todoTab === 'archived') await loadTodoArchive(slug);
     renderTodos();
+  }
+
+  async function loadTodoArchive(slug) {
+    try {
+      const r = await fetch(`/api/projects/${slug || _todoSlug}/todos?archived=true`);
+      _todoArchiveCache = r.ok ? await r.json() : [];
+    } catch { _todoArchiveCache = []; }
+  }
+
+  // Filter + sort the archive. Name, tag and id are substring matches; the date range
+  // is inclusive and runs on doneAt, which is when the item actually finished rather
+  // than when it was last touched.
+  function _filterArchive(items) {
+    const f = _archFilters;
+    const q = f.q.trim().toLowerCase();
+    const tag = f.tag.trim().toLowerCase();
+    const id = f.id.trim().toLowerCase();
+    const from = f.from ? new Date(f.from + 'T00:00:00') : null;
+    const to = f.to ? new Date(f.to + 'T23:59:59') : null;
+
+    let rows = items.filter(i => {
+      if (q && !(i.title || '').toLowerCase().includes(q)) return false;
+      if (tag && !(i.tags || []).some(t => t.toLowerCase().includes(tag))) return false;
+      if (id) {
+        const docId = (i.cycle && i.cycle.id ? i.cycle.id : '').toLowerCase();
+        const inTags = (i.tags || []).some(t => t.toLowerCase().includes(id));
+        if (!docId.includes(id) && !inTags) return false;
+      }
+      if (from || to) {
+        const d = i.doneAt ? new Date(i.doneAt) : null;
+        if (!d) return false;               // undated cannot satisfy a range
+        if (from && d < from) return false;
+        if (to && d > to) return false;
+      }
+      return true;
+    });
+
+    const byName = (a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' });
+    const byDone = (a, b) => new Date(a.doneAt || a.updatedAt || 0) - new Date(b.doneAt || b.updatedAt || 0);
+    if (f.sort === 'name-asc') rows.sort(byName);
+    else if (f.sort === 'name-desc') rows.sort((a, b) => byName(b, a));
+    else if (f.sort === 'done-asc') rows.sort(byDone);
+    else rows.sort((a, b) => byDone(b, a));   // done-desc, the default
+    return rows;
+  }
+
+  function _wireArchiveFilters() {
+    const bind = (elId, key) => {
+      const el = document.getElementById(elId);
+      if (!el || el.dataset.wired) return;
+      el.dataset.wired = '1';
+      el.addEventListener('input', () => { _archFilters[key] = el.value; renderTodos(); });
+      el.addEventListener('change', () => { _archFilters[key] = el.value; renderTodos(); });
+    };
+    bind('arch-q', 'q'); bind('arch-tag', 'tag'); bind('arch-id', 'id');
+    bind('arch-from', 'from'); bind('arch-to', 'to'); bind('arch-sort', 'sort');
+    const clear = document.getElementById('arch-clear');
+    if (clear && !clear.dataset.wired) {
+      clear.dataset.wired = '1';
+      clear.addEventListener('click', () => {
+        _archFilters = { q: '', tag: '', id: '', from: '', to: '', sort: 'done-desc' };
+        ['arch-q','arch-tag','arch-id','arch-from','arch-to'].forEach(x => {
+          const el = document.getElementById(x); if (el) el.value = '';
+        });
+        const s = document.getElementById('arch-sort'); if (s) s.value = 'done-desc';
+        renderTodos();
+      });
+    }
+  }
+
+  async function itemSetArchived(kind, id, archived) {
+    const board = _board(kind);
+    const r = await fetch(board.base(id), {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archived })
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      alert(d.detail || 'Could not change archive state.');
+      return;
+    }
+    await loadTodoArchive();
+    await board.refresh();
   }
 
   // Configure marked.js
@@ -3485,11 +3654,22 @@
 
     // Status tab filtering
     const tab = board.tab();
+    const archEl = document.getElementById('todo-archive-filters');
     let rows;
-    if (tab === 'all') rows = pool;
-    else if (tab === 'done') rows = done;
-    else if (tab === 'in-progress') rows = pool.filter(i => i.status === 'in-progress');
-    else rows = open;   // 'open'
+    if (tab === 'archived') {
+      // The archive is its own dataset — a separate fetch, its own filters and sort.
+      rows = _filterArchive(_todoArchiveCache);
+      if (archEl) { archEl.style.display = ''; _wireArchiveFilters(); }
+      const countEl = document.getElementById('arch-count');
+      if (countEl) countEl.textContent =
+        `${rows.length} of ${_todoArchiveCache.length} archived`;
+    } else {
+      if (archEl) archEl.style.display = 'none';
+      if (tab === 'all') rows = pool;
+      else if (tab === 'done') rows = done;
+      else if (tab === 'in-progress') rows = pool.filter(i => i.status === 'in-progress');
+      else rows = open;   // 'open'
+    }
     if (tabsEl) tabsEl.querySelectorAll('.interrupt-tab').forEach(t =>
       t.classList.toggle('active', t.dataset.tab === tab));
 
@@ -3506,9 +3686,10 @@
           <div class="interrupt-meta">
             ${_idChip(i)}
             ${_cycleBadge(i.cycle)}
+            ${_depChips(i.cycle)}
             ${f.source && i.source ? `<span class="source-tag src-${(i.source || '').toLowerCase()}">${i.source}</span>` : ''}
             ${_tagChips(board, i, 3)}
-            <span class="interrupt-age">${_ago(new Date(i.capturedAt))}</span>
+            <span class="interrupt-age">${i.archivedAt && i.doneAt ? `done ${_ago(new Date(i.doneAt))}` : _ago(new Date(i.capturedAt))}</span>
           </div>
         </div>
         ${i.dueDate
@@ -3516,12 +3697,52 @@
           : '<div class="due-none">No due date</div>'}
         <div class="status-tag status-${i.status}">${i.status}</div>
         ${f.ado ? `<button class="action-btn" onclick="event.stopPropagation();pushInterruptToADO('${i.id}')">-&gt; ADO</button>` : ''}
+        ${_archiveBtn(board, i)}
         ${i.cycle && !i.cycle.dangling
           ? ''
-          : `<button class="action-btn done" onclick="event.stopPropagation();itemMarkDone('${board.kind}','${i.id}')">Done</button>
+          : `${i.archivedAt ? '' : `<button class="action-btn done" onclick="event.stopPropagation();itemMarkDone('${board.kind}','${i.id}')">Done</button>`}
              ${f.delete ? `<button class="action-btn danger" title="Delete" onclick="event.stopPropagation();itemDelete('${board.kind}','${i.id}')">✕</button>` : ''}`}
       </div>
     `;
+  }
+
+  // Archive is offered on any done item — including cycle cards, because archiving is
+  // a board concern, not document state. A cycle card whose document already sits in
+  // an Archive/ folder is archived by the projection and cannot be restored from here.
+  function _archiveBtn(board, i) {
+    if (board.kind !== 'todo') return '';
+    if (i.archivedAt) {
+      const derived = i.cycle && i.cycle.archived;
+      return derived
+        ? `<span class="action-btn" style="opacity:.5;cursor:default" title="Archived because ${i.cycle.id}'s file lives in an Archive/ folder. Move the document back to restore it.">🗄 filed</span>`
+        : `<button class="action-btn" onclick="event.stopPropagation();itemSetArchived('${board.kind}','${i.id}',false)">↩ Restore</button>`;
+    }
+    if (i.status !== 'done') return '';
+    return `<button class="action-btn" title="Archive — hides it from the board, keeps it in the archive list" onclick="event.stopPropagation();itemSetArchived('${board.kind}','${i.id}',true)">🗄 Archive</button>`;
+  }
+
+  // What this document waits on, and what waits on it. `consumes` is provenance and
+  // never gates — a plan consumes a review that is done by construction — so only
+  // depends-on and unsent external asks raise a warning.
+  function _depChips(cy) {
+    if (!cy || cy.dangling || !cy.deps) return '';
+    const d = cy.deps, out = [];
+    if (d.unmet) {
+      const names = d.dependsOn.filter(e => !e.met).map(e => `${e.id} (${e.status})`).join(', ');
+      out.push(`<span class="dep-chip waiting" title="Cannot complete until: ${_attr(names)}">⛓ waits on ${d.unmet}</span>`);
+    }
+    if (d.unsentAsks) {
+      const who = d.external.filter(e => !e.sent).map(e => e.owner).join(', ');
+      out.push(`<span class="dep-chip unsent" title="External blocker, ask NOT yet sent — ${_attr(who)}. An unsent ask is work we own.">✉ ask unsent</span>`);
+    } else if ((d.external || []).length) {
+      const who = d.external.map(e => e.owner).join(', ');
+      out.push(`<span class="dep-chip" title="Waiting on ${_attr(who)}; the ask has been sent.">✉ waiting on ${_attr(who)}</span>`);
+    }
+    const openBlocks = (d.blocks || []).filter(b => b.status !== 'done' && b.status !== 'superseded');
+    if (openBlocks.length) {
+      out.push(`<span class="dep-chip" title="Still needed by: ${_attr(openBlocks.map(b => `${b.id} (${b.status})`).join(', '))}">↳ blocks ${openBlocks.length}</span>`);
+    }
+    return out.join('');
   }
 
   // Glyph per document type. A gate is a release decision, not a work item, so it
@@ -3568,6 +3789,7 @@
         <div class="interrupt-title" style="white-space:normal">${i.title}</div>
         <div class="interrupt-meta" style="margin-top:4px;flex-wrap:wrap">
           ${_cycleBadge(cy)}
+          ${_depChips(cy)}
           ${f.source && i.source ? `<span class="source-tag src-${(i.source || '').toLowerCase()}">${i.source}</span>` : ''}
           ${_tagChips(board, i)}
         </div>
@@ -3652,7 +3874,12 @@
       tab.addEventListener('click', () => {
         const kind = tab.closest('#project-todos-section') ? 'todo' : 'interrupt';
         _board(kind); // ensure valid
-        if (kind === 'todo') { _todoTab = tab.dataset.tab; renderTodos(); }
+        if (kind === 'todo') {
+          _todoTab = tab.dataset.tab;
+          // The archive is fetched lazily — only when its tab is first opened.
+          if (_todoTab === 'archived') loadTodoArchive().then(renderTodos);
+          else renderTodos();
+        }
         else { _interruptTab = tab.dataset.tab; renderInterruptsSection(); }
       });
     });
@@ -3914,6 +4141,41 @@
     if (sourceEl) { sourceEl.textContent = item.source || ''; sourceEl.style.display = (f.source && item.source) ? '' : 'none'; }
     if (statusEl) statusEl.textContent = item.status;
     if (ageEl) ageEl.textContent = `Captured ${_ago(new Date(item.capturedAt))}`;
+
+    // Dependencies — the full picture the card can only hint at. Four groups, and the
+    // one that is not written down anywhere else is "blocks": the reverse edge, which
+    // answers whether closing this frees anything up.
+    const depsBlock = panel.querySelector('.dd-deps-block');
+    const depsEl = panel.querySelector('.dd-deps');
+    const cy = item.cycle;
+    if (depsBlock && depsEl) {
+      const d = cy && !cy.dangling ? cy.deps : null;
+      const any = d && (d.consumes.length || d.dependsOn.length || d.blocks.length || d.external.length);
+      depsBlock.style.display = d ? '' : 'none';
+      if (d) {
+        const row = (e, cls) => `<div class="dep-row ${cls}">
+            <span class="dep-id">${e.id}</span>
+            <span class="dep-status">${e.status}</span>
+            <span class="dep-title">${e.title || ''}</span>
+          </div>`;
+        const group = (head, body) => body ? `<div class="dep-group"><div class="dep-group-head">${head}</div>${body}</div>` : '';
+        let html = '';
+        html += group('Waits on — must finish first',
+          d.dependsOn.map(e => row(e, e.status === 'missing' ? 'missing' : e.met ? 'met' : 'unmet')).join(''));
+        html += group('External blockers', d.external.map(e => `
+          <div class="dep-row ${e.sent ? 'unmet' : 'missing'}">
+            <span class="dep-id">${e.owner || '—'}</span>
+            <span class="dep-status">${e.sent ? 'ask sent' : 'ASK NOT SENT'}${e.since ? ` · since ${e.since}` : ''}</span>
+            <span class="dep-title">${e.ask || ''}</span>
+          </div>`).join(''));
+        html += group('Consumes — the reviews it is built on',
+          d.consumes.map(e => row(e, e.status === 'missing' ? 'missing' : 'met')).join(''));
+        html += group('Blocks — still needed by',
+          d.blocks.map(b => row(b, b.status === 'done' || b.status === 'superseded' ? 'met' : 'unmet')).join(''));
+        depsEl.innerHTML = any ? html
+          : '<div class="dep-none">Nothing depends on this, and it waits on nothing.</div>';
+      }
+    }
 
     // Header action buttons.
     // A cycle card's status is projected from its document, so Mark Done would 409.

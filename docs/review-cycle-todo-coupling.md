@@ -122,6 +122,37 @@ are managed.
 | Done / delete | Suppressed, on the kanban card, the list row and the drilldown's **Mark Done** |
 | Comments | **Left writable everywhere** — the note box in the drilldown is the session log |
 | Dangling id | Red `⚠ MM-0xx missing` badge — the card is tagged but no document has that id |
+| Dependency chips | `⛓ waits on N` (amber), `✉ ask unsent` (red), `↳ blocks N` (neutral) |
+| Drilldown | A **Dependencies** block: waits-on, external blockers, consumes, and blocks |
+
+### Dependencies
+
+`dependency_graph(slug)` resolves both directions. The forward edges (`consumes`,
+`depends-on`) are in front-matter; the **reverse** edge — what a document blocks — is written
+nowhere, and it is the one that answers "does closing this free anything up". Derived per read.
+
+`consumes` is provenance and never gates: a plan consumes a review that is `done` by construction.
+Only unmet `depends-on` and **unsent** external asks raise a warning chip. A dependency counts as met
+at `done` or `superseded` — `parked` is deliberately *not* met, per SKILL.md § Dependency gating:
+*"it is not coming unless someone restarts it"*.
+
+## Archiving a card
+
+Distinct from archiving a *document*. A document moves to an `Archive/` folder (SKILL.md
+§ Archiving); a card is filed away so it stops crowding the board.
+
+- Only a `done` item can be archived — anything else returns 409.
+- Archived items stay in the same store with every field intact. `GET …/todos` excludes them;
+  `?archived=true` returns them.
+- **A cycle card whose document lives under `Archive/` is archived by the projection**, and shows
+  `🗄 filed` instead of a Restore button — restoring it would only be undone on the next read. Move
+  the document out of `Archive/` to bring the card back.
+- `doneAt` records when an item first reached `done`, and is cleared if it is reopened. It exists
+  because `updatedAt` moves on any edit, so it cannot answer "finished when".
+
+The archive view filters on name, tag, document id and a `doneAt` range, and sorts by name or done
+date. Nothing else in Tower needs filters; the archive does, because it is the one list that grows
+without bound.
 
 **Colour encodes the phase**, because that is the question the card is being asked:
 

@@ -50,8 +50,41 @@ def make_item(
         "customer": customer,
         "capturedAt": captured_at or now,
         "updatedAt": now,
+        # When the item first reached `done`. Distinct from updatedAt, which any edit
+        # moves — a "finished on" date has to survive later comments and retags.
+        "doneAt": now if status == "done" else None,
+        # Set when the item is filed away. Archived items keep every field and stay in
+        # the same store; they are excluded from the board rather than deleted.
+        "archivedAt": None,
         "activity": activity or [],
     }
+
+
+def stamp_done(item: dict[str, Any], previous_status: str | None = None) -> None:
+    """Maintain `doneAt` across a status change. Idempotent.
+
+    Set on the first transition into `done` and cleared on the way out, so an item
+    reopened and finished again carries the date that is actually true.
+    """
+    if item.get("status") == "done":
+        if not item.get("doneAt"):
+            item["doneAt"] = _now()
+    elif previous_status == "done" or item.get("doneAt"):
+        item["doneAt"] = None
+
+
+def set_archived(item: dict[str, Any], archived: bool) -> None:
+    """Archive or restore an item. Only a `done` item may be archived."""
+    if archived:
+        if item.get("status") != "done":
+            raise ValueError(
+                f"{item.get('title', 'item')!r} is {item.get('status')!r}, not done. "
+                "Only a done item can be archived."
+            )
+        item["archivedAt"] = item.get("archivedAt") or _now()
+    else:
+        item["archivedAt"] = None
+    item["updatedAt"] = _now()
 
 
 def create_item(path: Path, **fields: Any) -> dict[str, Any]:
@@ -77,12 +110,16 @@ def create_interrupt(
 
 def update_interrupt(path: Path, interrupt_id: str, **kwargs: Any) -> dict[str, Any]:
     items = load_interrupts(path)
-    allowed = {"title", "source", "dueDate", "priority", "status", "tags", "adoItemId", "zendeskTicket", "customer"}
+    allowed = {"title", "source", "dueDate", "priority", "status", "tags", "adoItemId",
+               "zendeskTicket", "customer", "archivedAt"}
     for item in items:
         if item["id"] == interrupt_id:
+            previous_status = item.get("status")
             for k, v in kwargs.items():
                 if k in allowed:
                     item[k] = v
+            if "status" in kwargs:
+                stamp_done(item, previous_status)
             item["updatedAt"] = _now()
             save_interrupts(path, items)
             return item

@@ -267,7 +267,7 @@ def reconcile(
     document whose front-matter carries a status this skill does not define is skipped
     rather than projected; `check()` reports both.
     """
-    from tower.interrupts.store import make_item
+    from tower.interrupts.store import make_item, set_archived, stamp_done
 
     index = index_documents(slug)
     if not index:
@@ -295,12 +295,27 @@ def reconcile(
                 _title_for(doc), source=doc["rel"], status=status, tags=wanted_tags,
             )
             item["id"] = todo_id_for(slug, doc_id)
+            if "/Archive/" in doc["rel"]:
+                set_archived(item, True)
             items.append(item)
             changed = True
             continue
 
         if item.get("status") != status:
+            previous = item.get("status")
             item["status"] = status
+            stamp_done(item, previous)
+            changed = True
+        elif status == "done" and not item.get("doneAt"):
+            stamp_done(item)            # backfill for cards that predate the field
+            changed = True
+
+        # A document filed under Archive/ is finished, so its card is too. Derived,
+        # not set by hand — unarchiving a card whose document is still archived would
+        # only come back on the next read.
+        doc_archived = "/Archive/" in doc["rel"]
+        if doc_archived and not item.get("archivedAt"):
+            set_archived(item, True)
             changed = True
 
         # Preserve any tag a human added; only the cycle-owned ones are managed here.
@@ -320,14 +335,106 @@ def reconcile(
     return items, changed
 
 
+def _ids_in(raw: str | None) -> list[str]:
+    """Document ids named in a front-matter list field, in order."""
+    return [] if is_empty_list(raw) else re.findall(r"[A-Z]{2,}-\d{3}", raw or "")
+
+
+# A dependency is met when the thing depended on has finished. `parked` and
+# `superseded` are explicitly NOT met — SKILL.md § Dependency gating: "it is not
+# coming unless someone restarts it", which is the case most worth surfacing.
+_MET = {"done", "superseded"}
+
+
+def _external_blockers(fields: dict[str, str], path: Path) -> list[dict[str, Any]]:
+    """Parse the `blocked-by-external` list. Empty when absent or `[]`.
+
+    Nested YAML, so it needs the raw lines rather than the flat field map.
+    """
+    raw = fields.get("blocked-by-external")
+    if raw and raw.strip() not in ("", "[]", "-"):
+        return []  # inline form, nothing structured to read
+    out: list[dict[str, Any]] = []
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").split("\n")
+    except OSError:
+        return out
+    inside = False
+    current: dict[str, Any] = {}
+    for line in lines[:60]:
+        if line.startswith("blocked-by-external:"):
+            inside = True
+            continue
+        if inside:
+            if line.strip() == "---" or (line and not line.startswith(" ")):
+                break
+            match = re.match(r"\s*-?\s*([a-z]+):\s*(.*)$", line)
+            if not match:
+                continue
+            key, value = match.group(1), match.group(2).strip()
+            if key == "owner" and current:
+                out.append(current)
+                current = {}
+            current[key] = value
+    if current:
+        out.append(current)
+    for entry in out:
+        entry["sent"] = str(entry.get("sent", "")).lower() == "true"
+    return out
+
+
+def dependency_graph(slug: str) -> dict[str, dict[str, Any]]:
+    """Per-document dependency edges, both directions, with met/unmet resolved.
+
+    The forward edges (`consumes`, `depends-on`) are in front-matter. The **reverse**
+    edge — what a document blocks — is not written anywhere, and it is the one that
+    answers "can I close this yet". Derived here so the board can show both.
+    """
+    index = index_documents(slug)
+    graph: dict[str, dict[str, Any]] = {
+        doc_id: {"consumes": [], "dependsOn": [], "blocks": [], "external": [],
+                 "unmet": 0, "unsentAsks": 0}
+        for doc_id in index
+    }
+
+    def describe(ref: str) -> dict[str, Any]:
+        target = index.get(ref)
+        if not target:
+            return {"id": ref, "status": "missing", "type": "", "met": False,
+                    "title": "", "dangling": True}
+        return {"id": ref, "status": target["status"], "type": target["type"],
+                "met": target["status"] in _MET,
+                "title": _title_for(target)}
+
+    for doc_id, doc in index.items():
+        fields = doc["fields"]
+        for field, key in (("consumes", "consumes"), ("depends-on", "dependsOn")):
+            for ref in _ids_in(fields.get(field)):
+                edge = describe(ref)
+                graph[doc_id][key].append(edge)
+                if ref in graph:
+                    graph[ref]["blocks"].append(
+                        {"id": doc_id, "status": doc["status"], "type": doc["type"],
+                         "via": key, "title": _title_for(doc)})
+        graph[doc_id]["external"] = _external_blockers(fields, doc["path"])
+
+    for doc_id, entry in graph.items():
+        # `consumes` is a provenance link, not a gate — a plan consumes a review that
+        # is already done by construction. Only `depends-on` and external asks gate.
+        entry["unmet"] = sum(1 for e in entry["dependsOn"] if not e["met"])
+        entry["unsentAsks"] = sum(1 for e in entry["external"] if not e.get("sent"))
+    return graph
+
+
 def annotate(slug: str, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Tag each cycle item with a transient `cycle` block for the UI.
 
     Not persisted — `save_interrupts` is called before this. The frontend reads it to
     render the card as a document projection: no drag, no status buttons, a link back
-    to the file.
+    to the file, and the dependency picture.
     """
     index = index_documents(slug)
+    graph = dependency_graph(slug)
     for item in items:
         doc_id = todo_doc_id(item)
         doc = index.get(doc_id) if doc_id else None
@@ -338,6 +445,8 @@ def annotate(slug: str, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "status": doc["status"],
                 "path": doc["rel"],
                 "workstream": doc["fields"].get("workstream", ""),
+                "archived": "/Archive/" in doc["rel"],
+                "deps": graph.get(doc_id, {}),
             }
         elif doc_id:
             # Tagged as a cycle todo but the document is gone. Say so on the card

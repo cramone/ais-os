@@ -24,6 +24,7 @@ from tower.interrupts.store import (
     load_interrupts,
     make_item,
     save_interrupts,
+    set_archived,
     update_activity,
     update_interrupt,
 )
@@ -240,6 +241,7 @@ class InterruptCreate(BaseModel):
 
 
 class InterruptUpdate(BaseModel):
+    archived: bool | None = None
     title: str | None = None
     source: str | None = None
     dueDate: str | None = None
@@ -525,7 +527,7 @@ def _load_todos(slug: str) -> list[dict[str, Any]]:
 
 
 @app.get("/api/projects/{slug}/todos")
-def get_todos(slug: str) -> list[dict[str, Any]]:
+def get_todos(slug: str, archived: bool = False) -> list[dict[str, Any]]:
     """Todos for a project, with cycle todos reconciled against their documents.
 
     Front-matter is authoritative (review-cycle SKILL.md § Todo store), so any cycle
@@ -537,7 +539,10 @@ def get_todos(slug: str) -> list[dict[str, Any]]:
     items, changed = cycle.reconcile(slug, items)
     if changed:
         save_interrupts(config.todos_file(slug), items)
-    return cycle.annotate(slug, items)
+    items = cycle.annotate(slug, items)
+    # Archived items stay in the same store and keep every field — they are filtered
+    # out of the board, not deleted. `?archived=true` is the archive view.
+    return [i for i in items if bool(i.get("archivedAt")) is archived]
 
 
 @app.post("/api/projects/{slug}/todos", status_code=201)
@@ -572,6 +577,19 @@ def patch_todo(slug: str, todo_id: str, body: InterruptUpdate) -> dict[str, Any]
             cycle.assert_not_cycle(slug, item, "set")
         except cycle.CycleViolation as exc:
             raise HTTPException(409, str(exc))
+
+    # Archiving is a board concern, not document state, so it is allowed on cycle
+    # cards too — but only a done item can be archived, whoever owns its status.
+    if "archived" in updates:
+        want = bool(updates.pop("archived"))
+        item = next((i for i in items if i["id"] == todo_id), None)
+        if item is None:
+            raise HTTPException(404, f"Todo {todo_id!r} not found")
+        try:
+            set_archived(item, want)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc))
+        updates["archivedAt"] = item["archivedAt"]
 
     try:
         return update_interrupt(path, todo_id, **updates)
