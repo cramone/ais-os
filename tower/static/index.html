@@ -478,6 +478,29 @@
     background: rgba(210,153,34,0.16); color: var(--warn);
     border-color: rgba(210,153,34,0.4);
   }
+  .dep-chip.dep-link { cursor: pointer; }
+  .dep-chip.dep-link:hover { filter: brightness(1.4); }
+
+  /* The card a dependency chip points at. Has to read across a busy board, so it
+     gets a ring and a lift rather than a tint. */
+  .dep-target {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+    box-shadow: 0 0 0 4px rgba(88,166,255,0.16);
+    position: relative; z-index: 2;
+  }
+
+  /* Drag feedback: where the card will land, and which columns will refuse it. */
+  .int-card.drop-before { box-shadow: 0 -3px 0 0 var(--accent); }
+  .kanban-col.drop-refused {
+    border-color: var(--danger);
+    background: rgba(248,81,73,0.05);
+    cursor: not-allowed;
+  }
+  /* While dragging a cycle card, columns other than its own read as unavailable —
+     its status comes from its document, so the board cannot move it. */
+  .kanban.dragging-cycle .kanban-col:not(.drop-target) { opacity: 0.55; }
+
   .dep-chip.unsent {
     background: rgba(248,81,73,0.16); color: var(--danger);
     border-color: rgba(248,81,73,0.4);
@@ -3239,6 +3262,36 @@
     el.addEventListener('input', () => { _todoQuery = el.value; renderTodos(); });
   }
 
+  // Manual position first, in the order someone arranged; everything unplaced keeps
+  // the order the server sent and sits after. A new card lands at the bottom rather
+  // than jumping into the middle of an arrangement.
+  function _sortByOrder(items) {
+    return items.slice().sort((a, b) => {
+      const ao = a.order, bo = b.order;
+      if (ao == null && bo == null) return 0;
+      if (ao == null) return 1;
+      if (bo == null) return -1;
+      return ao - bo;
+    });
+  }
+
+  async function _reorderColumn(board, ids) {
+    if (board.kind !== 'todo') return;
+    // Optimistic: renumber the cache so the card stays where it was dropped rather
+    // than snapping back for the length of a round trip.
+    ids.forEach((id, index) => {
+      const item = (_todoCache || []).find(x => x.id === id);
+      if (item) item.order = index;
+    });
+    renderTodos();
+    try {
+      await fetch(`/api/projects/${_todoSlug}/todos/reorder`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids })
+      });
+    } catch { /* the optimistic order stands until the next load */ }
+  }
+
   async function itemSetArchived(kind, id, archived) {
     const board = _board(kind);
     const r = await fetch(board.base(id), {
@@ -3686,6 +3739,7 @@
     _set(board.els.triage.open, open.length);
     _set(board.els.triage.done, done.length);
 
+    _wireDepHighlight();
     if (board.kind === 'todo') {
       _wireTodoSearch();
       const wrap = document.getElementById('todo-search-wrap');
@@ -3732,13 +3786,13 @@
     if (tabsEl) tabsEl.querySelectorAll('.interrupt-tab').forEach(t =>
       t.classList.toggle('active', t.dataset.tab === tab));
 
-    _renderItemList(board.els.list, rows, i => _itemRowHTML(board, i));
+    _renderItemList(board.els.list, _sortByOrder(rows), i => _itemRowHTML(board, i));
   }
 
   function _itemRowHTML(board, i) {
     const f = board.features;
     return `
-      <div class="interrupt-row" onclick="openItemDrilldown('${board.kind}','${i.id}')">
+      <div class="interrupt-row" data-id="${i.id}"${i.cycle && !i.cycle.dangling ? ` data-doc-id="${i.cycle.id}"` : ''} onclick="openItemDrilldown('${board.kind}','${i.id}')">
         <div class="priority-dot p-${i.priority || 'normal'}"></div>
         <div class="interrupt-body">
           <div class="interrupt-title">${i.title}</div>
@@ -3783,25 +3837,80 @@
   // What this document waits on, and what waits on it. `consumes` is provenance and
   // never gates — a plan consumes a review that is done by construction — so only
   // depends-on and unsent external asks raise a warning.
+  // Name the ids rather than count them. "waits on 2" tells you to go looking;
+  // "waits on MM-024, MM-031" is often the whole answer. Long lists truncate to two
+  // plus a "+N", with the full set in the tooltip.
+  function _depLabel(ids) {
+    if (ids.length <= 2) return ids.join(', ');
+    return `${ids.slice(0, 2).join(', ')} +${ids.length - 2}`;
+  }
+
+  // data-dep-ids drives the highlight: hovering or clicking a chip lights up the
+  // cards it names, so a dependency can be followed without opening anything.
   function _depChips(cy) {
     if (!cy || cy.dangling || !cy.deps) return '';
     const d = cy.deps, out = [];
+    const chip = (cls, ids, label, title) =>
+      `<span class="dep-chip ${cls}${ids.length ? ' dep-link' : ''}" data-dep-ids="${ids.join(',')}" title="${_attr(title)}">${label}</span>`;
+
     if (d.unmet) {
-      const names = d.dependsOn.filter(e => !e.met).map(e => `${e.id} (${e.status})`).join(', ');
-      out.push(`<span class="dep-chip waiting" title="Cannot complete until: ${_attr(names)}">⛓ waits on ${d.unmet}</span>`);
+      const unmet = d.dependsOn.filter(e => !e.met);
+      out.push(chip('waiting', unmet.map(e => e.id), `⛓ waits on ${_depLabel(unmet.map(e => e.id))}`,
+        `Cannot complete until: ${unmet.map(e => `${e.id} (${e.status})`).join(', ')}\nHover or click to highlight them.`));
     }
     if (d.unsentAsks) {
       const who = d.external.filter(e => !e.sent).map(e => e.owner).join(', ');
-      out.push(`<span class="dep-chip unsent" title="External blocker, ask NOT yet sent — ${_attr(who)}. An unsent ask is work we own.">✉ ask unsent</span>`);
+      out.push(chip('unsent', [], `✉ ask unsent — ${who}`,
+        `External blocker, ask NOT yet sent — ${who}. An unsent ask is work we own, not work we wait on.`));
     } else if ((d.external || []).length) {
       const who = d.external.map(e => e.owner).join(', ');
-      out.push(`<span class="dep-chip" title="Waiting on ${_attr(who)}; the ask has been sent.">✉ waiting on ${_attr(who)}</span>`);
+      out.push(chip('', [], `✉ waiting on ${who}`, `Waiting on ${who}; the ask has been sent.`));
     }
     const openBlocks = (d.blocks || []).filter(b => b.status !== 'done' && b.status !== 'superseded');
     if (openBlocks.length) {
-      out.push(`<span class="dep-chip" title="Still needed by: ${_attr(openBlocks.map(b => `${b.id} (${b.status})`).join(', '))}">↳ blocks ${openBlocks.length}</span>`);
+      out.push(chip('', openBlocks.map(b => b.id), `↳ blocks ${_depLabel(openBlocks.map(b => b.id))}`,
+        `Still needed by: ${openBlocks.map(b => `${b.id} (${b.status})`).join(', ')}\nHover or click to highlight them.`));
     }
     return out.join('');
+  }
+
+  // Delegated once, so it survives every re-render. Hover previews the link; click
+  // pins it, because following a chain means letting go of the mouse.
+  let _depPinned = null;
+  function _highlightDeps(ids) {
+    document.querySelectorAll('.dep-target').forEach(el => el.classList.remove('dep-target'));
+    if (!ids || !ids.length) return;
+    ids.forEach(id => document.querySelectorAll(`[data-doc-id="${id}"]`)
+      .forEach(el => el.classList.add('dep-target')));
+  }
+  function _wireDepHighlight() {
+    if (document.body.dataset.depWired) return;
+    document.body.dataset.depWired = '1';
+    const idsOf = el => (el.dataset.depIds || '').split(',').filter(Boolean);
+    document.body.addEventListener('mouseover', e => {
+      const chip = e.target.closest('.dep-chip.dep-link');
+      if (chip && !_depPinned) _highlightDeps(idsOf(chip));
+    });
+    document.body.addEventListener('mouseout', e => {
+      if (e.target.closest('.dep-chip.dep-link') && !_depPinned) _highlightDeps([]);
+    });
+    // Capture phase, not bubble: the card carries an inline onclick that opens the
+    // drilldown, and an element handler fires before an ancestor's bubble handler.
+    // Stopping propagation here is the only way to pin a highlight without also
+    // opening the panel over the top of it.
+    document.body.addEventListener('click', e => {
+      const chip = e.target.closest('.dep-chip.dep-link');
+      if (!chip) {
+        if (_depPinned) { _depPinned = null; _highlightDeps([]); }
+        return;
+      }
+      e.stopPropagation();
+      e.preventDefault();
+      const ids = idsOf(chip);
+      const key = ids.join(',');
+      if (_depPinned === key) { _depPinned = null; _highlightDeps([]); }
+      else { _depPinned = key; _highlightDeps(ids); }
+    }, true);
   }
 
   // Glyph per document type. A gate is a release decision, not a work item, so it
@@ -3848,7 +3957,7 @@
     const locked = !!cy && !cy.dangling;
     const cycleCls = cy ? ` cycle-card${locked ? ` cycle-${cy.type}` : ''}` : '';
     return `
-      <div class="int-card prio-${i.priority || 'normal'}${cycleCls}" draggable="${locked ? 'false' : 'true'}" data-id="${i.id}" data-status="${i.status}"${locked ? ` data-cycle="1" data-cycle-type="${cy.type}"` : ''} onclick="openItemDrilldown('${board.kind}','${i.id}')">
+      <div class="int-card prio-${i.priority || 'normal'}${cycleCls}" draggable="true" data-id="${i.id}" data-status="${i.status}"${locked ? ` data-cycle="1" data-cycle-type="${cy.type}" data-doc-id="${cy.id}"` : ''} onclick="openItemDrilldown('${board.kind}','${i.id}')">
         <div class="interrupt-title" style="white-space:normal">${i.title}</div>
         <div class="interrupt-meta" style="margin-top:4px;flex-wrap:wrap">
           ${_cycleBadge(board, i)}
@@ -3860,7 +3969,9 @@
           ${_idChip(i)}
           ${i.dueDate ? `<span class="due-chip ${_dueClass(i.dueDate)}">${_dueLabel(i.dueDate)}</span>` : ''}
           <span class="interrupt-age">${_ago(new Date(i.capturedAt))}</span>
-          ${f.delete && !locked ? `<button class="action-btn danger todo-delete-btn" title="Delete" style="margin-left:auto" onclick="event.stopPropagation();itemDelete('${board.kind}','${i.id}')">✕</button>` : ''}
+          <span style="margin-left:auto"></span>
+          ${_archiveBtn(board, i)}
+          ${f.delete && !locked ? `<button class="action-btn danger todo-delete-btn" title="Delete" onclick="event.stopPropagation();itemDelete('${board.kind}','${i.id}')">✕</button>` : ''}
         </div>
         ${locked ? `<span class="cycle-locknote">${cy.workstream ? `<span class="cycle-ws">${cy.workstream}</span> — ` : ''}${cy.type} status set in ${cy.id}</span>` : ''}
       </div>`;
@@ -3876,30 +3987,81 @@
     const statusOf = i => cols.some(c => c.key === i.status) ? i.status : 'new';
     container.style.setProperty('--kanban-cols', cols.length);
     container.innerHTML = `<div class="kanban" style="--kanban-cols:${cols.length}">${cols.map(col => {
-      const cards = pool.filter(i => statusOf(i) === col.key);
+      const cards = _sortByOrder(pool.filter(i => statusOf(i) === col.key));
       return `<div class="kanban-col" data-status="${col.key}">
         <div class="kanban-col-head"><span>${col.label}</span><span>${cards.length}</span></div>
         ${cards.map(i => _itemCardHTML(board, i)).join('')}
       </div>`;
     }).join('')}</div>`;
 
+    // Every card can be reordered within its column. Only a non-cycle card can change
+    // column, because a cycle card's status is projected from its document — dropping
+    // one in another column would be asking the board to write a status it does not own.
     let dragId = null;
+    let dragIsCycle = false;
     container.querySelectorAll('.int-card').forEach(card => {
-      // Cycle cards carry data-cycle and draggable="false"; belt and braces so a
-      // dragstart from any source (keyboard, extension) still can't start one.
-      if (card.dataset.cycle) return;
-      card.addEventListener('dragstart', () => { dragId = card.dataset.id; card.classList.add('dragging'); });
-      card.addEventListener('dragend', () => card.classList.remove('dragging'));
+      card.addEventListener('dragstart', e => {
+        dragId = card.dataset.id;
+        dragIsCycle = !!card.dataset.cycle;
+        card.classList.add('dragging');
+        container.classList.toggle('dragging-cycle', dragIsCycle);
+        if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+      });
+      card.addEventListener('dragend', () => {
+        card.classList.remove('dragging');
+        container.classList.remove('dragging-cycle');
+        container.querySelectorAll('.drop-before').forEach(c => c.classList.remove('drop-before'));
+      });
+      // Insertion point: the card you are hovering over the top half of.
+      card.addEventListener('dragover', e => {
+        if (!dragId || card.dataset.id === dragId) return;
+        const sameCol = card.closest('.kanban-col')?.dataset.status ===
+          container.querySelector(`.int-card[data-id="${dragId}"]`)?.closest('.kanban-col')?.dataset.status;
+        if (dragIsCycle && !sameCol) return;      // refused below anyway; do not hint at it
+        e.preventDefault();
+        const midpoint = card.getBoundingClientRect().top + card.offsetHeight / 2;
+        container.querySelectorAll('.drop-before').forEach(c => c.classList.remove('drop-before'));
+        card.classList.add('drop-before');
+        card.dataset.dropAfter = e.clientY > midpoint ? '1' : '';
+      });
     });
     container.querySelectorAll('.kanban-col').forEach(col => {
-      col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drop-target'); });
-      col.addEventListener('dragleave', () => col.classList.remove('drop-target'));
+      col.addEventListener('dragover', e => {
+        // A cycle card may only be dropped back into the column it came from.
+        if (dragIsCycle) {
+          const from = container.querySelector(`.int-card[data-id="${dragId}"]`)?.closest('.kanban-col');
+          if (from && from !== col) { col.classList.add('drop-refused'); return; }
+        }
+        e.preventDefault();
+        col.classList.add('drop-target');
+      });
+      col.addEventListener('dragleave', () => {
+        col.classList.remove('drop-target');
+        col.classList.remove('drop-refused');
+      });
       col.addEventListener('drop', async e => {
         e.preventDefault();
         col.classList.remove('drop-target');
+        col.classList.remove('drop-refused');
         if (!dragId) return;
         const newStatus = col.dataset.status;
         const cur = board.all().find(x => x.id === dragId);
+
+        // Reorder within the column — the case the board previously had no answer for.
+        if (cur && statusOf(cur) === newStatus) {
+          const ids = [...col.querySelectorAll('.int-card')].map(c => c.dataset.id).filter(x => x !== dragId);
+          const marker = col.querySelector('.drop-before');
+          let at = ids.length;
+          if (marker && marker.dataset.id !== dragId) {
+            at = ids.indexOf(marker.dataset.id);
+            if (marker.dataset.dropAfter) at += 1;
+          }
+          ids.splice(at < 0 ? ids.length : at, 0, dragId);
+          container.querySelectorAll('.drop-before').forEach(c => c.classList.remove('drop-before'));
+          await _reorderColumn(board, ids);
+          return;
+        }
+        if (cur && cur.cycle && !cur.cycle.dangling) return;   // no cross-column for cycle cards
         if (cur && cur.status === newStatus) return;
         await _setItemStatus(board.kind, dragId, newStatus);
       });

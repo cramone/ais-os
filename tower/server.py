@@ -23,6 +23,7 @@ from tower.interrupts.store import (
     delete_interrupt,
     load_interrupts,
     make_item,
+    reorder,
     save_interrupts,
     set_archived,
     update_activity,
@@ -242,6 +243,7 @@ class InterruptCreate(BaseModel):
 
 class InterruptUpdate(BaseModel):
     archived: bool | None = None
+    order: int | None = None
     title: str | None = None
     source: str | None = None
     dueDate: str | None = None
@@ -595,6 +597,23 @@ def patch_todo(slug: str, todo_id: str, body: InterruptUpdate) -> dict[str, Any]
         return update_interrupt(path, todo_id, **updates)
     except KeyError:
         raise HTTPException(404, f"Todo {todo_id!r} not found")
+
+
+class ReorderRequest(BaseModel):
+    ids: list[str]
+
+
+@app.post("/api/projects/{slug}/todos/reorder")
+def reorder_todos(slug: str, body: ReorderRequest) -> dict[str, Any]:
+    """Set the manual order of one status column.
+
+    The whole column is sent, not the single card that moved — one drag changes every
+    position after it, and a card left half-placed would sort somewhere nobody put it.
+    """
+    path = config.todos_file(slug)
+    _load_todos(slug)
+    items = reorder(path, body.ids)
+    return {"ok": True, "ordered": len(body.ids), "total": len(items)}
 
 
 @app.delete("/api/projects/{slug}/todos/{todo_id}", status_code=204)

@@ -56,6 +56,10 @@ def make_item(
         # Set when the item is filed away. Archived items keep every field and stay in
         # the same store; they are excluded from the board rather than deleted.
         "archivedAt": None,
+        # Manual position within a status column. None means "unordered" and sorts
+        # after everything explicitly placed, so a new item lands at the bottom
+        # without disturbing an order someone arranged by hand.
+        "order": None,
         "activity": activity or [],
     }
 
@@ -111,7 +115,7 @@ def create_interrupt(
 def update_interrupt(path: Path, interrupt_id: str, **kwargs: Any) -> dict[str, Any]:
     items = load_interrupts(path)
     allowed = {"title", "source", "dueDate", "priority", "status", "tags", "adoItemId",
-               "zendeskTicket", "customer", "archivedAt"}
+               "zendeskTicket", "customer", "archivedAt", "order"}
     for item in items:
         if item["id"] == interrupt_id:
             previous_status = item.get("status")
@@ -182,3 +186,23 @@ def append_activity(
             save_interrupts(path, items)
             return item
     raise KeyError(f"Interrupt {interrupt_id!r} not found")
+
+
+def reorder(path: Path, ordered_ids: list[str]) -> list[dict[str, Any]]:
+    """Assign `order` 0..n-1 to the given ids, in the order given.
+
+    Takes the whole column at once rather than one item at a time: a drag moves one
+    card but changes every position after it, and n PATCHes would leave the store
+    briefly inconsistent if any of them failed.
+
+    Ids not present are ignored; items not named keep the order they had.
+    """
+    items = load_interrupts(path)
+    position = {item_id: index for index, item_id in enumerate(ordered_ids)}
+    now = _now()
+    for item in items:
+        if item["id"] in position:
+            item["order"] = position[item["id"]]
+            item["updatedAt"] = now
+    save_interrupts(path, items)
+    return items

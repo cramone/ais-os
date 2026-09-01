@@ -123,7 +123,9 @@ are managed.
 | Done / delete | Suppressed, on the kanban card, the list row and the drilldown's **Mark Done** |
 | Comments | **Left writable everywhere** — the note box in the drilldown is the session log |
 | Dangling id | Red `⚠ MM-0xx missing` badge — the card is tagged but no document has that id |
-| Dependency chips | `⛓ waits on N` (amber), `✉ ask unsent` (red), `↳ blocks N` (neutral) |
+| Dependency chips | `⛓ waits on MM-024, MM-031` (amber), `✉ ask unsent — <owner>` (red), `↳ blocks MM-018 +2` (neutral). Ids, not counts — the count told you to go looking, the ids are often the answer |
+| Dependency highlight | Hover a chip to light up the cards it names; click to pin it so you can follow a chain without holding the mouse. Click again, or anywhere else, to clear |
+| Reordering | Drag a card within its column to reorder. **Cycle cards cannot change column** — the target column reads as refused, because status comes from the document |
 | Drilldown | A **Dependencies** block: waits-on, external blockers, consumes, and blocks |
 
 ### Dependencies
@@ -136,6 +138,24 @@ nowhere, and it is the one that answers "does closing this free anything up". De
 Only unmet `depends-on` and **unsent** external asks raise a warning chip. A dependency counts as met
 at `done` or `superseded` — `parked` is deliberately *not* met, per SKILL.md § Dependency gating:
 *"it is not coming unless someone restarts it"*.
+
+## Manual ordering
+
+`order` is a board field, like priority — an integer position within a status column, `null` meaning
+unplaced. Unplaced items sort after everything arranged by hand, so a new card lands at the bottom
+rather than in the middle of an arrangement.
+
+`POST /api/projects/{slug}/todos/reorder` takes the **whole column**, not the one card that moved.
+A drag changes every position after it, and n separate PATCHes would leave the store inconsistent if
+any of them failed.
+
+The drag is optimistic: the local cache is renumbered and re-rendered before the request goes out, so
+the card stays where it was dropped instead of snapping back for a round trip.
+
+**A cycle card can be reordered but not moved between columns.** Its status is projected from its
+document, so a cross-column drop would be asking the board to write a status it does not own. The
+target column shows a refused state and the drop is a no-op; other columns dim while such a card is
+in flight.
 
 ## Quick search
 
@@ -151,7 +171,8 @@ ambiguous about which is in force.
 Distinct from archiving a *document*. A document moves to an `Archive/` folder (SKILL.md
 § Archiving); a card is filed away so it stops crowding the board.
 
-- Only a `done` item can be archived — anything else returns 409.
+- Only a `done` item can be archived — anything else returns 409. The button is on the list row
+  **and** the kanban card; Done piles up in both views.
 - Archived items stay in the same store with every field intact. `GET …/todos` excludes them;
   `?archived=true` returns them.
 - **A cycle card whose document lives under `Archive/` is archived by the projection**, and shows
