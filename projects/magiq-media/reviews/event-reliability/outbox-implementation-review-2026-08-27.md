@@ -15,7 +15,10 @@ created: 2026-08-27
 # Implementing `IOutbox` — what adopting it would actually involve
 
 _Opened 2026-08-27, from **gate decision 6** and open question 1 of
-[`event-reliability-review-2026-08-25.md`](./event-reliability-review-2026-08-25.md). Scope: **X-11.44**._
+[`event-reliability-review-2026-08-25.md`](./event-reliability-review-2026-08-25.md). Scope: **X-3.1,
+X-9.3 and X-11.44** — all three moved here from `plans/spec-drift-review/spec-repo-drift-review.md` on
+2026-09-01, where they were one decision tracked as three rows. See § The drift-review rows this
+workstream now owns._
 
 _Read entirely from source in `aspnetcore-platform`, `magiq-media` and `cdk-magiq-media`. Nothing here is
 inferred from documentation._
@@ -272,6 +275,40 @@ read for that pattern first, not last.
 
 ---
 
+## The drift-review rows this workstream now owns
+
+_Moved here 2026-09-01 from `plans/spec-drift-review/spec-repo-drift-review.md`, which had carried them
+since 2026-08-21 and had already noted them as **"one decision, three rows."** They are removed there, not
+duplicated — this file is their only home. Nothing about their state changed in the move: all three are
+open, and the 2026-08-21 decision to defer stands._
+
+| ✓ | # | Sev | Claim | Reality | Ref |
+|---|---|---|---|---|---|
+| ☐ | **X-3.1** | **High** | Platform SDK hard rule: *"Never publish integration events directly — always `IOutbox` or `IApplicationBus`. The outbox guarantees at-least-once delivery **atomically with the aggregate write**"* | The app publishes straight to SNS inline in the handler pipeline. **Zero `IOutbox` usages in `src/`.** No atomicity between event-store append and SNS publish — a crash between them silently drops the integration event. The SDK's outbox implementation exists and is unused | `aspnetcore-platform/CLAUDE.md` Design Constraint #4 · `DomainEventPublishingMiddleware.cs:20` ✅ *verified* |
+| ☐ | **X-9.3** | **High** | The same rule, listed again under § I.9 Platform SDK conventions as the one hard SDK constraint the app materially breaks | Duplicate of X-3.1 by the drift review's own admission — its entire body was *"See X-3.1"*. Kept here as a distinct id only because other documents cite it | — |
+| ☐ | **X-11.44** | **High** | No outbox — a publish that fails after commit is lost silently | *Opened 2026-08-25 by W25.* `DomainEventPublishingMiddleware` publishes to SNS **after** the event store commits, inside the request. The ordering is deliberate and right (*"`next` is awaited first so the event store write commits before any downstream consumer sees the events"*), but there is **no outbox**: if the publish then fails, the event is durable and **never reaches a projector**. The read model is wrong **permanently, not temporarily** — no retry exists because nothing knows it was missed, and only a manual rebuild fixes it. This is the one case where *"eventually consistent"* is false; the accurate phrase is *eventually consistent, or silently divergent*. **Follows from ADR-005** (inline publication instead of a publisher Lambda) — the decision is defensible and **this consequence was never written down**. | `Api/Infrastructure/Middleware/DomainEventPublishingMiddleware.cs` |
+
+**What the drift review said about X-3.1, carried over verbatim in substance:** it is the one hard SDK
+constraint the application materially breaks. Whether to adopt the outbox or formally amend the platform
+SDK's stated rule is **an architecture decision, not a bug fix** — but the current state, where an ADR says
+one thing and the SDK it depends on forbids exactly that, should not persist undocumented.
+
+**It also stood as the last open entry on that review's fix-first list, at rank 6**, with the note:
+*"Deferred by decision 2026-08-21 — revisit later."* Removing it empties that list.
+
+> **The three rows are not three problems.** X-9.3 is a cross-reference to X-3.1; X-3.1 is the SDK-rule
+> violation stated as a rule violation; X-11.44 is the same violation stated as its observed consequence.
+> **What this review adds is that the obvious remedy is not available** — §§ The verdict and The atomicity
+> question — so closing all three means finishing and proving the platform outbox, or recording the
+> deviation in ADR-005 with the cost stated. **Both are decisions, and they are Chase's.**
+>
+> The one thing that has changed since they were written: X-3.2 — `Api.csproj` references
+> `Magiq.Platform.Messaging.Outbox` **and** `.Outbox.DynamoDb` with neither wired, so the codebase reads as
+> if the outbox is in play. That row **stays in the drift review** as a packaging-hygiene item, but this
+> review is why it matters: the referenced package is not merely unwired, it has never been run.
+
+---
+
 ## Related
 
 - [`event-reliability-review-2026-08-25.md`](./event-reliability-review-2026-08-25.md) — the parent review;
@@ -281,3 +318,5 @@ read for that pattern first, not last.
 - `docs/spec/shared/consistency-model.md` — the lag path, the no-outbox caution, environment divergence
 - `docs/spec/shared/saga-patterns.md` § Failure handling — the swallow rule O-3 violates
 - `reviews/projection-rebuild/` — the repair path, which stays load-bearing under every option here
+- `plans/spec-drift-review/spec-repo-drift-review.md` — where X-3.1, X-9.3 and X-11.44 lived until
+  2026-09-01; **X-3.2** (the unwired package references) is the one outbox-adjacent row still tracked there

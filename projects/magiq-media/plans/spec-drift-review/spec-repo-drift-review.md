@@ -13,6 +13,13 @@ exception: a review living in plans/ deliberately — it is its own working chec
 
 > **Backfilled into the review cycle 2026-08-31 as MM-022.** The ✓ column in the file is the working checklist. Its closed findings live in Archive/spec-repo-drift-review-completed.md; the id sets do not overlap.
 >
+> 🔀 **Three blocks split out 2026-09-01. Open rows now 50** (counted: `grep -c '^| ☐ '`; it was 68 before
+> the split, against a stated 69 — see § Remaining). § C.6 BulkImportJob → the
+> `bulk-import` workstream (**MM-036** folder, **MM-037** media); § H DocumentSigning, plus X-11.12 and
+> X-11.13 → **MM-038** (`parked`); the outbox trio X-3.1 / X-9.3 / X-11.44 → **MM-035**. **Nothing was
+> closed by the split** — each block was a *decision about a feature* rather than a drift finding, and a
+> checklist is the wrong instrument for a decision. Full mapping under § Where the open work sits.
+>
 > ⚠ **Count corrected 2026-08-31: 69 rows are `☐`, not 58.** The 58 was written on 2026-08-24 and never updated when the W19–W30 passes appended the whole X-11.x series (X-11.2 … X-11.45) on 2026-08-25/26 — the true figure that morning was **92**. The 2026-08-31 spec sweep closed **twenty-six** rows and half-closed four, and opened one new finding (**X-3.5**) which it also closed. **Plan against the row states, not against any headline number in this file** — see § Spec sweep for what moved and why.
 >
 > **Two of the twenty needed no work — they were already fixed and never ticked** (X-10.2 by a W-unit pass, X-11.11 by W21). Both were Low. **Re-verify Low rows against the repo before planning against them**; this file has been over-reporting for weeks.
@@ -52,36 +59,53 @@ and move the row to the archive file when the pass that closed it is written up.
 | Section | Open | Character of what's left |
 |---|---|---|
 | [B. AssetManagement](#b-assetmanagement) | 1 | One Low error-code hygiene item |
-| [C.6 BulkImportJob](#c6-bulkfolderimportjob--bulkmediaimportjob) | 3 | Two published aggregates with **no code at any layer** |
-| [G. Processing](#g-processing) | 8 | Untouched — the module has had no remediation pass |
-| [H. DocumentSigning](#h-documentsigning) | 11 | Untouched — a specced bounded context that is a skeleton |
+| [G. Processing](#g-processing) | 8 | Untouched — the module has had no remediation pass. **Now the only module block left here** |
 | [I.1 Hosts](#i1-hosts) | 8 | Deployment topology claims; X-1.8 is a live cost defect |
-| [I.3 Integration events](#i3-integration-event-publishing) | 4 | The outbox decision (X-3.1), deferred by decision |
-| [I.4 Tables & infra](#i4-tables--infra) | 7 | Queue topology, quarantine, and the X-4.11/4.12/4.13 tail of the key re-key |
+| [I.3 Integration events](#i3-integration-event-publishing) | 1 | X-3.2 only — the unwired outbox package references |
+| [I.4 Tables & infra](#i4-tables--infra) | 4 | Queue topology, quarantine, and the X-4.11/4.12/4.13 tail of the key re-key |
 | [I.5 Deployment](#i5-branching--deployment) | 5 | X-5.1 is the prod-deploy guard gap |
 | [I.7–I.8 Links & stale refs](#i7-plans-folder) | 4 | Doc-only. X-7.2 closed 2026-08-24 by the plans reorganisation |
 | [I.9 Platform SDK](#i9-platform-sdk-conventions) | 3 | X-9.6 docs closed and code gap narrowed; X-9.4 closed by running its test, which opened and fixed X-9.7 and X-9.8 — all 2026-08-24 |
 | [I.10 Error catalog](#i10-error-catalog) | 4 | Catalog/code divergence and OpenAPI header coverage |
 
-### Triage — refreshed 2026-08-24
+> **Three blocks left this file on 2026-09-01** and are not counted above. They were split into their own
+> review cycles because each is **a decision about a feature, not a drift finding** — and a checklist is
+> the wrong instrument for a decision. Nothing was closed, deleted or restated in the move.
+>
+> | Left | Rows | Now |
+> |---|---|---|
+> | § C.6 BulkImportJob | BI-1/2/3 | `reviews/bulk-import/` — **MM-036** (folder) and **MM-037** (media), one review per aggregate |
+> | § H DocumentSigning | DS-1…DS-12, X-11.12, X-11.13 | `reviews/document-signing/` — **MM-038**, `parked`, as it already was |
+> | The outbox | X-3.1, X-9.3, X-11.44 | `reviews/event-reliability/outbox-implementation-review-2026-08-27.md` — **MM-035**, which already scoped X-11.44 |
+>
+> **This is the same instinct that made the DDD plan's § 4 ownership table work:** one row, one owner. The
+> difference now is that the owners are separate review cycles rather than sections of one file.
+
+### Triage — refreshed 2026-08-24, amended 2026-09-01
 
 The original §L triage was written before four modules were remediated and is now in the archive. This
 replaces it.
 
-1. **Highest value, not yet started** — **§G Processing (8)** and **§H DocumentSigning (11)** are the only
-   two modules that have had no remediation pass at all. Between them they are a third of what's left.
-   Processing has real defects (P-2 duplicate jobs, P-3 bypassed jobs stuck `Queued` — the spec now documents that gap honestly, which is not the same as closing it); DocumentSigning is
-   a documentation decision before it is a code one — see the note under §H.
+1. **Highest value, not yet started** — **§G Processing (8)** is now the only module here that has had no
+   remediation pass, and it has real defects: P-2 duplicate jobs, P-3 bypassed jobs stuck `Queued` — the
+   spec now documents that gap honestly, which is not the same as closing it. *(DocumentSigning was the
+   other, at 11 rows; it left this file 2026-09-01 as **MM-038** and is parked. It was always a
+   documentation decision before a code one, which is exactly why it is better tracked as a review than as
+   rows on a fix-list.)*
 2. **Live defects with production consequences** — *(**X-9.7**, every folder-to-folder media-item move
    returning a false 409, was opened and fixed 2026-08-24 — pending a test run)*, **X-1.8** (storage tiering never runs;
    every original stays in S3 Standard), **X-5.1** (a `v*` tag in the CDK repo deploys to prod with no
    guard), **X-9.6** (orphaned name reservations — 23 of 25 reservation call sites uncompensated), **X-4.7** (infected originals are
    never quarantined).
-3. **Decisions Chase owes, not fixes** — **X-3.1** outbox adoption (deferred by decision 2026-08-21),
-   **X-1.10** client-asserted upload confirmation. *(**X-4.10** version key shape was decided 2026-08-24 —
-   re-key — and the code change has landed; it is now a rotation, not a decision.)*
-4. **Publish-contract honesty** — **BI-1/2/3** and **DS-1…12**: caveat or relocate the spec files that
-   describe absent code, so published contracts stop reading as shipped.
+3. **Decisions Chase owes, not fixes** — **X-1.10** client-asserted upload confirmation is the only one
+   still tracked here. *(**X-3.1** outbox adoption moved to **MM-035** on 2026-09-01, still deferred by the
+   2026-08-21 decision. **X-4.10** version key shape was decided 2026-08-24 — re-key — and the code change
+   has landed; it is now a rotation, not a decision.)*
+4. **Publish-contract honesty** — **moved out entirely on 2026-09-01**, and it was the clearest sign these
+   three blocks did not belong here: caveating spec files that describe absent code is the *cheap half of a
+   decision about whether the feature exists*, not a drift fix. It travels with the decision — **MM-036**,
+   **MM-037**, **MM-038**. In all three, the fix is banners on the `api.md` / `read-model.md` /
+   `write-model.md` files, copying `bulk-operations.md`'s ⛔ wording, and it pre-empts nothing.
 5. **Doc-only sweep** — §I.7, §I.8, X-3.3/3.4, X-4.4/4.5/4.9, X-5.3/5.4/5.5, X-9.2, X-10.x. No code risk.
 
 ---
@@ -115,6 +139,10 @@ The **16 warnings are all BI-1** — the bulk-import spec. Every other owning un
 a documentation gap; they are the CI surfacing that a full API/read/write spec exists for a feature with
 **no code at any layer**. Closing them means deciding what happens to the feature, not writing sections.
 
+> **Split 2026-09-01 → MM-036 / MM-037.** The 16 divide **exactly 8/8** between the two aggregates, which
+> is one more reason they were separable. Re-run `check-spec-sections.py` and the `by owning unit: BI-1=16`
+> line will persist until that decision is made — **by design; do not close it by writing prose.**
+
 ### Rows closed or half-closed by this sweep
 
 | Row | New state | What was found |
@@ -145,6 +173,8 @@ a documentation gap; they are the CI surfacing that a full API/read/write spec e
    recovered-tail note at `api.md:290`. Both need a status banner at the head. `error-catalog.md:75` flags
    the DocumentSigning codes as *"still aspirational"* but **there is no DocumentSigning section body** —
    six of seven codes remain undefined. This is triage item 4 and the largest remaining honesty gap.
+   **→ Moved 2026-09-01 to MM-038**, which keeps this framing and names the two banners as the cheap half
+   worth doing whichever way the build-or-withdraw decision goes.
 5. **`adrs/README.md` (X-8.5, X-8.1).** *"the **five** topic documents above"* over a table of **seven** —
    a one-word fix. `deployment-and-resource-naming.md` is still missing; the README now carries an honest
    ⚠ note, so this is no longer a *false* claim, but the ADR is unwritten and is also **DN-1 in MM-004** —
@@ -161,6 +191,9 @@ a documentation gap; they are the CI surfacing that a full API/read/write spec e
 9. **BI-1 / BI-3 — a decision, not a document.** Caveat the six bulk-import spec files as unbuilt, relocate
    them, or delete them; and `api-conventions.md §Pagination` documents page-size caps for routes that do
    not exist. Whichever way it goes, it clears the 16 CI warnings.
+   **→ Moved 2026-09-01 to MM-036 / MM-037.** *"A decision, not a document"* is exactly why it left — and
+   the file count is **eight**, not six: four per aggregate. BI-3's `api-conventions.md` banner is done and
+   travelled closed.
 
 3b. ☑ **The mapper-name tail — done 2026-08-31.** All 23 corrected across nine files, per module rather
    than by find-and-replace. X-3.3 is closed in full. Three deliberate non-changes are recorded in that row.
@@ -251,18 +284,29 @@ X-3.5. The corrected summaries now say explicitly that **the saga spec wins wher
 next correction has one owning file instead of four.
 
 **Nothing under `docs/` is now known to be wrong** except §H DocumentSigning, which is parked by your
-decision, and BI-1's bulk-import tree, which is a decision about the feature.
+decision, and BI-1's bulk-import tree, which is a decision about the feature. **Both left this file on
+2026-09-01** — see the split table under § Where the open work sits — so the sentence now reads without
+its exceptions: **nothing under `docs/` that this review still owns is known to be wrong.**
 
 ---
 
-### Remaining after 2026-08-31, in order
+### Remaining after 2026-08-31, in order — re-cut 2026-09-01
 
-**Nothing left here is spec.** Of the 69 open rows, **§I.4 alone holds 43**, and they are code.
+**Nothing left here is spec, and after the split nothing left here is a decision either.** The three
+blocks that were decisions are now MM-035, MM-036, MM-037 and MM-038. **What remains is code.**
 
-1. **§H DocumentSigning (DS-1 … DS-12)** — parked by your decision, not by oversight. The only
-   documentation work left in the review.
-2. **X-4.18** — two lines, third instance of the silent-handler failure. **X-1.8** is one line, pinned.
-3. ☑ **X-4.16 and X-4.15 — both done 2026-08-31.** X-4.16's first-run concern did not apply: no traffic
+**Open rows: 50, counted rather than derived.** Eighteen open rows moved out — BI-1 and BI-2 (BI-3 was
+already ☑), DS-1…DS-12 (11 open of 12; **DS-4 closed and archived long ago**, which is why the numbering
+skips it), X-3.1, X-9.3, X-11.44, X-11.12 and X-11.13. **None was closed by the split.**
+
+> ⚠ **The headline was off by one again.** `grep -c '^| ☐ '` returns **50** now and would have returned
+> **68** before the split, against a stated 69 — and that 69 was itself the 2026-08-31 correction of a
+> stated 58. **Three headline numbers, three times wrong.** The instruction at the top of this file stands
+> and is now load-bearing: **plan against the row states, not against any headline number here**, this one
+> included. Recount with the grep rather than trusting the sentence you are reading.
+
+1. **X-4.18** — two lines, third instance of the silent-handler failure. **X-1.8** is one line, pinned.
+2. ☑ **X-4.16 and X-4.15 — both done 2026-08-31.** X-4.16's first-run concern did not apply: no traffic
    has flowed, so no backlog and no rebuild. X-4.15's checker is built, wired into CI as **Messaging
    Guard**, and was run against both repos rather than merely written.
 
@@ -270,23 +314,33 @@ decision, and BI-1's bulk-import tree, which is a decision about the feature.
    is three separate silent misses shipped before the check existed (CR-21, X-4.16, X-4.18), which
    says the row's Low severity was wrong and that hand-verification of this mirror does not work.
    **X-4.18 is two lines and the same shape as X-4.16** — worth doing next, while it is fresh.
-4. **X-11.30 / the authorization block** — blocked outside the repo until
+3. **X-11.30 / the authorization block** — blocked outside the repo until
    `magiq-auth-role-claims-requirements.md` is **sent**. That hand-off is the critical path, and it is
-   still unsent.
-5. **X-3.1 / X-9.3 / X-11.44 — the outbox.** One decision, three rows.
-6. **BI-1** — the only thing standing between CI and `warn 0`. Note that `bulkfolderimportjob.api.md` and
-   `.scenarios.md` carry **no unbuilt-feature banner**: adding one pre-empts the decision about whether
-   those files should exist at all.
+   still unsent. **With the split done, this is the top item on this file that is actually actionable
+   here** — and it is blocked on a hand-off, not on work.
+
+**No longer on this list** — moved 2026-09-01, tracked in their own cycles:
+
+- **The outbox** (X-3.1 / X-9.3 / X-11.44) → **MM-035**. Still one decision; it now has one home.
+- **BI-1** → **MM-036 / MM-037**. It was listed here as *"the only thing standing between CI and
+  `warn 0`"* — still true, **and the framing was a trap**: a guard warning is the symptom. Deleting the
+  spec to silence it would optimise for a green board over a real answer, so the decision should go on the
+  feature's merits. The two reviews say so explicitly. *(The old note here — that `bulkfolderimportjob.api.md`
+  and `.scenarios.md` carry no unbuilt-feature banner — was **stale for `scenarios.md`** and understated
+  the rest; corrected in both reviews.)*
+- **DS-1 … DS-12** → **MM-038**, parked.
 
 ---
 
-### Fix-first list — one row still open
+### Fix-first list — empty as of 2026-09-01
 
-Seven of the eight fix-first items are closed and in the archive. This one was deferred by decision, not by oversight.
+Seven of the eight fix-first items are closed and in the archive. **The eighth — rank 6, X-3.1, integration
+events bypassing the outbox — moved to MM-035 on 2026-09-01**, still open and still deferred by the
+2026-08-21 decision. It was never a fix; it was a decision sitting on a fix-list, which is why it outlived
+the other seven.
 
-| ✓ | Rank | Finding | Why it's first |
-|---|---|---|---|
-| ☐ | 6 | **Integration events bypass the outbox entirely** (X-3.1) | Zero `IOutbox` usages. No atomicity between event-store append and SNS publish; a crash between the two silently drops the event. Breaks the platform SDK's one hard messaging constraint. **Deferred by decision 2026-08-21 — revisit later.** |
+**The list is now empty. That is a real state, not an oversight** — if something belongs at the top of this
+file again, add it here rather than assuming the section is defunct.
 
 ---
 
@@ -302,19 +356,32 @@ _34 findings, 33 closed. One remains._
 
 ---
 
-## C. Catalog
+## C. Catalog — closed here, split out 2026-09-01
 
-_Largest module, six specced aggregates, four implemented. C.1–C.5 are closed and archived; what remains is the two aggregates with no implementation at all._
+_Largest module, six specced aggregates, four implemented. **C.1–C.5 are closed and archived. C.6 —
+`BulkFolderImportJob` / `BulkMediaImportJob` — moved out on 2026-09-01** and this section is now empty._
 
-### C.6 BulkFolderImportJob / BulkMediaImportJob
+**BI-1, BI-2 and BI-3 are no longer tracked here.** They were one three-row block covering two aggregates
+with different shapes, different route surfaces and different reasons to exist, which made them read as a
+single large decision. They are now the `bulk-import` workstream, one review per aggregate:
 
-| ✓ | # | Sev | Spec says | Code does | Ref |
-|---|---|---|---|---|---|
-| ☐ | BI-1 | High | Two full aggregates — write-model, read-model and API specs across 9 routes | **Nothing exists at any layer.** Repo-wide grep for `ImportJob`, `BulkFolderImportWorker`, `BulkMediaImportWorker`, `import-jobs` across `src/**/*.cs` → **0 hits**. No aggregate, commands, events, endpoints, read models, projectors or worker | 6 spec files + `bulk-operations.md §Async Bulk Import Jobs` |
-| ☐ | BI-2 | High | `media-bulk-folder-imports` / `media-bulk-media-imports` SQS queues; shared `media-bulk-import-job-items` table; `media-bulk-import-inputs` S3 bucket | None provisioned. CDK carries two comment placeholders naming the queues as future work | `BULK-IMPORT-SPEC-UPDATES.md` / `cdk .../sqs-queues.ts:77-78` |
-| ☑ | BI-3 | ~~Med~~ **closed 2026-08-31** | `api-conventions.md §Pagination` now carries a BI-3 banner stating that none of the three `/v1/import-jobs/**` routes exists and that the block resolves with BI-1. The table is kept as the intended contract rather than deleted — deleting it pre-empts the BI-1 decision. Original: | Import-job pageSize exceptions (100/500 and 50/200) | Moot — but `api-conventions.md §Pagination` documents caps for routes that don't exist, which reads as implemented to anyone auditing the shared conventions in isolation | `api-conventions.md §Pagination` |
+| Was | Now | Review |
+|---|---|---|
+| BI-1/2/3, folder half | **BFI-A / BFI-B / BFI-C** | `reviews/bulk-import/bulkfolderimportjob-review-2026-09-01.md` (**MM-036**) |
+| BI-1/2/3, media half | **BMI-A / BMI-B / BMI-C**, plus new **BMI-E** | `reviews/bulk-import/bulkmediaimportjob-review-2026-09-01.md` (**MM-037**) |
 
-> `CLAUDE.md`'s "bulk import **workers** deferred" phrasing materially understates this. The workers aren't the gap; the aggregates are.
+**BI-3 travelled closed** — `api-conventions.md § Pagination` got its banner 2026-08-31 and that stands;
+both reviews carry the row in its closed state so the pagination caps are not re-litigated.
+
+> **Two things the split found that this section had wrong.** The banner claim in § Remaining
+> (*"`bulkfolderimportjob.api.md` and `.scenarios.md` carry no unbuilt-feature banner"*) was **stale for
+> `scenarios.md`** — W26 banner-ed both scenarios files — and **understated the rest**: `api.md`,
+> `read-model.md` and `write-model.md` carry nothing, in **both** aggregates. And the media importer has a
+> finding this section never had: **BMI-E**, the upload phase has no timeout, expiry or abandonment path
+> specified anywhere, which is what makes that aggregate the larger of the two.
+
+`CLAUDE.md`'s "bulk import **workers** deferred" phrasing materially understates all of this. The workers
+aren't the gap; the aggregates are. **That correction belongs to MM-036/MM-037 now.**
 
 ---
 
@@ -337,27 +404,30 @@ _10 findings, 2 closed. **This module has had no remediation pass** — the eigh
 
 ---
 
-## H. DocumentSigning
+## H. DocumentSigning — split out 2026-09-01
 
-_12 findings, 1 closed. **This module has had no remediation pass.**_
+_12 findings, 1 closed, **no remediation pass ever run** — and parked by decision rather than oversight._
 
-**Quantified gap: 27 non-generated `.cs` files across 5 projects — the events-and-value-objects skeleton only.** Present: 9 domain event records, 7 value objects, 2 read models, 1 projector, 2 DI extensions, 4 service interfaces. **Absent: the aggregate, all 9 commands, all 9 handlers, the repository, all 12 endpoints, 2 of 3 projectors, all 3 query handlers, the saga, the timeout scanner, and the webhook implementation.**
+**DS-1 … DS-12 are no longer tracked here.** They moved, intact and unchanged, to their own review.
+*(11 rows, not 12 — **DS-4** was closed and archived earlier; the numbering has skipped it since.)*
 
-| ✓ | # | Sev | Spec says | Code does | Ref |
-|---|---|---|---|---|---|
-| ☐ | DS-1 | High | 12 routes | **Zero endpoints.** No `DocumentSigning.*.Endpoints` project; neither `Api` nor `QueryApi` references the module at all | `documentsigningsession.api.md §Route Structure` / `Api.csproj`, `QueryApi.csproj` |
-| ☐ | DS-2 | High | Webhook with HMAC-SHA256 over raw body, `X-SecuredSigning-Signature`, SSM secret, envelope→tenant lookup | Handler logs and returns **501 "not yet implemented"**. No HMAC, no header read, no SSM, no lookup. Also not routed | `api-conventions.md:426-437` / `SecuredSigningWebhookHandler.cs:29-41` |
-| ☐ | DS-3 | High | `POST /v1/items/{id}/signing-sessions` is one of only two endpoints allowed to return 202 | Endpoint does not exist — the reserved-202 contract is unimplementable | `api-conventions.md:365` |
-| ☐ | DS-5 | High | `ProjectedVersion` dedup guard on all writes | Set only on the initial insert. All 8 update paths use `current with { … }` and never touch it — pinned at v1, so duplicate delivery is unguarded | `read-model.md`; `CLAUDE.md §Key conventions` / `SigningSessionDetailProjector.cs:53-114` |
-| ☐ | DS-6 | High | Three projectors incl. `SigningEnvelopeLookupProjector` (the webhook's tenant-resolution path) | Only the detail projector exists. The other two are an inline `// todo`. `media-signing-sessions` has a schema nothing writes; `media-signing-envelope-lookup` has neither | `read-model.md §Projection Handlers` / `ServiceCollectionExtensions.cs:78-82` |
-| ☐ | DS-7 | High | 9 methods, 9 commands, 9 events on the aggregate | **Aggregate class does not exist.** `WriteModel` holds 4 files, all interfaces/DTOs. The events exist but nothing raises them | `write-model.md §Methods` / `DocumentSigning.WriteModel/Services/` |
-| ☐ | DS-8 | High | `DocumentSigningSaga` coordinates the checkout lock and compensates via `ForceReleaseCheckout` | **The class does not exist anywhere in `src/` or `tests/`.** `SagaOrchestrator.DocumentSigning` registers one handler whose body is a TODO block | `write-model.md §Purpose` / `SecuredSigningRegistrations.cs:62-65` |
-| ☐ | DS-9 | High | `SagaTimeoutScanner` scans `AwaitingSigners` for expiry | Not implemented. `TimeoutScanner` registers only the asset-ingestion and lease-expiry scanners; the DocumentSigning row survives as an XML `<description>` self-annotated "(not yet implemented)" | `read-model.md §Status Lifecycle` / `TimeoutScanner/ServiceCollectionExtensions.cs:34-35` |
-| ☐ | DS-10 | Med | Summary and detail both carry `OwnerId` | Detail has **no `OwnerId`** — the field every "caller is session owner" check depends on. Summary has it but is never written | `read-model.md` / `SigningSessionDetailReadModel.cs:8-27` |
-| ☐ | DS-11 | Med | Seven named error codes | `error-catalog.md` has **no DocumentSigning section**; six of seven are undefined and unimplemented | `write-model.md §Invariants` vs `error-catalog.md` |
-| ☐ | DS-12 | Low | `api.md` route structure is post-migration flat | `scenarios.md:76,79` and `context-overview.md` still name the pre-migration surface (`POST /media-items/{id}/media-signing-sessions` → **201**, `/webhooks/secured-signing`). Code implements none, so no `/signing/` prefix survives | `documentsigningsession.scenarios.md:76,79` |
+> **`reviews/document-signing/documentsigning-review-2026-09-01.md` (MM-038)** — status `parked` on
+> arrival, which is the state they were already in. The split does not restart the work; it gives parked
+> work a home so it stops being counted as unfinished business in a review whose spec work is complete.
 
-> **The documentation problem here is sharper than the code gap.** `write-model.md` and `read-model.md` both self-flag that the aggregate doesn't exist. `api.md` and `context-overview.md` carry **no such caveat** and read as shipped contract.
+**The two DocumentSigning rows that had drifted into § I.4 went with them** — **X-11.12** (the complete,
+never-registered `SigningSessionDetailProjector`) and **X-11.13** (the webhook tenant-lookup table named
+two different ways). Both were opened by W21, both are DocumentSigning-only, and leaving them behind would
+have stranded the last two DS findings in a file with no DS section.
+
+**One correction the split made:** this section's quantified gap said *"27 non-generated `.cs` files across
+5 projects."* Re-counted against the repo 2026-09-01: **31**. The breakdown was also slightly wrong —
+what it called "4 service interfaces" is 2 interfaces and 2 records. The corrected inventory is in MM-038.
+
+> **The framing was right and is kept there verbatim:** the documentation problem is sharper than the code
+> gap. `write-model.md` and `read-model.md` self-flag that the aggregate doesn't exist; **`api.md` and
+> `context-overview.md` carry no such caveat and read as shipped contract.** That pair of banners is the
+> cheap half, it is worth doing either way, and it does not pre-empt the build-or-withdraw decision.
 
 ## I. Architecture, hosts & cross-cutting
 
@@ -382,13 +452,22 @@ _Removed 2026-08-21 — deferred to the auth plan. Numbering left intact so exis
 
 | ✓ | # | Sev | Doc says | Reality | Ref |
 |---|---|---|---|---|---|
-| ☐ | X-3.1 | High | Platform SDK hard rule: "Never publish integration events directly — always `IOutbox` or `IApplicationBus`. The outbox guarantees at-least-once delivery **atomically with the aggregate write**" | The app publishes straight to SNS inline in the handler pipeline. **Zero `IOutbox` usages in `src/`.** No atomicity between event-store append and SNS publish — a crash between them silently drops the integration event. The SDK's outbox implementation exists and is unused | `aspnetcore-platform/CLAUDE.md` Design Constraint #4 / `DomainEventPublishingMiddleware.cs:20` ✅*verified* |
+| → | **X-3.1** | — | **Moved 2026-09-01 to `reviews/event-reliability/outbox-implementation-review-2026-08-27.md` (MM-035)**, together with X-9.3 and X-11.44. This review had already recorded the three as *"one decision, three rows"*, and MM-035 already scoped X-11.44 — so the decision now has one home instead of being half-tracked in two. **Nothing about its state changed: still open, and the 2026-08-21 decision to defer still stands.** | — |
 | ☐ | X-3.2 | Med | — | `Api.csproj` references `Magiq.Platform.Messaging.Outbox` **and** `.Outbox.DynamoDb`; neither is wired. Reads as if the outbox is in play | `Api.csproj:37-38` |
 | ☑ | X-3.3 | ~~Med~~ **closed 2026-08-31** | **Swept in full — 31 occurrences across 11 files.** Architecture tier (8) plus the context/shared tail (23). Every generic reference now reads `*DomainEventMapper`; every aggregate-specific one names its real class — `CollectionDomainEventMapper`, `FolderDomainEventMapper`, `MediaItemDomainEventMapper`, `MediaProfileDomainEventMapper`, `ChangeRequestDomainEventMapper` (with `ChangeRequestLifecycleEventMapper` noted for `Resolved`/`Abandoned`), `RecordTypeDomainEventMapper`, `RegistrationDomainEventMapper`, and AssetManagement's outlier `AssetIntegrationEventMapper`. **Three deliberate non-changes:** `recordtype.write-model.md:429` names a real `Api`-host registration helper; `:452` is a correction note that must keep the wrong name to explain it; and the two bulk-import files got a **BI-1 caveat** instead of a rename, because no mapper exists to name. **Two corrections to the finding itself, both found while fixing it.** **Swept:** all eight prose occurrences in `system-architecture.md` and `bounded-contexts.md` now name the mapper, and the standing caveat note is replaced by the naming rule. **Two things the original finding got wrong, both found while fixing it.** **(a) The generic suffix is `*DomainEventMapper`, not `*IntegrationEventMapper`** — nine of the ten mapper classes carry it (`CollectionDomainEventMapper`, `FolderDomainEventMapper`, `MediaItemDomainEventMapper`, `MediaProfileDomainEventMapper`, `ChangeRequestDomainEventMapper`, `ChangeRequestLifecycleEventMapper`, `RecordTypeDomainEventMapper`, `ProcessingDomainEventMapper`, `RegistrationDomainEventMapper`) and **only AssetManagement's is `AssetIntegrationEventMapper`**. The finding generalised from the one outlier, which is the name W6's diagram had already got right. **(b) The finding is far wider than the architecture tier it named.** **23 further occurrences** remain outside it: `shared/event-store-and-messaging.md` (3, incl. an ASCII diagram at `:148`), `Catalog/context-overview.md` (6), `Metadata/context-overview.md` (2), `asset.scenarios.md` (4), plus one each in `mediaitem.write-model.md`, `mediaprofile.write-model.md`, `mediachangerequest.write-model.md`, `registration.scenarios.md`, `Registration/context-overview.md`, `recordtype.write-model.md`, and both bulk-import write-models. **These are not a blanket find-and-replace** — each names a specific class (`MediaItemIntegrationEventPublisher`, `CollectionIntegrationEventPublisher`, `RecordTypeIntegrationEventPublisher`, …) and **none of those classes exist**; each needs the right mapper name for its module. Two are already correct and must not be touched: `recordtype.write-model.md:429` cites `MetadataIntegrationEventPublishers.AddMetadataIntegrationEventPublishers(...)` in the `Api` host, which is a real registration helper, and `:452` is a correction note. Original: | Per-module **`*IntegrationEventPublisher`** classes implementing `IDomainEventHandler<T>` do the translation | Translation is done by **`*IntegrationEventMapper`** (`IDomainEventMapper<T>`) in each module's WriteModel. The files actually named `*IntegrationEventPublishers.cs` live in the `Api` host and are pure DI registration. Searching per the spec finds the wrong file in the wrong project. (The live ADR `persistence-and-eventing.md:70` is correct; the architecture specs and `CLAUDE.md` are not) | `bounded-context.md:143` / `AssetIntegrationEventMapper.cs:9-21` |
 | ☑ | X-3.4 | ~~Low~~ **closed 2026-08-31, on the second pass** | ⚠️ **Ticked prematurely, like X-4.14.** The first pass fixed only the repo `CLAUDE.md` — the file the finding happened to name — and **three bare `(ADR-005)` citations remained in the spec**: `ChangeRequests/context-overview.md:97`, `Registration/registration.write-model.md:300` and `Registration/context-overview.md:128`. All three now link `persistence-and-eventing.md § Integration Events` directly. The four *linked* mentions were left as they are: `adrs/README.md` is the old-number → new-location index and is supposed to say ADR-005, and three others already carry the link. Original: The repo `CLAUDE.md` no longer cites *"(ADR-005)"* — it links `docs/adrs/persistence-and-eventing.md § Integration Events` directly, and notes that ADR-005 is a redirect stub superseded 2026-07-08. Fixed in the same line as X-3.3's `CLAUDE.md` miss. Original: | ADR-005 cited as the authority | ADR-005 is a 5-line redirect stub (superseded 2026-07-08). Live text is `persistence-and-eventing.md §Integration Events`. `CLAUDE.md` still cites "(ADR-005)" | `ADR-005-*.md:1-5` |
 | ☑ | **X-3.5** | ~~Med~~ **closed 2026-08-31** | **Swept: 109 replacements across 16 files, 30 distinct type names**, every target verified against the 48 real `*IntegrationEvent` types enumerated from `src/modules/**`. Two names needed more than a suffix swap: **`MediaItemPublicationRequestedMessage` → `MediaItemSubmittedForReviewIntegrationEvent`** (`MediaItemDomainEventMapper.cs:128-130` — the domain event and the integration event have different names, so a mechanical rename would have invented a type), and the six **Bulk*ImportJob** names, which now follow the convention but still describe **nothing that exists** (BI-1). **Three deliberate non-renames, each verified in context:** `TenantProvisionedMessage` (`mediaprofile.defaults.md:216,229`) is **inbound from the tenant-management context, which is not built and not spec'd** — `SeedDefaultProfilesService.cs:26` names it the same way, so renaming it would invent a contract for a context that cannot confirm it; `ApproximateAgeOfOldestMessage` (`consistency-model.md:68`) is a CloudWatch metric; and `recordtype.write-model.md:450-451` **quotes the two wrong names on purpose** — they are the error the note explains. ⚠ **That last one was broken by this sweep and restored**: the regex rewrote the quoted names, leaving the note reading *"named these events `RecordTypePublishedIntegrationEvent` … Neither name exists"*. It now carries an inline warning telling the next sweep to leave it alone — **a correction note is the one place a wrong name has to survive**, and nothing else in the tree marks that. **Not done, and left to BI-1:** `bulkfolderimportjob.api.md` and `.scenarios.md` were renamed for consistency but carry **no unbuilt-feature banner** — adding one pre-empts the decision about whether those files stay at all. Original: Integration events are named `*Message` — `CollectionCreatedMessage`, `MediaItemCreatedMessage`, `RegistrationInitiatedMessage`, `FolderCreatedMessage`, `MediaProfilePublishedMessage`, and so on | *Opened 2026-08-31 while closing X-3.3 — **same failure mode, different identifier.*** **The `Message` suffix is not used anywhere in the codebase.** The real wire types are `*IntegrationEvent`: `CollectionDomainEventMapper` yields `CollectionCreatedIntegrationEvent`, `CollectionArchivedIntegrationEvent`, `CollectionRenamedIntegrationEvent`, `CollectionTaggedIntegrationEvent`. A repo-wide search for the `*Message` names returns **no type definitions**. **The rule is already written down twice and was never swept:** `recordtype.write-model.md:452` says *"the `Message` suffix was never used in this codebase"* (DDD-T11, 2026-08-25) and `registration.write-model.md:300` says *"there is no `*Message` suffix anywhere in the code"*. Both files were fixed in isolation; **14 others still carry the old names**, including `Catalog/context-overview.md` (three full tables of them), `collection.write-model.md`, `mediaitem.write-model.md`, `mediaprofile.write-model.md`, `Metadata/context-overview.md`, `AssetManagement/context-overview.md`, `registration.scenarios.md`, `system-architecture.md`, and both bulk-import aggregates. ~128 candidate occurrences before filtering out legitimate `MessageType`/`IMessageBus`/`MessageHandler` uses. **This is a client-facing contract name**, so it is worse than X-3.3: a consumer team writing a subscriber against the published spec would name every type wrong. **Do it as one pass, per file, verifying each name against its module's mapper** — the mappers are the authority and `Map` shows the exact type it yields. | `CollectionDomainEventMapper.cs:23-41` · `recordtype.write-model.md:452` · `registration.write-model.md:300` |
 
-> X-3.1 is the one hard SDK constraint the application materially breaks. Whether to adopt the outbox or formally amend the platform SDK's stated rule is an architecture decision, not a bug fix — but the current state, where an ADR says one thing and the SDK it depends on forbids exactly that, should not persist undocumented.
+> **The outbox decision left this file on 2026-09-01.** The note that stood here — *X-3.1 is the one hard
+> SDK constraint the application materially breaks; whether to adopt the outbox or formally amend the
+> SDK's stated rule is an architecture decision, not a bug fix* — is carried over verbatim in substance to
+> **MM-035**, which is now its only home.
+>
+> **X-3.2 stays**, and MM-035 is why it matters: `Api.csproj` references
+> `Magiq.Platform.Messaging.Outbox` and `.Outbox.DynamoDb` with neither wired, so the codebase reads as if
+> the outbox is in play. MM-035 establishes that the referenced package **has never been run anywhere, by
+> anything** — zero adopters, zero tests, two defects that break the happy path. So this is not merely an
+> unwired reference; it is a reference to something that does not yet work.
 
 ### I.4 Tables & infra
 
@@ -422,7 +501,7 @@ _Removed 2026-08-21 — deferred to the auth plan. Numbering left intact so exis
 | ☐ | X-11.42 | Med | The assets of a deleted MediaItem can never be deleted | *Opened 2026-08-25 by W24.* `Asset` refuses deletion while assigned to a role (`AssetAssignedToMediaItem`). `DeleteMediaItem` **does not detach its assets**, and the detach path never reaches the Asset aggregate at all (**X-11.32**). So those assets are pinned to an item that no longer exists, with no route to release them and no command that could. **Resolves when X-11.32 does** — recorded separately because it is the concrete cost of that gap and would otherwise be discovered as a support ticket. | `DeleteMediaItemHandler.cs` · `Asset.cs:408-424` |
 | ☐ | X-11.43 | Med | A stuck `active-registrations` counter makes a folder permanently unarchivable | *Opened 2026-08-25 by W24.* `RegistrationCancelled`/`Rejected` → `RemoveRegistrationRefCommand` decrements the counter; failure is **logged and the message acked**, deliberately, for idempotency. The trade is unstated: a *persistent* failure leaves the counter high, and since that counter gates folder archive (invariant 13) **the folder can never be archived, with no visible cause**. There is no reconciliation job and no way to inspect a counter through the API. | `RemoveRegistrationRefHandler.cs:32` · `RegistrationCancelledEventHandler.cs:41` |
 | ☐ | X-11.40 | Low | `FolderRegistrationIndex` / `RegistrationCountIndexProjector` are dead | *Opened 2026-08-25 by W24.* The projector's own doc comment says it is *"consumed by `IFolderArchiveFanOutWorker.HasActiveRegistrationsAsync`"*. **It is not** — no lookup for it exists anywhere; the guard reads the `active-registrations` uniqueness counter instead. The DynamoDB table is still provisioned and written on every registration change. **Seventh comment this session asserting something the code contradicts.** Delete the projector and de-provision the table, or wire it and drop the counter — but not both. | `RegistrationCountIndexProjector.cs` · `ServiceCollectionExtensions.cs:383` |
-| ☐ | **X-11.44** | **High** | No outbox — a publish that fails after commit is lost silently | *Opened 2026-08-25 by W25.* `DomainEventPublishingMiddleware` publishes to SNS **after** the event store commits, inside the request. The ordering is deliberate and right (*"`next` is awaited first so the event store write commits before any downstream consumer sees the events"*), but there is **no outbox**: if the publish then fails, the event is durable and **never reaches a projector**. The read model is wrong **permanently, not temporarily** — no retry exists because nothing knows it was missed, and only a manual rebuild fixes it. This is the one case where *"eventually consistent"* is false; the accurate phrase is *eventually consistent, or silently divergent*. **Follows from ADR-005** (inline publication instead of a publisher Lambda) — the decision is defensible and **this consequence was never written down**. Note the platform SDK's own guidance says the opposite: *"Never publish to a message bus directly from a command handler. Always use `IOutbox`."* Either adopt the outbox or record the deviation in ADR-005 with this cost stated. | `Api/Infrastructure/Middleware/DomainEventPublishingMiddleware.cs` |
+| → | **X-11.44** | — | **Moved 2026-09-01 to MM-035**, whose front matter had already scoped it since 2026-08-27 — it was the one of the three that was genuinely double-tracked. Full row text lives there | `Api/Infrastructure/Middleware/DomainEventPublishingMiddleware.cs` |
 | ☑ | X-11.45 | ~~Med~~ **closed 2026-08-25** | `LastObservedAtUtc` does not exist | **Confirmed and removed.** Verified in both repos: **zero occurrences in any `.cs` file**, and `IReadModel : IVersionedProjection` never declared it — so the field existed only in guidance. Chase's call: drop the convention, since `ProjectedVersion` already is the idempotency fence and the only per-record freshness signal. **Removed from:** `magiq-media/CLAUDE.md:168`, `aspnetcore-platform/CLAUDE.md` (the Read Models section and its code sample), `Z:\...\deploy-runbook.md:116`, `spec/architecture/bounded-contexts.md`, `spec/contexts/Registration/.../registration.read-model.md`, and the note in `spec/shared/consistency-model.md`. Each carries a dated correction rather than a silent edit. **One left deliberately:** `aspnetcore-platform/src/platform/Domain/Magiq.Platform.Projections.Stores.DynamoDb/README.md` still shows it across a worked `InvoiceSummaryReadModel` example. Flagged in that repo's `CLAUDE.md` rather than rewritten — it is a tutorial, not a rule, and rewriting eight occurrences in a walkthrough is a separate job. |
 | ☑ | X-11.16 | **High** · **fixed 2026-08-27** | Both archive fan-out workers: `if (!result.IsSuccess) logger.LogWarning(...)` | **☑ Fixed 2026-08-27.** Both workers now return an `ArchiveFanOutReport` — failures, skipped folders, and archived-vs-attempted counts. The archiving half of both moved into one shared `ArchiveFanOutCascade`, since the duplicated dispatch code is why this defect existed twice. Already-archived is classified by `errorCode` and counted as archived, not as a failure (which required adding `MediaItemErrorCodes.MediaItemAlreadyArchived` — `MediaItem.Archive` refused uncoded). The completion line now reports outcomes and logs at **Error** when incomplete; `ArchiveFolderHandler` refuses with **422 `FolderArchiveIncomplete`** instead of archiving the root over a refusal. Both workers now have tests (`FolderArchiveFanOutWorkerTests`, `CollectionArchiveFanOutWorkerTests`) — they had none. ⚠️ **Written without a compiler: no .NET SDK was available in the session. Not properly closed until `dotnet test` is green** — the same caveat X-11.31 carried. *Originally (opened 2026-08-25 by W21):* **Every per-child archive failure is logged and discarded.** Nothing is collected, nothing retried, nothing returned — `ArchiveSubtreeAsync` returns `Task`, not `Task<Result>`. The completion line logs **attempted** counts, so *"Fan-out complete for collection X: 40 folders, 900 media items"* prints identically whether all 900 archived or none did. The caller already has its `204`. **There is no signal anywhere — logs, read models, or API — that distinguishes a complete archive from a total failure.** Identical code in both workers. | `CollectionArchiveFanOutWorker.cs` · `FolderArchiveFanOutWorker.cs` |
 | ☐ | X-11.17 | **High** ⚖️ | A collection archives even when its folders may not | *Opened 2026-08-25 by W21.* `ArchiveFolderHandler` refuses a subtree holding active registrations (`FolderHasActiveRegistrations`, 422). **`ArchiveCollectionHandler` has no such guard** — verified, it loads, archives, releases the name reservation and saves. The collection is therefore already archived *before* `CollectionArchivedIntegrationEvent` is published; when the fan-out then hits a registration-locked folder, the refusal comes back as a failed `Result` and is **swallowed per X-11.16**. Result: a collection containing retention-locked content reports archived, its locked folders stay active, there is no rollback and **nothing records the discrepancy**. ⚖️ **Compliance weight** — active registrations are precisely what a retention rule protects. | `ArchiveCollectionHandler.cs` · `CollectionArchiveFanOutWorker.cs` |
@@ -430,8 +509,8 @@ _Removed 2026-08-21 — deferred to the auth plan. Numbering left intact so exis
 | ☑ | **X-11.18** | **High** *(was Med — confirmed 2026-08-25)* · **fixed 2026-08-27** | A partial archive can strand a subtree, unreachably | **☑ Fixed 2026-08-27, as the review predicted — downstream of X-11.16.** The policy chosen for open question 1 was **continue and suppress ancestors**, not abort: the cascade archives everything it can, records every refusal, and declines to archive the refusing child's folder and every folder above it. So the un-archived remainder is always a **connected subtree containing the root**, which is the same invariant that already made a clean crash safe — and re-issuing the archive against the root is a complete recovery on the folder path. Aborting the level would have given the same guarantee for less code but let one permanently-unarchivable child block a whole tenant's archive forever. Two things the original finding did not capture: a refusing **media item** strands the same way once its folder archives, so phase 2 now tracks outcomes per containing folder rather than in one flat `Task.WhenAll`; and the regression tests that matter are the **negative** ones (`NotContain`), because a test on the failure list alone passes with X-11.16 fixed and still permits the stranding. ⚠️ **Written without a compiler — see the X-11.16 caveat.** *Original evidence:* **Confirmed from code; no dev check needed, and the trigger is not what the finding assumed.** `FolderChildIndexProjector.ResolveKey(FolderArchived)` targets `(ParentFolderId ?? CollectionId)` — the **parent's** record — and `ApplyAsync` does `SetRemove("ChildFolderIds", {e.FolderId})`. So archiving a folder removes it from its parent's child set, and that set is the **only** traversal either fan-out worker has. **A clean crash is safe**, which is worth stating because it is why this looked speculative: phase 3 archives **leaf-first** (`for (var i = levels.Count - 1; i >= 0; i--)` with `await Task.WhenAll` per level), so the unarchived folders always form a **connected subtree containing the root** — a retry from the root reaches all of them. **A swallowed failure is not safe.** If folder D fails to archive at level k+1 — a failed `Result`, logged at warning and **discarded** per **X-11.16** — the loop still proceeds to level k and archives D's parent P. `FolderArchived(P)` removes P from *P's* parent's set. **P is archived, D is not, and D is now unreachable from the root** along with everything beneath it. A retry never visits it; nothing detects it; there is no tool to find it. **So this is downstream of X-11.16, and fixing X-11.16 largely closes it** — collect per-child failures and abort the level rather than proceeding, and the stranding cannot occur. That is a strong additional argument for X-11.16 beyond the reporting problem. | `FolderChildIndexProjector.cs:33-35,55` · `FolderArchiveFanOutWorker.cs:67-70` |
 | ☐ | X-11.19 | Med | Fan-out is sync in-request pre-prod, async over SQS in prod | *Opened 2026-08-25 by W21.* CDK sets `ASPNETCORE_ENVIRONMENT: isProd(config) ? 'Production' : 'Development'` and `isProd ⇔ env === 'prod'`, so **`dev`, `qa` and `staging` all run `Development`**, where `Api/Startup.cs` wires `AddCatalogIntegrationEventConsumers()` onto `AddInProcessMessageBus()`. The collection cascade is therefore **synchronous inside the HTTP request on three tiers** — no queue, no redelivery, no DLQ — and asynchronous on `prod` alone. The environment collapse itself is deliberate and documented in the CDK; the fan-out consequence looks unintended. **`staging` cannot reproduce a production partial-archive by construction**, and prod is the only tier where redelivery could recover one. | `magiq-media-stack.ts:269` · `Api/Startup.cs:109` |
 | ☑ | X-11.11 | ~~Low~~ **closed — already fixed under W21, ticked 2026-08-31** | **Verified: `CLAUDE.md:139` now reads *"⚠️ none — no aggregate class exists"*** with the W21 correction note, and the deferred-work list two pages later agrees. The row survived only because nobody re-checked it after W21 did the work. *(Second row this sweep found already closed — cf. X-10.2. Worth re-verifying Low rows before planning against them.)* Original: | Repo `CLAUDE.md` lists `DocumentSigningSession` as an aggregate | *Opened 2026-08-25 by W21.* The module table says `\| DocumentSigning \| DocumentSigningSession \|`, but **no such class exists** — `DocumentSigning.Domain/Aggregates/` contains only an `Events/` folder, and no type carries a `media.signingsession` `[AggregateType]`. The same file's deferred-work list contradicts the table two pages later. The docs project's `CLAUDE.md` has it right (*"skeleton only — no aggregate class exists"*). Fix the repo table so the two agree. | `CLAUDE.md:139` vs `:207` |
-| ☐ | X-11.12 | Low | `SigningSessionDetailProjector` is complete and never registered | *Opened 2026-08-25 by W21.* The projector handles all nine signing events and keys every one correctly, but `AddDocumentSigningReadModelProjectors()` is **called by no host** — grep returns only the definition. Dead alongside `AddDocumentSigningReadModelQueries()`. Harmless while nothing emits signing events (the publishing middleware excludes `ISigningDomainEvent`), but it is finished work that will be forgotten when the module is picked up. | `DocumentSigning.ReadModel.Infrastructure/ServiceCollectionExtensions.cs` |
-| ☐ | X-11.13 | Low | Webhook tenant-lookup table named two different ways | *Opened 2026-08-25 by W21.* `SagaOrchestrator.DocumentSigning.csproj`'s comment says webhook `TenantId` resolution uses `media-signing-sessions`; the code comments beside it say `media-signing-envelope-lookup`, keyed by `EnvelopeId`, written by `SigningEnvelopeLookupProjector`. **Neither the table nor the projector exists**, so nothing arbitrates. The code comment is the coherent one — SecuredSigning webhooks carry no `TenantId`, so the lookup must be `EnvelopeId → TenantId`, which `media-signing-sessions` (keyed by `SigningSessionId`) cannot answer. | `SagaOrchestrator.DocumentSigning.csproj` · `SecuredSigningWebhookHandler.cs` |
+| → | **X-11.12** | — | **Moved 2026-09-01 to `reviews/document-signing/documentsigning-review-2026-09-01.md` (MM-038)** with § H. DocumentSigning-only, and it would otherwise have been one of the last two DS rows stranded in a file with no DS section | `DocumentSigning.ReadModel.Infrastructure/ServiceCollectionExtensions.cs` |
+| → | **X-11.13** | — | **Moved 2026-09-01 to MM-038** with § H. It is DS-2 and DS-6 seen from the code side — the webhook cannot resolve a tenant because the lookup table, its projector and the handler body are all absent — so it belongs with them rather than under Tables & infra | `SagaOrchestrator.DocumentSigning.csproj` · `SecuredSigningWebhookHandler.cs` |
 | ☐ | X-11.14 | Low | `LinkSigningSessionCommand` / `UnlinkSigningSessionCommand` registered, tested, never dispatched | *Opened 2026-08-25 by W21.* Both commands, both handlers, both aggregate methods and both unit tests exist and are DI-registered. **Neither has an endpoint and neither is dispatched anywhere in `src/`** — the only outside reference is a TODO inside `SigningSessionInitiatedHandler`, which throws `NotImplementedException`. That TODO also passes `envelopeId` into a parameter typed `SigningSessionId`. Same shape as X-11.8. **Sequencing matters here:** `ActiveSigningSessionId` blocks `CheckOut` and `RequestPublication`, so the day linking is wired without unlinking, a `MediaItem` becomes permanently un-checkoutable with no operator command to clear it. Ship both paths together. | `Commands/MediaItems/LinkSigningSession/` · `UnlinkSigningSession/` |
 | ☐ | X-11.20 | Low | `Media:Catalog:BulkOperations:MaxAssetsPerRequest: 200` in `appsettings.json` | *Opened 2026-08-25 by W27.* **Binds to nothing.** Catalog's `BulkOperationsOptions` has no `MaxAssetsPerRequest` property — the asset cap is AssetManagement's, under `Media:AssetManagement:BulkOperations`, set to **100**. The dead key sits directly above the live ones in the same block, and reads as the authoritative asset limit. Anyone raising it to lift an asset bulk limit gets no effect and no error, and the 100 stays. This is the *second* time this pair of sections has caused a silent-fallback bug (see AM-12, where AssetManagement's own options bound to nothing at all). Delete the key. | `src/hosts/Api/appsettings.json:25` |
 | ◐ | X-11.21 | **High** · **spec half closed 2026-08-31** | Idempotency header name mismatch — **spec corrected and verified; the `RequestAmendmentRequest.cs:17` code comment and the Postman pre-request script still say `IdempotencyKey`.** Closing the row needs those two, not another spec pass. | *Opened 2026-08-25 by W29.* The middleware constant is **`Idempotency-Key`** (hyphenated). The spec, the Postman pre-request script and a code comment in `RequestAmendmentRequest.cs:17` all say **`IdempotencyKey`**. A client following the published contract gets **no replay protection at all** — silently, with a 2xx, because the middleware only inspects the hyphenated header and passes everything else through. **Spec corrected; the code comment still needs fixing.**<br><br>**Is it used, or is it leftover? — answered 2026-08-25.** **The mechanism is live and functional, and nothing in the application exercises it.** Live: the middleware resolves its tenant claim correctly (the platform claims mapper writes `tenant_id` — see X-11.22), the table is CDK-provisioned, and the wiring in `Api/Startup.cs:92-98` is deliberate, carrying a considered comment about verbatim table naming and suffix overrides. Unused: **no client code, no integration test and no Postman collection in this repo sends `Idempotency-Key`** — the only references outside the wiring are three comments asserting the feature does not exist and one naming it wrongly. So it is **not** dead code to delete; it is a working capability the team has forgotten it has. Two ways forward, and they need a decision: **(a)** adopt it — fix the header name in the comment, declare it in OpenAPI (**X-10.5**), and have clients send it; or **(b)** retire it deliberately — drop the package reference and the table. What must not persist is the current state, where the docs and the code comments disagree about whether it exists at all. | `IdempotencyMiddleware.cs:16` · `RequestAmendmentRequest.cs:17` · `Api/Startup.cs:92-98` |
@@ -551,7 +630,7 @@ mark it `// TODO(X-4.7): not implemented` if it must be touched.
 | ☑ | **X-9.8** | **High** | Stack tables and `mediachangerequest.read-model.md`: ids are "UUID v7, time-sortable", and `SK`-ordered comment threads are creation-ordered "for free" | **CLOSED 2026-08-24 — fixed in `aspnetcore-platform`, with tests. Found by running X-9.4's test, which had never been executed.** `GuidFactory.CreateVersion7()` did `(Guid)Medo.Uuid7.NewUuid7()`. Medo 2.x converts **big-endian** — it preserves the raw UUID bytes — while `Guid` stores its first three fields **little-endian**, so the canonical text rendered as `b3b2b1b0-b5b4-b7b6-…`. One cause, two failures: the version nibble was read from byte 7 (random — it reported **v14**) and the timestamp bytes scrambled across the leading groups, so ids did **not** sort. `IdVersionCoverageTests` predicted this exact diagnosis in its own failure message.<br><br>**Blast radius: every id in the system.** `Id<T>.New()`, all three `IdGenerator` copies and `TenantId.New()` route through that one method. The `#if NET10_0_OR_GREATER` branch (`Guid.CreateVersion7()`) was always correct, so the two branches disagreed — the fix also aligns the .NET 10 upgrade path.<br><br>**Fix:** explicit byte swap of the first three fields in `GuidFactory`, deliberately not `ToGuid(matchGuidEndianess: true)` — Medo 3.0 renamed that parameter and inverted its default. New `GuidFactoryTests` in the platform assert the version nibble, the RFC 4122 variant, ordering across milliseconds *and* within one millisecond, uniqueness, that the leading 48 bits decode to the current Unix ms, and that `Id<T>.New()` inherits it. That guarantee had **no coverage in the repo that makes it** — it surfaced only in a consuming app's tests.<br><br>**⚠ Data consequence, permanent:** ids already written are unique and valid but unordered. Anything treating id order as creation order is correct only for post-fix ids — including `media-change-request-comments`, where `SK` ascending *is* the thread order, so pre-fix threads list arbitrarily and mixed threads are ordered only within their post-fix tail. Noted in `system-spec.md`, `mediachangerequest.read-model.md` and the repo `CLAUDE.md`; no migration is possible without reissuing ids.<br><br>**⚠ Not yet built or run** — no .NET toolchain in the session that wrote it. Needs `dotnet test tests/Magiq.AspNetCore.Tests/`, then a package release.<br><br>**⚠ The release is not a one-package bump.** `GuidFactory` ships in **`Magiq.Platform.Core`**, which `magiq-media` never references directly — it is absent from `Directory.Packages.props` and from every `.csproj`, and arrives transitively through ten packages that each declare `Magiq.Platform.Core 1.1.3.5` (confirmed against `src/hosts/Api/obj/project.assets.json`: `Magiq.AspNetCore.Platform`, `…Platform.Abstractions`, `Magiq.Platform.DynamoDb.Abstractions`, `…ExecutionContext.Abstractions`, `…Hosting`, `…Hosting.Abstractions`, `…Localization.Abstractions`, `…Settings.Abstractions`, `…Tenants.Abstractions`, `…WriteModel.Domain`). NuGet resolves the lowest version satisfying the graph, and `CentralPackageTransitivePinningEnabled` is **false**, so publishing Core alone — or adding a `PackageVersion` entry for it — changes nothing. Either republish the dependent chain (simplest: whole platform at a new `VersionPrefix` in `build/Magiq.AspNetCore.Commons.props`, currently 1.1.3.5; 1.1.3.6 and 1.1.3.7 are already taken by one-off package publishes) so every dependent's Core floor moves and no consumer can resolve the broken Core again, or enable transitive pinning in `magiq-media` and pin Core there — which fixes this repo only and leaves the bad Core resolvable everywhere else | `GuidFactory.cs` (platform); `Id.cs:92`; `IdVersionCoverageTests.cs` |
 | ☑ | X-9.4 | Low | — | **CLOSED 2026-08-24 — the test was run, and it failed exactly as predicted.** `IdVersionCoverageTests` (added closing X-9.1) had never been executed; its two suspect facts depended on `(Guid)Medo.Uuid7` preserving canonical byte order, which could not be confirmed from source. It did not: both `EveryIdFactoryProducesAUuidV7` and `IdsAreTimeSortable` failed on every ID type at once, which the test's own message called as `GuidFactory` rather than the ID types. See **X-9.8** for the diagnosis and fix. The test needs no change — it was right | `IdVersionCoverageTests.cs` |
 | ☐ | X-9.2 | Low | "`ILogger<T>` only" — two violations in host startup. (`src/tools/Cli/**` is a console app; its `Console.WriteLine` is UI output, not a violation) | `Api/Program.cs:19`; `QueryApi/Program.cs:19` |
-| ☐ | X-9.3 | High | See X-3.1 — the outbox rule is the one hard SDK constraint the app materially breaks | |
+| → | **X-9.3** | — | **Moved 2026-09-01 to MM-035** with X-3.1 and X-11.44. Its entire body was *"See X-3.1"*, so it followed the row it pointed at rather than being left pointing at a gap | |
 | ◐ | **X-9.6** | **Med** · **spec half closed 2026-08-31** | **The documentation half is fully closed — verified across all five files.** Every surviving mention of `ITransactionScope`, `TransactionBehavior` and `NameReservationConflictBehavior` under `docs/spec/` now sits *inside* a correction blockquote that names the claim as false: `collection.write-model.md:225` (CO-4 rewrite), `mediaitem.write-model.md:783`, `mediaprofile.write-model.md:468`, `recordtype.write-model.md:362,417` (DDD-T11 rewrite), `concurrency-and-consistency.md:287`. Zero uncaveated assertions remain. **`system-spec.md` no longer exists** — W8 split it, and the § constraint-enforcement content now lives in `shared/concurrency-and-consistency.md`, which is corrected. **Still open: the code half only** — the 23-of-25 uncompensated reservation call sites. Original finding: `mediaitem.write-model.md`, `mediaprofile.write-model.md` and `system-spec.md § constraint enforcement`: name reservation and event append "are committed atomically" by an ambient `ITransactionScope` + a `TransactionBehavior`; `NameReservationConflictException` is handled by a `NameReservationConflictBehavior` and "handlers never catch it directly" | *Opened 2026-08-24 while closing X-9.5 — the fiction was co-located with the MediatR claim in the same sentences.* **`ITransactionScope`, `TransactionBehavior` and `NameReservationConflictBehavior` do not exist in either repo**, and `ConcurrencyConflictException` (named alongside them in `system-spec.md`) is not a type that exists either. Reality: handlers call `ReserveAsync` then `SaveAsync` as **two separate, un-atomic writes**, and catch `NameReservationConflictException` inline in a `try`/`catch` — the opposite of what the docs say. **A failure between the two leaves an orphaned name reservation**, and nothing releases it, so the name stays permanently unusable in that scope. Concurrency conflicts surface as `EventConcurrencyException` from `DynamoDbEventStore`. Docs corrected to describe the real flow; **the orphaned-reservation gap is a real behavioural hole and is not fixed**. CO-4 found and corrected the same fiction in `collection.write-model.md` on 2026-08-21 but did not sweep its two siblings — this is the rest of that sweep, plus the durability question CO-4 didn't raise.<br><br>**Doc half closed 2026-08-24 (second pass).** All three files now describe the real per-handler flow, with a failure table each. The pass also established that compensation is **not** absent everywhere: `CreateMediaProfileHandler` and `PublishMediaProfileHandler` release the reservation in a `catch (Exception)` around the save before rethrowing — the only two of **25 reserve/swap/move/release call sites across 23 handler classes** that do. (Create puts reserve and save in one `try`; Publish keeps the swap in an earlier separate `try` and compensates the save only.) That compensation is best-effort and does not close the gap: it cannot fire on a Lambda timeout or host kill, the release is itself un-retried, and on publish it releases the new name without restoring the old, leaving a live profile holding **no** reservation. Five handlers (`ArchiveCollection`, `ArchiveFolder`, `ArchiveMediaItem`, `DeprecateMediaProfile`, `DeprecateRecordType`) release *before* saving and so fail in the opposite direction — name freed while the aggregate is still active.<br><br>**Still open, narrowed:** the 23 non-MediaProfile sites have no compensation at all, and several bulk sites (`BulkCreateFoldersHandler:309`, `BulkCreateFoldersByPathHandler:357`, `BulkCreateMediaItemsHandler:213`) catch nothing whatsoever, so a conflict there surfaces as an unhandled exception rather than a 409. Proper fix is the deferred outbox (X-3.1) | `CreateMediaProfileHandler.cs:35-49`; `PublishMediaProfileHandler.cs:105-117`; `CreateCollectionCommandHandler.cs:62-72`; `CreateMediaItemHandler.cs:86-102`; `DynamoDbEventStore.cs:169` |
 | ☑ | **X-9.7** | **High** | — | **CLOSED 2026-08-24 — fixed, with tests.** *Found the same day during the X-9.6 doc pass: `MoveMediaItem` was broken end to end — every folder-to-folder media-item move failed with a spurious 409.* The handler moves a title between folder scopes by calling `SwapAsync`, not `MoveAsync`. `SwapAsync` is an extension with signature `(tenantId, ScopeKey scope, string oldName, string newName, OwnerId owner)`, and `ScopeKey` is a `record struct` with implicit conversions **both ways** to `string` — so `SwapAsync(tenantId, oldScopeKey, newScopeKey, title, id)` compiles while binding the **destination scope key as `oldName`** and the **title as `newName`**, entirely within the **source** scope. `DynamoDbNameReservationStore.SwapAsync` executes a swap as a two-leg `TransactWriteItems` whose `Delete` leg is guarded by `ConditionExpression = "OwnerId = :oid"` on the old-name row. That row — a normalised copy of the destination scope key — does not exist, the condition fails, the transaction cancels, and the store raises `NameReservationConflictException`. `MoveMediaItemHandler:65` catches it and returns `409 MediaItemAlreadyExists`. So: no reservation is written, `SaveAsync:73` is never reached, and the caller is told the destination already holds the title. Tier 1 at `:45` *does* check the destination correctly, which makes the false 409 look legitimate. `MoveFolderHandler:128` gets the identical case right with `MoveAsync`. **`MoveMediaItemHandlerTests` cannot catch this** — `SwapAsync` is an extension over the single interface method `ApplyAsync`, so a loose `Mock<INameReservationService>` swallows the malformed intent; a fix needs a test asserting on the `NameReservationIntent` passed to `ApplyAsync`, or an integration test. **Fix (2026-08-24, on `feature/change-requests`):** `MoveMediaItemHandler` now calls `MoveAsync`; the `catch (NameReservationConflictException)` stays, since `MoveAsync` raises the same exception on a genuine destination clash. Tests added: `NameReservationIntentRecorder` (`Catalog.WriteModel.Tests/Shared`) captures the intent handed to `ApplyAsync`, with move/swap-intent assertions on `MoveMediaItem`, `MoveFolder`, `RenameFolder`, `RenameCollection` and `UpdateMediaItemTitle`, plus a conflict-path test on `MoveMediaItem` and an end-to-end assign→move→reuse-in-source→clash-in-destination test in `Catalog.IntegrationTests`. Docs updated in `mediaitem.write-model.md` and `system-spec.md`. **⚠ Not yet built or run — no .NET toolchain in the session that wrote it; Chase to run `dotnet test tests/modules/Catalog/Catalog.WriteModel.Tests/` and the Catalog integration tests before this is trusted.** **Root hazard left open:** the implicit `ScopeKey`↔`string` conversion in the platform still lets a scope key bind to a name parameter anywhere in the registry API — worth an analyzer rule or dropping the `ScopeKey`→`string` direction; not filed as its own finding yet | `MoveMediaItemHandler.cs:61-73`; `DynamoDbNameReservationStore.cs:560-614` (platform); `NameReservationServiceExtensions.cs` (platform); cf. `MoveFolderHandler.cs:126-135` |
 

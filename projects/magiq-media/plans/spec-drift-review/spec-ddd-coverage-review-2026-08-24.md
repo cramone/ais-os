@@ -6,14 +6,19 @@ workstream: spec-drift-review
 consumes: [MM-023]
 depends-on: []
 blocked-by-external: []
-status: active
+status: done
 todo-id: 7ca3bb24-b8d6-5212-9cd6-455fd7a58a08
 branches: []
 ado: -
 created: 2026-08-24
+completed: 2026-08-25
 ---
 
-> **Backfilled into the review cycle 2026-08-31 as MM-024.** Six phases. **Phase 1 complete 2026-08-25** — 15 of 17 truncated spec tails recovered, 3 quarantined to docs/spec/_recovered/, 2 unrecoverable. D2 resolved; **D1 and D3-D6 still block Phases 2 and 4**.
+> **Backfilled into the review cycle 2026-08-31 as MM-024.** **Done — all 31 units (W0–W30) and all six
+> decisions (D1–D6) closed 2026-08-25.** Status flipped 2026-09-01, when a completion check found the work
+> finished and only the bookkeeping stale. Nothing under `docs/` that this plan owns is known to be wrong;
+> what remains is out of scope by §4 — the code findings in `spec-repo-drift-review.md`, the two parked
+> workstreams (`asset-custody`, `projection-rebuild`), and **BI-1**, a decision about an unbuilt feature.
 
 # DDD Spec Coverage — Remediation Plan
 
@@ -32,27 +37,25 @@ is deliberately omitted: the spec gives three answers (9 / 10 / 12) and W7 recon
 
 ## 1. Status board
 
-**One unit per session.** Read this table, pick the first unblocked `☐`, work only that unit, tick it,
-add a session-log line (§8). Nothing else in this document needs reading to start.
+**✅ Done.** The board below is a record, not a queue — every unit is ticked and every decision resolved.
+The operating instruction it used to carry (*one unit per session; pick the first unblocked `☐`*) is kept
+in §2 for the next plan that needs it.
 
-**✅ Stage A's work is done — W1, W2, W3 and W4 all landed 2026-08-25.** Two guards, the question map, and
-a contradiction register holding all 14 Tier-1 items in-repo where the whole team can see them.
-
-> 🚨 **Not yet true in the repo, and one half is actively broken.** `docs-guard.yml` and
-> `check-spec-truncation.py` are **committed**; `check-spec-sections.py`, `docs/spec/README.md` and
-> `docs/spec/open-questions.md` are **untracked**. The committed workflow runs the uncommitted script, so
-> **every `docs/**` PR on `develop` currently fails that step with "No such file or directory"** — and the
-> register that exists so Estelle and Akshay can see it is not visible to them. **Commit the three
-> outstanding files before anything else.** Stage A is complete in a working tree, which is not where it
-> counts.
+> **Stale banner removed 2026-09-01.** This spot carried a 🚨 warning that `check-spec-sections.py`,
+> `docs/spec/README.md` and `docs/spec/open-questions.md` were untracked while `docs-guard.yml` was
+> committed calling one of them — red docs CI on `develop`. **All three are tracked and committed**
+> (verified 2026-09-01), along with a fourth guard added since, `check-message-type-mirror.py` (X-4.15).
+> The only uncommitted work under `docs/` is `adrs/deployment-and-resource-naming.md` plus a modified
+> `adrs/README.md` — that is **W9's open choice** (write the ADR or delete the row), evidently acted on
+> and not yet committed. It belongs to MM-004/DN-1, not to this plan.
 
 **▶ Every W unit on this board is complete.** Thirty-one units, Stages A–E. **`check-spec-sections.py` reports `fail 0 · warn 16 · rename backlog 0`, and all 16 belong to BI-1** — every other owning unit is at zero. What remains is **not spec work**: the code findings in `spec-repo-drift-review.md`, two parked review workstreams (`asset-custody`, `projection-rebuild`), and **BI-1** — the bulk-import spec describing an unbuilt feature, which owns 16 of the 17 remaining CI warnings and is a decision about that feature rather than a documentation gap. (W24 and W28 needed W7, W25 needed W6; all three deps landed 2026-08-25). **No unit is blocked and no decision is outstanding** — D4 and D5 both resolved 2026-08-25. **Stage A and Stage C are complete**, and W19 released W20 and W21. **W6 and W7 both landed 2026-08-25.** `bounded-contexts.md` exists with both source files deleted;
-`domain-model.md` now carries the single aggregate inventory and the three rules. **W8 — splitting
-`system-spec.md` — is next, and it alone releases W9, W10, W12, W14 and W19.** **W11** is also unblocked
-(D3) and is a ½-day deletion sweep with its evidence already written down.
+`domain-model.md` now carries the single aggregate inventory and the three rules. W8 split `system-spec.md`
+into five `shared/` files with no stub, releasing the five units behind it.
 
-**Both D4 and D5 were resolved 2026-08-25** — D4's premise turned out to be false, D5 was decided in favour of a complete matrix;
-each gates a single unit.
+**All six decisions resolved 2026-08-25** — see §3. D1 (merge both architecture files, delete both) and D3
+(`media.item.*`, the code wins) were the two that gated the spine; D4's premise turned out to be false, and
+D5 was decided in favour of a complete authorization matrix rather than a privileged subset.
 
 > **What W6 changed that later units depend on.** The host inventory now has **one** home
 > (`bounded-contexts.md § Host Boundaries`) and the runtime shape has one (`system-architecture.md`).
@@ -85,34 +88,21 @@ The decision is which spelling the spec keeps; the code already answered it.
 
 </details>
 
-> **Everything else on the board is behind two decisions.** **D1** blocks W6 → W7 → W8, and W8 alone gates
-> W9, W10, W12, W14 and W19. **D3** blocks W11. Resolving D1 unblocks more of this plan than any amount of
-> further work — and W3's diagram pass has already assembled its evidence: `bounded-context.md` is stale on
-> topology but is the sole owner of the context-relationship types, so the merge has a concrete
-> must-carry-over list.
+### Carried forward — two register entries this plan could not close
 
-**W6 is still blocked on D1 only** — and D1's recommendation ("merge both files, delete both") is unchanged
-and now better supported: W3 and the diagram pass established that `bounded-context.md` is stale on
-topology but is the **sole owner** of the context-relationship types, so the merge has a concrete
-must-carry-over list. Resolving D1 unblocks W6 → W7 → W8, which is the spine the rest of Stage B hangs off.
+Both are decisions rather than documentation gaps, so no unit could close them and neither blocks
+archiving. They stay open in `docs/spec/open-questions.md`, verified still open 2026-09-01.
 
-**W11 and W12 are *not* unblocked**, despite W4 landing: W11 also waits on **D3**, which §3 still records
-as Open, and W12 also waits on **W8**. What W4 changed is that both now have their evidence written down —
-`#q-1` records that the code publishes `media.item.*` exclusively, and `#q-8` that the CDK provisions no
-`-detail` table. **D3 is a decision, not an investigation, and the investigation is finished** — resolving
-it is now a five-minute read of `#q-1`, after which W11 is a ½-day deletion sweep.
-
-**Two register entries should jump the queue regardless of stage order.** **Q-4** ⚖️ turned out not to be
-a documentation bug at all: the evidence-destroying hard-delete is **live shipping code**
-(`RecordValidationResultHandler`), the quarantine described in three spec files was never built, and
-`quarantine` appears nowhere in `src/`. That is a product decision for regulated-records customers, and it
-is the one item here that is worse the longer it waits. **Q-11** 🔒 is cheaper — an authorization table
-promising an owner-scope check the code does not perform.
-
-**Two entries in the register deserve to jump the queue regardless of stage order:** **Q-4** (⚖️ the
-infected-object instruction that destroys evidence) and **Q-11** (🔒 MediaProfile authorization promising
-a check the code does not perform). Neither is expensive; both are the kind of thing that is much worse to
-find later.
+- **Q-4** ⚖️ **Infected object — delete or quarantine.** Not a documentation bug at all: the
+  evidence-destroying hard-delete is **live shipping code** (`RecordValidationResultHandler`), the
+  quarantine described in three spec files was never built, and `quarantine` appears nowhere in `src/`
+  — while `media-quarantine` is provisioned and unwired (X-4.7). W10 corrected the spec to describe what
+  ships and left the question open deliberately. **A product decision for regulated-records customers,
+  and the one item here that gets worse the longer it waits.**
+- **Q-11** 🔒 **MediaProfile scope.** `mediaprofile.api.md`'s authorization table promises an owner-scope
+  check the code does not perform; `ListMediaProfilesQuery` filters on `TenantId` alone. W22 corrected the
+  listing claim in two places, but the register entry closes only when the table matches the code **or**
+  the code is changed to match the table — and which of those is right is Chase's call.
 
 | ✓ | # | Unit | Size | Blocked by | Stage |
 |---|---|---|---|---|---|

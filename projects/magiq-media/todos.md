@@ -8,7 +8,9 @@ _Status: reference — not a todo_
 
 | Workstream | Folder | Entry point | State |
 |---|---|---|---|
-| Spec ↔ repo drift | `plans/spec-drift-review/` | `spec-repo-drift-review.md` | **Active** — 59 open findings; tick the ✓ column as they land |
+| Spec ↔ repo drift | `plans/spec-drift-review/` | `spec-repo-drift-review.md` | **Active** — **52** open rows, all code; §I.4 holds 41. *(69 until the 2026-09-01 split; before that the file said 59, corrected 2026-08-31. Plan against the row states, not the headline.)* The DDD plan beside it (MM-024) is **Done**. |
+| Bulk import | `reviews/bulk-import/` | MM-036 (folder) · MM-037 (media) | **Draft, no plan** — split from the drift review 2026-09-01. A build-or-withdraw decision on two fully-specced aggregates with no code. **Yours to make.** |
+| Document signing | `reviews/document-signing/` | MM-038 | **Parked** — split from the drift review 2026-09-01, already parked by your decision. The two publish-honesty banners are worth doing either way. |
 | Architecture-review remediation | `plans/architecture-review-remediation/` | `COWORK-EXECUTION-INSTRUCTIONS.md` → `IMPLEMENTATION-PLAN.md` | Active — 169 ADO items, nothing started |
 | Authz + outbox | `plans/architecture-review-remediation/` | `architecture-review-authz-and-outbox-deferred-plan.md` | **Parked** — deferred in sequencing only, both are pre-prod gates |
 | Projection tables | `plans/projection-tables/` | `schema-versioned-projection-tables-plan.md` | Proposed — supersedes the hot-swap rotation plan beside it |
@@ -22,34 +24,42 @@ goes **review first, then plan**, and new plans take their review's filename so 
 after archiving; see `CLAUDE.md § Review → Plan`. The eleven 2026-07 architecture reviews are the one
 many-to-one case: `reviews/architecture-review-remediation/` → the single plan set of the same name.
 
-The DDD coverage review now has a plan of the same name in `plans/spec-drift-review/` — see the todo
-below.
+The DDD coverage review's plan of the same name in `plans/spec-drift-review/` is **Done** (2026-08-25) —
+see the closed todo below.
 
 ---
 
-## Decide the six questions blocking the DDD remediation plan
+## ~~Decide the six questions blocking the DDD remediation plan~~
 _Captured: 2026-08-24_
-_Status: todo — plan drafted, Phases 0–1 unblocked, Phases 2 and 4 waiting on you_
+_Status: **DONE 2026-08-25** — all six decided; plan MM-024 ran to completion the same day. Closed here 2026-09-01._
 
-`plans/spec-drift-review/spec-ddd-coverage-review-2026-08-24.md` §1 lists six decisions. The two that
-change the most downstream work:
+All six decisions in `plans/spec-drift-review/spec-ddd-coverage-review-2026-08-24.md` §3 are resolved, and
+the plan they gated is finished — 31 units, W0–W30. How they landed:
 
-- **D1 — authority model.** Banner the three stale architecture docs (hours) or rewrite them (a week,
-  against a spec Phase 3 is still repairing). Recommendation: banner now, rewrite only `domain-model.md`
-  later, delete `bounded-context.md`'s duplicate inventories outright.
-- **D3 — integration event naming.** `media.mediaitem.*` (16 uses) vs `media.item.*` (12). External SNS
-  filter policies cannot be written against both. Needs a code check, then an ADR.
+- **D1 — authority model.** *Merge, don't banner.* `service-boundaries.md` + `bounded-context.md` →
+  `architecture/bounded-contexts.md`, **both sources deleted**, carrying over the context-relationship
+  types table (the only one in the tree). The runtime half moved to `system-architecture.md`.
+- **D3 — integration event naming.** **`media.item.*` — the code wins**, no alias, ADR written into
+  `adrs/persistence-and-eventing.md`. The sweep found this was not a spelling fix: `media.mediaitem.published`
+  was the wrong *event* — there is no `media.item.published`, a MediaItem going live raises
+  `media.item.approved`. A find-and-replace would have invented three references to a nonexistent event.
+- **D2** search history first (15 of 17 tails recovered), **D4** premise was false — one nine-value
+  `Capability` enum, no restricted list, so no decision was needed, **D5** comprehensive not subset —
+  which is what surfaced that **86 of 132 commands are unguarded**, and **D6** yes, W20 owned the
+  `MediaItemReviewSaga` deletion — where "never built" turned out to be false; it shipped and was deleted
+  2026-06-02.
 
-D2 (truncated tails), D4 (`Capability` enum), D5 (authorization-matrix scope) and D6 (who owns deleting
-`MediaItemReviewSaga`) are in the plan with recommendations.
+**The truncation note that stood here is closed too.** It read "the tails are not in git and not in the wiki — they
+have to be rewritten from the code." That was wrong: enumerating *every* blob in both repos
+(`git rev-list --objects --all` + `git fsck --dangling`, comparing **tails not sizes**) recovered 15 of 17,
+**seven of them only from `Media.wiki`'s history** — see the plan's §9.4 for the method. The re-cutting was
+real and is now guarded: `docs-guard.yml` fails any `docs/**` PR ending a spec file mid-construct, and the
+never-rewrite-a-whole-file rule is in both `CLAUDE.md` files.
 
-**Worth knowing before you read it:** the review said "regenerate the 15 truncated files". There is
-nothing to regenerate from. It is 17 files truncated mid-token (plus 5 missing only a newline), the tails
-are **not in git** — `asset.api.md` ends at the same token across all six commits while growing 13KB —
-and **not in the wiki**, which cuts at the identical tokens. They have to be rewritten from the code.
-Worse, it is still happening: `system-spec.md` has been re-cut at a *different* point since the
-migration, so something in the authoring workflow is still truncating whole-file writes. Phase 0 is a CI
-guard for exactly that.
+**Two decisions did fall out of the plan and are still yours** — both in `docs/spec/open-questions.md`,
+neither blocking: **Q-4** ⚖️ infected object, where the evidence-destroying hard-delete is the path that
+ships and `media-quarantine` is provisioned but unwired; and **Q-11** 🔒 MediaProfile scope, where the
+authorization table promises an owner check the code does not perform.
 
 ---
 

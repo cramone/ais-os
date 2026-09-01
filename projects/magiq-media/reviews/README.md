@@ -22,7 +22,7 @@ leave, not to rest in.
 | MM-003 | `projection-tables/` | `projection-tables-review-2026-08-31.md` | Done | plan | MM-002 — **Parked** on Phase B only; Phase A shipped |
 | MM-005 | `deployment-naming/` | `deployment-naming-review-2026-08-31.md` | Done | plan | MM-004 — **Done** 2026-09-01; DN-1 (the ADR) and DN-4 (stale build output) both closed |
 | MM-007…MM-017 | `architecture-review-remediation/` | 11 module + cross-cutting reviews, read as one body | Done | plan | `plans/architecture-review-remediation/` |
-| MM-023 | `spec-drift-review/` | `spec-ddd-coverage-review-2026-08-24.md` | Done | plan | `plans/spec-drift-review/` — same filename |
+| MM-023 | `spec-drift-review/` | `spec-ddd-coverage-review-2026-08-24.md` | Done | plan | MM-024, `plans/spec-drift-review/` — same filename. **Done** 2026-08-25; all 31 units and all 6 decisions closed |
 | MM-033 | `spec-structure/` | `spec-structure-recommendation-2026-08-25.md` | Done | folded-into: MM-024 | *(no plan of its own — most of it lands in the DDD plan's Phases 2/4a/5)* |
 | MM-020 | `design/` | `mediaitem-edit-lifecycle-as-is-vs-recommended.html` | Done | plan | `plans/design/mediaitem-edit-session-design.html` |
 | MM-027 | `asset-custody/` | `asset-custody-review-2026-08-25.md` | **Parked** | parked | *(none — parked 2026-08-25, not started; blocked by X-11.32)* |
@@ -32,8 +32,17 @@ leave, not to rest in.
 | MM-025 | `archive-cascade/` | `archive-cascade-review-2026-08-25.md` | Done | plan | MM-026 — **Active**, X-11.41 next |
 | MM-034 | `archive-cascade/` | `archive-cascade-scale-review.md` | **Draft** | pending | *(not yet planned — measure before building; no telemetry on either path)* |
 | MM-030 | `event-reliability/` | `event-reliability-review-2026-08-25.md` | **Active** | pending | *(no plan — being worked directly; X-11.6 and X-11.5 core closed, X-11.44 decision-gated)* |
-| MM-035 | `event-reliability/` | `outbox-implementation-review-2026-08-27.md` | **Draft** | pending | *(not yet planned — the work is almost entirely in `aspnetcore-platform`)* |
+| MM-035 | `event-reliability/` | `outbox-implementation-review-2026-08-27.md` | **Draft** | pending | *(not yet planned — the work is almost entirely in `aspnetcore-platform`. **Also owns X-3.1 / X-9.3 / X-11.44** since 2026-09-01)* |
+| MM-036 | `bulk-import/` | `bulkfolderimportjob-review-2026-09-01.md` | **Draft** | pending | *(not yet planned — split from MM-022 § C.6; a build-or-withdraw decision, not a fix)* |
+| MM-037 | `bulk-import/` | `bulkmediaimportjob-review-2026-09-01.md` | **Draft** | pending | *(not yet planned — same split; the larger of the two, and **not estimable from its spec** — BMI-E)* |
+| MM-038 | `document-signing/` | `documentsigning-review-2026-09-01.md` | **Parked** | pending | *(none — split from MM-022 § H, parked on arrival because it was already parked by decision)* |
 | — | `Archive/` | 4 reviews — 3 consumed, plus `request-response-review.md` moved here 2026-08-31 | Done | plan | `plans/Archive/` |
+
+**Three workstreams were split out of `spec-drift-review/` on 2026-09-01** — `bulk-import/` (two reviews),
+`document-signing/`, and the outbox trio folded into MM-035. Each was **a decision about whether a feature
+exists**, tracked as rows on a drift checklist, which is the wrong instrument: a checklist asks *is it
+fixed*, and the answer for all three was *nobody has decided whether to build it*. `spec-repo-drift-review.md`
+dropped 69 → 52 open rows and **nothing was closed** in the move.
 
 Two rows need reading twice. **`event-reliability/`'s parent review is `Active` with outcome `pending`** —
 findings agreed and being worked without a plan, which is the one shape the cycle does not model. It
@@ -150,7 +159,38 @@ Cross-cutting: `cross-module-integration-review.md` (the seams between modules) 
 
 | Review | What it asks |
 |---|---|
-| `spec-ddd-coverage-review-2026-08-24.md` | Are the 14 DDD dimensions covered across 68 spec files? Spec only, no code read — every finding is "the spec does not say", not "the code does not do". Consumed by `plans/spec-drift-review/spec-ddd-coverage-review-2026-08-24.md` — same filename, per the convention. |
+| `spec-ddd-coverage-review-2026-08-24.md` | Are the 14 DDD dimensions covered across 68 spec files? Spec only, no code read — every finding is "the spec does not say", not "the code does not do". Consumed by `plans/spec-drift-review/spec-ddd-coverage-review-2026-08-24.md` — same filename, per the convention. **That plan is Done** (2026-08-25). |
+
+> **Three blocks left this workstream on 2026-09-01**, to `bulk-import/`, `document-signing/` and
+> `event-reliability/`. See those sections below and the split table in `spec-repo-drift-review.md`.
+
+## `bulk-import/` — MM-036 & MM-037, split from the drift review · 2026-09-01
+
+Two aggregates published in full — write-model, read-model, API, scenarios — with **no code at any layer**.
+Split out of `spec-drift-review/` § C.6, where BI-1/2/3 covered both at once and made them read as one
+large piece of work.
+
+| Review | Aggregate | Why it is its own review |
+|---|---|---|
+| `bulkfolderimportjob-review-2026-09-01.md` | `BulkFolderImportJob` | **The simpler one.** One phase, no upload round-trip. Five routes. Buildable in a sprint if the answer is yes. |
+| `bulkmediaimportjob-review-2026-09-01.md` | `BulkMediaImportJob` | **Three phases with a client round-trip**, and **BMI-E**: the upload phase has no timeout, expiry or abandonment path specified anywhere. Six routes. **Not estimable from its spec.** |
+
+**They share four routes, one items table and one input bucket**, which is why they share a folder. The
+`/v1/import-jobs/**` surface should be decided once, in the workstream, not twice.
+
+**The 16 remaining CI warnings in `docs/spec/` are these two files' trees, 8 and 8.** That is not a reason
+to delete them — a guard warning is the symptom, and the decision should go on the feature's merits.
+
+## `document-signing/` — MM-038, split from the drift review · 2026-09-01, parked
+
+The whole `DocumentSigning` module: 7 spec files, 1,537 lines, 12 routes, a saga, a timeout scanner and a
+webhook — **none of it implemented.** Carries DS-1 … DS-12 plus X-11.12 and X-11.13, which had drifted
+into the drift review's Tables & infra section.
+
+**Parked on arrival.** It was already parked by decision; the split gives that decision a home rather than
+leaving it counted as unfinished business. **The cheap half is worth doing regardless of the decision:**
+`api.md` and `context-overview.md` read as shipped contract and need the banner their two sibling files
+already carry.
 
 ## `spec-structure/` — where each dimension should live
 
