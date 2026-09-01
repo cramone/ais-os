@@ -381,7 +381,11 @@ def _doc_tree(slug: str, folder: str) -> dict:
     for root, dirs, filenames in os.walk(base):
         dirs.sort()
         for fname in sorted(filenames):
-            if fname.endswith(('.md', '.json', '.txt')):
+            # `.html` because the design workstream keeps its review and plan as HTML.
+            # Without it those two documents were absent from the tree and reachable
+            # only from a card badge, which passes the source path straight to the
+            # viewer. The viewer renders them in a sandboxed iframe.
+            if fname.endswith(('.md', '.html', '.json', '.txt')):
                 full = os.path.join(root, fname)
                 rel = os.path.relpath(full, base).replace('\\', '/')
                 files.append({"path": rel, "name": fname})
