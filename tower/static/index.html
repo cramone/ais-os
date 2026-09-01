@@ -1178,9 +1178,12 @@
           <div id="project-todos-section" data-ptab-panel="todos" style="margin-bottom:16px">
             <div class="section-header">
               <div class="section-title">✅ Todos <span style="font-size:10px;font-weight:400;color:var(--muted)" id="todos-count"></span></div>
-              <div class="todo-view-toggle">
-                <button class="todo-view-btn tdo-view-btn" data-todo-view="list" onclick="setTodoView('list')">List</button>
-                <button class="todo-view-btn tdo-view-btn" data-todo-view="kanban" onclick="setTodoView('kanban')">Kanban</button>
+              <div style="display:flex;align-items:center;gap:8px">
+                <button class="action-btn" id="todo-refresh-btn" title="Reload todos. Cycle cards re-read their review and plan front-matter, so a status changed in a file shows up here." onclick="refreshTodos()">↻ Refresh</button>
+                <div class="todo-view-toggle">
+                  <button class="todo-view-btn tdo-view-btn" data-todo-view="list" onclick="setTodoView('list')">List</button>
+                  <button class="todo-view-btn tdo-view-btn" data-todo-view="kanban" onclick="setTodoView('kanban')">Kanban</button>
+                </div>
               </div>
             </div>
 
@@ -3201,6 +3204,23 @@
     } catch { _todoCache = []; }
     if (_todoTab === 'archived') await loadTodoArchive(slug);
     renderTodos();
+  }
+
+  // Refetch the board. The GET reconciles cycle cards against their documents, so
+  // this is how a status edited in a review or plan file reaches the board without a
+  // full page reload — the reason a per-list refresh is worth having next to the
+  // global one. Refreshes the archive too when that tab is the one showing.
+  async function refreshTodos() {
+    if (!_todoSlug) return;
+    const btn = document.getElementById('todo-refresh-btn');
+    const label = btn ? btn.textContent : null;
+    if (btn) { btn.disabled = true; btn.textContent = '↻ …'; }
+    try {
+      await loadTodos(_todoSlug);
+      if (_todoTab === 'archived') { await loadTodoArchive(); renderTodos(); }
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = label; }
+    }
   }
 
   async function loadTodoArchive(slug) {
