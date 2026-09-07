@@ -4,6 +4,10 @@ The `review-cycle` skill declares document front-matter authoritative over the t
 store, and for good reason: `tower/data/` is gitignored — local-only, disposable,
 invisible to another clone — while a review or plan file is versioned.
 
+Four document types project here: `review` and `feature-request` (peer origins, from
+`reviews/` and `requests/`), `plan`, and `gate`. See the `feature-request` skill for
+why the two origins are peers rather than stages.
+
 **There is one writer and one reader.** A review or plan's `status:` is set by working
 it; the board shows that status and cannot change it. Cycle cards do not drag. This is
 not a restriction bolted onto a two-way sync — it is why no sync is needed. The board
@@ -41,7 +45,17 @@ DOC_ID_RE = re.compile(r"^[A-Z]{2,}-\d{3}$")
 _FIELD_RE = re.compile(r"^([a-z-]+):\s*(.*)$")
 
 # Folders scanned for cycle documents, relative to projects/<slug>/.
-DOC_FOLDERS = ("reviews", "plans")
+#
+# `requests/` holds feature requests, which are **peers of reviews**, not a stage
+# before them: both are origin documents that a plan consumes. They live in their own
+# folder because a review argues *this is broken* with findings and severity, while a
+# feature request argues *this should exist* with a requestor and a date — one index
+# holding both reads as neither.
+DOC_FOLDERS = ("reviews", "requests", "plans")
+
+# Document types that can originate a plan. A plan proves it has one of these in
+# `consumes:`; a gate consumes plans and needs none.
+ORIGIN_TYPES = ("review", "feature-request")
 
 # Document file types. `.html` is not incidental — the design workstream keeps both
 # its review and its plan as HTML, with the front-matter wrapped in an HTML comment.
@@ -56,6 +70,12 @@ _TO_TODO: dict[tuple[str, str], tuple[str, str | None]] = {
     ("review", "done"):            ("done",        None),
     ("review", "parked"):          ("deferred",    "parked"),
     ("review", "superseded"):      ("done",        "superseded"),
+    ("feature-request", "new"):        ("new",         None),
+    ("feature-request", "accepted"):   ("in-progress", None),
+    ("feature-request", "done"):       ("done",        None),
+    ("feature-request", "declined"):   ("done",        "declined"),
+    ("feature-request", "parked"):     ("deferred",    "parked"),
+    ("feature-request", "superseded"): ("done",        "superseded"),
     ("plan", "active"):            ("in-progress", None),
     ("plan", "blocked"):           ("deferred",    "blocked"),
     ("plan", "parked"):            ("deferred",    "parked"),
@@ -66,7 +86,7 @@ _TO_TODO: dict[tuple[str, str], tuple[str, str | None]] = {
     ("gate", "done"):              ("done",        None),
 }
 
-_STATE_TAGS = ("blocked", "parked", "superseded")
+_STATE_TAGS = ("blocked", "parked", "superseded", "declined")
 
 # Stable namespace for deriving a todo id from a document id. Deriving rather than
 # minting means the store is fully reconstructible from the documents: delete
@@ -226,7 +246,7 @@ def _heading_of(path: Path) -> str:
                 stripped = line.strip()
                 if stripped.startswith("# "):
                     # Drop a leading "Plan:" / "Review:" — the badge already says which.
-                    return re.sub(r"^(plan|review|gate)\s*[:—-]\s*", "",
+                    return re.sub(r"^(plan|review|gate|feature[ -]request|fr)\s*[:—-]\s*", "",
                                   stripped[2:].strip(), flags=re.I)
                 match = re.search(r"<title>(.*?)</title>", stripped, re.I)
                 if match:
@@ -455,9 +475,10 @@ def dependency_graph(slug: str) -> dict[str, dict[str, Any]]:
 def assert_archivable(slug: str, item: dict[str, Any]) -> None:
     """Raise CycleViolation if this card's document still has work built on it.
 
-    A review whose plan is active is `done` as a document and unfinished as a
-    workstream. Filing it away would hide the origin of work still in flight — the
-    next session would find a live plan whose review had vanished from the board.
+    A review or feature request whose plan is active is `done` as a document and
+    unfinished as a workstream. Filing it away would hide the origin of work still in
+    flight — the next session would find a live plan whose origin had vanished from the
+    board.
     """
     doc_id = todo_doc_id(item)
     if not doc_id:
@@ -473,8 +494,8 @@ def assert_archivable(slug: str, item: dict[str, Any]) -> None:
     listed = ", ".join(f"{e['id']} ({e['status']})" for e in open_dependents)
     raise CycleViolation(
         f"{doc_id} is `{doc['status']}`, but work built on it is still open: {listed}. "
-        "A review is finished when its findings are agreed; the workstream is finished "
-        "when its plan is done. Archive it once the chain closes."
+        "An origin document is finished when its own question is settled; the workstream "
+        "is finished when its plan is done. Archive it once the chain closes."
     )
 
 
@@ -577,17 +598,24 @@ def known_exceptions(slug: str) -> list[tuple[str, str]]:
     return found
 
 
-def _review_folders(slug: str) -> set[str]:
-    """Workstream folder names under reviews/ that actually contain a review."""
-    base = config.PROJECTS_DIR / slug / "reviews"
-    if not base.is_dir():
-        return set()
+def _origin_folders(slug: str) -> set[str]:
+    """Workstream folder names under reviews/ or requests/ holding an origin document.
+
+    Both trees are searched because a plan's origin may be either. The legacy folder
+    pairing predates `requests/`, so in practice only `reviews/` matches an old plan —
+    but a feature-request workstream that never got front-matter would pair the same way.
+    """
     names: set[str] = set()
-    for path in base.rglob("*"):
-        if path.suffix in (".md", ".html") and path.is_file() and path.name != "README.md":
-            # reviews/<ws>/... and reviews/<ws>/Archive/... both credit <ws>.
-            names.add(path.relative_to(base).parts[0] if len(path.relative_to(base).parts) > 1
-                      else "Archive" if path.parent.name == "Archive" else "")
+    for folder in ("reviews", "requests"):
+        base = config.PROJECTS_DIR / slug / folder
+        if not base.is_dir():
+            continue
+        for path in base.rglob("*"):
+            if path.suffix in (".md", ".html") and path.is_file() and path.name != "README.md":
+                # <folder>/<ws>/... and <folder>/<ws>/Archive/... both credit <ws>.
+                parts = path.relative_to(base).parts
+                names.add(parts[0] if len(parts) > 1
+                          else "Archive" if path.parent.name == "Archive" else "")
     return {n for n in names if n}
 
 
@@ -597,7 +625,7 @@ def check(slug: str) -> list[str]:
     Covers what `reconcile` deliberately stays quiet about — it skips malformed and
     dangling records rather than guessing, which is right for a board render and wrong
     as a permanent silence — plus the structural invariant no render can see:
-    **a plan cannot exist without a review.**
+    **a plan cannot exist without an origin document** — a review or a feature request.
 
     Files carrying `exception:` are skipped entirely and reported by
     `known_exceptions()` instead.
@@ -647,19 +675,24 @@ def check(slug: str) -> list[str]:
                         f"{doc_id}: `{field}` names {ref}, which resolves to no document"
                     )
 
-    problems.extend(_check_plans_have_reviews(slug, seen))
+    problems.extend(_check_plans_have_origins(slug, seen))
     return problems
 
 
-def _check_plans_have_reviews(slug: str, seen: dict[str, str]) -> list[str]:
-    """`A plan cannot exist without a review.` A gate can — it consumes plans.
+def _check_plans_have_origins(slug: str, seen: dict[str, str]) -> list[str]:
+    """`A plan cannot exist without an origin.` A gate can — it consumes plans.
+
+    An origin is a `review` or a `feature-request`. They are peers: one argues that
+    something is broken, the other that something should exist, and either is a
+    legitimate reason for a plan. What is not legitimate is a plan with neither —
+    work nobody argued for.
 
     Two ways a plan proves it has one, matching how the tree actually works:
 
-    - **Cycle-compliant** — front-matter `consumes:` names at least one review id.
-    - **Legacy** — the workstream folder pairing: `plans/<ws>/` ↔ `reviews/<ws>/`, which
-      is the convention every pre-cycle plan was filed under. `plans/Archive/` at the
-      root pairs with `reviews/Archive/`.
+    - **Cycle-compliant** — front-matter `consumes:` names at least one origin id.
+    - **Legacy** — the workstream folder pairing: `plans/<ws>/` ↔ `reviews/<ws>/` or
+      `requests/<ws>/`, which is the convention every pre-cycle plan was filed under.
+      `plans/Archive/` at the root pairs with `reviews/Archive/`.
 
     Anything else is flagged. That bias is deliberate: a new unpaired plan should trip
     this, and the way to silence it is an `exception:` line saying why — which is a
@@ -670,7 +703,8 @@ def _check_plans_have_reviews(slug: str, seen: dict[str, str]) -> list[str]:
     if not base.is_dir():
         return problems
 
-    paired = _review_folders(slug)
+    index = index_documents(slug)
+    paired = _origin_folders(slug)
     for path in sorted(base.rglob("*")):
         if path.suffix not in DOC_SUFFIXES or not path.is_file():
             continue
@@ -680,18 +714,27 @@ def _check_plans_have_reviews(slug: str, seen: dict[str, str]) -> list[str]:
         fields = parse_front_matter(path) or {}
         if fields.get("exception"):
             continue
-        if fields.get("type") in ("gate", "review", "doc"):
-            continue  # a gate consumes plans; a review here is its own exception case
+        if fields.get("type") in ("gate", "doc") or fields.get("type") in ORIGIN_TYPES:
+            continue  # a gate consumes plans; an origin filed here is its own exception case
 
         parts = path.relative_to(base).parts
         workstream = parts[0] if len(parts) > 1 else ""
 
         doc_id = fields.get("id", "")
         if DOC_ID_RE.match(doc_id):
-            if is_empty_list(fields.get("consumes")):
+            consumed = _ids_in(fields.get("consumes"))
+            if not consumed:
                 problems.append(
-                    f"{doc_id} ({rel}): plan has no review — `consumes:` is empty. "
-                    "A plan cannot exist without a review"
+                    f"{doc_id} ({rel}): plan has no origin — `consumes:` is empty. "
+                    "A plan cannot exist without a review or a feature request"
+                )
+            elif not any(index.get(ref, {}).get("type") in ORIGIN_TYPES for ref in consumed):
+                # A plan consuming only plans or gates has no argued reason to exist.
+                named = ", ".join(
+                    f"{ref} ({index.get(ref, {}).get('type') or 'missing'})" for ref in consumed)
+                problems.append(
+                    f"{doc_id} ({rel}): plan has no origin — `consumes:` names {named}, "
+                    "none of which is a review or a feature request"
                 )
             continue
 
@@ -699,7 +742,8 @@ def _check_plans_have_reviews(slug: str, seen: dict[str, str]) -> list[str]:
             problems.append(f"{rel}: plan sits at the plans/ root, outside any workstream folder")
         elif workstream not in paired:
             problems.append(
-                f"{rel}: plan has no review — reviews/{workstream}/ holds none. "
-                "Pair it, or add an `exception:` line saying why it has none"
+                f"{rel}: plan has no origin — neither reviews/{workstream}/ nor "
+                f"requests/{workstream}/ holds one. Pair it, or add an `exception:` line "
+                "saying why it has none"
             )
     return problems

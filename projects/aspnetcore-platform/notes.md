@@ -1,0 +1,1 @@
+# Notes — aspnetcore-platform

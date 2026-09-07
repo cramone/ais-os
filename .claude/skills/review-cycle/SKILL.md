@@ -38,8 +38,10 @@ id: MM-014
 - Mint by grep: highest existing `id:` under that project's `reviews/` and `plans/`, **including every `Archive/`**, plus one.
 
   ```bash
-  grep -rhoE '^id: [A-Z]+-[0-9]{3}' projects/<slug>/reviews projects/<slug>/plans | sort | tail -1
+  grep -rhoE '^id: [A-Z]+-[0-9]{3}' projects/<slug>/reviews projects/<slug>/requests projects/<slug>/plans | sort | tail -1
   ```
+
+  One id space covers all four types — reviews, feature requests, plans and gates. There is no separate `FR-` space; `consumes` and `depends-on` resolve by one regex over one namespace.
 
 - No counter file, no registry. A duplicate id is a data error — stop and report it.
 - Never reused, never renumbered. Survives rename, move and archive.
@@ -55,15 +57,18 @@ Ids exist rather than paths because locations change: `plans/` was reorganised o
 | `AC-1`, `X-11.30` | one finding inside a review | the review author |
 | `adoItemId: 34275` | one ADO work item | `ado-create-from-plan` |
 
-## Three document types
+## Document types
 
 | type | Lives in | Consumes | Produced by |
 |---|---|---|---|
 | `review` | `reviews/<ws>/` | code / spec | Workflow 1 |
-| `plan` | `plans/<ws>/` | one or more reviews | Workflow 2a |
+| `feature-request` | `requests/<ws>/` | a stated need | [[feature-request]] |
+| `plan` | `plans/<ws>/` | one or more **origins** | Workflow 2a |
 | `gate` | `plans/<ws>/` | one or more **plans** | by hand, rarely |
 
-A gate triages across workstreams and answers "which of these block a release". `plans/prod-readiness/prod-readiness-gate.md` is the existing one. **A gate has no review and does not need one** — the "no plan without a review" invariant does not apply to it.
+**A plan's origin is a review or a feature request.** They are peers, not stages: a review argues *this is broken*, a request argues *this should exist*, and a plan may consume both. This skill owns reviews, plans and gates; [[feature-request]] owns requests and defers every shared rule below back here. **A plan cannot exist without an origin** — `cycle.check()` enforces it.
+
+A gate triages across workstreams and answers "which of these block a release". `plans/prod-readiness/prod-readiness-gate.md` is the existing one. **A gate has no origin and does not need one** — the invariant does not apply to it.
 
 ## Naming
 
@@ -86,6 +91,7 @@ Filenames stay human-readable. Ids are for machines and cross-references; names 
 Reviews, plans and gates have different lifecycles. Do not share one enum.
 
 - **Review:** `draft` → `findings-agreed` → `done` | `parked` | `superseded`
+- **Feature request:** `new` → `accepted` → `done` | `declined` | `parked` | `superseded` — owned by [[feature-request]], listed here so the shared machinery reads complete
 - **Plan:** `active` | `blocked` | `parked` | `superseded` | `done`
 - **Gate:** `active` | `superseded` | `done`
 
@@ -237,9 +243,9 @@ python -c "from tower import cycle; cycle.comment('magiq-media', 'MM-026', 'X-11
 
 Documents with no front-matter are invisible to the projection. Legacy files get no card and keep whatever board state they already had, which is correct: their status is UNKNOWN and must not be inferred.
 
-**`cycle.check(slug)`** reports what the projection stays deliberately quiet about: duplicate ids, front-matter with a malformed or missing `id:`, statuses outside the vocabulary, a `todo-id` that is not the derived one, `consumes` / `depends-on` entries naming a document that does not exist, and — the one no render can see — **a plan with no review**.
+**`cycle.check(slug)`** reports what the projection stays deliberately quiet about: duplicate ids, front-matter with a malformed or missing `id:`, statuses outside the vocabulary, a `todo-id` that is not the derived one, `consumes` / `depends-on` entries naming a document that does not exist, and — the one no render can see — **a plan with no origin**.
 
-A plan proves it has a review one of two ways: front-matter `consumes:` naming at least one review id, or the legacy folder pairing `plans/<ws>/` ↔ `reviews/<ws>/` (with `plans/Archive/` pairing to `reviews/Archive/`). Anything else is flagged, including a plan sitting loose at the `plans/` root. **The bias is deliberate** — a new unpaired plan should trip this.
+A plan proves it has one two ways: front-matter `consumes:` naming at least one id whose type is `review` or `feature-request`, or the legacy folder pairing `plans/<ws>/` ↔ `reviews/<ws>/` or `requests/<ws>/` (with `plans/Archive/` pairing to `reviews/Archive/`). Anything else is flagged, including a plan sitting loose at the `plans/` root and one whose `consumes` names only other plans. **The bias is deliberate** — a new unpaired plan should trip this.
 
 **`exception:` silences every check on a file, and `cycle.known_exceptions(slug)` lists them.** That is the § Known exceptions rule made real: skip, and report, never "fix". It also means the silence is never free — someone has to write a sentence and stand behind it.
 
@@ -294,7 +300,7 @@ Preconditions, all three, checked and reported before anything is written:
 
 Then:
 
-1. **Mint the plan id.** Resolve dependencies (§ Dependency gating) and write `plans/<workstream>/<primary-review-filename>.md`, `consumes` listing every review id it takes, status from the dependency result.
+1. **Mint the plan id.** Resolve dependencies (§ Dependency gating) and write `plans/<workstream>/<primary-review-filename>.md`, `consumes` listing every origin id it takes — reviews and feature requests, mixed freely — status from the dependency result.
 2. **Close the review.** Front-matter → `status: done`, `outcome: plan`. Its card follows on the next board read; comment it with the plan's id and what the review concluded.
 3. **Do not create the plan todo.** The projection makes it from the plan's front-matter. Comment it with the hand-over — which reviews it consumes, and the first phase to work.
 4. **Index it** in `plans/README.md` with id and name; update the pairing row in `reviews/README.md`.
@@ -467,10 +473,10 @@ Severity is not repeated here. It lives on the finding in the review, and `ado-c
 
 ## Invariants
 
-- Every review, plan and gate has an `id`. Ids are never reused or renumbered.
+- Every review, feature request, plan and gate has an `id`, all from one space. Ids are never reused or renumbered.
 - All cross-references are ids. A path in `consumes` or `depends-on` is a bug.
 - A dangling id is a data error — stop and ask, never treat it as blocked.
-- A `plan` cannot exist without a review. A `gate` can — it consumes plans.
+- A `plan` cannot exist without an origin — a `review` or a `feature-request`. A `gate` can; it consumes plans.
 - A gate has no `depends-on`, and is never auto-closed or auto-archived.
 - Plan execution does not start until hand-over is complete: plan written, review closed, both READMEs updated, dependency status resolved.
 - A review with any `**Open**` question, or not yet at `findings-agreed`, cannot produce a plan.
@@ -487,6 +493,7 @@ Severity is not repeated here. It lives on the finding in the review, and `ado-c
 
 ## Related
 
+- [[feature-request]] — the peer origin type; it defers all shared machinery back here
 - [[workstream-query]] — the read side; never duplicate its queries here
 - [[project-todos]] — the todo store API
 - [[decision]] — for `decision-only` outcomes

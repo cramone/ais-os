@@ -75,8 +75,9 @@ Three things fall out:
 
 ## Resolution is by id, never by path
 
-`index_documents()` scans `projects/<slug>/reviews/` and `projects/<slug>/plans/` recursively,
-**`Archive/` folders included**, and keys everything by front-matter `id:`.
+`index_documents()` scans `projects/<slug>/reviews/`, `projects/<slug>/requests/` and
+`projects/<slug>/plans/` recursively, **`Archive/` folders included**, and keys everything by
+front-matter `id:`. The three folders share one id space — `DOC_FOLDERS` in `tower/cycle.py`.
 
 This is the whole reason the skill mandates ids. A plan archived last week still resolves, and the
 card's now-stale `source` is repaired in passing. Renames, moves and archiving are all free.
@@ -96,6 +97,12 @@ card and keep whatever board state they already had.
 | review | `done` | `done` | — |
 | review | `parked` | `deferred` | `parked` |
 | review | `superseded` | `done` | `superseded` |
+| feature-request | `new` | `new` | — |
+| feature-request | `accepted` | `in-progress` | — |
+| feature-request | `done` | `done` | — |
+| feature-request | `declined` | `done` | `declined` |
+| feature-request | `parked` | `deferred` | `parked` |
+| feature-request | `superseded` | `done` | `superseded` |
 | plan | `active` | `in-progress` | — |
 | plan | `blocked` | `deferred` | `blocked` |
 | plan | `parked` | `deferred` | `parked` |
@@ -208,16 +215,22 @@ without bound.
 
 **Colour encodes the phase**, because that is the question the card is being asked:
 
-| Type | Colour | Means |
-|---|---|---|
-| review | amber (`--warn`) | Findings still being argued. Nothing sequenced; no plan exists until findings are agreed |
-| plan | blue (`--accent`) | Findings agreed, work sequenced. This is what execution tracks against |
-| gate | purple (`--purple`) | A release decision over plans. Not a work item |
+| Type | Colour | Glyph | Means |
+|---|---|---|---|
+| review | amber (`--warn`) | ◇ | Findings still being argued. Nothing sequenced; no plan exists until findings are agreed |
+| feature-request | green (`--accent2`) | ✦ | Someone asked for this; scope is being settled. No plan until it is accepted |
+| plan | blue (`--accent`) | ▤ | Findings agreed, work sequenced. This is what execution tracks against |
+| gate | purple (`--purple`) | ⛌ | A release decision over plans. Not a work item |
 
 Amber → blue reads as the cycle's own direction of travel, so a workstream's phase is legible from
 the colours alone. The footnote carries the workstream slug, so a review and its plan are visibly a
 pair — `projection-tables` on both MM-002 and MM-003 says that workstream has finished arguing and is
 now sequenced.
+
+**Green sits outside that gradient on purpose.** A feature request is a review's *peer*, not an
+earlier phase of one — both are origins a plan consumes — so a shade of the review amber would have
+implied a sequence that does not exist. Its badge reads `REQUEST` rather than the type name, which
+uppercased is wide enough to wrap a card's header row.
 
 `dragstart` is also skipped for `data-cycle` elements, so a drag cannot start from a source that
 ignores the `draggable` attribute.
@@ -233,13 +246,15 @@ python -c "from tower import cycle; [print(p) for p in cycle.check('magiq-media'
 
 Reports duplicate ids, front-matter with a missing or malformed `id:`, statuses outside the
 vocabulary, a `todo-id` that is not the derived one, `consumes` / `depends-on` naming a document that
-does not exist, and **a plan with no review**.
+does not exist, and **a plan with no origin**.
 
-That last one is the invariant no board render can see, so it is worth stating how it is decided. A
-plan proves it has a review either by front-matter `consumes:` naming at least one review id, or by
-the legacy folder pairing `plans/<ws>/` ↔ `reviews/<ws>/` — the convention every pre-cycle plan was
-filed under. `plans/Archive/` at the root pairs with `reviews/Archive/`. Anything else is flagged,
-including a plan sitting loose at the `plans/` root with no workstream folder.
+That last one is the invariant no board render can see, so it is worth stating how it is decided. An
+origin is a `review` or a `feature-request` — the two types in `ORIGIN_TYPES`, which are peers rather
+than stages. A plan proves it has one either by front-matter `consumes:` naming at least one id of
+those types, or by the legacy folder pairing `plans/<ws>/` ↔ `reviews/<ws>/` or `requests/<ws>/` —
+the convention every pre-cycle plan was filed under. `plans/Archive/` at the root pairs with
+`reviews/Archive/`. Anything else is flagged, including a plan sitting loose at the `plans/` root
+with no workstream folder, and a plan whose `consumes` names only other plans or a gate.
 
 The bias is deliberate: a new unpaired plan should trip this, and the only way to silence it is an
 `exception:` line — a sentence someone has to write and stand behind.
@@ -287,5 +302,6 @@ document keeps the front-matter the skill already specified.
 ## Related
 
 - `.claude/skills/review-cycle/SKILL.md` § Todo store, § Status vocabularies
+- `.claude/skills/feature-request/SKILL.md` — the peer origin type and why it is a peer
 - `.claude/skills/project-todos/SKILL.md` — the store API
 - `tower/cycle.py` — the implementation, with the reasoning in its module docstring

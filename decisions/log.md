@@ -401,3 +401,19 @@ unnecessary complexity for Q2.
 **Owner:** Chase Ramone
 
 **Full detail:** `tower/deploy-cortex.sh` (health-check block), `.gitignore` (`tower/data/`). Commits be1be89, de26439. Related topology: 2026-07-05 Cortex bind-mount deploy model.
+
+## 2026-09-07 — Feature requests are peers of reviews, not a stage before them
+
+**Project:** (cross-cutting — AIS-OS tooling / review cycle)
+
+**Decision:** A feature request is a fourth cycle document type, `feature-request`, living in `projects/<slug>/requests/<workstream>/` and consumed directly by a plan. It is a **peer** of a review, not a stage before one: both are *origin documents*, either can originate a plan, and a plan may consume both. It gets its own skill, `.claude/skills/feature-request/SKILL.md`, which owns only the delta — `requested-by`, `requested-on`, `request-source`, and a `new` → `accepted` → `done` | `declined` | `parked` | `superseded` vocabulary — and defers every shared rule (ids, todo projection, dependency gating, archiving, ADO) back to `review-cycle` by section reference. One shared id space across all four types; there is no `FR-` space. The invariant "a plan cannot exist without a review" becomes "**a plan cannot exist without an origin**", enforced in `cycle.check()` against `ORIGIN_TYPES`.
+
+**Why:** Three forces. (1) `review-cycle/SKILL.md` was already 494 lines and its description already a wall — a fourth type folded into it degrades triggering for both, and reviews and requests genuinely differ in what they argue: a review says *this is broken* with findings and severity, a request says *this should exist* with a requestor and a date. (2) But ~60% of that file is shared substrate — id minting, the projection contract, dependency gating, external blockers, archiving, frozen documents. A standalone skill restating it would fork it and drift. So: separate skill, zero duplication, explicit precedence (`review-cycle` wins on shared machinery). `workstream-query` already proves that shape works. (3) **Peer over upstream** because the upstream model (FR → review → plan, always) is pure ceremony for "add a CSV export button", and the cases that genuinely need investigation are covered by the `outcome: review:<id>` escape hatch — an opt-in hop rather than a mandatory one. What would change my mind: if requests routinely need a real feasibility argument before planning, the escape hatch becomes the norm and the upstream model was right.
+
+**Alternatives considered:** Extend `review-cycle` with the new type (rejected — file and description bloat; review vocabulary `draft`/`findings-agreed`/severity is the wrong shape for a request). Standalone skill duplicating the conventions (rejected — guaranteed drift on the 60% that is shared). Filing requests inside `reviews/<ws>/` to avoid touching `DOC_FOLDERS` (rejected — the reviews README is built around findings, severity and outcome-of-investigation; two document species in one index reads as neither, and the cost avoided was one tuple entry). A separate `FR-` id space (rejected — `consumes` and `depends-on` resolve by one regex over one namespace; a second space fails to resolve silently).
+
+**Owner:** Chase Ramone
+
+**Consequence worth noting:** `_check_plans_have_origins` is **stricter** than the check it replaced. The old one accepted any non-empty `consumes:`; the new one verifies at least one named id is actually an origin type, so a plan consuming only other plans or a gate now trips. `cycle.check()` is clean across all 8 projects after the change.
+
+**ADR:** references/adrs/0002-feature-requests-are-peers-of-reviews.md

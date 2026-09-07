@@ -422,6 +422,13 @@
     border-left-color: var(--purple);
     background: linear-gradient(90deg, rgba(188,140,255,0.07), transparent 60%);
   }
+  /* A feature request is a review's peer, not its relative, so it takes its own hue
+     rather than a shade of the review amber — the two are told apart at a glance or
+     not at all. */
+  .int-card.cycle-feature-request {
+    border-left-color: var(--accent2);
+    background: linear-gradient(90deg, rgba(63,185,80,0.07), transparent 60%);
+  }
 
   .cycle-badge {
     display: inline-flex; align-items: center; gap: 4px;
@@ -447,6 +454,10 @@
   .cycle-badge.t-gate {
     background: rgba(188,140,255,0.15); color: var(--purple);
     border-color: rgba(188,140,255,0.35);
+  }
+  .cycle-badge.t-feature-request {
+    background: rgba(63,185,80,0.15); color: var(--accent2);
+    border-color: rgba(63,185,80,0.35);
   }
   .cycle-badge.dangling {
     background: rgba(248,81,73,0.14); color: var(--danger);
@@ -574,7 +585,7 @@
     background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
   }
   /* Each chip carries its own hue in --tag-h, so a tag is the same colour every time
-     it appears. review / plan / gate are pinned to their badge hues; everything else
+     it appears. review / feature-request / plan / gate are pinned to their badge hues; everything else
      is hashed from the tag name, which keeps colours stable and distinct without a
      hand-maintained palette that would go stale the moment a workstream is added. */
   .tagbar-chip {
@@ -3269,10 +3280,10 @@
   // alone, the badge already names a card's own id, and search covers the rest.
   const _selectedTags = new Set();
 
-  // Hue per tag. The three document types are pinned to the hues their badges already
+  // Hue per tag. The four document types are pinned to the hues their badges already
   // use, so the toolbar and the cards agree; everything else is hashed from the name,
   // which is stable across reloads and needs no palette to maintain.
-  const _TAG_HUE = { review: 38, plan: 212, gate: 276 };
+  const _TAG_HUE = { review: 38, 'feature-request': 134, plan: 212, gate: 276 };
   // FNV-1a. A rolling `h*31+c % 360` was the obvious choice and the wrong one: the
   // modulo each step kills the avalanche, so tags sharing a prefix land on
   // neighbouring hues — and alphabetical order then puts those chips side by side.
@@ -4285,11 +4296,15 @@
 
   // Glyph per document type. A gate is a release decision, not a work item, so it
   // gets its own mark rather than sharing the plan's.
-  const _CYCLE_GLYPH = { review: '◇', plan: '▤', gate: '⛌' };
+  const _CYCLE_GLYPH = { review: '◇', plan: '▤', gate: '⛌', 'feature-request': '✦' };
+  // `feature-request` uppercased is wide enough to wrap a card's header row, and the
+  // glyph plus colour already carry the distinction. The badge says REQUEST.
+  const _CYCLE_LABEL = { 'feature-request': 'request' };
   // What each phase means, spelled out in the tooltip — the colour and word tell you
   // which phase, this tells you what that phase implies about the work.
   const _CYCLE_PHASE = {
     review: 'Review phase — findings are being argued. No work is sequenced yet, and no plan exists until the findings are agreed.',
+    'feature-request': 'Request phase — someone asked for this and the scope is being settled. A peer of a review, not a stage before one; no plan exists until it is accepted.',
     plan: 'Plan phase — findings are agreed and the work is sequenced. This is what execution tracks against.',
     gate: 'Gate — a release decision over one or more plans. Not a work item; it reports what blocks a release.',
   };
@@ -4309,7 +4324,7 @@
     const title = `${cy.id} — ${type}${cy.workstream ? ` in ${cy.workstream}` : ''}, status "${cy.status}".\n\n${phase}\n\nClick to open ${cy.path}. Status is set in the document, not here.`;
     return `<span class="cycle-badge t-${type} cycle-open" title="${_attr(title)}"
         onclick="event.stopPropagation();openItemDoc('${board.kind}','${i.id}')">
-      <span class="cycle-glyph">${glyph}</span><span class="cycle-type">${type}</span><span class="cycle-sep">·</span>${cy.id}</span>`;
+      <span class="cycle-glyph">${glyph}</span><span class="cycle-type">${_CYCLE_LABEL[type] || type}</span><span class="cycle-sep">·</span>${cy.id}</span>`;
   }
 
   // Attribute-safe: titles carry quotes and newlines that would otherwise break out.
@@ -4520,7 +4535,7 @@
 
   // Document ids minted by the review-cycle skill: MM-014, SS-003, …
   const DOC_ID_RE = /^[A-Z]{2,5}-\d{3}$/;
-  const DOC_TYPE_TAGS = ['review', 'plan', 'gate'];
+  const DOC_TYPE_TAGS = ['review', 'feature-request', 'plan', 'gate'];
   function _isDocId(t) { return DOC_ID_RE.test(t); }
   function _tagClass(t) {
     if (_isDocId(t)) return 'tag-docid';
