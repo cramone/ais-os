@@ -15,6 +15,9 @@
     --bg: #0d1117; --surface: #161b22; --surface2: #21262d; --border: #30363d;
     --accent: #58a6ff; --accent2: #3fb950; --warn: #d29922; --danger: #f85149;
     --purple: #bc8cff; --text: #e6edf3; --muted: #8b949e;
+    /* Star gold. A shade brighter than --warn so a starred card is not mistaken for a
+       review card, which already owns the amber left edge. */
+    --star: #f0b73c;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size: 13px;
   }
@@ -393,6 +396,40 @@
   .int-card.prio-urgent { border-left-color: var(--danger); }
   .int-card.prio-normal { border-left-color: var(--accent); }
   .int-card.prio-low    { border-left-color: var(--muted); }
+
+  /* STARRED ITEMS — the operator's own "look at this one first" mark.
+     Priority already colours the left edge, so a star cannot use that channel without
+     overwriting it. It takes the whole card instead: amber ring, amber wash, a filled
+     ★ in front of the title. Loud enough to find in a full column at a glance, and
+     still readable as the same card underneath. */
+  .int-card.starred {
+    border-color: var(--star);
+    background: linear-gradient(90deg, rgba(240,183,60,0.13), rgba(240,183,60,0.04) 70%);
+    box-shadow: 0 0 0 1px rgba(240,183,60,0.35), 0 2px 10px rgba(240,183,60,0.12);
+  }
+  .int-card.starred:hover { border-color: var(--star); }
+  .int-card.starred .interrupt-title { font-weight: 650; color: #f5d99a; }
+  .interrupt-row.starred {
+    background: linear-gradient(90deg, rgba(240,183,60,0.11), transparent 65%);
+    box-shadow: inset 3px 0 0 0 var(--star);
+  }
+  .interrupt-row.starred:hover { background: linear-gradient(90deg, rgba(240,183,60,0.18), var(--surface2) 65%); }
+  .interrupt-row.starred .interrupt-title { font-weight: 650; color: #f5d99a; }
+  /* Inline marker, so a starred card reads as starred even in a screenshot or a
+     narrow column where the tint is easy to miss. */
+  .star-mark { color: var(--star); flex-shrink: 0; margin-right: 4px; font-size: 11px; }
+  /* Toggle. Hollow and dim until it is on, so an unstarred row is not a row of noise;
+     the row's own hover brings it up to legible. */
+  .star-btn {
+    background: none; border: none; cursor: pointer; padding: 0 4px; line-height: 1;
+    font-size: 13px; color: var(--muted); opacity: 0.35; transition: opacity 0.15s, color 0.15s, transform 0.1s;
+  }
+  .star-btn:hover { opacity: 1; color: var(--star); transform: scale(1.15); }
+  .star-btn.on { opacity: 1; color: var(--star); text-shadow: 0 0 6px rgba(240,183,60,0.55); }
+  .interrupt-row:hover .star-btn, .int-card:hover .star-btn { opacity: 0.8; }
+  .interrupt-row:hover .star-btn.on, .int-card:hover .star-btn.on { opacity: 1; }
+  /* Capture-form toggle — same glyph, sized to sit with the other capture controls. */
+  #todo-star-toggle { font-size: 15px; padding: 0 6px; }
   .kanban-col { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px; min-height: 80px; display: flex; flex-direction: column; gap: 8px; transition: border-color 0.15s, background 0.15s; }
   .kanban-col.drop-target { border-color: var(--accent); background: rgba(88,166,255,0.06); }
 
@@ -1272,6 +1309,11 @@
                 <option value="low">Low</option>
               </select>
               <input type="date" class="capture-date" id="todo-due-input" />
+              <!-- Capture straight to starred. Sticky within the session so a run of
+                   "these all matter" captures is one click, not one click each. -->
+              <button type="button" class="star-btn" id="todo-star-toggle"
+                      aria-pressed="false"
+                      title="Capture this as a starred todo — pins it to the top and makes it stand out">☆</button>
               <button type="submit" class="capture-submit">Capture</button>
             </form>
 
@@ -1281,6 +1323,9 @@
                 <div class="interrupt-tab active" data-tab="open">Open</div>
                 <div class="interrupt-tab" data-tab="in-progress">In Progress</div>
                 <div class="interrupt-tab" data-tab="done">Done</div>
+                <!-- Carries its count in the label: a star is only worth anything if
+                     you can see from here that something is wearing one. -->
+                <div class="interrupt-tab" data-tab="starred" id="todo-tab-starred">★ Starred</div>
                 <div class="interrupt-tab" data-tab="all">All</div>
                 <div class="interrupt-tab" data-tab="archived">🗄 Archived</div>
               </div>
@@ -1884,6 +1929,7 @@
 
   <!-- Action buttons -->
   <div class="dd-actions">
+    <button class="btn dd-star-btn" style="display:none">☆ Star</button>
     <button class="btn dd-edit-btn">✏️ Edit</button>
     <button class="btn success dd-mark-done">✅ Mark Done</button>
     <button class="btn dd-push-ado">→ ADO</button>
@@ -3482,6 +3528,8 @@
       i.source || '',
       i.cycle && i.cycle.id ? i.cycle.id : '',
       i.cycle && i.cycle.workstream ? i.cycle.workstream : '',
+      // So "starred" works as a search term, the same way a tag name does.
+      i.starred ? 'starred ★' : '',
       ...(i.activity || []).map(a => a.text || ''),
     ];
     return parts.join('  ').toLowerCase();
@@ -3500,11 +3548,18 @@
     el.addEventListener('input', () => { _todoQuery = el.value; renderTodos(); });
   }
 
-  // Manual position first, in the order someone arranged; everything unplaced keeps
-  // the order the server sent and sits after. A new card lands at the bottom rather
-  // than jumping into the middle of an arrangement.
+  // Starred first, then manual position in the order someone arranged; everything
+  // unplaced keeps the order the server sent and sits after. A new card lands at the
+  // bottom rather than jumping into the middle of an arrangement.
+  //
+  // A star outranks the manual order on purpose: starring something is the act of
+  // saying "this one first", and a star that left the card where it was would be
+  // decoration. Within the starred group the hand-arranged order still holds, so
+  // starring two things does not scramble which of them you put above the other.
   function _sortByOrder(items) {
     return items.slice().sort((a, b) => {
+      const as = a.starred ? 0 : 1, bs = b.starred ? 0 : 1;
+      if (as !== bs) return as - bs;
       const ao = a.order, bo = b.order;
       if (ao == null && bo == null) return 0;
       if (ao == null) return 1;
@@ -3528,6 +3583,28 @@
         body: JSON.stringify({ ids })
       });
     } catch { /* the optimistic order stands until the next load */ }
+  }
+
+  // Optimistic, unlike archive: a star is one bit with nothing to refuse it, and the
+  // glyph has to light up under the finger that pressed it. The cache is corrected
+  // from the response, and reverted if the write did not land.
+  async function itemSetStarred(kind, id, starred) {
+    const board = _board(kind);
+    const item = board.all().find(i => i.id === id);
+    if (!item) return;
+    const before = !!item.starred;
+    item.starred = starred;
+    if (kind === 'todo') renderTodos(); else renderInterruptsSection();
+    try {
+      const r = await fetch(board.base(id), {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ starred })
+      });
+      if (!r.ok) throw new Error(await r.text());
+    } catch {
+      item.starred = before;
+      if (kind === 'todo') renderTodos(); else renderInterruptsSection();
+    }
   }
 
   async function itemSetArchived(kind, id, archived) {
@@ -3969,7 +4046,7 @@
       activity: id => `/api/projects/${_todoSlug}/todos/${id}/activity`,
       createUrl: () => `/api/projects/${_todoSlug}/todos`,
       refresh: () => loadTodos(_todoSlug),
-      features: { email: false, ado: false, source: false, sourceFilter: false, delete: true },
+      features: { email: false, ado: false, source: false, sourceFilter: false, delete: true, star: true },
       view: () => _todoView,
       tab: () => _todoTab,
       filter: () => '',
@@ -4020,6 +4097,14 @@
       const tagPool = board.tab() === 'archived' ? [] : (_todoCache || []).filter(i =>
         !_todoQuery || _matchesQuery(i, _todoQuery));
       _renderTagbar(tagPool);
+      // Counted over the whole live store, not the filtered pool — the tab is a way
+      // out of a filter, so it has to stay honest about what is behind it.
+      const starTab = document.getElementById('todo-tab-starred');
+      if (starTab) {
+        const n = (_todoCache || []).filter(i => i.starred).length;
+        starTab.textContent = n ? `★ Starred (${n})` : '★ Starred';
+        starTab.style.opacity = n ? '' : '0.5';
+      }
       const wrap = document.getElementById('todo-search-wrap');
       const cnt = document.getElementById('todo-search-count');
       if (wrap) wrap.style.display = board.tab() === 'archived' ? 'none' : '';
@@ -4059,6 +4144,10 @@
       if (tab === 'all') rows = pool;
       else if (tab === 'done') rows = done;
       else if (tab === 'in-progress') rows = pool.filter(i => i.status === 'in-progress');
+      // Starred spans statuses on purpose — the question it answers is "what did I
+      // mark", not "what is open", and a starred item that just went done is exactly
+      // the one you want to see leave the list.
+      else if (tab === 'starred') rows = pool.filter(i => i.starred);
       else rows = open;   // 'open'
     }
     if (tabsEl) tabsEl.querySelectorAll('.interrupt-tab').forEach(t =>
@@ -4068,13 +4157,26 @@
     _markSelected();
   }
 
+  // The star toggle. Offered on every todo, cycle cards included: a star is a board
+  // concern like archiving, not document state, so nothing in front-matter owns it.
+  function _starBtn(board, i) {
+    if (!board.features.star) return '';
+    // Not on archived rows: they come from a separate fetch that the live cache does
+    // not hold, so the toggle would have nothing to write through to. Restore first.
+    if (i.archivedAt) return '';
+    const on = !!i.starred;
+    return `<button class="star-btn${on ? ' on' : ''}" title="${on ? 'Starred — click to unstar' : 'Star this — pins it to the top and makes it stand out'}"
+      onclick="event.stopPropagation();itemSetStarred('${board.kind}','${i.id}',${!on})">${on ? '★' : '☆'}</button>`;
+  }
+
   function _itemRowHTML(board, i) {
     const f = board.features;
+    const starred = f.star && i.starred;
     return `
-      <div class="interrupt-row" data-id="${i.id}"${i.cycle && !i.cycle.dangling ? ` data-doc-id="${i.cycle.id}"` : ''} onclick="openItemDrilldown('${board.kind}','${i.id}')">
+      <div class="interrupt-row${starred ? ' starred' : ''}" data-id="${i.id}"${i.cycle && !i.cycle.dangling ? ` data-doc-id="${i.cycle.id}"` : ''} onclick="openItemDrilldown('${board.kind}','${i.id}')">
         <div class="priority-dot p-${i.priority || 'normal'}"></div>
         <div class="interrupt-body">
-          <div class="interrupt-title">${i.title}</div>
+          <div class="interrupt-title">${starred ? '<span class="star-mark">★</span>' : ''}${i.title}</div>
           <div class="interrupt-meta">
             ${_idChip(i)}
             ${_cycleBadge(board, i)}
@@ -4088,6 +4190,7 @@
           ? `<div class="due-chip ${_dueClass(i.dueDate)}">${_dueLabel(i.dueDate)}</div>`
           : '<div class="due-none">No due date</div>'}
         <div class="status-tag status-${i.status}">${i.status}</div>
+        ${_starBtn(board, i)}
         ${f.ado ? `<button class="action-btn" onclick="event.stopPropagation();pushInterruptToADO('${i.id}')">-&gt; ADO</button>` : ''}
         ${_archiveBtn(board, i)}
         ${i.cycle && !i.cycle.dangling
@@ -4341,9 +4444,10 @@
     const cy = i.cycle;
     const locked = !!cy && !cy.dangling;
     const cycleCls = cy ? ` cycle-card${locked ? ` cycle-${cy.type}` : ''}` : '';
+    const starred = f.star && i.starred;
     return `
-      <div class="int-card prio-${i.priority || 'normal'}${cycleCls}" draggable="true" data-id="${i.id}" data-status="${i.status}"${locked ? ` data-cycle="1" data-cycle-type="${cy.type}" data-doc-id="${cy.id}"` : ''} onclick="openItemDrilldown('${board.kind}','${i.id}')">
-        <div class="interrupt-title" style="white-space:normal">${i.title}</div>
+      <div class="int-card prio-${i.priority || 'normal'}${cycleCls}${starred ? ' starred' : ''}" draggable="true" data-id="${i.id}" data-status="${i.status}"${locked ? ` data-cycle="1" data-cycle-type="${cy.type}" data-doc-id="${cy.id}"` : ''} onclick="openItemDrilldown('${board.kind}','${i.id}')">
+        <div class="interrupt-title" style="white-space:normal">${starred ? '<span class="star-mark">★</span>' : ''}${i.title}</div>
         <div class="interrupt-meta" style="margin-top:4px;flex-wrap:wrap">
           ${_cycleBadge(board, i)}
           ${_depChips(cy)}
@@ -4355,6 +4459,7 @@
           ${i.dueDate ? `<span class="due-chip ${_dueClass(i.dueDate)}">${_dueLabel(i.dueDate)}</span>` : ''}
           <span class="interrupt-age">${_ago(new Date(i.capturedAt))}</span>
           <span style="margin-left:auto"></span>
+          ${_starBtn(board, i)}
           ${_archiveBtn(board, i)}
           ${f.delete && !locked ? `<button class="action-btn danger todo-delete-btn" title="Delete" onclick="event.stopPropagation();itemDelete('${board.kind}','${i.id}')">✕</button>` : ''}
         </div>
@@ -4652,9 +4757,25 @@
     });
   }
 
+  // Sticky across captures, not reset on submit — see the note on the toggle.
+  let _captureStarred = false;
+
+  function _wireCaptureStar() {
+    const btn = document.getElementById('todo-star-toggle');
+    if (!btn || btn.dataset.wired) return;
+    btn.dataset.wired = '1';
+    btn.addEventListener('click', () => {
+      _captureStarred = !_captureStarred;
+      btn.textContent = _captureStarred ? '★' : '☆';
+      btn.classList.toggle('on', _captureStarred);
+      btn.setAttribute('aria-pressed', String(_captureStarred));
+    });
+  }
+
   function wireTodoCaptureForm() {
     const form = document.getElementById('todo-capture-form');
     if (!form) return;
+    _wireCaptureStar();
     form.addEventListener('submit', async e => {
       e.preventDefault();
       if (!_todoSlug) return;
@@ -4666,6 +4787,7 @@
         source: '',
         priority: priorityEl ? priorityEl.value : 'normal',
         dueDate: dueEl && dueEl.value ? dueEl.value : null,
+        starred: _captureStarred,
       };
       if (!body.title) return;
       await fetch(BOARDS.todo.createUrl(), {
@@ -4817,6 +4939,24 @@
     if (markDoneBtn) {
       markDoneBtn.style.display = isCycle ? 'none' : '';
       markDoneBtn.onclick = () => itemMarkDone(kind, id);
+    }
+    // Star toggle. Offered on cycle cards too — unlike Mark Done, nothing in
+    // front-matter owns it, so there is no 409 waiting on the other end.
+    const starBtn = panel.querySelector('.dd-star-btn');
+    if (starBtn) {
+      starBtn.style.display = f.star ? '' : 'none';
+      const on = !!item.starred;
+      starBtn.textContent = on ? '★ Starred' : '☆ Star';
+      starBtn.classList.toggle('on', on);
+      starBtn.style.color = on ? 'var(--star)' : '';
+      starBtn.style.borderColor = on ? 'var(--star)' : '';
+      starBtn.onclick = async () => {
+        await itemSetStarred(kind, id, !on);
+        // Re-open on the updated item. The id is cleared first because opening the
+        // panel that is already showing this item is the gesture that closes it.
+        _selectedItemId = null;
+        openItemDrilldown(kind, id);
+      };
     }
     const adoBtn = panel.querySelector('.dd-push-ado');
     if (adoBtn) { adoBtn.style.display = f.ado ? '' : 'none'; adoBtn.onclick = () => pushInterruptToADO(id); }

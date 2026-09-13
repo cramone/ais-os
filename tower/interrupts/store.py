@@ -33,6 +33,7 @@ def make_item(
     zendesk_ticket: str | None = None,
     customer: str | None = None,
     captured_at: str | None = None,
+    starred: bool = False,
     activity: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build an item dict with the canonical schema shared by interrupts and todos."""
@@ -60,6 +61,11 @@ def make_item(
         # after everything explicitly placed, so a new item lands at the bottom
         # without disturbing an order someone arranged by hand.
         "order": None,
+        # Operator's own "this one matters" mark. Deliberately separate from priority:
+        # priority says how urgent the work is, a star says this is the one to look at
+        # first regardless. Starred items sort above their column and render louder.
+        # Absent on items written before this field existed; read it as falsy.
+        "starred": starred,
         "activity": activity or [],
     }
 
@@ -115,7 +121,7 @@ def create_interrupt(
 def update_interrupt(path: Path, interrupt_id: str, **kwargs: Any) -> dict[str, Any]:
     items = load_interrupts(path)
     allowed = {"title", "source", "dueDate", "priority", "status", "tags", "adoItemId",
-               "zendeskTicket", "customer", "archivedAt", "order"}
+               "zendeskTicket", "customer", "archivedAt", "order", "starred"}
     for item in items:
         if item["id"] == interrupt_id:
             previous_status = item.get("status")

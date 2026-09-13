@@ -89,6 +89,10 @@ directly, so a captured todo shows in the dashboard on its next poll.
 - `title` — one line, verbatim or lightly cleaned — required
 - `priority` — `urgent` · `normal` · `low`, default `normal`
 - `dueDate` — `YYYY-MM-DD` or null
+- `starred` — `true` when Chase marks it as the one to look at first ("star it", "top
+  of the list"), default `false`. Separate from `priority`: priority is how urgent the
+  work is, a star is which one he wants in front of him. The Tower sorts starred todos
+  to the top of their column and renders them in gold.
 - `note` — any extra context → becomes the first activity comment, or null
 
 ### Capture — append to `tower/data/todos/[slug].json`
@@ -108,6 +112,7 @@ the schema **exactly** (the Tower and CLI ignore malformed items):
   "customer": null,
   "capturedAt": "[ISO timestamp]",
   "updatedAt": "[ISO timestamp]",
+  "starred": [starred],
   "activity": [
     { "type": "comment", "text": "[note]", "author": "Chase", "timestamp": "[ISO timestamp]" }
   ]
@@ -120,6 +125,8 @@ Find the item by `id` (or by matching `title`) in the array, then:
 - **Status:** set `status` to one of `new` · `in-progress` · `deferred` · `done` and refresh `updatedAt`.
 - **Comment:** append `{ "type": "comment", "text": "…", "author": "Chase", "timestamp": "[ISO]" }` to its `activity`, refresh `updatedAt`.
 - **Tag:** edit its `tags` array, refresh `updatedAt`.
+- **Star:** set `starred` to `true`/`false` and refresh `updatedAt`. Older items have no
+  `starred` key at all — add it rather than assuming it is there.
 
 ### Confirmation
 ```

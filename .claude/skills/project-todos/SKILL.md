@@ -13,6 +13,11 @@ Todos share the exact item schema as Interrupts (see [[interrupt]] / [[triage]])
 
 - **priority:** urgent · normal · low
 - **status:** new · in-progress · deferred · done
+- **starred:** bool — the operator's own "look at this first" mark. Separate from
+  priority on purpose: priority says how urgent the work is, a star says this is the
+  one to look at regardless. In the Tower a starred todo sorts to the top of its
+  column, renders in gold, and has its own **★ Starred** tab. Absent on items written
+  before the field existed — read it as falsy, never assume the key is there.
 - **tags:** free-form (Tower shows them as chips)
 - Optional: `dueDate` (YYYY-MM-DD). `source`/`customer`/`zendeskTicket` exist in the schema but are unused for todos.
 - Each item carries an `activity` log (comments + events).
@@ -31,6 +36,9 @@ Run everything from repo root so `tower` is importable. The store path comes fro
    python -c "from tower.interrupts.store import create_item; from tower import config; import json; print(json.dumps(create_item(config.todos_file('SLUG'), title='TITLE', priority='normal', due_date=None)))"
    ```
 
+   Add `starred=True` when Chase says this one matters — "star it", "top of the list",
+   "this is the one".
+
    `create_item` sets id, status `new`, empty tags/activity, and timestamps. If Chase gave extra context, add it as a comment immediately (see step 4).
 
 3. **List a project's todos:**
@@ -39,7 +47,7 @@ Run everything from repo root so `tower` is importable. The store path comes fro
    python -c "from tower.interrupts.store import load_interrupts; from tower import config; import json; print(json.dumps(load_interrupts(config.todos_file('SLUG')), indent=2))"
    ```
 
-   Present grouped: **Overdue** (dueDate < today, not done) · **Due today** · **Open** (new / in-progress) · **Deferred**. One line each: priority dot, title, tags, due chip, short id. Skip `done` unless asked.
+   Present grouped: **Overdue** (dueDate < today, not done) · **Due today** · **Open** (new / in-progress) · **Deferred**. One line each: priority dot, title, tags, due chip, short id. Prefix starred items with ★ and list them first within their group — the Tower does the same, so the two views agree. Skip `done` unless asked.
 
 4. **Act on Chase's choice** (substitute the id; all mutations go through helpers):
 
@@ -51,6 +59,12 @@ Run everything from repo root so `tower` is importable. The store path comes fro
      ```bash
      python -c "from tower.interrupts.store import update_interrupt; from tower import config; update_interrupt(config.todos_file('SLUG'), 'ID', status='done')"
      ```
+   - **Star / unstar:**
+     ```bash
+     python -c "from tower.interrupts.store import update_interrupt; from tower import config; update_interrupt(config.todos_file('SLUG'), 'ID', starred=True)"
+     ```
+     Allowed on cycle todos too — a star is a board concern, not document state, so
+     nothing in a review's or plan's front-matter owns it.
    - **Tag** — read current tags, add/remove, write back, then log an event:
      ```bash
      python -c "from tower.interrupts.store import update_interrupt; from tower import config; update_interrupt(config.todos_file('SLUG'), 'ID', tags=['blocked'])"

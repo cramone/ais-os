@@ -239,11 +239,13 @@ class InterruptCreate(BaseModel):
     priority: str = "normal"
     zendeskTicket: str | None = None
     customer: str | None = None
+    starred: bool = False
 
 
 class InterruptUpdate(BaseModel):
     archived: bool | None = None
     order: int | None = None
+    starred: bool | None = None
     title: str | None = None
     source: str | None = None
     dueDate: str | None = None
@@ -560,6 +562,7 @@ def post_todo(slug: str, body: InterruptCreate) -> dict[str, Any]:
         title=body.title,
         due_date=body.dueDate,
         priority=body.priority,
+        starred=body.starred,
     )
 
 
