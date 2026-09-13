@@ -261,7 +261,7 @@ behaviour is retained.
 spec/docs, plus sequencing, the destructive non-prod cutover, and verification steps.
 
 **Decision (2026-07-21):** naming-only + ADR-first. ADR is the new "Deployment & Resource
-Naming" topic: `D:\source\github\magiq-media\docs\adrs\deployment-and-resource-naming.md`
+Naming" topic: `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\adrs\deployment-and-resource-naming.md`
 (README index updated).
 
 **Confirm 4 open decisions before coding (top of the plan):**

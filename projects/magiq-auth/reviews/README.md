@@ -24,7 +24,7 @@ _withdrawn_. _pending_ is a state to leave, not to rest in.
 
 ## `validateuser-lockout/` — account lockout on `ValidateUser`
 
-Adapted 2026-08-28 from `D:\source\github\magiq-auth\reports\ValidateUser-Lockout-Review.md`. That
+Adapted 2026-08-28 from `D:\source\github\magiqsoftware\magiq-auth\reports\ValidateUser-Lockout-Review.md`. That
 report remains the source artefact in the code repo; its §§3–5, 7, 8 are the proposed design, test plan
 and rollout notes, which were deliberately **not** carried into the review — they are the raw material
 for the plan.

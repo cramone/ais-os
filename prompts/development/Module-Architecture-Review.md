@@ -36,7 +36,7 @@ context ONLY where {{AGGREGATE}} directly references it, and only far enough to
 judge that reference. Fully finish this aggregate — including writing its output
 file — before starting the next.
 
-Read first: D:\source\github\magiq-media\CLAUDE.md (conventions, hosts, key rules).
+Read first: D:\source\github\sprbrk-standard\mgq-magiq-media\CLAUDE.md (conventions, hosts, key rules).
 
 Inputs for this run:
 - Spec:   docs/spec/contexts/Catalog/aggregates/{{AGGREGATE}}/**
@@ -698,7 +698,7 @@ For every recommendation include:
 
 Write the report as a single Markdown file to:
 
-  D:\source\github\magiq-media\docs\reviews\catalog-{{aggregate-lowercase}}-architecture-review.md
+  D:\source\github\sprbrk-standard\mgq-magiq-media\docs\reviews\catalog-{{aggregate-lowercase}}-architecture-review.md
 
 e.g. catalog-mediaitem-architecture-review.md. One file per aggregate; four
 files total when Catalog is complete.

@@ -17,17 +17,17 @@ once you follow it across a bounded-context boundary.
 ## Input
 
 Primary source of truth (read it in full first):
-`D:\source\github\magiq-media\docs\reviews\catalog-mediaitem-architecture-review.md`
+`D:\source\github\sprbrk-standard\mgq-magiq-media\docs\reviews\catalog-mediaitem-architecture-review.md`
 
 Supporting context, read only as needed:
-- `D:\source\github\magiq-media\CLAUDE.md` — stack, conventions, module/host layout.
+- `D:\source\github\sprbrk-standard\mgq-magiq-media\CLAUDE.md` — stack, conventions, module/host layout.
 - The other reviews in `docs\reviews\` — especially
   `cross-module-integration-review.md`, `assetmanagement-architecture-review.md`,
   `catalog-folder-architecture-review.md`, `catalog-collection-architecture-review.md`,
   `catalog-mediaprofile-architecture-review.md`,
   `registration-registration-architecture-review.md` — for the counterpart
   module's own findings.
-- `D:\source\github\magiq-media\docs\spec\` and `docs\adrs\` — the spec and ADRs
+- `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\spec\` and `docs\adrs\` — the spec and ADRs
   (ADR-006 active-items counter, ADR-010 conformance, ADR-013 metadata origin).
 
 ## Method — doc-first, spot-check code
@@ -100,7 +100,7 @@ Supporting context, read only as needed:
   inside the MediaItem slice (e.g. summary-projector tag duplication, missing
   validators, response-DTO `TenantId` leak) are **out of scope** unless they change
   what another module receives or does.
-- Route by the project's folder map: code in `D:\source\github\magiq-media`, spec/ADRs
+- Route by the project's folder map: code in `D:\source\github\sprbrk-standard\mgq-magiq-media`, spec/ADRs
   in its `docs\`, deploy in `cdk-magiq-media`, platform SDK in `aspnetcore-platform`.
   Don't hand-edit the `Media.wiki`.
 - Preserve the review's finding IDs (MI-C2, MI-H1, MI-H2, MI-FP1, MI-FC1, …) so the

@@ -12,7 +12,7 @@ workstream folder and this file becomes its evidence.
 
 | | |
 |---|---|
-| **Spec** | `D:\source\github\magiq-media\docs\spec\contexts\Processing\` — 7 files, 1,528 lines |
+| **Spec** | `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\spec\contexts\Processing\` — 7 files, 1,528 lines |
 | **Code** | `src\modules\Processing\` — 6 projects, 70 `.cs` files (excl. `obj`/`bin`) |
 | **Also read** | `src\hosts\` (ProcessingWorker, SagaOrchestrator, TimeoutScanner, Api, EventConsumers, QueryApi, Projectors.ReadModel), AssetManagement's five `ProcessingJob*EventHandler`s, `cdk-magiq-media` (`sqs-queues.ts`, `media-buckets.ts`), `aspnetcore-platform` projection/schema internals |
 | **Aggregate** | `ProcessingJob` — the only one in this context. `AssetIngestionSaga` is included; it is Processing's. |

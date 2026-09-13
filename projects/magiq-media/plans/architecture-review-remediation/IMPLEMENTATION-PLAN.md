@@ -33,9 +33,9 @@ This is the **source of truth for execution**. Any session (me/Claude) picks up 
 4. I **assign and update** the ADO work items as I go (protocol in §4). I update the **Status** column here in the same session.
 
 Repos (all on GitHub; work items on ADO):
-- **app** → `D:\source\github\magiq-media` (application code + `docs\spec\` + `docs\adrs\` — source of truth for spec/ADRs). Read its `CLAUDE.md` before any code/spec work.
-- **cdk** → `D:\source\github\cdk-magiq-media` (CDK/TypeScript deploy infra).
-- **platform** → `D:\source\github\aspnetcore-platform` (Magiq.Platform / Magiq.AspNetCore SDK).
+- **app** → `D:\source\github\sprbrk-standard\mgq-magiq-media` (application code + `docs\spec\` + `docs\adrs\` — source of truth for spec/ADRs). Read its `CLAUDE.md` before any code/spec work.
+- **cdk** → `D:\source\github\sprbrk-standard\mgq-magiq-media-infra` (CDK/TypeScript deploy infra).
+- **platform** → `D:\source\github\magiqsoftware\aspnetcore-platform` (Magiq.Platform / Magiq.AspNetCore SDK).
 
 ---
 

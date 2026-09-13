@@ -4,7 +4,7 @@
 **Owner:** Chase Ramone
 **Team:** Chase Ramone (API layer), Akshay Gaikwad (UI/integrations)
 **Full spec:** `projects/magiq-media/spec/` (this repo)
-**Source code:** `D:\source\github\magiq-media`
+**Source code:** `D:\source\github\sprbrk-standard\mgq-magiq-media`
 **Reviews → Plans:** `reviews/` and `plans/` mirror each other, one subfolder per workstream since
 2026-08-24, indexed by a README each. Work is reviewed before it is planned; a new plan takes its
 review's filename, and both sides archive together — see `CLAUDE.md § Review → Plan`. Live workstreams:
@@ -114,7 +114,7 @@ Host: `src/hosts/Media.Api` — single FastEndpoints host wiring all modules.
 
 See `decisions/log.md` for the decision journal (Chase's machine only — in-flight/informal).
 
-Architecture decisions (ADRs) live in `D:\source\github\magiq-media\docs\adrs\` and are code-reviewed there — this OneDrive path is stale and no longer used. As of 2026-07-08, the ADRs are organized as five topic documents (not a flat numbered sequence — see `docs/adrs/README.md` in that repo for the full index and the old-number → new-location map if you're looking for a specific former `ADR-0XX`):
+Architecture decisions (ADRs) live in `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\adrs\` and are code-reviewed there — this OneDrive path is stale and no longer used. As of 2026-07-08, the ADRs are organized as five topic documents (not a flat numbered sequence — see `docs/adrs/README.md` in that repo for the full index and the old-number → new-location map if you're looking for a specific former `ADR-0XX`):
 
 | Topic doc | Covers |
 |---|---|

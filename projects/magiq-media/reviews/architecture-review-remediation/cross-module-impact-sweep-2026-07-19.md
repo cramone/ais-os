@@ -17,7 +17,7 @@ created: 2026-07-19
 **Date:** 2026-07-19
 **Reviewer role:** Principal Domain Architect (independent second opinion)
 **Method:** A/B/C seam triangulation — every `media.*` event verified from the producer contract (A), the consumer bridge (B), and the SNS/SQS transport + filter policy (C), from code and spec first-hand. The existing reviews in `docs/reviews/` were held unseen until §7.
-**Repos read:** app `D:\source\github\magiq-media`; deploy `D:\source\github\cdk-magiq-media`; platform `D:\source\github\aspnetcore-platform`; spec/ADRs `magiq-media\docs\`.
+**Repos read:** app `D:\source\github\sprbrk-standard\mgq-magiq-media`; deploy `D:\source\github\sprbrk-standard\mgq-magiq-media-infra`; platform `D:\source\github\magiqsoftware\aspnetcore-platform`; spec/ADRs `magiq-media\docs\`.
 **Scope:** cross-module seams only — integration events, cross-boundary command dispatch, shared write-side reference/counter models, sagas, and the SNS/SQS/DLQ topology. Intra-aggregate internals, projector field bugs, validators and DTO shape are out of scope except where they change what another module receives.
 
 > **Independence note.** This sweep was derived without reading the prior reviews. It converges almost entirely with the existing `cross-module-integration-review.md` — which is strong corroboration, not inheritance. §7 reconciles the two; the small set of genuine deltas is called out there.

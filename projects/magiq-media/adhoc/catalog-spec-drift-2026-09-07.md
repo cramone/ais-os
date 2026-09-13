@@ -12,7 +12,7 @@ workstream folder and this file becomes its evidence.
 
 | | |
 |---|---|
-| **Spec** | `D:\source\github\magiq-media\docs\spec\contexts\Catalog\` — 21 files, ~9,970 lines |
+| **Spec** | `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\spec\contexts\Catalog\` — 21 files, ~9,970 lines |
 | **Code** | `src\modules\Catalog\` — 9 projects, 831 `.cs` files; plus `src\hosts\`, `src\shared\` where a claim crossed out |
 | **Also read** | `aspnetcore-platform` and `cdk-magiq-media` where a claim crossed a repo boundary |
 | **Aggregates** | Collection, Folder, MediaItem, MediaProfile — the four implemented |

@@ -12,7 +12,7 @@ workstream folder and this file becomes its evidence.
 
 | | |
 |---|---|
-| **Spec** | `D:\source\github\magiq-media\docs\spec\contexts\DocumentSigning\` — 7 files, 1,561 lines |
+| **Spec** | `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\spec\contexts\DocumentSigning\` — 7 files, 1,561 lines |
 | **Code** | `src\modules\DocumentSigning\` — 5 projects, 23 `.cs` files (excl. `obj`/`bin`) · `src\hosts\SagaOrchestrator.DocumentSigning\` — 4 `.cs` files |
 | **Also read** | `src\modules\Catalog` (`MediaItem`, its events, `Capability`, `Link`/`UnlinkSigningSession`), `src\hosts\Api` (`DomainEventPublishingMiddleware`), `src\hosts\Projectors.ReadModel`, `src\hosts\TimeoutScanner`, `projection-tables.manifest.json`, `Magiq.Media.sln`, `docs\spec\shared\` (error-catalog, operations, event-store-and-messaging, authorization-matrix, glossary), `docs\spec\architecture\`, `cdk-magiq-media` (`magiq-media-stack.ts`, `sqs-queues.ts`, `read-models.ts`), `aspnetcore-platform` (`IReadModel`, `IVersionedProjection`) |
 | **Aggregate** | `DocumentSigningSession` — the only one in this context, and **it does not exist as a class** |

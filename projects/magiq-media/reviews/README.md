@@ -161,7 +161,7 @@ Per module: `assetmanagement` · `catalog-collection` · `catalog-folder` · `ca
 Cross-cutting: `cross-module-integration-review.md` (the seams between modules) and
 `cross-module-impact-sweep-2026-07-19.md` (what each finding breaks elsewhere).
 
-> The plans referred to these as living in `D:\source\github\magiq-media\docs\reviews\`. That folder
+> The plans referred to these as living in `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\reviews\`. That folder
 > exists in the repo and is **empty** — the reviews never moved there. Corrected 2026-08-24.
 
 ## `spec-drift-review/` — the spec, interrogated

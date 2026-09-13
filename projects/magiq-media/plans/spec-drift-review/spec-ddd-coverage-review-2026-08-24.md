@@ -25,7 +25,7 @@ completed: 2026-08-25
 _Consumes `reviews/spec-drift-review/spec-ddd-coverage-review-2026-08-24.md` and
 `reviews/spec-structure/spec-structure-recommendation-2026-08-25.md`._
 _Drafted 2026-08-24 for Chase Ramone. **Restructured 2026-08-25** into resumable work units._
-_Scope: `D:\source\github\magiq-media\docs\` — 72 spec files, 7 contexts, 21 ADRs. The aggregate count
+_Scope: `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\` — 72 spec files, 7 contexts, 21 ADRs. The aggregate count
 is deliberately omitted: the spec gives three answers (9 / 10 / 12) and W7 reconciles it._
 
 > **The work is not writing more spec. It is making the spec answer each question once, in a file that

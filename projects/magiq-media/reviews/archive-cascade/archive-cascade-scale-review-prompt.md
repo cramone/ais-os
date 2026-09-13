@@ -3,7 +3,7 @@ Work the archive-cascade workstream on magiq-media — X-11.41, then decide on T
 Read first:
   Z:\claudia\magiq\projects\magiq-media\plans\archive-cascade\archive-cascade-review-2026-08-25.md
   Z:\claudia\magiq\projects\magiq-media\reviews\archive-cascade\archive-cascade-scale-review.md
-  D:\source\github\magiq-media\docs\spec\contexts\Catalog\sagas\archive-fan-out.md
+  D:\source\github\sprbrk-standard\mgq-magiq-media\docs\spec\contexts\Catalog\sagas\archive-fan-out.md
 
 X-11.16, X-11.18 and X-11.15 closed 2026-08-27. Steps 2 onward are open.
 

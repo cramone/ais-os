@@ -20,8 +20,8 @@ about it.
 [`registration-spec-drift-2026-09-08.md`](./registration-spec-drift-2026-09-08.md), which keeps the full
 `file:line` citations on both sides.
 
-**Spec paths below are relative to** `D:\source\github\magiq-media\docs\spec\contexts\Registration\`.
-**Code paths** are relative to `D:\source\github\magiq-media\src\`.
+**Spec paths below are relative to** `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\spec\contexts\Registration\`.
+**Code paths** are relative to `D:\source\github\sprbrk-standard\mgq-magiq-media\src\`.
 
 ---
 

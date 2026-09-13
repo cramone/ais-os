@@ -10,7 +10,7 @@ Serves government agencies and large enterprises managing regulated records. Mul
 
 **Owner:** Chase Ramone
 **Team:** Chase Ramone (API layer), Akshay Gaikwad (UI/integrations)
-**Source code:** `D:\source\github\magiq-media`
+**Source code:** `D:\source\github\sprbrk-standard\mgq-magiq-media`
 
 ## Stack
 
@@ -117,7 +117,7 @@ it would separate the findings from the boxes tracking them.
 
 > **Spec and ADRs moved 2026-07-07.** `spec/contexts/`, `spec/shared/`,
 > `spec/architecture/`, and `adrs/` now live in
-> `D:\source\github\magiq-media\docs\spec\` and `docs\adrs\` — they're
+> `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\spec\` and `docs\adrs\` — they're
 > code-reviewed there, and that repo is the only source of truth for them —
 > there is no published or mirrored copy. Don't recreate them here. This folder
 > is the AI-operating-system layer — memory, todos, meetings, the decision
@@ -149,7 +149,7 @@ front-matter status that keeps the Control Tower todos in step, and dependency g
 
 ## Decisions
 
-Architecture decisions (ADRs) now live in `D:\source\github\magiq-media\docs\adrs\` — see `brief.md` for the ADR summary table.
+Architecture decisions (ADRs) now live in `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\adrs\` — see `brief.md` for the ADR summary table.
 
 ---
 

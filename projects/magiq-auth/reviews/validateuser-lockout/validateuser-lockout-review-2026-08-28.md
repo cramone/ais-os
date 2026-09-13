@@ -24,10 +24,10 @@ design** — the remediation design already drafted in the source report is held
 - All six `ValidateUser` call sites (table under VUL-6)
 - `src/MagiqAuth.Web/Controllers/UserController.cs` — `PasswordResetSend`, `PasswordResetConfirmPOST`
 - `src/MagiqAuth.Core/WebHelper.cs` — `GetCurrentIpAddress`
-- `D:\source\github\magiq-auth\reports\ValidateUser-Lockout-Review.md` (2026-08-28) — the source
+- `D:\source\github\magiqsoftware\magiq-auth\reports\ValidateUser-Lockout-Review.md` (2026-08-28) — the source
   analysis this review is adapted from. It remains the working artefact in the code repo; §§3–5, 7–8 of
   it are the proposed design and test/rollout plan, which belong in the plan, not here.
-- `D:\source\github\magiq-auth\PRODUCTION_CODE_AUDIT_REPORT.md` — cross-referenced for VUL-9 only
+- `D:\source\github\magiqsoftware\magiq-auth\PRODUCTION_CODE_AUDIT_REPORT.md` — cross-referenced for VUL-9 only
 
 **Not read / out of scope**
 

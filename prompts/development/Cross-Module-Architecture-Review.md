@@ -40,7 +40,7 @@ its endpoint auth — except where these directly determine a cross-module outco
 (e.g. a consumer-dispatched command whose authorization or idempotency changes the
 flow). Pull a module's internals in **only far enough to judge the seam**.
 Read first (context & conventions):
-- `D:\source\github\magiq-media\CLAUDE.md` — hosts, messaging (`media-domain-events`,
+- `D:\source\github\sprbrk-standard\mgq-magiq-media\CLAUDE.md` — hosts, messaging (`media-domain-events`,
   `media-integration-events` SNS → SQS fan-out), key conventions (TenantId sourcing,
   idempotent projectors, `ProjectedVersion`, optimistic concurrency, ADR-005 inline
   publishers).
@@ -269,7 +269,7 @@ The five integration risks that most block a production release, each linked to 
 ---
 # Output & Filing
 Write the report as a **single** Markdown file to:
-  `D:\source\github\magiq-media\docs\reviews\cross-module-integration-review.md`
+  `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\reviews\cross-module-integration-review.md`
 Match `docs/reviews/assetmanagement-architecture-review.md` for structure and tone:
 - **Front-matter block:** Scope (bounded context = whole system), Reviewer role,
   Date, the exact spec/code globs reviewed (incl. the `cdk-magiq-media` topology),

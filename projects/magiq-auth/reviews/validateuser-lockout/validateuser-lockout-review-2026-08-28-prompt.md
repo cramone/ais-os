@@ -8,7 +8,7 @@ Paste this into a fresh session. It assumes no prior context.
 
 - **Project slug:** `magiq-auth`
 - **Planning workspace:** `Z:\claudia\magiq\projects\magiq-auth` — reviews, plans, decisions. No source code.
-- **Code repo:** `D:\source\github\magiq-auth` — all C# source, tests, scripts, audit reports.
+- **Code repo:** `D:\source\github\magiqsoftware\magiq-auth` — all C# source, tests, scripts, audit reports.
 - **Review document id:** `MA-001`
 - **Review path:** `Z:\claudia\magiq\projects\magiq-auth\reviews\validateuser-lockout\validateuser-lockout-review-2026-08-28.md`
 - **Todo id:** `6f75a44e-360f-4565-b6bb-66af3f128ef6` in `tower/data/todos/magiq-auth.json`
@@ -23,7 +23,7 @@ the Control Tower UI writes the same file and last write wins.
 ## Read first
 
 1. The review at the path above — front-matter, then all ten findings.
-2. `D:\source\github\magiq-auth\reports\ValidateUser-Lockout-Review.md` — the source analysis. Its
+2. `D:\source\github\magiqsoftware\magiq-auth\reports\ValidateUser-Lockout-Review.md` — the source analysis. Its
    §§3–5, 7, 8 are the **proposed design, test plan and rollout notes**. They were deliberately left out
    of the review and are the raw material for the plan.
 3. `src/MagiqAuth.Services/Users/UserMembershipService.cs` — the `ValidateUser` lockout branch, lines

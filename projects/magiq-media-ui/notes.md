@@ -3,7 +3,7 @@
 ## Design work (started 2026-08-12)
 
 Mockup-first design in Claude. Domain source of truth = backend spec at
-`D:\source\github\magiq-media\docs` (7 modules, ~50 use cases, 14 ADRs).
+`D:\source\github\sprbrk-standard\mgq-magiq-media\docs` (7 modules, ~50 use cases, 14 ADRs).
 
 Decisions logged in `decisions/log.md` (D-001..D-005). Key ones:
 - Tenant from JWT only, never in URL. Switch = token re-issue.
@@ -56,7 +56,7 @@ Remaining parked/open: read-model status enum drift flag to backend; R-001 (magi
 **Remaining screen queue 13–19 COMPLETE (2026-08-12).**
 
 ## FINAL STATUS — 19 screens designed
-All mockups built in Claude, spec-accurate against D:\source\github\magiq-media\docs.
+All mockups built in Claude, spec-accurate against D:\source\github\sprbrk-standard\mgq-magiq-media\docs.
 
 Frame: Shell · Tenant switch · Mobile shell · Login (OIDC PKCE) · 403 page · Empty/error catalog · Notifications
 Library: Browse list · Browse grid · Item detail · Collection/Folder manage

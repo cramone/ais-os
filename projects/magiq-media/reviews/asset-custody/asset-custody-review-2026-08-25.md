@@ -22,7 +22,7 @@ W22 follow-up, and split out so the spec-drift work could continue. Nothing here
 ## Why this is its own workstream
 
 `Asset` was the last aggregate to classify in
-[`docs/adrs/ownership-and-authorization.md`](../../../../D:/source/github/magiq-media/docs/adrs/ownership-and-authorization.md)
+[`docs/adrs/ownership-and-authorization.md`](../../../../D:/source/github/sprbrk-standard/mgq-magiq-media/docs/adrs/ownership-and-authorization.md)
 *(repo path: `docs/adrs/ownership-and-authorization.md`)*. The other six resolved cleanly — four provenance,
 two standing. `Asset` did not, because it turned out to need **a third concept the codebase does not have**,
 and describing that concept exposed **a live gap in the asset lifecycle**.

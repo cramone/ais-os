@@ -14,7 +14,7 @@ created: 2026-08-25
 
 # Spec structure — what the 16 dimensions need, and what this repo already has
 
-_Written 2026-08-25 for Chase Ramone. Scope: `D:\source\github\magiq-media\docs\` as it stands today —
+_Written 2026-08-25 for Chase Ramone. Scope: `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\` as it stands today —
 72 spec files, 7 contexts, 12 aggregates, 5 architecture files, 6 shared files, 21 ADRs._
 
 > **This is not a proposal to restructure the spec.** The per-aggregate structure this repo already uses

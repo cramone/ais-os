@@ -59,7 +59,7 @@ deleted in the split — every finding is in exactly one of the two files, and t
 *(The review's own running total said 223. That counts §J's 15 rows twice — §J is a cross-cutting view of
 findings that also sit in their module sections. 208 is the distinct count.)*
 
-**Scope of the original review:** `D:\source\github\magiq-media\docs\spec\**` (22,077 lines, 7 bounded
+**Scope of the original review:** `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\spec\**` (22,077 lines, 7 bounded
 contexts, 13 aggregates) and `docs\adrs\**` against `src\modules\**` (~1,700 `.cs` files, 114 endpoints),
 `src\hosts\**`, `.github\workflows\`, plus `cdk-magiq-media` and `aspnetcore-platform` where a claim
 crossed a repo boundary. Contracts and behaviour, not naming or formatting. Authentication and
@@ -263,7 +263,7 @@ replaces it.
 
 ## Spec sweep — what is left to apply to `docs/`
 
-_Added 2026-08-31. Every claim below was **checked against `D:\source\github\magiq-media` on branch
+_Added 2026-08-31. Every claim below was **checked against `D:\source\github\sprbrk-standard\mgq-magiq-media` on branch
 `feature/change-requests`**, not inferred from this file. The docs tree is committed clean._
 
 **The spec-*writing* workstream is finished.** MM-024's board reports all 31 W units complete; the

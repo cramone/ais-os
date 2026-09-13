@@ -41,7 +41,7 @@ _Both 🔴 blockers on the prod-readiness gate are in this workstream._
 ## Step 0 — the answer, and why it matters more than it looks
 
 **`magiq-auth` issues no `roles` claim and no `actor_type` claim.** Verified by reading the source at
-`D:\source\github\magiq-auth` on 2026-08-26, not from documentation.
+`D:\source\github\magiqsoftware\magiq-auth` on 2026-08-26, not from documentation.
 
 `UserProfileService` — the only registered `IProfileService` — emits a fixed six-claim set
 (`ClaimTypes.Name`, `TenantId`, `GivenName`, `Surname`, `LoginID`, `ClientName`) and no role of any

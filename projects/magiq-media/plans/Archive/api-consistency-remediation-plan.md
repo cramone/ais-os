@@ -120,7 +120,7 @@ The bounded-context URL prefixing question is **decided** (2026-07-08): flat, re
 
 ### Incident — spec-tree file truncation (2026-07-08)
 
-Acceptance review surfaced widespread truncation across `docs/spec/` — some pre-existing in the 2026-07-07 migration commit (`6fc139ee`), some introduced this session (likely unreliable writes to the network-mounted `D:\source\github\magiq-media` drive). Chase's call: **fix `api-conventions.md` now, defer the rest.**
+Acceptance review surfaced widespread truncation across `docs/spec/` — some pre-existing in the 2026-07-07 migration commit (`6fc139ee`), some introduced this session (likely unreliable writes to the network-mounted `D:\source\github\sprbrk-standard\mgq-magiq-media` drive). Chase's call: **fix `api-conventions.md` now, defer the rest.**
 
 - [x] `docs/spec/shared/api-conventions.md` — reconstructed from the clean git baseline + full replay of every edit made across Stages 1/3/5. Verified complete via direct Windows-side read (563 lines, clean close). Confirmed the file is genuinely fine — an earlier bash-mount check on the same file showed a stale, truncated view; the Linux sandbox's view of this drive can lag behind the real disk. **Treat Read/Write/Edit tool output as authoritative for this drive, not `bash`/`wc`/`git cat-file` run against the mount.**
 - [ ] **Deferred — confirmed still truncated, not yet touched (re-verified directly against disk, not the bash mount):**

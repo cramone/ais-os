@@ -4,10 +4,10 @@
 Central identity, tenant, onboarding, and access-management platform for all MAGIQ cloud applications and APIs. Handles tenant lifecycle, user management, authN/authZ, onboarding flows, tenant switching, token issuance, identity federation (Azure AD SSO), and identity/event propagation to downstream MAGIQ apps.
 
 ## Status — current system vs. migration target
-- **Current system: live in production, actively developed.** `D:\source\github\magiq-auth` is a mature, deployed .NET codebase with real customers, real infra, and an open PR/plan pipeline (see "In-Flight Work" below). This is what you're actually working in day to day.
+- **Current system: live in production, actively developed.** `D:\source\github\magiqsoftware\magiq-auth` is a mature, deployed .NET codebase with real customers, real infra, and an open PR/plan pipeline (see "In-Flight Work" below). This is what you're actually working in day to day.
 - **Migration target: scaffolded only, spec not started.** The repo also contains empty solution folders (`AuthServer.*`, `Identity.*`, `Login.RazorUI`, `Infrastructure.*`) staking out the future DDD/CQRS/FastEndpoints/DynamoDB architecture — no `.cs` files exist in them yet, no migration spec written. "Draft — spec not yet started" (below) refers to *this* future migration, not the current running system.
 
-This workspace (`Z:\claudia\magiq\projects\magiq-auth`) is planning/tracking only — no source code lives here. The code repo is the connected folder `D:\source\github\magiq-auth`.
+This workspace (`Z:\claudia\magiq\projects\magiq-auth`) is planning/tracking only — no source code lives here. The code repo is the connected folder `D:\source\github\magiqsoftware\magiq-auth`.
 
 ## Stack: Current vs. Future Migration Target
 
@@ -156,7 +156,7 @@ Three rules:
 3. **Both sides archive together**, in the same session.
 
 **Reviews raised from the code repo.** Analysis documents written into
-`D:\source\github\magiq-auth\reports\` are working notes, not cycle documents. When one becomes work we
+`D:\source\github\magiqsoftware\magiq-auth\reports\` are working notes, not cycle documents. When one becomes work we
 intend to sequence, it is adapted into a review here — findings only; design detail belongs in the plan.
 The original stays in the repo as the source artefact and is cited by the review's `## Scope`.
 

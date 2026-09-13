@@ -426,5 +426,5 @@ is in this file is that the spec now asserts an intended contract that code does
 
 - [`catalog-spec-drift-2026-09-07.md`](./catalog-spec-drift-2026-09-07.md) — the full review, with
   `file:line` evidence on both sides for all 121 findings
-- `D:\source\github\magiq-media\docs\spec\contexts\Catalog\` — the rewritten spec, where every row above is
+- `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\spec\contexts\Catalog\` — the rewritten spec, where every row above is
   marked at the point it applies

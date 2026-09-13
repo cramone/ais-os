@@ -4,7 +4,7 @@
 
 ## 2026-08-12 — UI design kickoff: shell, tenancy, visual direction
 
-**Context:** Beginning frontend design work in Claude (mockup-first). Project folder was scaffold-only; backend `magiq-media` spec at `D:\source\github\magiq-media\docs` is the domain source of truth (7 modules, ~50 use cases, 14 ADRs).
+**Context:** Beginning frontend design work in Claude (mockup-first). Project folder was scaffold-only; backend `magiq-media` spec at `D:\source\github\sprbrk-standard\mgq-magiq-media\docs` is the domain source of truth (7 modules, ~50 use cases, 14 ADRs).
 
 ### D-001 — Tenant identity from JWT only, never in the URL
 Tenant is **not** represented in the URL (no subdomain, no path segment). Tenant is resolved from the JWT `tenant_id` claim and applied server-side to scope all API responses.

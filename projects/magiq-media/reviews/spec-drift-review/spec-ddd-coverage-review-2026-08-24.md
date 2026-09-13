@@ -15,7 +15,7 @@ created: 2026-08-24
 # magiq-media — DDD Spec Coverage Review
 
 **Date:** 2026-08-24
-**Scope:** `D:\source\github\magiq-media\docs\spec\` — 9 architecture/shared files + 7 contexts, 12 aggregates, 68 files, ~25,300 lines.
+**Scope:** `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\spec\` — 9 architecture/shared files + 7 contexts, 12 aggregates, 68 files, ~25,300 lines.
 **Question asked:** are the 14 DDD dimensions covered — ubiquitous language, bounded contexts, aggregates, entities/VOs, commands, domain events, invariants, business rules, state transitions, relationships, workflows, sagas, eventual consistency, edge cases/contradictions.
 **Method:** five parallel deep reads (AssetManagement+Processing · Catalog core · MediaProfile/Bulk/Metadata · ChangeRequests/Registration/DocumentSigning · shared+architecture), then a verification pass over the systemic claims. Spec only — no code was read, so every finding is "the spec does not say", not "the code does not do".
 
@@ -214,4 +214,4 @@ Items 1–3 are days. Items 4–6 are where the domain risk actually is.
 
 ## 7. Note for the docs project
 
-`MEMORY.md` still says *"'The spec' refers to the most recent files in `projects/magiq-media/spec/`"*. Spec moved to `D:\source\github\magiq-media\docs\spec\` on 2026-07-07. Flagging rather than editing — memory is user-triggered.
+`MEMORY.md` still says *"'The spec' refers to the most recent files in `projects/magiq-media/spec/`"*. Spec moved to `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\spec\` on 2026-07-07. Flagging rather than editing — memory is user-triggered.

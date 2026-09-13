@@ -16,7 +16,7 @@ _Standalone operating brief for a Claude Cowork project that executes the archit
 1. **Read, in order:**
    - This file (`COWORK-EXECUTION-INSTRUCTIONS.md`) — how to operate.
    - `IMPLEMENTATION-PLAN.md` — the live tracker. Read §9 **Session log** (last entries) and the **Status** columns in §5 to see where we are.
-   - `D:\source\github\magiq-media\CLAUDE.md` — repo conventions. **Mandatory before any code or spec edit.**
+   - `D:\source\github\sprbrk-standard\mgq-magiq-media\CLAUDE.md` — repo conventions. **Mandatory before any code or spec edit.**
 2. **Confirm access** (see §1 below). If a path or tool is missing, stop and tell the operator — do not improvise.
 3. **Announce state:** in one or two lines, say what's `In Progress`, what's the next ready item (§5 order in the plan), and what you intend to do this session. Wait for the operator's "go" if a branch needs creating (branches are operator-created — see §3).
 
@@ -27,9 +27,9 @@ _Standalone operating brief for a Claude Cowork project that executes the archit
 | Need | Where | Check |
 |---|---|---|
 | Live tracker + companion docs | `Z:\claudia\magiq\projects\magiq-media\plans\architecture-review-remediation\` | `IMPLEMENTATION-PLAN.md` opens |
-| App repo (code + `docs\spec\` + `docs\adrs\`) | `D:\source\github\magiq-media` | `git status` works; on/near `develop` |
-| CDK repo | `D:\source\github\cdk-magiq-media` | `git status` works |
-| Platform SDK repo | `D:\source\github\aspnetcore-platform` | only for A1 / INV-5 |
+| App repo (code + `docs\spec\` + `docs\adrs\`) | `D:\source\github\sprbrk-standard\mgq-magiq-media` | `git status` works; on/near `develop` |
+| CDK repo | `D:\source\github\sprbrk-standard\mgq-magiq-media-infra` | `git status` works |
+| Platform SDK repo | `D:\source\github\magiqsoftware\aspnetcore-platform` | only for A1 / INV-5 |
 | ADO work items | `dev.azure.com/MAGIQSoftware`, project **Media** | `azure-devops` MCP tools respond |
 | ADO ↔ GitHub link | Azure Boards GitHub app installed | `AB#<id>` in a PR links back to the board — confirm once |
 
@@ -62,7 +62,7 @@ Companion docs in this folder:
 **Golden rules (from the plan §0–§4):**
 - **`Story/Bug = one PR`.** Epics and Features group work; they are not PRs.
 - **The operator creates branches.** You never `git checkout -b` on your own. Names are pre-defined in the plan (§2 naming, §8 full list). Tell the operator the exact **branch name + repo**, wait for "go" / confirmation it exists, then work on it.
-- **You do the code AND the spec/ADR changes** on that branch (spec co-locates with code in `D:\source\github\magiq-media\docs\spec\` and `docs\adrs\`).
+- **You do the code AND the spec/ADR changes** on that branch (spec co-locates with code in `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\spec\` and `docs\adrs\`).
 - **You drive ADO states New → In Progress → Code Review and stop.** QA/release/Done is the operator's team flow (unless the operator tells you to close).
 
 **Per-item sequence:**
@@ -111,7 +111,7 @@ Companion docs in this folder:
 - **Respect dependency gates:** A1 before async work; A5 gates deploy re-enable; B3 waits on INV-1 + INV-5; Epic F waits on INV-4. Deps are in each item's **Deps** cell.
 - **Two-sided fixes travel together** — e.g. D-AM3 ↔ D-MI2 (role bind/unbind events), D-MI3 ↔ D-MP2 (conformance), the archive-coordination group D-COL1 + D-FOL2 + D-MI1. Note the pairing in the PR.
 - **The tracker is the source of truth.** If this file and `IMPLEMENTATION-PLAN.md` disagree, the tracker wins for state; update this file only if the operating process itself changed.
-- **Spec/ADRs live in the app repo**, not this AIOS folder. Edit them under `D:\source\github\magiq-media\docs\`.
+- **Spec/ADRs live in the app repo**, not this AIOS folder. Edit them under `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\`.
 
 ---
 

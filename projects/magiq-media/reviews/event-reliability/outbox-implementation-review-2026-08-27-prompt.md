@@ -3,8 +3,8 @@ Work the outbox implementation question on magiq-media — X-11.44.
 Read first:
   Z:\claudia\magiq\projects\magiq-media\reviews\event-reliability\outbox-implementation-review-2026-08-27.md
   Z:\claudia\magiq\projects\magiq-media\reviews\event-reliability\event-reliability-review-2026-08-25.md
-  D:\source\github\magiq-media\docs\adrs\persistence-and-eventing.md  (ADR-005, corrected 2026-08-27)
-  D:\source\github\magiq-media\docs\spec\shared\consistency-model.md
+  D:\source\github\sprbrk-standard\mgq-magiq-media\docs\adrs\persistence-and-eventing.md  (ADR-005, corrected 2026-08-27)
+  D:\source\github\sprbrk-standard\mgq-magiq-media\docs\spec\shared\consistency-model.md
 
 Context: gate decision 6 was answered 2026-08-27 — correct ADR-005 (done) and let
 measurement choose the remedy. So do NOT start building. X-11.44 is decision-gated,

@@ -169,7 +169,7 @@ finished; `handler-status-code-review.md` folded into its status-code stage) ·
 
 Unpaired, and marked `exception:` 2026-08-31 rather than back-filled:
 `Endpoint-ReadModel-Separation.md` (archived at 0 of 76 items ticked) · `docs-migration-plan.md` (the
-spec/ADR move to `D:\source\github\magiq-media\docs\` did happen 2026-07-07, but the GitHub
+spec/ADR move to `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\` did happen 2026-07-07, but the GitHub
 Actions wiki-publish step it specifies is still unbuilt).
 
 > **Moved 2026-08-31:** `request-response-review.md` → `reviews/Archive/`. It is a review — 866 lines

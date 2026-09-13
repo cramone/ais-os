@@ -52,10 +52,10 @@ handler bridged but no producer.
 
 ## Where to read (pointers, not conclusions)
 
-Repos: app code `D:\source\github\magiq-media`; deploy topology
-`D:\source\github\cdk-magiq-media`; platform publish/consume mechanism
-`D:\source\github\aspnetcore-platform`; spec/ADRs under
-`D:\source\github\magiq-media\docs\`. Read each repo's `CLAUDE.md` first.
+Repos: app code `D:\source\github\sprbrk-standard\mgq-magiq-media`; deploy topology
+`D:\source\github\sprbrk-standard\mgq-magiq-media-infra`; platform publish/consume mechanism
+`D:\source\github\magiqsoftware\aspnetcore-platform`; spec/ADRs under
+`D:\source\github\sprbrk-standard\mgq-magiq-media\docs\`. Read each repo's `CLAUDE.md` first.
 
 - **Modules** (`src/modules/**`): `AssetManagement`, `Catalog`
   (Collection / Folder / MediaItem / MediaProfile), `ChangeRequests`, `Metadata`,

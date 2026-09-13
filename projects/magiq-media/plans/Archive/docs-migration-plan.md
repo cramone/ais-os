@@ -53,7 +53,7 @@ references from ADR files keep working unchanged).
 
 ## 2. Prep the target structure in the code repo
 
-In `D:\source\github\magiq-media`:
+In `D:\source\github\sprbrk-standard\mgq-magiq-media`:
 
 1. Confirm `docs/` exists (it does, currently empty).
 2. Create `docs/spec/` and `docs/adrs/` as the new homes.
@@ -67,8 +67,8 @@ In `D:\source\github\magiq-media`:
 
 From `Z:\claudia\magiq\projects\magiq-media`:
 
-1. `spec\architecture\`, `spec\contexts\`, `spec\shared\` → `D:\source\github\magiq-media\docs\spec\` (same three subfolders, same relative structure — no internal link rewriting needed, this is a straight move)
-2. `adrs\` → `D:\source\github\magiq-media\docs\adrs\` (same — sibling relationship to `spec/` is preserved under `docs/`, so ADR → spec relative links keep working)
+1. `spec\architecture\`, `spec\contexts\`, `spec\shared\` → `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\spec\` (same three subfolders, same relative structure — no internal link rewriting needed, this is a straight move)
+2. `adrs\` → `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\adrs\` (same — sibling relationship to `spec/` is preserved under `docs/`, so ADR → spec relative links keep working)
 3. `spec\prompts\` → `Z:\...\magiq-media\prompts\` (promoted to top-level, per §0)
 4. `spec\reviews\` → `Z:\...\magiq-media\reviews\` (same)
 5. Delete the now-empty `spec\` folder from Z:\.
@@ -155,7 +155,7 @@ confirms the ported script works before the manual sync habit is retired.
 
 ## 7. Update CLAUDE.md files for consistency
 
-**`D:\source\github\magiq-media\CLAUDE.md`** — replace the "Spec and architecture
+**`D:\source\github\sprbrk-standard\mgq-magiq-media\CLAUDE.md`** — replace the "Spec and architecture
 — source of truth" table's `Z:\claudia\...\spec\` and `Z:\claudia\...\adrs\` rows
 with local paths (`docs/spec/`, `docs/adrs/`). Keep the other rows (brief,
 todos, memory, plans) pointing at Z:\ — those aren't moving. Add a line noting
@@ -165,7 +165,7 @@ todos, memory, plans) pointing at Z:\ — those aren't moving. Add a line noting
 
 **`Z:\claudia\magiq\projects\magiq-media\CLAUDE.md`** — update the File Map
 table: remove the `spec/` and `adrs/` rows (or mark them "moved to
-`D:\source\github\magiq-media\docs\`"), add rows for the promoted `prompts/`
+`D:\source\github\sprbrk-standard\mgq-magiq-media\docs\`"), add rows for the promoted `prompts/`
 and `reviews/` folders. Leave everything else (todos.md, MEMORY.md, plans/,
 decisions/, brief.md, use-cases.md, architecture.md) as-is — this file's job
 now is purely "the AI operating system layer," not spec custody.
@@ -179,7 +179,7 @@ This lives in Cowork project settings, not a repo file — update it directly in
 the UI. Replace the routing guidance so it reads:
 
 > Default routing: code changes and reviews → magiq-media repo. **Spec, API
-> contracts, and architecture decisions (ADRs) → `D:\source\github\magiq-media\docs\`.**
+> contracts, and architecture decisions (ADRs) → `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\`.**
 > In-flight design exploration, meeting notes, the decision journal, project
 > memory, and todos → the Z:\ docs project. Deploy/infra questions →
 > cdk-magiq-media. Platform SDK internals → aspnetcore-platform.
@@ -192,10 +192,10 @@ authoritative for which content type.
 
 - **Cowork session:** open this project, ask a spec question (e.g. "what's the
   MediaProfile publish guard behavior?") and confirm Claude reads from
-  `D:\source\github\magiq-media\docs\spec\...` rather than a stale Z:\ copy.
+  `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\spec\...` rather than a stale Z:\ copy.
   Ask a "what did we decide in last week's sync meeting" question and confirm
   it still reads `Z:\...\meetings\`.
-- **Normal Claude Code session** (run directly in `D:\source\github\magiq-media`):
+- **Normal Claude Code session** (run directly in `D:\source\github\sprbrk-standard\mgq-magiq-media`):
   confirm the repo's CLAUDE.md correctly points it at `docs/spec` locally, and
   that it still knows to reach across to `Z:\claudia\magiq\projects\magiq-media`
   for MEMORY.md, todos, and decisions when the task calls for it — full local
@@ -218,5 +218,5 @@ authoritative for which content type.
 | Location | Content |
 |---|---|
 | **Stays:** `Z:\claudia\magiq\projects\magiq-media` | `MEMORY.md`, `todos.md`, `meetings/`, `plans/`, `decisions/`, `brief.md`, `use-cases.md`, `architecture.md`, `files/`, `gitignored/`, promoted `prompts/`, `reviews/` |
-| **Moves:** → `D:\source\github\magiq-media\docs\` | `spec/architecture/`, `spec/contexts/`, `spec/shared/` → `docs/spec/`; `adrs/` → `docs/adrs/` |
+| **Moves:** → `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\` | `spec/architecture/`, `spec/contexts/`, `spec/shared/` → `docs/spec/`; `adrs/` → `docs/adrs/` |
 | **Generated, not authored:** `C:\Users\chase\OneDrive\repos\Media.wiki` | Fully bot-managed via `publish-wiki.yml` — stop hand-editing |

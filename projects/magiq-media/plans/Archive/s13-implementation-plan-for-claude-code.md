@@ -9,9 +9,9 @@ _Companion design doc: `s13-uniqueness-atomicity-remediation-plan.md`, beside th
 ## 0. How to use this document
 
 You are implementing S13 across three repos:
-- D:\source\github\aspnetcore-platform - the Magiq.Platform / Magiq.AspNetCore SDK (has its own CLAUDE.md)
-- D:\source\github\magiq-media - the application (has its own CLAUDE.md)
-- D:\source\github\cdk-magiq-media - CDK/TypeScript deploy infra
+- D:\source\github\magiqsoftware\aspnetcore-platform - the Magiq.Platform / Magiq.AspNetCore SDK (has its own CLAUDE.md)
+- D:\source\github\sprbrk-standard\mgq-magiq-media - the application (has its own CLAUDE.md)
+- D:\source\github\sprbrk-standard\mgq-magiq-media-infra - CDK/TypeScript deploy infra
 
 Read each repo's CLAUDE.md before editing it. Follow its conventions exactly (they override defaults). Key ones that bite here: NuGet versions are centrally managed in Directory.Packages.props (never pin in a .csproj); nullable reference types on (no unjustified !); commands return Result<T, DomainError> (no domain exceptions escape handlers); strongly-typed Id<T> (never raw Guid); FastEndpoints only; abstractions-before-implementations (an *.Abstractions project holds interfaces, no infra types).
 
@@ -29,7 +29,7 @@ Every name-scoped handler in Catalog/Metadata writes the name reservation (and a
 
 ## 2. Pre-flight (do once, before PR1)
 
-1. Clear the stale lock. D:\source\github\magiq-media\.git\index.lock is present and will block git writes. Confirm no git process is running, then delete it.
+1. Clear the stale lock. D:\source\github\sprbrk-standard\mgq-magiq-media\.git\index.lock is present and will block git writes. Confirm no git process is running, then delete it.
 2. Commit or stash in-flight work. All three repos have large uncommitted trees (magiq-media ~1600 files, aspnetcore-platform ~1300, cdk ~40) containing S5/S6/JTI work. Get each repo to a clean, committed base before cutting S13 branches so S13 lands isolated and reviewable. Confirm with Chase what to commit vs stash.
 3. Branch names (GitFlow, cut from develop):
    - platform: feature/chase/s13-transactional-uniqueness
@@ -224,7 +224,7 @@ Rewrite to as-built + as-fixed:
 - Reconcile the self-contradiction: pre-fix text ~L283-301 (implying event + reservation are one TransactWriteItems) vs ~L351 (two separate writes). After PR2 the single-transaction statement is true - update L351's "not atomic" note to describe the enlisted transaction, and make the Tier-2 section describe the IConditionalWrite enlistment.
 - Correct the counter key layout if referenced.
 
-Spec/ADRs live under D:\source\github\magiq-media\docs\ and publish to the ADO wiki via CI - edit there, in the same PR as the code, and do not hand-edit the Media.wiki repo.
+Spec/ADRs live under D:\source\github\sprbrk-standard\mgq-magiq-media\docs\ and publish to the ADO wiki via CI - edit there, in the same PR as the code, and do not hand-edit the Media.wiki repo.
 
 ---
 

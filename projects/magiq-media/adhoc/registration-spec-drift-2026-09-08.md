@@ -12,7 +12,7 @@ workstream folder and this file becomes its evidence.
 
 | | |
 |---|---|
-| **Spec** | `D:\source\github\magiq-media\docs\spec\contexts\Registration\` — 6 files, 2,201 lines |
+| **Spec** | `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\spec\contexts\Registration\` — 6 files, 2,201 lines |
 | **Code** | `src\modules\Registration\` — 8 projects, 96 `.cs` files (excl. `obj`/`bin`) |
 | **Also read** | `src\hosts\` (Api, QueryApi, EventConsumers, Projectors.*), `docs\spec\shared\error-catalog.md § Registration`, `aspnetcore-platform` projection/schema internals, Catalog's Registration consumers |
 | **Aggregate** | `Registration` — the only one in this context |
