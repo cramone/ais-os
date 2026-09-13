@@ -107,7 +107,7 @@ Browser QueryString
 **Why these fixes are sufficient:**  
 Parameterized queries are the gold standard but require refactoring the OleDBDataSource execution layer. The fixes use the next-best approach: operator whitelisting closes the highest-risk vector entirely; single-quote escaping prevents string-termination injection; numeric validation prevents non-numeric date input reaching SQL; regex identifier validation prevents column/field name injection.
 
-Full fix plan with before/after test scripts (Python): `D:\source\infoxpert\InfoXpert Legacy\IXReports\Src\Site\SQL-injection-plan.md`
+Full fix plan with before/after test scripts (Python): `D:\source\archive\infoxpert\InfoXpert Legacy\IXReports\Src\Site\SQL-injection-plan.md`
 
 ---
 
