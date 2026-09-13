@@ -1,8 +1,21 @@
 #!/usr/bin/env bash
-# Run ON Cortex (not Windows). Pulls latest AIS-OS, rebuilds/restarts the
-# Tower container, then moves the `deployed-tower` git tag to mark what's
-# actually live — scripts/tower-deploy-check.sh reads this tag to tell you
-# whether there are undeployed changes, without needing to reach Cortex.
+# Run ON Cortex (not Windows). Rebuilds/restarts the Tower container, then
+# moves the `deployed-tower` git tag to mark what's actually live —
+# scripts/tower-deploy-check.sh reads this tag to tell you whether there are
+# undeployed changes, without needing to reach Cortex.
+#
+# There is deliberately NO `git pull` here. Windows (Z:\claudia\magiq) and
+# Cortex (/mnt/shared/claudia/magiq) mount the same DS923 NAS share, and the
+# container bind-mounts that share — so a commit made from Windows is already
+# on Cortex's disk before this script runs. Git is kept for history and backup
+# to GitHub, not as the sync mechanism (decisions/log.md 2026-07-04: "Canonical
+# AIS-OS location: single NAS share, not git-sync between clones"; design in
+# docs/superpowers/specs/2026-07-03-tower-cortex-deployment.md).
+#
+# The pull was not merely redundant, it was actively harmful: `pull --rebase`
+# aborts on any unstaged change, and a share that several machines and agents
+# write to is dirty most of the time. Unrelated work-in-progress under
+# projects/ could block a Tower deploy outright.
 #
 # Usage: ./tower/deploy-cortex.sh
 set -euo pipefail
@@ -10,8 +23,16 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-echo "==> git pull"
-git pull --rebase
+# The build takes the working tree, not HEAD, but the tag below names HEAD.
+# Uncommitted tower/ changes make the two disagree, so say so rather than let
+# `deployed-tower` quietly claim something that was never committed. A warning,
+# not a failure — deploying from a dirty tree is a legitimate thing to do when
+# you are testing a fix on the real host.
+if [ -n "$(git status --porcelain -- tower/)" ]; then
+  echo "WARNING: uncommitted changes under tower/ — they WILL be deployed, but" >&2
+  echo "         the deployed-tower tag can only point at HEAD:" >&2
+  git status --short -- tower/ >&2
+fi
 
 echo "==> docker compose up -d --build tower"
 # Compose lives in THIS repo, not ~/stack. The cortex split moved tower and
