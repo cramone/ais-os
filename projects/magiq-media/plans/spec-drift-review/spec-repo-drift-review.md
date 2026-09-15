@@ -4,11 +4,11 @@ type: review
 project: magiq-media
 workstream: spec-drift-review
 raised-by: []
-status: active
+status: findings-agreed
 outcome: pending
 todo-id: ac8b9c69-85b3-53d3-b2ea-9f36205e4dc6
 created: 2026-08-21
-exception: a review living in plans/ deliberately — it is its own working checklist, and splitting it would separate the findings from the boxes tracking them. SKILL.md § Known exceptions #1. Extended 2026-09-01 — this file predates the review-cycle convention and is now review and plan in one; the § Execution plan waves are the plan half and there is no separate plan id. Consumed reviews are named in § 4.
+exception: a review living in plans/ deliberately — it is its own working checklist, and splitting it would separate the findings from the boxes tracking them. SKILL.md § Known exceptions #1. Extended 2026-09-01 — this file predates the review-cycle convention and is now review and plan in one; the § Execution plan waves are the plan half and there is no separate plan id. Consumed reviews are named in § 4. Corrected 2026-09-14 — this carried `status: active`, which is plan vocabulary and not valid for a review, so `reconcile` silently stopped projecting it and its board card survived only as a leftover from before. `findings-agreed` is the review-vocabulary status that renders the same in-progress card and the same README word, so the board now matches the file again.
 ---
 
 > **Backfilled into the review cycle 2026-08-31 as MM-022.** The ✓ column in the file is the working checklist. Its closed findings live in Archive/spec-repo-drift-review-completed.md; the id sets do not overlap.
@@ -43,7 +43,7 @@ exception: a review living in plans/ deliberately — it is its own working chec
 # Spec ↔ Repo Drift Review — open findings
 
 _magiq-media · original review 2026-08-21 · **split 2026-08-24** — resolved findings moved to
-[`Archive/spec-repo-drift-review-completed.md`](./Archive/spec-repo-drift-review-completed.md)_
+[`_archive/plans/spec-drift-review/spec-repo-drift-review-completed.md`](../../_archive/plans/spec-drift-review/spec-repo-drift-review-completed.md)_
 
 **58 findings remain open** of the 213 distinct findings the review has carried. *(Updated 2026-08-24:
 X-7.2 closed while reorganising the plans folder.
@@ -542,7 +542,7 @@ aren't the gap; the aggregates are. **That correction belongs to MM-036/MM-037 n
 ## F. ChangeRequests — reopened 2026-09-08
 
 _CR-1 … CR-24 are closed and live in
-[`Archive/spec-repo-drift-review-completed.md § F`](./Archive/spec-repo-drift-review-completed.md). **This
+[`_archive/plans/spec-drift-review/spec-repo-drift-review-completed.md § F`](../../_archive/plans/spec-drift-review/spec-repo-drift-review-completed.md). **This
 section was empty from 2026-08-24 until a fresh full-module pass on 2026-09-08 opened CR-25 … CR-39.**
 Ids continue the same sequence; none is reused._
 

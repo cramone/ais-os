@@ -3,7 +3,7 @@
 _magiq-media · original review 2026-08-21 · **archived 2026-08-24**_
 
 This is the closed half of the drift review. Open findings live in
-[`../spec-repo-drift-review.md`](../spec-repo-drift-review.md); nothing was deleted in the split, so every
+[`plans/spec-drift-review/spec-repo-drift-review.md`](../../../plans/spec-drift-review/spec-repo-drift-review.md); nothing was deleted in the split, so every
 row of the original document is in exactly one of the two files.
 
 **149 findings resolved** (147 fixed, 2 deliberately skipped) of the 208 distinct findings carried. What's

@@ -3,6 +3,10 @@
 _Reorganised 2026-08-24 to mirror `plans/`, one subfolder per workstream. Nothing was rewritten; only
 locations changed, plus the references that pointed at the old paths._
 
+_Archive layout changed 2026-09-15: finished workstreams leave this tree for `../_archive/reviews/<id>-<workstream>/`,
+one archive root per project. Pre-id archives sit under `../_archive/reviews/_legacy/`, paired with
+`../_archive/plans/_legacy/`. This tree holds live work only._
+
 **A review is where work starts.** Findings get argued here; sequencing, PR shaping and execution
 tracking happen in the matching `plans/` folder. The folder name is shared between the two trees, so a
 review and the plan that consumes it stay traceable — including after both are archived. See
@@ -35,9 +39,11 @@ leave, not to rest in.
 | MM-035 | `event-reliability/` | `outbox-implementation-review-2026-08-27.md` | **Draft** | pending | *(not yet planned — the work is almost entirely in `aspnetcore-platform`. **Also owns X-3.1 / X-9.3 / X-11.44** since 2026-09-01)* |
 | MM-036 | `bulk-import/` | `bulkfolderimportjob-review-2026-09-01.md` | **Draft** | pending | *(not yet planned — split from MM-022 § C.6; a build-or-withdraw decision, not a fix)* |
 | MM-037 | `bulk-import/` | `bulkmediaimportjob-review-2026-09-01.md` | **Draft** | pending | *(not yet planned — same split; the larger of the two, and **not estimable from its spec** — BMI-E)* |
-| MM-038 | `document-signing/` | `documentsigning-review-2026-09-01.md` | **Parked** | pending | *(none — split from MM-022 § H, parked on arrival because it was already parked by decision)* |
+| MM-038 | `document-signing/` | `documentsigning-review-2026-09-01.md` | **Parked** | parked | *(none — split from MM-022 § H, parked on arrival because it was already parked by decision. Outcome corrected `pending` → `parked` 2026-09-14: a parked review is one we have stopped working, and the cycle does not let `pending` be a resting state)* |
 | MM-039 | `platform-sdk/` | `platform-sdk-error-model-review-2026-09-01.md` | **Findings agreed** | pending | *(not yet planned — the work is in `aspnetcore-platform`. Split from MM-022 § N.2, which had no id and no status)* |
-| — | `Archive/` | 4 reviews — 3 consumed, plus `request-response-review.md` moved here 2026-08-31 | Done | plan | `plans/Archive/` |
+| MM-042 *(id verified free 2026-09-14 — it was the highest in the space and unique)* | `../_archive/reviews/MM-042-aggregate-design/` | `aggregate-design-review-2026-09-14.md` | **Done** 2026-09-14 · **archived 2026-09-15** | plan | ▶ **MM-043 closed `done` 2026-09-15 and both sides were archived together** — `plans/aggregate-design/Archive/`, same filename. **Thirteen of sixteen phases worked; fifty-three spec/ADR files committed and pushed.** ⚠ **`done` means the design is written down, nothing is built** — and **Phase 5's code half, 7 and 8 were never worked and are unowned**, so `PurgeVersion` still sits outside the disposition model, there is still no legal hold, and there is still no fixity value anywhere. **The project's third ownerless gap.** **Complete — all 9 passes, 35 findings, coherence loop at a fixed point.** A **pure design check: spec only, no code read**, authz out of scope, with a records-management lens throughout. **Five roots**, four structural and one of a different kind — *the records-specific capabilities are absent*. Top five: **AD-29** no fixity value anywhere · **AD-15** legal hold inexpressible · **AD-31** disposition has no terminus · **AD-26** containment is derived · **AD-3** the edit lock covers content, not custody. **Highest-leverage fix is none of them — AD-28**, generalising MM-041's completeness rule to the other four relationship mechanisms. **Walked item by item with Chase — 24 decisions (DEC-1…DEC-24), all findings agreed, all five roots remedied.** Pass 10 then reviewed the **decided** design and found six more (`DD-`), incl. *a record could be declared with no human review*. **AD-21 is the named residue** — guards are point-in-time where the domain needs standing constraints. Domain owner **Karen Barton** consulted on retention placement. `RecordType` and `AssetIngestionSaga` raised nothing. ~~**Plan starts at unit 0** — the spec carries two retention placements until it lands.~~ **Closed by MM-043 Phase 0, 2026-09-14.** Prompt: `Archive/aggregate-design-review-2026-09-14.md-prompt.md` |
+| MM-040 | `domain-flow/` | `domain-flow-review-2026-09-13.md` | Done | plan | MM-041, `plans/domain-flow/` — same filename. **Active**; owns DF-1…DF-4 only. **MM-041 closed `done` 2026-09-14** — four decisions taken, Phases 1–3 landed, docs-only PR pushed. **Phase 4 (code) was dropped and is unowned**, so DF-1…DF-4 remain live in the running code; `done` covers the design, not the fix. Both moved off `Draft` 2026-09-14 — see the note below. ⚠ **This review is spec-only by declaration** (*"No code was read"*), so its sizings assume the described code exists. Scoping Phase 4 found the withdrawn integration event and the whole ChangeRequests lifecycle specified but unbuilt — **the spec stands and source moves** (Chase, 2026-09-14), so that is work, not drift. **Size against source, not against the review** |
+| — | `../_archive/reviews/_legacy/` | 4 reviews — 3 consumed, plus `request-response-review.md` moved here 2026-08-31 | Done | plan | `../_archive/plans/_legacy/` |
 
 **Four workstreams were split out of `spec-drift-review/` on 2026-09-01** — `bulk-import/` (two reviews),
 `document-signing/`, `platform-sdk/`, and the outbox trio folded into MM-035. **In every case the
@@ -59,6 +65,28 @@ either gets a plan or a terminal outcome; leaving it here indefinitely is the dr
 catch. **`archive-cascade/` and `event-reliability/` each hold two reviews at different statuses**, which
 is why this table is one row per review rather than one per folder.
 
+> ✅ **Closed 2026-09-14. All six now carry their derived `todo-id`, and `cycle.check` is clean.**
+> **The diagnosis in the original note was half right, and the wrong half is worth keeping.** `todo-id: -`
+> was *not* what kept anything off the board: `reconcile()` derives the id from `<slug>:<doc-id>` on every
+> read, so MM-036, MM-037, MM-038 and MM-039 had been rendering cards all along. A dash is untidy, not
+> fatal.
+>
+> **What actually hid MM-041 was an invalid status.** It carried `status: draft`, which is review
+> vocabulary — the plan enum is `active | blocked | parked | superseded | done`. `reconcile()` skips any
+> document whose type/status pair it cannot map rather than guessing, so the plan rendered **no card at
+> all**, and `cycle.check` was reporting it the whole time. **MM-022 had the mirror of the same fault** —
+> `status: active` on a `type: review` — and its card survived only as a leftover from before the status
+> was changed; a rebuild of `tower/data/` would have dropped it silently.
+>
+> **The lesson for the next backfill: a dash is cosmetic, a status outside the vocabulary is invisible.**
+> Run `cycle.check('magiq-media')` after any bulk edit — it names both, and it is cheaper than noticing a
+> card is missing.
+>
+> Also corrected that day: MM-040 `draft` → `done`/`outcome: plan` and MM-041 → `active` (the plan exists,
+> consumes MM-040, and already has work landed against it); MM-038 `outcome: pending` → `parked`; MM-006's
+> `consumes` backfilled with MM-022, MM-026 and MM-029; and the domain-flow review's missing paste-ready
+> prompt file written.
+>
 > **Backfill completed for every live workstream, 2026-08-31.** All 12 rows above now carry an `MM-nnn`
 > id and front-matter, so each appears on the Control Tower board — the reason the backfill was finished
 > rather than continued piecemeal: a half-populated board reads as "there is no work here", which is how
@@ -70,7 +98,7 @@ is why this table is one row per review rather than one per folder.
 > team — was resolved to `blocked` with a `blocked-by-external` entry, because that is what the prose and
 > the skill both say. See `scripts/backfill_magiq_media.py` for the full transcription, kept as the record.
 >
-> **Only `Archive/` is left legacy.** Those documents are finished and their pairing is already recorded
+> **Only the `_legacy/` archives are left legacy.** Those documents are finished and their pairing is already recorded
 > below; cards for them would pad the Done column and tell you nothing. Ids are minted oldest-first, so
 > MM-007 onward reads chronologically — but MM-001…MM-006 were already taken and two of them predate
 > MM-007, so the sequence is not globally ordered. Ids are never renumbered; that stays as it is.
@@ -87,6 +115,61 @@ is why this table is one row per review rather than one per folder.
 > **Moved 2026-08-31:** `plans/archive-cascade/prompt.md` → `archive-cascade/archive-cascade-scale-review-prompt.md`.
 > Same fault twice over — a bare `prompt.md`, and on the plans side. It drives the scale review, which
 > is where it now sits. Nothing referenced the old path.
+>
+> ### Body-conformance pass, 2026-09-14 — and why it stops where it does
+>
+> Nine reviews gained the five required sections (`Scope` · `Findings` · `Open Questions` · `Dependencies`
+> · `Recommended sequencing`) and lost their emoji severity markers: **MM-027, MM-030, MM-032, MM-034,
+> MM-035, MM-036, MM-037, MM-038, MM-039**. Headings were renamed or demoted and missing sections added;
+> no prose, table row, finding id or link was rewritten.
+>
+> **Eighteen reviews were deliberately left alone, and this is not an unfinished job.** They are at
+> `status: done`, and the skill's § Frozen documents rule says a done file takes no edits but additive
+> `consumes` / `supersedes`. Honouring the freeze and doing the formatting pass are mutually exclusive, so
+> the freeze won. That set is all eleven `architecture-review-remediation` reviews plus MM-020, MM-023,
+> MM-025, MM-028, MM-031, MM-033 and MM-040 — **7,839 lines and 31 emoji markers that stay as they are.**
+>
+> **MM-040 is the one worth revisiting.** It holds 18 of those 31 markers and was `draft` — editable —
+> until the same session froze it by closing it to `done`. If the freeze is ever relaxed for
+> formatting-only edits, start there: it is the newest review and the largest single cluster.
+>
+> **The severity vocabulary needs a decision the skill has not taken.** § Finding ids and severity names
+> `High | Medium | Low`, but the register has always used four levels — X-11.30 and X-11.31 are graded
+> **Critical**, and the gate's 🔴 tier maps to them. The pass wrote `Critical` as a word rather than
+> flattening it to `High`. **SKILL.md § Finding ids and severity still says three levels and should be
+> amended to four** — until it is, the tree and the skill disagree on this one point, deliberately and in
+> the tree's favour.
+
+---
+
+## `domain-flow/` — MM-040, the spec read as flows · 2026-09-13
+
+One review, no plan. Every other review in this tree reads the spec per aggregate or per finding; this one
+traces each lifecycle from first command to terminal state and across every boundary it crosses, with
+authorization explicitly out of scope. **The per-aggregate models hold up. The failures are all at the
+joins**, and they fall into four repeating shapes: derived cross-aggregate state with no reconciler,
+write-side invariants enforced against projections, terminal states written before the irreversible act,
+and published contracts with no consumer.
+
+**Four findings are new.** DF-1 is the one to read first: `active-registrations` is incremented on
+`RegistrationInitiated` and decremented only on rejected/cancelled — `media.registration.confirmed` has no
+consumer and `Confirmed` is uncancellable, so **a successfully confirmed filing makes its folder
+permanently unarchivable**, on the happy path, with no tool that can repair the counter. DF-2 is its
+mirror: Registration's reference model never learns an item was withdrawn or deleted, so a new filing can
+be opened against an unpublished item. DF-3: the `RequiredForEdit` change-request gate is checked at
+checkout only and the request can be abandoned mid-edit. DF-4: the `Retention` capability is being
+redefined from field-contributor to publish gate with no migration for the two fields it already ships.
+
+DF-5…DF-18 largely generalise or cross-reference X-11.x, MM-025, MM-030, MM-032 and MM-038 — recorded so
+the flow argument is complete, **not** as new work.
+
+**Planned 2026-09-13 as MM-041**, which owns DF-1…DF-4 only. One finding group is left deliberately
+ownerless: **DF-8/9/14/15, the pinned-vocabulary seam** (`ReviewPolicy` read by nothing, the capability
+gate reading the compiled union, version-level RecordType deprecation unenforceable, field deprecation
+re-keying metadata on existing items). This review argues they are one problem at the seam
+`metadata-schema-composition.md` § Consequences already names — *"Four representations of a field
+definition between authoring and use"* — and will not converge if fixed one at a time. **They are the
+obvious next workstream.**
 
 ---
 
@@ -238,14 +321,14 @@ deletes the five duplicated files.
 |---|---|
 | `mediaitem-edit-lifecycle-as-is-vs-recommended.html` | `plans/design/mediaitem-edit-session-design.html` |
 
-## `Archive/` — reviews whose work is finished
+## `../_archive/reviews/_legacy/` — reviews whose work is finished
 
 | Review | Plan it produced |
 |---|---|
-| `api-rest-review.md` | `plans/Archive/api-consistency-remediation-plan.md` |
-| `architecture-spec-review.md` | `plans/Archive/s13-uniqueness-atomicity-remediation-plan.md` + its implementation runbook (finding S13) |
+| `api-rest-review.md` | `../_archive/plans/_legacy/api-consistency-remediation-plan.md` |
+| `architecture-spec-review.md` | `../_archive/plans/_legacy/s13-uniqueness-atomicity-remediation-plan.md` + its implementation runbook (finding S13) |
 | `handler-status-code-review.md` | Folded into the API-consistency plan (status-code stage) |
-| `request-response-review.md` | *(none — moved here from `plans/Archive/` on 2026-08-31; it is a review, and was the only one in the plans tree without a working-checklist reason to be there)* |
+| `request-response-review.md` | *(none — moved here from the plans archive on 2026-08-31; it is a review, and was the only one in the plans tree without a working-checklist reason to be there)* |
 
 > S13's subject — name-reservation atomicity and name-release paths — is live again as **X-9.6** in the
 > drift review. Read the S13 review before re-deriving that history.

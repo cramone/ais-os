@@ -35,10 +35,10 @@ id: MM-014
 ```
 
 - `<PREFIX>-<nnn>`, zero-padded to three, monotonic per project.
-- Mint by grep: highest existing `id:` under that project's `reviews/` and `plans/`, **including every `Archive/`**, plus one.
+- Mint by grep: highest existing `id:` under that project's `reviews/`, `requests/` and `plans/`, **plus `_archive/`**, plus one. An archived id is still taken.
 
   ```bash
-  grep -rhoE '^id: [A-Z]+-[0-9]{3}' projects/<slug>/reviews projects/<slug>/requests projects/<slug>/plans | sort | tail -1
+  grep -rhoE '^id: [A-Z]+-[0-9]{3}' projects/<slug>/reviews projects/<slug>/requests projects/<slug>/plans projects/<slug>/_archive | sort | tail -1
   ```
 
   One id space covers all four types — reviews, feature requests, plans and gates. There is no separate `FR-` space; `consumes` and `depends-on` resolve by one regex over one namespace.
@@ -76,7 +76,7 @@ A gate triages across workstreams and answers "which of these block a release". 
 - review — `projects/<project>/reviews/<workstream>/<workstream>-review-<YYYY-MM-DD>.md`
 - prompt — `projects/<project>/reviews/<workstream>/<review-filename>-prompt.md`
 - plan — `projects/<project>/plans/<workstream>/<primary-review-filename>.md`
-- archives — `reviews/<ws>/Archive/` and `plans/<ws>/Archive/`, capital A
+- archives — one root per project: `projects/<project>/_archive/reviews/<id>-<ws>/` and `projects/<project>/_archive/plans/<id>-<ws>/`. See § Archiving.
 
 **Never write a bare `prompt.md`.** A workstream folder can hold several reviews — `archive-cascade/` and `event-reliability/` each hold two today — and a fixed filename overwrites.
 
@@ -245,7 +245,7 @@ Documents with no front-matter are invisible to the projection. Legacy files get
 
 **`cycle.check(slug)`** reports what the projection stays deliberately quiet about: duplicate ids, front-matter with a malformed or missing `id:`, statuses outside the vocabulary, a `todo-id` that is not the derived one, `consumes` / `depends-on` entries naming a document that does not exist, and — the one no render can see — **a plan with no origin**.
 
-A plan proves it has one two ways: front-matter `consumes:` naming at least one id whose type is `review` or `feature-request`, or the legacy folder pairing `plans/<ws>/` ↔ `reviews/<ws>/` or `requests/<ws>/` (with `plans/Archive/` pairing to `reviews/Archive/`). Anything else is flagged, including a plan sitting loose at the `plans/` root and one whose `consumes` names only other plans. **The bias is deliberate** — a new unpaired plan should trip this.
+A plan proves it has one two ways: front-matter `consumes:` naming at least one id whose type is `review` or `feature-request`, or the legacy folder pairing `plans/<ws>/` ↔ `reviews/<ws>/` or `requests/<ws>/` (archived folders pair the same way — the `<id>-` prefix is stripped before the match, and pre-id archives sit under `_legacy/` on both sides). Anything else is flagged, including a plan sitting loose at the `plans/` root and one whose `consumes` names only other plans. **The bias is deliberate** — a new unpaired plan should trip this.
 
 **`exception:` silences every check on a file, and `cycle.known_exceptions(slug)` lists them.** That is the § Known exceptions rule made real: skip, and report, never "fix". It also means the silence is never free — someone has to write a sentence and stand behind it.
 
@@ -375,10 +375,16 @@ Nothing orphans, because [[workstream-query]] sweeps every project's todo store,
 
 **Two scales, kept apart:**
 
-- **Severity** — `High | Medium | Low`. A property of the finding. Every review, no exceptions, no emoji.
+- **Severity** — `Critical | High | Medium | Low`. A property of the finding. Every review, no exceptions, no emoji.
 - **Gate status** — 🔴 / 🟠. A property of the *release decision*, owned solely by `type: gate` documents. Means "blocks the flag flip", not "is bad".
 
-A High finding is not automatically a gate blocker; **the gate decides**. That is already how this repo works — `prod-readiness-gate.md` triages 42 open drift findings into 2 🔴 and 6 🟠. A review must not pre-empt that call.
+**`Critical` was added 2026-09-14**, because the register had been using four levels while this section
+named three. It is the top severity and it is narrow: a finding is Critical when the defect is live and
+exploitable by a real caller, or destroys data that cannot be reconstructed. X-11.30 and X-11.31 are the
+standing examples — any authenticated tenant member could confirm or reject another officer's statutory
+filing. Everything that is merely bad and urgent is High. The gate's 🔴 tier and Critical often coincide,
+but they remain different claims: Critical says *what the defect is*, 🔴 says *we will not flip the flag
+while it is open*, and the gate alone makes the second call.
 
 ## Findings discovered during execution
 
@@ -412,15 +418,31 @@ Both are additive, both are reported, neither changes status.
 
 ## Archiving
 
+Archived work leaves the live trees entirely. One archive root per project mirrors them:
+
+```
+projects/<slug>/_archive/reviews/<id>-<workstream>/
+projects/<slug>/_archive/requests/<id>-<workstream>/
+projects/<slug>/_archive/plans/<id>-<workstream>/
+```
+
+- **`<id>` is the archived document's own id**, so the two sides of a finished workstream carry different ids and the same name — `_archive/reviews/MM-042-aggregate-design/` and `_archive/plans/MM-043-aggregate-design/`. The name is still the link; the id says which document the folder holds.
+- **`<workstream>` is the folder name it had while live**, unchanged. Never rename on the way in.
+- **The whole folder moves, not the files** — prompts, diagrams and session artefacts travel with the document they belong to.
+- Where several documents of one type share a workstream folder, the folder takes the **primary** document's id, the same one the plan is named after.
+- **Legacy archives have no id**, so the folder is just `<workstream>`. Pre-cycle files that were never in a workstream folder sit under `_archive/<tree>/_legacy/`, matched on both sides. Do not mint an id to make a folder name tidy — § Legacy files still applies.
+
 A workstream is finished when its plan is `done` and no review in the folder is still `pending`. Then, in one step:
 
-1. **Move both sides, same session.** Review(s) → `reviews/<workstream>/Archive/`, plan → `plans/<workstream>/Archive/`. A matched pair is what keeps the pairing legible afterwards.
+1. **Move both sides, same session.** Review(s) → `_archive/reviews/<id>-<ws>/`, plan → `_archive/plans/<id>-<ws>/`. A matched pair is what keeps the pairing legible afterwards.
 2. **No reference repair needed.** `consumes` and `depends-on` hold ids, which the move does not touch. Confirm by re-resolving every id in the moved files; if any fails, something used a path and must be fixed.
-3. **Move the README rows** into the archive section of each README, keeping id and name. Do not delete them.
-4. **Todos stay `done`** in the store; do not delete them.
-5. If the workstream folder is left empty apart from `Archive/`, leave it. Do not collapse into the top-level `plans/Archive/` — that is only for completed work with no live workstream left.
+3. **Move the README rows** into the archive section of each README, keeping id and name, and pointing at the new `_archive/` path. Do not delete them.
+4. **Todos stay `done`** in the store; do not delete them. `cycle.reconcile` archives the card off the back of the `_archive/` path, so the board follows without being told.
+5. **Delete the emptied workstream folder** if nothing live is left in it. The live trees hold live work only — that is what the single archive root buys, and leaving husks behind gives it back.
 
 **Archiving is never automatic.** Propose it; Chase confirms.
+
+**Why one root rather than an `Archive/` in every folder:** what is finished is then one directory listing instead of a tree walk, `reviews/` and `plans/` answer "what is live" by themselves, and the id prefix makes a folder resolvable without opening it.
 
 ## Legacy files
 

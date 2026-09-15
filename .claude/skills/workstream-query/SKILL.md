@@ -102,7 +102,7 @@ grep -rn "MM-014" projects/*/reviews projects/*/requests projects/*/plans --incl
 
 ### "status of <workstream>"
 
-Everything in that workstream folder across all three trees: reviews and feature requests with status and outcome, plans with status and dependency state, the gate that consumes them if any, and the matching todos. A workstream may have origins in both `reviews/` and `requests/` — list both. Include `Archive/` contents, marked as archived.
+Everything in that workstream folder across all three trees: reviews and feature requests with status and outcome, plans with status and dependency state, the gate that consumes them if any, and the matching todos. A workstream may have origins in both `reviews/` and `requests/` — list both. Include anything under `_archive/` for that workstream, marked as archived; archive folders are named `<id>-<workstream>`, so match on the name with the id prefix stripped.
 
 ## Data problems — report, never fix
 

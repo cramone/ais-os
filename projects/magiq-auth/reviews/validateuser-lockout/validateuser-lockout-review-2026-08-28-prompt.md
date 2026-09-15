@@ -83,7 +83,7 @@ Once the gate opens:
 — the plan is named after its primary review, same filename, different tree.
 
 **Front-matter** — mint a fresh id. Grep `^id: MA-[0-9]{3}` across `reviews/` and `plans/` including
-every `Archive/`, take the highest and add one. Likely `MA-002`, but verify rather than assume. Write
+`_archive/`, take the highest and add one. Likely `MA-002`, but verify rather than assume. Write
 the real id into the block below in place of the placeholder:
 
 ```yaml

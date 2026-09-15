@@ -3,9 +3,13 @@
 _Reorganised 2026-08-24 from a flat folder into one subfolder per workstream. Nothing was deleted or
 rewritten; only locations changed, plus the references that pointed at the old paths._
 
-Each subfolder is a workstream you would pick up as a unit, and each carries its own `Archive/` for the
-plans that workstream has finished with. `plans/Archive/` at this level holds completed work with no live
-workstream left.
+Each subfolder is a workstream you would pick up as a unit. **This tree holds live work only.** When a
+workstream finishes, its folder moves to `../_archive/plans/<id>-<workstream>/` — one archive root per
+project, mirroring `plans/`, `reviews/` and `requests/`. Pre-id archives live under
+`../_archive/plans/_legacy/`, paired with `../_archive/reviews/_legacy/`.
+
+_Archive layout changed 2026-09-15 from an `Archive/` inside every workstream folder to the single
+`_archive/` root. Nothing was deleted or rewritten; only locations changed._
 
 **Status vocabulary** — the full set, matching the `review-cycle` skill's front-matter. Nothing outside
 this list: _Draft_ — a review exists, not yet agreed · _Active_ — being worked now · _Active (blocked)_ —
@@ -15,7 +19,7 @@ worked · _Superseded_ — replaced by another plan, kept for reasoning · _Done
 **Backfill completed for every live workstream, 2026-08-31.** MM-001…MM-035 gave every live review
 and plan an id and front-matter, so each now appears on the Control Tower board. Statuses were
 transcribed from this file and `reviews/README.md`, never inferred from a file body;
-`scripts/backfill_magiq_media.py` is kept as the record of what was written and why. `Archive/`
+`scripts/backfill_magiq_media.py` is kept as the record of what was written and why. `_archive/`
 is deliberately still legacy — those documents are finished and cards for them would only pad the
 Done column.
 
@@ -31,6 +35,107 @@ flagged, and the only way to silence it is an `exception:` line someone has to w
 behind. `cycle.known_exceptions('magiq-media')` lists all seventeen.
 
 ---
+
+## `domain-flow/` — the joins between contexts, opened 2026-09-13
+
+Paired with `reviews/domain-flow/`. Spec-and-ADR-first; code staged behind the decisions.
+
+| Id | Plan | Status | What it is |
+|---|---|---|---|
+| MM-041 | `domain-flow-review-2026-09-13.md` | **Done** 2026-09-14 | Consumes MM-040. Owned **DF-1…DF-4**, **spec and ADRs only** — Phase 4 was dropped the same day and the code is **unowned**. The four decisions were taken, Phases 1–3 landed across ~20 spec/ADR files, and the docs-only PR is pushed; nothing under `docs/` is now known to be wrong about DF-1…DF-4. ⚠ **`done` means the corrected design is written down — not that the defects are fixed. All four are live in the running code with no owner**; the plan's § Scope narrowed says exactly what remains true. *(Was `Draft` until 2026-09-14 — not a plan status, so the board rendered no card at all.)* |
+
+**DF-1 and DF-2 are one defect twice, and that is what the plan turns on.**
+`catalog-domain-invariants.md` already states the right intent — the archive counter is *"a Catalog-owned
+projection of Registration facts"* — and the defect is that the projection consumes **three of the six
+facts**. `media.registration.confirmed` has no consumer and `Confirmed` is uncancellable, so a
+**successful** filing locks its folder permanently. DF-2 is the same shape reversed: Registration's
+reference model never sees `MediaItemWithdrawn` or `MediaItemDeleted`. So the closing unit is a
+**completeness rule for cross-context reference projections**, not two handlers — there are seven such
+reference models and none has a rebuild path.
+
+**DF-1 re-opens X-11.40 as a correctness call, not a cleanup one.** `FolderRegistrationIndex` /
+`RegistrationCountIndexProjector` are dead code that *"write on every registration event"* — i.e. the dead
+index already sees the fact set the live counter is missing. Decide it inside D1; deleting it first
+forecloses the cheaper fix.
+
+**The four decisions, taken 2026-09-14 (Chase):** **D1 = obligation** — the counter stays raised on
+`confirmed`, and a new terminal `Discharged` state past `Confirmed` releases it; **X-11.40 resolves to
+delete**. **D2 = make the gate real** — checked at checkout, submit *and* publish, request bound to item and
+`kind`, `Kind` stored, reference row carries `Status`/`Scope`/`Kind`. **D3 = sequence the gate behind the
+migration**, per tenant. **D4 = six triggers**, shipping `SupersededAt` and a reachable `POST /close` with
+them.
+
+**Two out-of-scope findings closed as by-products:** **DF-18** (via D4's `POST /close`) and the
+`Registration` third of **DF-17** — D1's discharge transition is the revocation route that finding says is
+missing.
+
+**Two further calls were taken the same day.** *The spec is the target, and where source does not match it,
+source moves* — scoping the code found the withdrawn integration event and the whole ChangeRequests
+lifecycle (`Resolve`, `Abandon`, their events, Catalog's handler, `ReviewChangeRequestCloser`) specified but
+unbuilt, which is work rather than drift to reconcile. Among other things it means the comment-thread close
+on `media.item.withdrawn` is **inert today**. MM-040 read spec only, so its sizings assume code that in
+places is not there.
+
+**Then: the code was dropped from MM-041 entirely and left unowned**, narrowing this workstream to spec.
+**The four defects remain live** — a successful registration still locks its folder permanently, a
+withdrawn item can still be freshly registered, and a governed edit still publishes under an abandoned
+change request. The design for all of it is settled and written down, so resuming means implementing, not
+re-deciding. **This workstream now leaves two ownerless gaps, not one** — DF-8/9/14/15 and this.
+
+**Two standing hazards apply to every code unit here:** the consumer allowlist is a hand-maintained mirror
+of `ConsumerRegistrations` (X-4.15) — a handler without its `[MessageType]` silently never delivers, which
+is exactly what DF-1 and DF-2 *are* — and projections are synchronous below prod, so a missing consumer
+behaves correctly on every tier a developer can reach.
+
+**DF-8/9/14/15 — the pinned-vocabulary seam — are deliberately ownerless.** Scoped out to keep MM-041
+shippable. MM-040 argues they are one problem and will not converge if fixed separately; they should not
+get scoped out a second time.
+
+## `aggregate-design/` — the model itself · **closed and archived 2026-09-15**
+
+Opened 2026-09-14, closed the next day. **Review and plan archived together**, per § Review → Plan rule 3:
+`../_archive/reviews/MM-042-aggregate-design/` and `../_archive/plans/MM-043-aggregate-design/`.
+
+| Id | Plan | Status | What it is |
+|---|---|---|---|
+| MM-043 | `../_archive/plans/MM-043-aggregate-design/aggregate-design-review-2026-09-14.md` | **Done** 2026-09-15 · `outcome: spec-complete; code unowned` | Consumed MM-042. Twenty-four decisions (DEC-1…DEC-24) already taken; the plan sequenced them across **sixteen phases**, spec-and-ADR first. **Thirteen worked — 0–6 and 9–15 — landing fifty-three spec/ADR files**, committed and pushed 2026-09-15 to **`spec/initial-alignment`**. ⚠ **`done` means the design is written down, not that any of it is built** |
+
+**What the workstream produced.** Fixity, which the model had **no concept of** — a capture digest and a
+version manifest, stated in a shared section because fixity spans two contexts, *which is exactly why it had
+been emergent rather than claimed*. **Correction-by-append**, specified once with six named consumers rather
+than six divergent models. **Repair and freshness**, closing a dated escape: the repair rule was satisfiable
+only by *"record that no affected data exists"*, which holds **only while `PROD_ENABLED` and
+`STAGING_ENABLED` are unset**. The **completeness rule generalised to five mechanisms** — the only remedy
+that makes the *next* defect visible. **Custody**, so a check-out survives a lifecycle transition.
+**Declaration** at `MediaItemApproved`, so *"the item is the record"* finally means something. And the
+**ten-year position**, the architecture's first domain timescale: *the bounded quantities are the ones that
+would break a Lambda; the unbounded ones are the ones a records tenant accumulates.*
+
+> ### ⚠ Three phases were never worked, and this close leaves them unowned
+>
+> **Phase 5's code half, Phase 7 and Phase 8** — all needing a working shell and `mgq-magiq-media-infra`,
+> available in none of the six sessions. So today: **`PurgeVersion` still sits outside the disposition
+> model**, allowed even when archived; **there is still no legal hold**; and **there is still no fixity
+> value anywhere**, whose cost *rises with every object stored* — the most expensive of the three to defer,
+> and the reason DEC-2 was sequenced early.
+>
+> **This is the project's third ownerless gap**, after MM-041's DF-1…DF-4 and the DF-8/9/14/15 seam. The
+> plan's own § Scope warns against exactly this: *"Do not scope this out to keep a later phase shippable.
+> That is what happened last time."* **Resuming means implementing, not re-deciding** — every decision,
+> file list and acceptance check is in the archived plan, and the four forced orderings are written into the
+> spec itself rather than only there.
+
+**Three items still owed.** Two rulings, both recorded as explicit proposals rather than silently decided:
+**the four cascade questions** in `cascade-rules.md` (row 3 half-settled by Phase 15, which specified
+`Unarchive` but not the cascade), and **`MoveFolder` on an archived folder** — Q-3 said "on the same terms"
+without seeing that `Folder` sits on the other side of the line from `MediaItem`. Third, owed to **MM-022**:
+**X-11.41's text and severity are wrong**, corrected in the spec against source during Phase 2 but not in
+the finding — `FolderMediaItemsIndex` is not add-only, and two spec files had contradicted each other
+unnoticed since 2026-08-25.
+
+**AD-21 remains the named residue** — cross-context guards are point-in-time where the domain needs standing
+constraints. Narrowed by four decisions, remedied by none, because it is a concept to add rather than a
+defect to fix. **Raising it means a new review, not a checklist item.**
 
 ## `authorization/` — the missing authorization layer, opened 2026-08-26
 
@@ -86,17 +191,16 @@ The current live workstream.
 
 | Id | Plan | Status | What it is |
 |---|---|---|---|
-| MM-022 | `spec-repo-drift-review.md` | **Active** | ▶ **Now review and plan in one — start at its § Execution plan.** Eight waves, one per session, with a wave log to resume from; the front-matter exception is extended to cover it, and there is no separate plan id. **Wave 0 is an hour and not code: send the `magiq-auth` claims hand-off** — it is the critical path for the file's only Critical and it has been sitting written-and-unsent. **Wave 1 is X-4.20** — CI is green against a projection manifest CDK does not read, so until it lands every verification run is evidence about the wrong file. **48 open findings** *(69 → 50 in the 2026-09-01 split to MM-035/036/037/038, then 50 → 48 when **P-2 and P-3** went to MM-018 / ADO **34366** and **34319** — they had been double-tracked for weeks, ticketed there by substance under names that never mention `P-2` or `P-3`, which is why the § 4 ownership boundary never caught it. Nothing was closed by either move.)* across spec, ADRs, CDK and platform. The working checklist — tick the ✓ column as items land. *(Count corrected 2026-08-31: the file said 58, written before the W19–W30 passes appended the X-11.x series.)* **Start at § Spec sweep** — added 2026-08-31, it verifies what is genuinely left to apply to `docs/` against the repo, and orders it. **The spec work is finished.** That day's sweep closed **twenty-six** rows and half-closed four: CI back to `fail 0`, the queue topology, the mapper naming, the `*Message` contract names, the doc residue, **X-4.16** in the CDK repo, and finally **§G Processing (P-5…P-9)**, the last block. **Nothing under `docs/` is now known to be wrong** except §H DocumentSigning (parked by decision) and BI-1's bulk-import tree (a decision about the feature). **Everything else remaining is code** — §I.4 alone holds 43 of the 69. Two of the twenty-six needed no work at all: fixed weeks ago, never ticked — so **re-verify Low rows before planning against them.** <br><br>**X-4.15 closed the same day and immediately paid for itself.** Its new CI check (Messaging Guard) found **X-4.18** — two more handlers registered and never invoked, the third instance of that silent failure — plus **X-4.19**, and it pinned X-1.8's fix to one line in this repo rather than the CDK. Looking for a precedent for it also turned up **X-4.20 (🔴)**: `projection-tables.manifest.json` exists in **both** repos, the two have **diverged on the X-4.10 rotation**, and the CI drift gate checks the copy CDK does not read — so it passes green while CDK would provision `-v1` tables for code expecting `-v2`. **X-4.10 is therefore not fully landed and X-4.11 must not proceed.** |
+| MM-022 | `spec-repo-drift-review.md` | **Active** *(front-matter `findings-agreed` — corrected 2026-09-14 from `active`, which is plan vocabulary and is not valid on a `type: review`; the board had stopped projecting it and its card was a leftover)* | ▶ **Now review and plan in one — start at its § Execution plan.** Eight waves, one per session, with a wave log to resume from; the front-matter exception is extended to cover it, and there is no separate plan id. **Wave 0 is an hour and not code: send the `magiq-auth` claims hand-off** — it is the critical path for the file's only Critical and it has been sitting written-and-unsent. **Wave 1 is X-4.20** — CI is green against a projection manifest CDK does not read, so until it lands every verification run is evidence about the wrong file. **48 open findings** *(69 → 50 in the 2026-09-01 split to MM-035/036/037/038, then 50 → 48 when **P-2 and P-3** went to MM-018 / ADO **34366** and **34319** — they had been double-tracked for weeks, ticketed there by substance under names that never mention `P-2` or `P-3`, which is why the § 4 ownership boundary never caught it. Nothing was closed by either move.)* across spec, ADRs, CDK and platform. The working checklist — tick the ✓ column as items land. *(Count corrected 2026-08-31: the file said 58, written before the W19–W30 passes appended the X-11.x series.)* **Start at § Spec sweep** — added 2026-08-31, it verifies what is genuinely left to apply to `docs/` against the repo, and orders it. **The spec work is finished.** That day's sweep closed **twenty-six** rows and half-closed four: CI back to `fail 0`, the queue topology, the mapper naming, the `*Message` contract names, the doc residue, **X-4.16** in the CDK repo, and finally **§G Processing (P-5…P-9)**, the last block. **Nothing under `docs/` is now known to be wrong** except §H DocumentSigning (parked by decision) and BI-1's bulk-import tree (a decision about the feature). **Everything else remaining is code** — §I.4 alone holds 43 of the 69. Two of the twenty-six needed no work at all: fixed weeks ago, never ticked — so **re-verify Low rows before planning against them.** <br><br>**X-4.15 closed the same day and immediately paid for itself.** Its new CI check (Messaging Guard) found **X-4.18** — two more handlers registered and never invoked, the third instance of that silent failure — plus **X-4.19**, and it pinned X-1.8's fix to one line in this repo rather than the CDK. Looking for a precedent for it also turned up **X-4.20 (🔴)**: `projection-tables.manifest.json` exists in **both** repos, the two have **diverged on the X-4.10 rotation**, and the CI drift gate checks the copy CDK does not read — so it passes green while CDK would provision `-v1` tables for code expecting `-v2`. **X-4.10 is therefore not fully landed and X-4.11 must not proceed.** |
 | MM-024 | `spec-ddd-coverage-review-2026-08-24.md` | **Done** 2026-08-25 | Remediation plan for the DDD coverage review of the same name. **All 31 units (W0–W30) and all six decisions (D1–D6) closed 2026-08-25**; status flipped 2026-09-01 when a completion check found the work finished and only the bookkeeping stale. `check-spec-sections.py` ends at `fail 0 · warn 16 · rename backlog 0`, and **all 16 warnings belong to BI-1** — every other owning unit is at zero. Landed: two CI guards, `docs/spec/README.md` (the question map), `open-questions.md` (the contradiction register), a canonical glossary, the architecture-tier merge into `bounded-contexts.md`, the `system-spec.md` split into five `shared/` files, the saga specs, the **complete 132-command authorization matrix**, the MediaItem state matrix, cross-aggregate invariants and cascade rules, and the consistency model. **The recurring finding is that the plan's own premises were usually wrong** — units repeatedly found the surviving spec text worse than the truncated text, and the checking is what produced the value: the X-11.x series (43 findings, several Critical/High) was raised by this plan and is owned by MM-022 per §4. **What remains is out of scope by that same §4** — the code findings in `spec-repo-drift-review.md`, the two parked workstreams (`asset-custody`, `projection-rebuild`), and **BI-1**, a decision about an unbuilt feature. Two register entries stay open as decisions for Chase, not gaps: **Q-4** ⚖️ (infected object — the destructive path is what ships) and **Q-11** 🔒 (MediaProfile authorization table promises a check the code does not perform). *(Earlier revisions of this row reported Phase-1-only progress and gave X-11.1 as 69 references — superseded: the count is **88**, recounted after the 12 tails were restored.)* |
-| — | `Archive/spec-repo-drift-review-completed.md` | Done | The 154 closed findings plus the full session log for every pass. Split out 2026-08-24; the id sets do not overlap. |
+| — | `../_archive/plans/spec-drift-review/spec-repo-drift-review-completed.md` | Done | The 154 closed findings plus the full session log for every pass. Split out 2026-08-24; the id sets do not overlap. |
 
 Recent: X-9.6 (name-reservation atomicity docs), X-9.7 (`MoveMediaItem` used `SwapAsync` — every
 folder-to-folder move 409'd) and X-9.8 (`GuidFactory` byte order — every id in the system unsortable)
 all landed 2026-08-24. The X-9.7 and X-9.8 fixes are **written but not yet built or run**, and X-9.8 also
 needs a platform package release. See `todos.md` in the project root.
 
-> Historical context for X-9.6 lives in `Archive/s13-uniqueness-atomicity-remediation-plan.md` at the
-> plans root — same subject (reservation atomicity, name-release paths), a year-earlier pass.
+> Historical context for X-9.6 lives in `../_archive/plans/_legacy/s13-uniqueness-atomicity-remediation-plan.md` — same subject (reservation atomicity, name-release paths), a year-earlier pass.
 
 ## `architecture-review-remediation/` — the 2026-07 architecture reviews
 
@@ -109,7 +213,7 @@ Largest workstream, tracked on the ADO **Media** board: 169 work items across 6 
 | — | `architecture-review-remediation-pr-plan.md` | `exception:` | The rationale — why each finding groups into which PR, in what order. The rationale companion to MM-018; execution state lives there, so this carries no id. |
 | — | `architecture-review-ado-workitems.md` | `exception:` | ID index: Epic → Feature → Story → Task, with board URLs and dependency links. Not a plan. |
 | MM-019 | `architecture-review-authz-and-outbox-deferred-plan.md` | **Parked** | Authorization (C0–C8) and the transactional outbox (B4/INV-2). Deferred in sequencing only — both remain pre-production gates. |
-| — | `Archive/ado-creation-resume-manifest.md` | `exception:` | Resume notes from the interrupted ADO creation run; superseded by the ID index. |
+| — | `../_archive/plans/architecture-review-remediation/ado-creation-resume-manifest.md` | `exception:` | Resume notes from the interrupted ADO creation run; superseded by the ID index. |
 
 ## `projection-tables/` — projection table rotation and schema versioning
 
@@ -118,9 +222,9 @@ Largest workstream, tracked on the ADO **Media** board: 169 work items across 6 
 | Id | Plan | Status | What it is |
 |---|---|---|---|
 | MM-002 | `schema-versioned-projection-tables-plan.md` | **Parked** | Schema-versioned, CDK-owned projection tables. **Phase A shipped** — verified at source level by MM-003 against all three repos. Parked on **Phase B only** (version-aware projectors), deferred by the decision in `docs/adrs/persistence-and-eventing.md` until the first breaking read-model change needs a zero read/write window. |
-| MM-001 | `Archive/hot-swappable-projection-rotation-plan.md` | Superseded | Blue-green **runtime** rotation (`_v{n}`). Never built as written — the runtime counter meant CDK could not own the tables, which forced a broad `table/media-*` control-plane grant. Kept for the discovery and the rotation-unit decision, both of which MM-002 § 3.1 carries forward. Archived 2026-08-31. |
-| — | `Archive/projection-replay-platform.md` | Done | Platform-side projection replay. |
-| — | `Archive/dynamodb-schema-audit-plan.md` | Done | CDK ↔ spec table audit; DocumentSigning was never covered. |
+| MM-001 | `../_archive/plans/MM-001-projection-tables/hot-swappable-projection-rotation-plan.md` | Superseded | Blue-green **runtime** rotation (`_v{n}`). Never built as written — the runtime counter meant CDK could not own the tables, which forced a broad `table/media-*` control-plane grant. Kept for the discovery and the rotation-unit decision, both of which MM-002 § 3.1 carries forward. Archived 2026-08-31. |
+| — | `../_archive/plans/MM-001-projection-tables/projection-replay-platform.md` | Done | Platform-side projection replay. |
+| — | `../_archive/plans/MM-001-projection-tables/dynamodb-schema-audit-plan.md` | Done | CDK ↔ spec table audit; DocumentSigning was never covered. |
 
 **Read MM-003 before touching this.** Two things it found that the plan does not say: Phase B's
 deferral has a **trigger nobody monitors** — no check fires when a `schemaVersion` bumps (PT-2) — and
@@ -135,7 +239,7 @@ refinements (PT-4). Nothing here has been compiled or run.
 | Id | Plan | Status | What it is |
 |---|---|---|---|
 | MM-004 | `remove-env-suffix-plan.md` | **Done** (2026-09-01) | Drop the `-{env}` suffix from every resource name. Code complete in both repos, verified at source level by MM-005. The last open item — the ADR, `docs/adrs/deployment-and-resource-naming.md`, change-inventory item 13 — was **written 2026-09-01**, closing DN-1; `docs/adrs/README.md` now links it instead of flagging the gap. DN-4 (stale `.js`/`.d.ts` build output in `cdk-magiq-media`) is cleared too. |
-| — | `Archive/deploy-handoff-tom.md` | Superseded | The dispatch-only deploy model, replaced by `deploy-runbook.md` in the project root. |
+| — | `../_archive/plans/deployment-naming/deploy-handoff-tom.md` | Superseded | The dispatch-only deploy model, replaced by `deploy-runbook.md` in the project root. |
 
 The consequence the ADR most needs to carry: renaming a stateful resource makes CloudFormation
 *replace* it, so dev/qa/staging lose data on cutover. Prod naming is unchanged either way. It carries
@@ -155,13 +259,13 @@ asserts no physical names, so item 5's snapshot regeneration was moot.
 | Id | Plan | Status | What it is |
 |---|---|---|---|
 | MM-021 | `mediaitem-edit-session-design.html` | **Active** | MediaItem edit-session design. Consumes MM-020. HTML, so its front-matter is wrapped in an HTML comment. Verified 2026-08-31: 5 of 7 commands built; `AddSessionEditor` / `RemoveSessionEditor` are not, so the collaborative half is unbuilt and only the solo path ships. |
-| `Archive/metadata-collision-prevention.md` | Done | Metadata field-name collision prevention. |
-| `Archive/content-category-remediation-plan.md` | Done | `MediaContentType` → `MediaCategory` + MIME classification. |
-| `Archive/asset-download-endpoints.md` | Done | Presigned S3 GET endpoints for originals and renditions. |
+| `../_archive/plans/design/metadata-collision-prevention.md` | Done | Metadata field-name collision prevention. |
+| `../_archive/plans/design/content-category-remediation-plan.md` | Done | `MediaContentType` → `MediaCategory` + MIME classification. |
+| `../_archive/plans/design/asset-download-endpoints.md` | Done | Presigned S3 GET endpoints for originals and renditions. |
 
-## `Archive/` — completed, no live workstream
+## `../_archive/plans/_legacy/` — completed, no live workstream
 
-Paired with `reviews/Archive/`: `api-consistency-remediation-plan.md` ← `api-rest-review.md` (Stage 5
+Paired with `../_archive/reviews/_legacy/`: `api-consistency-remediation-plan.md` ← `api-rest-review.md` (Stage 5
 acceptance was blocked on a spec-tree truncation incident — worth a look before assuming it is
 finished; `handler-status-code-review.md` folded into its status-code stage) ·
 `s13-uniqueness-atomicity-remediation-plan.md` and its runbook
@@ -172,7 +276,7 @@ Unpaired, and marked `exception:` 2026-08-31 rather than back-filled:
 spec/ADR move to `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\` did happen 2026-07-07, but the GitHub
 Actions wiki-publish step it specifies is still unbuilt).
 
-> **Moved 2026-08-31:** `request-response-review.md` → `reviews/Archive/`. It is a review — 866 lines
+> **Moved 2026-08-31:** `request-response-review.md` → the reviews archive, now `../_archive/reviews/_legacy/`. It is a review — 866 lines
 > titled "Request/Response Model Review" — and was the only one sitting in the plans tree without the
 > working-checklist justification that keeps `spec-drift-review/spec-repo-drift-review.md` there.
 
@@ -185,13 +289,13 @@ pointed across folders and were repointed:
 
 - `schema-versioned-projection-tables-plan.md` → the rotation plan
 - `IMPLEMENTATION-PLAN.md` and `COWORK-EXECUTION-INSTRUCTIONS.md` → their own working directory
-- `architecture-review-ado-workitems.md` → the resume manifest, now in its `Archive/`
-- `spec-repo-drift-review.md` → `api-consistency-remediation-plan` in `plans\Archive\`
+- `architecture-review-ado-workitems.md` → the resume manifest, now in `../_archive/plans/architecture-review-remediation/`
+- `spec-repo-drift-review.md` → `api-consistency-remediation-plan` in `../_archive/plans/_legacy/`
 - `todos.md` → `remove-env-suffix-plan.md`
 - `CLAUDE.md` file map → this structure
 - `architecture-review-remediation-pr-plan.md` → its three "in-flight, do not re-plan" companions, which
   now sit in two different archives (footer note added rather than editing four inline mentions)
-- `Archive/s13-implementation-plan-for-claude-code.md` → its companion design doc, now beside it
+- `../_archive/plans/_legacy/s13-implementation-plan-for-claude-code.md` → its companion design doc, now beside it
 - `reviews/design/mediaitem-edit-lifecycle-as-is-vs-recommended.html` → the edit-session design doc
 - In the app repo: `docs/adrs/persistence-and-eventing.md` → the schema-versioned tables plan;
   `docs/spec/contexts/Registration/.../registration.api.md` and `docs/spec/shared/error-catalog.md` →
@@ -206,7 +310,7 @@ Two were **already broken before the move** and are now correct:
 
 **Still stale, needs your hand:** the Cowork project instructions for magiq-media name
 `plans\docs-migration-plan.md` as where the docs-migration follow-ups are tracked. That file is at
-`plans\Archive\docs-migration-plan.md`. I cannot edit project instructions — update it in the project
+`_archive\plans\_legacy\docs-migration-plan.md`. I cannot edit project instructions — update it in the project
 settings when convenient.
 
 ---

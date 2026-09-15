@@ -4203,13 +4203,13 @@
 
   // Archive is offered on any done item — including cycle cards, because archiving is
   // a board concern, not document state. A cycle card whose document already sits in
-  // an Archive/ folder is archived by the projection and cannot be restored from here.
+  // the project's _archive/ tree is archived by the projection and cannot be restored here.
   function _archiveBtn(board, i) {
     if (board.kind !== 'todo') return '';
     if (i.archivedAt) {
       const derived = i.cycle && i.cycle.archived;
       return derived
-        ? `<span class="action-btn" style="opacity:.5;cursor:default" title="Archived because ${i.cycle.id}'s file lives in an Archive/ folder. Move the document back to restore it.">🗄 filed</span>`
+        ? `<span class="action-btn" style="opacity:.5;cursor:default" title="Archived because ${i.cycle.id}'s file lives under _archive/. Move the document back to restore it.">🗄 filed</span>`
         : `<button class="action-btn" onclick="event.stopPropagation();itemSetArchived('${board.kind}','${i.id}',false)">↩ Restore</button>`;
     }
     if (i.status !== 'done') return '';

@@ -76,8 +76,10 @@ Three things fall out:
 ## Resolution is by id, never by path
 
 `index_documents()` scans `projects/<slug>/reviews/`, `projects/<slug>/requests/` and
-`projects/<slug>/plans/` recursively, **`Archive/` folders included**, and keys everything by
-front-matter `id:`. The three folders share one id space — `DOC_FOLDERS` in `tower/cycle.py`.
+`projects/<slug>/plans/` recursively, **plus each one's mirror under `projects/<slug>/_archive/`**,
+and keys everything by front-matter `id:`. The three folders share one id space — `DOC_FOLDERS` in
+`tower/cycle.py`; the archive root is `ARCHIVE_DIR`, and `doc_bases()` returns the live tree and its
+archive together so no scan can accidentally see only one of them.
 
 This is the whole reason the skill mandates ids. A plan archived last week still resolves, and the
 card's now-stale `source` is repaired in passing. Renames, moves and archiving are all free.
@@ -182,8 +184,8 @@ ambiguous about which is in force.
 
 ## Archiving a card
 
-Distinct from archiving a *document*. A document moves to an `Archive/` folder (SKILL.md
-§ Archiving); a card is filed away so it stops crowding the board.
+Distinct from archiving a *document*. A document's folder moves into the project's `_archive/` tree
+(SKILL.md § Archiving); a card is filed away so it stops crowding the board.
 
 - Only a `done` item can be archived — anything else returns 409. The button is on the list row
   **and** the kanban card; Done piles up in both views.
@@ -203,9 +205,9 @@ and closed. Chain completeness is a property of the graph, derived per read, and
 rather than in a status the document does not own.
 - Archived items stay in the same store with every field intact. `GET …/todos` excludes them;
   `?archived=true` returns them.
-- **A cycle card whose document lives under `Archive/` is archived by the projection**, and shows
+- **A cycle card whose document lives under `_archive/` is archived by the projection**, and shows
   `🗄 filed` instead of a Restore button — restoring it would only be undone on the next read. Move
-  the document out of `Archive/` to bring the card back.
+  the document out of `_archive/` to bring the card back.
 - `doneAt` records when an item first reached `done`, and is cleared if it is reopened. It exists
   because `updatedAt` moves on any edit, so it cannot answer "finished when".
 
@@ -252,8 +254,9 @@ That last one is the invariant no board render can see, so it is worth stating h
 origin is a `review` or a `feature-request` — the two types in `ORIGIN_TYPES`, which are peers rather
 than stages. A plan proves it has one either by front-matter `consumes:` naming at least one id of
 those types, or by the legacy folder pairing `plans/<ws>/` ↔ `reviews/<ws>/` or `requests/<ws>/` —
-the convention every pre-cycle plan was filed under. `plans/Archive/` at the root pairs with
-`reviews/Archive/`. Anything else is flagged, including a plan sitting loose at the `plans/` root
+the convention every pre-cycle plan was filed under. Archived folders pair the same way: `workstream_of()`
+strips the `<id>-` prefix before matching, and pre-id archives sit under `_legacy/` on both sides.
+Anything else is flagged, including a plan sitting loose at the root of either tree
 with no workstream folder, and a plan whose `consumes` names only other plans or a gate.
 
 The bias is deliberate: a new unpaired plan should trip this, and the only way to silence it is an

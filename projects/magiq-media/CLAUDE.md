@@ -33,7 +33,7 @@ Serves government agencies and large enterprises managing regulated records. Mul
 |---|---|
 | `AssetManagement` | `Asset` |
 | `Catalog` | `Collection`, `Folder`, `MediaItem`, `MediaProfile` |
-| `ChangeRequests` | `MediaChangeRequest` |
+| `ChangeRequests` | `ChangeRequest` — *corrected 2026-09-13; there is no `MediaChangeRequest` type* |
 | `Metadata` | `RecordType` |
 | `Processing` | `ProcessingJob` |
 | `Registration` | `Registration` |
@@ -94,8 +94,8 @@ isn't written down somewhere, that gap is the first thing to fix.
 `reviews/` and `plans/` mirror each other, one subfolder per workstream:
 
 ```
-reviews/<workstream>/<review>.md   →   plans/<workstream>/<plan>.md
-reviews/<workstream>/Archive/      →   plans/<workstream>/Archive/
+reviews/<workstream>/<review>.md            →   plans/<workstream>/<plan>.md
+_archive/reviews/<id>-<workstream>/         →   _archive/plans/<id>-<workstream>/
 ```
 
 Three rules:
@@ -105,8 +105,10 @@ Three rules:
 2. **Name the plan after the review.** For new work, the plan file takes the review's filename. Where
    several reviews feed one plan — the 2026-07 architecture set is eleven reviews to one plan — the
    shared folder carries the trace instead, and the plan says which reviews it consumes.
-3. **Archive both sides together.** When a workstream finishes, its review and plan move to the
-   `Archive/` inside their respective folders. A finished workstream leaves a matched pair.
+3. **Archive both sides together.** When a workstream finishes, its review and plan folders move out of
+   the live trees into `_archive/reviews/<id>-<workstream>/` and `_archive/plans/<id>-<workstream>/` —
+   each prefixed with its own document id, both keeping the workstream name. A finished workstream
+   leaves a matched pair, and `reviews/` and `plans/` hold live work only.
 
 `plans/README.md` and `reviews/README.md` index both trees with status. Update them when adding a
 workstream — a folder nobody indexed is a folder the next session won't find.

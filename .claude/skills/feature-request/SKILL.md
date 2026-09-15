@@ -32,10 +32,10 @@ No marker, or `we-operate: false` → out of scope. **Do not raise a feature req
 
 ## Ids
 
-**One id space, shared with reviews, plans and gates.** `<PREFIX>-<nnn>`, monotonic per project. Mint by grep across all three folders, `Archive/` included:
+**One id space, shared with reviews, plans and gates.** `<PREFIX>-<nnn>`, monotonic per project. Mint by grep across all three folders plus `_archive/` — an archived id is still taken:
 
 ```bash
-grep -rhoE '^id: [A-Z]+-[0-9]{3}' projects/<slug>/reviews projects/<slug>/requests projects/<slug>/plans | sort | tail -1
+grep -rhoE '^id: [A-Z]+-[0-9]{3}' projects/<slug>/reviews projects/<slug>/requests projects/<slug>/plans projects/<slug>/_archive | sort | tail -1
 ```
 
 Never a separate `FR-1` counter. `consumes:` and `depends-on:` resolve by one regex over one namespace — a second space would silently fail to resolve.
@@ -46,7 +46,7 @@ Never a separate `FR-1` counter. `consumes:` and `depends-on:` resolve by one re
 - request — `projects/<project>/requests/<workstream>/<workstream>-request-<YYYY-MM-DD>.md`
 - prompt — `projects/<project>/requests/<workstream>/<request-filename>-prompt.md`
 - plan — `projects/<project>/plans/<workstream>/<primary-request-filename>.md`
-- archive — `requests/<ws>/Archive/`, capital A
+- archive — `projects/<project>/_archive/requests/<id>-<ws>/`, the whole folder moved as a unit ([[review-cycle]] § Archiving owns the rule)
 
 **Never write a bare `request.md`.** A workstream accumulates requests; a fixed filename overwrites.
 

@@ -7,8 +7,8 @@ tracking happen in the matching `plans/` folder. The folder name is shared betwe
 review and the plan that consumes it stay traceable — including after both are archived. See
 `CLAUDE.md § Review → Plan` for the convention and § Review → Plan cycle for the adoption marker.
 
-**Document ids** are `MA-nnn`, minted monotonically across `reviews/` and `plans/` including every
-`Archive/`, never reused, never renumbered. All cross-references use ids, never paths.
+**Document ids** are `MA-nnn`, minted monotonically across `reviews/` and `plans/` including
+`_archive/`, never reused, never renumbered. All cross-references use ids, never paths.
 
 **Status vocabulary** — _Draft_ · _Active_ (findings agreed, being worked) · _Parked_ · _Superseded_ ·
 _Done_.

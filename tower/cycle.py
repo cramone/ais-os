@@ -53,6 +53,24 @@ _FIELD_RE = re.compile(r"^([a-z-]+):\s*(.*)$")
 # holding both reads as neither.
 DOC_FOLDERS = ("reviews", "requests", "plans")
 
+# Finished workstreams leave the live trees for one archive root per project, which
+# mirrors them: `_archive/reviews/<id>-<ws>/`, `_archive/plans/<id>-<ws>/`,
+# `_archive/requests/<id>-<ws>/`. The live trees then hold only live work, and what is
+# finished is one directory listing rather than an `Archive/` hidden inside every
+# workstream folder. Archived documents are still scanned — an archived id still
+# resolves, which is the whole reason cross-references are ids and not paths.
+ARCHIVE_DIR = "_archive"
+
+# The `<ID>-` prefix an archive folder carries. Stripped to recover the workstream
+# name, which is what the legacy folder pairing matches on.
+_ARCHIVE_PREFIX_RE = re.compile(r"^[A-Z]{2,}-\d{3}-")
+
+# Legacy archives predate the ids, so there is no `<id>-` to prefix and nothing to
+# pair by except the name both sides already share. Loose files that sat at the root
+# of the old `reviews/Archive/` and `plans/Archive/` are filed under this name on both
+# sides, which is what keeps that pairing legible.
+LEGACY_ARCHIVE_WS = "_legacy"
+
 # Document types that can originate a plan. A plan proves it has one of these in
 # `consumes:`; a gate consumes plans and needs none.
 ORIGIN_TYPES = ("review", "feature-request")
@@ -175,38 +193,66 @@ def is_empty_list(raw: str | None) -> bool:
     return raw is None or raw.strip() in ("", "[]", "-")
 
 
+# --- tree layout ------------------------------------------------------------
+
+
+def doc_bases(slug: str, folder: str) -> list[Path]:
+    """One document folder's live tree and its archive, whichever of the two exist.
+
+    Every scan below walks both. A document keeps its id when it is archived, so an
+    archive the scan skipped would turn every reference to it into a dangling id.
+    """
+    root = config.PROJECTS_DIR / slug
+    return [base for base in (root / folder, root / ARCHIVE_DIR / folder) if base.is_dir()]
+
+
+def is_archived(rel: str) -> bool:
+    """True for a document inside a project's `_archive/` tree."""
+    return f"/{ARCHIVE_DIR}/" in rel
+
+
+def workstream_of(path: Path, base: Path) -> str:
+    """A document's workstream folder name, or `''` when it sits at the tree root.
+
+    An archive folder is named `<id>-<workstream>`; the prefix is stripped so an
+    archived pair still matches by name the way it did while it was live.
+    """
+    parts = path.relative_to(base).parts
+    if len(parts) < 2:
+        return ""
+    return _ARCHIVE_PREFIX_RE.sub("", parts[0])
+
+
 # --- document index ---------------------------------------------------------
 
 
 def index_documents(slug: str) -> dict[str, dict[str, Any]]:
     """Map document id -> {path, rel, type, status, fields} for one project.
 
-    Scans reviews/ and plans/ recursively, Archive/ folders included — an archived
-    document is still a resolvable id. Files without front-matter are legacy and are
-    skipped silently; per the skill their status is UNKNOWN and must not be inferred.
+    Scans reviews/, requests/ and plans/ recursively plus their `_archive/` mirrors —
+    an archived document is still a resolvable id. Files without front-matter are
+    legacy and are skipped silently; per the skill their status is UNKNOWN and must
+    not be inferred.
     """
-    root = config.PROJECTS_DIR / slug
     index: dict[str, dict[str, Any]] = {}
     for folder in DOC_FOLDERS:
-        base = root / folder
-        if not base.is_dir():
-            continue
-        for path in sorted(base.rglob("*")):
-            if path.suffix not in DOC_SUFFIXES or not path.is_file():
-                continue
-            fields = parse_front_matter(path)
-            if not fields:
-                continue
-            doc_id = fields.get("id", "")
-            if not DOC_ID_RE.match(doc_id):
-                continue
-            index[doc_id] = {
-                "path": path,
-                "rel": path.relative_to(config.PROJECTS_DIR.parent).as_posix(),
-                "type": fields.get("type", ""),
-                "status": fields.get("status", ""),
-                "fields": fields,
-            }
+        for base in doc_bases(slug, folder):
+            for path in sorted(base.rglob("*")):
+                if path.suffix not in DOC_SUFFIXES or not path.is_file():
+                    continue
+                fields = parse_front_matter(path)
+                if not fields:
+                    continue
+                doc_id = fields.get("id", "")
+                if not DOC_ID_RE.match(doc_id):
+                    continue
+                index[doc_id] = {
+                    "path": path,
+                    "rel": path.relative_to(config.PROJECTS_DIR.parent).as_posix(),
+                    "type": fields.get("type", ""),
+                    "status": fields.get("status", ""),
+                    "fields": fields,
+                }
     return index
 
 
@@ -315,7 +361,7 @@ def reconcile(
                 _title_for(doc), source=doc["rel"], status=status, tags=wanted_tags,
             )
             item["id"] = todo_id_for(slug, doc_id)
-            if "/Archive/" in doc["rel"]:
+            if is_archived(doc["rel"]):
                 set_archived(item, True)
             items.append(item)
             changed = True
@@ -330,10 +376,10 @@ def reconcile(
             stamp_done(item)            # backfill for cards that predate the field
             changed = True
 
-        # A document filed under Archive/ is finished, so its card is too. Derived,
+        # A document filed under _archive/ is finished, so its card is too. Derived,
         # not set by hand — unarchiving a card whose document is still archived would
         # only come back on the next read.
-        doc_archived = "/Archive/" in doc["rel"]
+        doc_archived = is_archived(doc["rel"])
         if doc_archived and not item.get("archivedAt"):
             set_archived(item, True)
             changed = True
@@ -518,7 +564,7 @@ def annotate(slug: str, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "status": doc["status"],
                 "path": doc["rel"],
                 "workstream": doc["fields"].get("workstream", ""),
-                "archived": "/Archive/" in doc["rel"],
+                "archived": is_archived(doc["rel"]),
                 "deps": graph.get(doc_id, {}),
             }
         elif doc_id:
@@ -583,18 +629,15 @@ def known_exceptions(slug: str) -> list[tuple[str, str]]:
     reporting, so a deliberate deviation stays visible instead of becoming invisible.
     """
     found: list[tuple[str, str]] = []
-    root = config.PROJECTS_DIR / slug
     for folder in DOC_FOLDERS:
-        base = root / folder
-        if not base.is_dir():
-            continue
-        for path in sorted(base.rglob("*")):
-            if path.suffix not in DOC_SUFFIXES or not path.is_file():
-                continue
-            fields = parse_front_matter(path)
-            if fields and fields.get("exception"):
-                rel = path.relative_to(config.PROJECTS_DIR.parent).as_posix()
-                found.append((rel, fields["exception"]))
+        for base in doc_bases(slug, folder):
+            for path in sorted(base.rglob("*")):
+                if path.suffix not in DOC_SUFFIXES or not path.is_file():
+                    continue
+                fields = parse_front_matter(path)
+                if fields and fields.get("exception"):
+                    rel = path.relative_to(config.PROJECTS_DIR.parent).as_posix()
+                    found.append((rel, fields["exception"]))
     return found
 
 
@@ -607,15 +650,11 @@ def _origin_folders(slug: str) -> set[str]:
     """
     names: set[str] = set()
     for folder in ("reviews", "requests"):
-        base = config.PROJECTS_DIR / slug / folder
-        if not base.is_dir():
-            continue
-        for path in base.rglob("*"):
-            if path.suffix in (".md", ".html") and path.is_file() and path.name != "README.md":
-                # <folder>/<ws>/... and <folder>/<ws>/Archive/... both credit <ws>.
-                parts = path.relative_to(base).parts
-                names.add(parts[0] if len(parts) > 1
-                          else "Archive" if path.parent.name == "Archive" else "")
+        for base in doc_bases(slug, folder):
+            for path in base.rglob("*"):
+                if path.suffix in DOC_SUFFIXES and path.is_file() and path.name != "README.md":
+                    # `<ws>/...` and `_archive/<folder>/<id>-<ws>/...` both credit <ws>.
+                    names.add(workstream_of(path, base))
     return {n for n in names if n}
 
 
@@ -631,37 +670,35 @@ def check(slug: str) -> list[str]:
     `known_exceptions()` instead.
     """
     problems: list[str] = []
-    root = config.PROJECTS_DIR / slug
     seen: dict[str, str] = {}
 
     for folder in DOC_FOLDERS:
-        base = root / folder
-        if not base.is_dir():
-            continue
-        for path in sorted(base.rglob("*")):
-            if path.suffix not in DOC_SUFFIXES or not path.is_file():
-                continue
-            fields = parse_front_matter(path)
-            if not fields or fields.get("exception"):
-                continue
-            rel = path.relative_to(config.PROJECTS_DIR.parent).as_posix()
-            doc_id = fields.get("id", "")
-            if not DOC_ID_RE.match(doc_id):
-                problems.append(f"{rel}: front-matter present but `id:` is missing or malformed")
-                continue
-            if doc_id in seen:
-                problems.append(f"{doc_id}: duplicate id — also at {seen[doc_id]} ({rel})")
-            seen[doc_id] = rel
-            try:
-                to_todo(fields.get("type", ""), fields.get("status", ""))
-            except CycleViolation as exc:
-                problems.append(f"{doc_id} ({rel}): {exc}")
-            expected = todo_id_for(slug, doc_id)
-            if fields.get("todo-id") not in (None, "-", expected):
-                problems.append(
-                    f"{doc_id}: `todo-id` is {fields.get('todo-id')}, but the derived id "
-                    f"is {expected}. Derive it — never allocate one"
-                )
+        for base in doc_bases(slug, folder):
+            for path in sorted(base.rglob("*")):
+                if path.suffix not in DOC_SUFFIXES or not path.is_file():
+                    continue
+                fields = parse_front_matter(path)
+                if not fields or fields.get("exception"):
+                    continue
+                rel = path.relative_to(config.PROJECTS_DIR.parent).as_posix()
+                doc_id = fields.get("id", "")
+                if not DOC_ID_RE.match(doc_id):
+                    problems.append(
+                        f"{rel}: front-matter present but `id:` is missing or malformed")
+                    continue
+                if doc_id in seen:
+                    problems.append(f"{doc_id}: duplicate id — also at {seen[doc_id]} ({rel})")
+                seen[doc_id] = rel
+                try:
+                    to_todo(fields.get("type", ""), fields.get("status", ""))
+                except CycleViolation as exc:
+                    problems.append(f"{doc_id} ({rel}): {exc}")
+                expected = todo_id_for(slug, doc_id)
+                if fields.get("todo-id") not in (None, "-", expected):
+                    problems.append(
+                        f"{doc_id}: `todo-id` is {fields.get('todo-id')}, but the derived id "
+                        f"is {expected}. Derive it — never allocate one"
+                    )
 
     for doc_id, rel in seen.items():
         fields = parse_front_matter(config.PROJECTS_DIR.parent / rel) or {}
@@ -692,58 +729,58 @@ def _check_plans_have_origins(slug: str, seen: dict[str, str]) -> list[str]:
     - **Cycle-compliant** — front-matter `consumes:` names at least one origin id.
     - **Legacy** — the workstream folder pairing: `plans/<ws>/` ↔ `reviews/<ws>/` or
       `requests/<ws>/`, which is the convention every pre-cycle plan was filed under.
-      `plans/Archive/` at the root pairs with `reviews/Archive/`.
+      Archived folders pair the same way: the `<id>-` prefix is stripped before the
+      match, and pre-id archives sit under `_legacy/` on both sides.
 
     Anything else is flagged. That bias is deliberate: a new unpaired plan should trip
     this, and the way to silence it is an `exception:` line saying why — which is a
     sentence someone has to write and stand behind.
     """
     problems: list[str] = []
-    base = config.PROJECTS_DIR / slug / "plans"
-    if not base.is_dir():
-        return problems
-
     index = index_documents(slug)
     paired = _origin_folders(slug)
-    for path in sorted(base.rglob("*")):
-        if path.suffix not in DOC_SUFFIXES or not path.is_file():
-            continue
-        if path.name == "README.md":
-            continue
-        rel = path.relative_to(config.PROJECTS_DIR.parent).as_posix()
-        fields = parse_front_matter(path) or {}
-        if fields.get("exception"):
-            continue
-        if fields.get("type") in ("gate", "doc") or fields.get("type") in ORIGIN_TYPES:
-            continue  # a gate consumes plans; an origin filed here is its own exception case
 
-        parts = path.relative_to(base).parts
-        workstream = parts[0] if len(parts) > 1 else ""
+    for base in doc_bases(slug, "plans"):
+        for path in sorted(base.rglob("*")):
+            if path.suffix not in DOC_SUFFIXES or not path.is_file():
+                continue
+            if path.name == "README.md":
+                continue
+            rel = path.relative_to(config.PROJECTS_DIR.parent).as_posix()
+            fields = parse_front_matter(path) or {}
+            if fields.get("exception"):
+                continue
+            if fields.get("type") in ("gate", "doc") or fields.get("type") in ORIGIN_TYPES:
+                continue  # a gate consumes plans; an origin filed here is its own exception case
 
-        doc_id = fields.get("id", "")
-        if DOC_ID_RE.match(doc_id):
-            consumed = _ids_in(fields.get("consumes"))
-            if not consumed:
+            workstream = workstream_of(path, base)
+
+            doc_id = fields.get("id", "")
+            if DOC_ID_RE.match(doc_id):
+                consumed = _ids_in(fields.get("consumes"))
+                if not consumed:
+                    problems.append(
+                        f"{doc_id} ({rel}): plan has no origin — `consumes:` is empty. "
+                        "A plan cannot exist without a review or a feature request"
+                    )
+                elif not any(index.get(ref, {}).get("type") in ORIGIN_TYPES for ref in consumed):
+                    # A plan consuming only plans or gates has no argued reason to exist.
+                    named = ", ".join(
+                        f"{ref} ({index.get(ref, {}).get('type') or 'missing'})"
+                        for ref in consumed)
+                    problems.append(
+                        f"{doc_id} ({rel}): plan has no origin — `consumes:` names {named}, "
+                        "none of which is a review or a feature request"
+                    )
+                continue
+
+            if not workstream:
                 problems.append(
-                    f"{doc_id} ({rel}): plan has no origin — `consumes:` is empty. "
-                    "A plan cannot exist without a review or a feature request"
-                )
-            elif not any(index.get(ref, {}).get("type") in ORIGIN_TYPES for ref in consumed):
-                # A plan consuming only plans or gates has no argued reason to exist.
-                named = ", ".join(
-                    f"{ref} ({index.get(ref, {}).get('type') or 'missing'})" for ref in consumed)
+                    f"{rel}: plan sits at the root of its tree, outside any workstream folder")
+            elif workstream not in paired:
                 problems.append(
-                    f"{doc_id} ({rel}): plan has no origin — `consumes:` names {named}, "
-                    "none of which is a review or a feature request"
+                    f"{rel}: plan has no origin — neither reviews/{workstream}/ nor "
+                    f"requests/{workstream}/ holds one. Pair it, or add an `exception:` line "
+                    "saying why it has none"
                 )
-            continue
-
-        if not workstream:
-            problems.append(f"{rel}: plan sits at the plans/ root, outside any workstream folder")
-        elif workstream not in paired:
-            problems.append(
-                f"{rel}: plan has no origin — neither reviews/{workstream}/ nor "
-                f"requests/{workstream}/ holds one. Pair it, or add an `exception:` line "
-                "saying why it has none"
-            )
     return problems

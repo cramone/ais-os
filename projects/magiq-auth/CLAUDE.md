@@ -145,15 +145,17 @@ isn't written down somewhere, that gap is the first thing to fix.
 `reviews/` and `plans/` mirror each other, one subfolder per workstream:
 
 ```
-reviews/<workstream>/<review>.md   →   plans/<workstream>/<plan>.md
-reviews/<workstream>/Archive/      →   plans/<workstream>/Archive/
+reviews/<workstream>/<review>.md        →   plans/<workstream>/<plan>.md
+_archive/reviews/<id>-<workstream>/     →   _archive/plans/<id>-<workstream>/
 ```
 
 Three rules:
 
 1. **The folder name is the link.** A review and the plan that consumes it share the workstream slug.
 2. **The plan is named after its primary review.** Same filename, different tree.
-3. **Both sides archive together**, in the same session.
+3. **Both sides archive together**, in the same session — each folder moving out of the live tree to
+   `_archive/reviews/<id>-<workstream>/` and `_archive/plans/<id>-<workstream>/`, prefixed with its own
+   document id and keeping the workstream name.
 
 **Reviews raised from the code repo.** Analysis documents written into
 `D:\source\github\magiqsoftware\magiq-auth\reports\` are working notes, not cycle documents. When one becomes work we

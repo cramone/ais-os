@@ -143,6 +143,6 @@ fired.
 ## Related
 
 - MM-002 — the plan this review consumes, `plans/projection-tables/schema-versioned-projection-tables-plan.md`
-- MM-001 — the superseded runtime `_v{n}` design, `plans/projection-tables/Archive/hot-swappable-projection-rotation-plan.md`
+- MM-001 — the superseded runtime `_v{n}` design, `_archive/plans/MM-001-projection-tables/hot-swappable-projection-rotation-plan.md`
 - `docs/adrs/persistence-and-eventing.md` § Schema-Versioned Projection Table Rotation — the ADR
 - `src/tools/ProjectionReplay/RUNBOOK.md` — operator steps
