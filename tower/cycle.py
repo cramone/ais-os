@@ -21,7 +21,10 @@ about what it could do.
 
   document → board   `reconcile()`, on every todo read. Status, state tags, source.
   document → board   missing todos are created, deterministically (see `todo_id_for`).
-  board → document   nothing. `PATCH` refuses a status change on a cycle todo.
+  board → document   `delete_document()` only. `PATCH` refuses a status change.
+
+Deletion is the single exception, and it does not weaken the rule: it is not a state a
+document can be in, so there is no field to work instead. See `delete_document()`.
 
 Status is the only projected field. Priority, due date and comments are not in
 front-matter and stay board-editable — a comment is session log, not state.
@@ -605,6 +608,81 @@ def comment(slug: str, doc_id: str, text: str, author: str = "Claude") -> dict[s
     return append_activity(path, todo_id, "comment", text.strip(), author=author)
 
 
+class DocumentNotFound(Exception):
+    """No document in this project carries that id."""
+
+
+def delete_document(slug: str, doc_id: str) -> dict[str, Any]:
+    """Delete a review, feature request, plan or gate — the file, and then its card.
+
+    **The one board → document write there is.** Everywhere else the board is a reader:
+    status comes from front-matter, archived state from the path. Deletion is different
+    in kind rather than in degree — it is not a state a document can be in, so there is
+    no front-matter field to work instead, and the alternative to a button is a hand
+    `rm` plus a card that outlives the file it described.
+
+    What it removes: the document, any `<filename>-prompt.md` beside it (a prompt with
+    no review is a session nobody can run), and the workstream folder if that empties
+    it. Anything else in the folder is left, folder and all — a half-finished sibling is
+    not this call's to judge.
+
+    **Refused while anything references the id.** `consumes` and `depends-on` resolve by
+    id over one namespace, so deleting a referenced document does not break a link, it
+    makes one point at nothing — and `check()` would then report a dangling id with no
+    file left to explain it. Delete the dependents first, or `superseded` it instead,
+    which is the status that exists for "this should not have been written".
+
+    Not reversible from the board. The repo is the undo.
+    """
+    from tower.interrupts.store import delete_interrupt, load_interrupts
+
+    index = index_documents(slug)
+    doc = index.get(doc_id)
+    if not doc:
+        raise DocumentNotFound(f"{doc_id} resolves to no document in {slug}.")
+
+    blockers = dependency_graph(slug).get(doc_id, {}).get("blocks") or []
+    if blockers:
+        listed = ", ".join(
+            f"{e['id']} ({'consumes' if e['via'] == 'consumes' else 'depends-on'})"
+            for e in blockers)
+        raise CycleViolation(
+            f"{doc_id} is referenced by {listed}. Delete those first, or set "
+            f"{doc_id} to `superseded` instead — an id other work names cannot "
+            "simply stop existing."
+        )
+
+    path: Path = doc["path"]
+    removed = [path]
+    prompt = path.with_name(f"{path.name}-prompt.md")
+    if prompt.is_file():
+        removed.append(prompt)
+    for target in removed:
+        target.unlink()
+
+    folder = path.parent
+    folder_removed = False
+    if folder.is_dir() and not any(folder.iterdir()):
+        folder.rmdir()
+        folder_removed = True
+
+    todos_path = config.todos_file(slug)
+    todo_id = todo_id_for(slug, doc_id)
+    todo_removed = False
+    if todos_path.exists() and any(i["id"] == todo_id for i in load_interrupts(todos_path)):
+        delete_interrupt(todos_path, todo_id)
+        todo_removed = True
+
+    return {
+        "id": doc_id,
+        "type": doc["type"],
+        "removed": [p.relative_to(config.PROJECTS_DIR.parent).as_posix() for p in removed],
+        "folderRemoved": folder.relative_to(config.PROJECTS_DIR.parent).as_posix()
+        if folder_removed else None,
+        "todoRemoved": todo_removed,
+    }
+
+
 def assert_not_cycle(slug: str, item: dict[str, Any], action: str) -> None:
     """Raise CycleViolation if `item` is a cycle todo. Guards status writes and delete."""
     doc_id = todo_doc_id(item)
@@ -614,7 +692,8 @@ def assert_not_cycle(slug: str, item: dict[str, Any], action: str) -> None:
         f"{doc_id} is a review-cycle document, so its status is not the board's to "
         f"{action}. Status comes from the `status:` field in {doc_id}'s file and the "
         "board shows it — work the document and the card follows. "
-        "Priority, due date and comments are still yours to change here."
+        "Priority, due date and comments are still yours to change here, and "
+        f"`DELETE /api/projects/{slug}/documents/{doc_id}` removes it outright."
     )
 
 

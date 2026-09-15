@@ -19,8 +19,9 @@ the one nobody was updating.
 ## The design
 
 **One writer, one reader.** A review or plan's status is set by working it. The board shows that
-status and cannot change it. Cycle cards do not drag, have no Done or delete button, and carry a
-badge naming their document.
+status and cannot change it. Cycle cards do not drag, have no Done button, and carry a badge naming
+their document. The single exception is deletion, below — not a state a document can be in, so there
+is no field to work instead.
 
 This is not a lock bolted onto a two-way sync — it is *why no sync is needed*. The board holds no
 cycle state of its own, so there is nothing for it to disagree with.
@@ -34,7 +35,8 @@ the gesture would be lying about what it could do.
 |---|---|---|
 | document → board | `GET /api/projects/{slug}/todos` | Status, state tags and `source` projected onto the card |
 | document → board | same | A document with no card gets one, created deterministically |
-| board → document | — | Nothing. `PATCH` of a cycle todo's status returns 409 |
+| board → document | `DELETE /api/projects/{slug}/documents/{id}` | The document file is removed, then its card |
+| board → document | anything else | Nothing. `PATCH` of a cycle todo's status returns 409 |
 
 **Status is the only projected field.** Priority, due date and comments are not in front-matter, so
 they stay board-editable.
@@ -129,7 +131,8 @@ are managed.
 | Doc-id tag | Suppressed when it repeats the card's own badge; a tag naming a *different* document still gets a chip |
 | Tooltip | id, type, workstream, status, what that phase means, and the file path |
 | Footnote | *projection-tables — review status set in MM-003* |
-| Done / delete | Suppressed, on the kanban card, the list row and the drilldown's **Mark Done** |
+| Done | Suppressed, on the kanban card, the list row and the drilldown's **Mark Done** |
+| Delete | ✕ deletes the *document*, with a confirm naming the file. `✕ referenced` — dead, tooltip naming the dependents — while any `consumes` / `depends-on` points at it |
 | Comments | **Left writable everywhere** — the note box in the drilldown is the session log |
 | Dangling id | Red `⚠ MM-0xx missing` badge — the card is tagged but no document has that id |
 | Dependency chips | `↰ from MM-025` (dashed, provenance), `⛓ waits on MM-024, MM-031` (amber), `✉ ask unsent — <owner>` (red), `↳ blocks MM-018 +2` (neutral), `⧗ chain open — MM-018, MM-019` (purple). Ids, not counts — the count told you to go looking, the ids are often the answer |
@@ -236,6 +239,31 @@ uppercased is wide enough to wrap a card's header row.
 
 `dragstart` is also skipped for `data-cycle` elements, so a drag cannot start from a source that
 ignores the `draggable` attribute.
+
+## Deleting a document
+
+`DELETE /api/projects/{slug}/documents/{doc_id}` — the ✕ on a cycle card. It removes the document
+file, any `<filename>-prompt.md` beside it, the workstream folder if that empties it, and finally the
+card. Anything else in the folder is left alone, folder and all.
+
+**The route names the document, not the card, and takes the document id rather than the card's
+uuid.** `DELETE …/todos/{id}` still refuses a cycle card with 409, and it is right to: the card is a
+projection, so deleting it alone would bring it back on the next board read. The file having gone is
+what makes it stay gone.
+
+**409 while anything references the id.** `consumes` and `depends-on` resolve by id over one
+namespace, so deleting a referenced document does not break a link — it leaves one pointing at
+nothing, and `check()` would then report a dangling id with no file left to explain it. The card
+shows `✕ referenced` with the dependents named, rather than a live button that 409s. Delete those
+first, or set the document to `superseded`, which is the status that exists for work that should not
+have been written.
+
+**Not undoable from the Tower.** The repo is the undo. The confirm dialog names the file path for
+that reason — "delete this card" and "delete this review off disk" are not the same sentence.
+
+Deletion is for a document that should never have existed: a review opened against the wrong repo, a
+plan written twice. A document whose work *happened* is archived; one that was overtaken is
+`superseded`. Both keep the reasoning, which is the thing the cycle exists to avoid re-deriving.
 
 ## Integrity check
 

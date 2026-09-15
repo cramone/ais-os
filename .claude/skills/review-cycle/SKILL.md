@@ -416,6 +416,20 @@ Because cross-references are ids rather than paths, moving a file breaks nothing
 
 Both are additive, both are reported, neither changes status.
 
+## Deleting
+
+Three ways a document stops being live, and they are not interchangeable:
+
+- **Archived** — the work happened and finished. The folder moves to `_archive/`; everything is kept.
+- **`superseded`** — the document was overtaken or should not have been written, but the reasoning is worth keeping. The successor carries `supersedes:` pointing back.
+- **Deleted** — the document should never have existed at all: a review opened against the wrong repo, a plan written twice, a request captured on the wrong project. Nothing about it is worth keeping.
+
+**Prefer `superseded`.** Deletion is the only operation in this cycle that destroys reasoning, and the reasoning is the thing the cycle exists to stop anyone re-deriving. If the question "why was this abandoned?" has an answer worth reading, the answer is `superseded`, not `rm`.
+
+Delete from the Control Tower — the ✕ on a cycle card, or `DELETE /api/projects/<slug>/documents/<id>`. It removes the document, its `-prompt.md`, the workstream folder if that empties it, and the card. **Refused while any `consumes` or `depends-on` names the id** — delete the dependents first or supersede instead; an id other work names cannot simply stop existing. Ids are never reused, so a deleted number stays spent.
+
+**Deleting is never automatic, and never a cleanup step.** Propose it; Chase confirms. Git is the only undo.
+
 ## Archiving
 
 Archived work leaves the live trees entirely. One archive root per project mirrors them:
@@ -507,6 +521,7 @@ Severity is not repeated here. It lives on the finding in the review, and `ado-c
 - Every session that touches a review or plan leaves at least two card comments: what it picked up, and what it put down with the next concrete action. A session that ends with nothing moved still writes the second one.
 - A finished workstream archives on both sides, in the same session.
 - A `done` file is frozen; only additive `consumes` / `supersedes` edits touch it.
+- A document any `consumes` / `depends-on` names cannot be deleted — supersede it instead. Deletion is for documents that should never have existed, and a deleted id is still spent.
 - A finding discovered during execution never becomes a checklist item in the plan that found it.
 - Severity is High/Medium/Low. 🔴/🟠 appear only in `type: gate` documents.
 - One workstream slug, used identically for the review folder, plan folder and both todos.

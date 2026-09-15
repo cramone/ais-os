@@ -4194,7 +4194,7 @@
         ${f.ado ? `<button class="action-btn" onclick="event.stopPropagation();pushInterruptToADO('${i.id}')">-&gt; ADO</button>` : ''}
         ${_archiveBtn(board, i)}
         ${i.cycle && !i.cycle.dangling
-          ? ''
+          ? _cycleDeleteBtn(board, i)
           : `${i.archivedAt ? '' : `<button class="action-btn done" onclick="event.stopPropagation();itemMarkDone('${board.kind}','${i.id}')">Done</button>`}
              ${f.delete ? `<button class="action-btn danger" title="Delete" onclick="event.stopPropagation();itemDelete('${board.kind}','${i.id}')">✕</button>` : ''}`}
       </div>
@@ -4224,6 +4224,25 @@
         }">🗄 chain open</span>`;
     }
     return `<button class="action-btn" title="Archive — hides it from the board, keeps it in the archive list" onclick="event.stopPropagation();itemSetArchived('${board.kind}','${i.id}',true)">🗄 Archive</button>`;
+  }
+
+  // Delete on a cycle card removes the *document*, not the card — deleting a projection
+  // would only bring it back on the next read. Refused while anything names its id, and
+  // shown as a dead button saying who, rather than a live one that 409s.
+  function _cycleDeleteBtn(board, i) {
+    if (board.kind !== 'todo' || !i.cycle || i.cycle.dangling) return '';
+    const refs = (i.cycle.deps && i.cycle.deps.blocks) || [];
+    if (refs.length) {
+      const listed = refs.map(e => `${e.id} (${e.via === 'consumes' ? 'consumes' : 'depends-on'})`).join(', ');
+      return `<span class="action-btn" style="opacity:.45;cursor:not-allowed" title="${_attr(
+        `Cannot delete ${i.cycle.id} — it is referenced by ${listed}.\n\n`
+        + 'Delete those first, or set it to `superseded`, which is the status for work that should not have been written.')
+        }">✕ referenced</span>`;
+    }
+    return `<button class="action-btn danger" title="${_attr(
+      `Delete ${i.cycle.id} — removes ${i.cycle.path} from disk, along with its prompt file and `
+      + 'its card. Not undoable from here; the repo is the undo.')
+      }" onclick="event.stopPropagation();cycleDelete('${i.cycle.id}')">✕</button>`;
   }
 
   // Everything built on this document, transitively, that has not finished.
@@ -4461,7 +4480,9 @@
           <span style="margin-left:auto"></span>
           ${_starBtn(board, i)}
           ${_archiveBtn(board, i)}
-          ${f.delete && !locked ? `<button class="action-btn danger todo-delete-btn" title="Delete" onclick="event.stopPropagation();itemDelete('${board.kind}','${i.id}')">✕</button>` : ''}
+          ${locked
+            ? _cycleDeleteBtn(board, i)
+            : f.delete ? `<button class="action-btn danger todo-delete-btn" title="Delete" onclick="event.stopPropagation();itemDelete('${board.kind}','${i.id}')">✕</button>` : ''}
         </div>
         ${locked ? `<span class="cycle-locknote">${cy.workstream ? `<span class="cycle-ws">${cy.workstream}</span> — ` : ''}${cy.type} status set in ${cy.id}</span>` : ''}
       </div>`;
@@ -4582,6 +4603,29 @@
     const panel = document.getElementById('drilldown-panel');
     if (panel && panel.dataset.itemId === id) panel.style.display = 'none';
     await board.refresh();
+  }
+
+  // Deletes the document a cycle card projects. The confirm names the file, because
+  // "delete this card" and "delete this review off disk" are not the same sentence.
+  async function cycleDelete(docId) {
+    const item = (_todoCache || []).concat(_todoArchiveCache || [])
+      .find(x => x.cycle && x.cycle.id === docId);
+    const path = item && item.cycle ? item.cycle.path : docId;
+    const title = item ? item.title : docId;
+    if (!confirm(
+      `Delete ${docId} — "${title}"?\n\n`
+      + `This removes ${path} from disk, with its prompt file and its card.\n`
+      + 'It cannot be undone from the Tower — only from git.')) return;
+    const res = await fetch(`/api/projects/${_todoSlug}/documents/${docId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      alert(body.detail || `Delete failed (${res.status})`);
+      return;
+    }
+    const panel = document.getElementById('drilldown-panel');
+    if (panel && item && panel.dataset.itemId === item.id) panel.style.display = 'none';
+    await loadTodos(_todoSlug);
+    if (_todoTab === 'archived') { await loadTodoArchive(); renderTodos(); }
   }
 
   function _wireItemTabs() {

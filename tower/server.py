@@ -630,10 +630,29 @@ def reorder_todos(slug: str, body: ReorderRequest) -> dict[str, Any]:
     return {"ok": True, "ordered": len(body.ids), "total": len(items)}
 
 
+@app.delete("/api/projects/{slug}/documents/{doc_id}")
+def delete_document(slug: str, doc_id: str) -> dict[str, Any]:
+    """Delete a review, feature request, plan or gate — the file and then its card.
+
+    Deliberately *not* `DELETE …/todos/{id}`: the card is a projection, so deleting it
+    alone would only bring it back on the next board read. This route names what is
+    actually being removed, and takes the document id rather than the card's uuid.
+
+    409 while anything references the id — see `cycle.delete_document`.
+    """
+    try:
+        return cycle.delete_document(slug, doc_id)
+    except cycle.DocumentNotFound as exc:
+        raise HTTPException(404, str(exc))
+    except cycle.CycleViolation as exc:
+        raise HTTPException(409, str(exc))
+
+
 @app.delete("/api/projects/{slug}/todos/{todo_id}", status_code=204)
 def delete_todo(slug: str, todo_id: str) -> Response:
     """Delete a todo. Cycle todos are refused — the card is derived, so it would
-    reappear on the next board load anyway. Archive or supersede the document instead."""
+    reappear on the next board load anyway. To remove one, delete the document it
+    projects: `DELETE /api/projects/{slug}/documents/{doc_id}`."""
     path = config.todos_file(slug)
     items = _load_todos(slug)
     item = next((i for i in items if i["id"] == todo_id), None)
