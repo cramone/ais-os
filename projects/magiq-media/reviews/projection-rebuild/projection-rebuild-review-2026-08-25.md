@@ -14,6 +14,8 @@ created: 2026-08-25
 
 # Projection Rebuild — the indexes replay cannot fix
 
+## Scope
+
 _Opened 2026-08-25. **Parked deliberately** — raised while writing `shared/consistency-model.md` (W25), and
 split out so the spec-drift work could finish. Nothing here is started._
 
@@ -29,7 +31,9 @@ review makes the system wrong in a knowable way; this one determines whether you
 
 ---
 
-## The problem in one paragraph
+## Findings
+
+### The problem in one paragraph
 
 A projection can be rebuilt by replaying its aggregate's event stream. **Seven write-side reference indexes
 cannot**, because they are not fed by the aggregate that owns them — they are fed by **integration events
@@ -41,7 +45,7 @@ or invariant decision, not a wrong screen.
 
 ---
 
-## The seven
+### The seven
 
 | Index | Fed by (source module) | The guard it backs |
 |---|---|---|
@@ -57,7 +61,7 @@ All seven are **unversioned** (`schemaVersion: null`), excluded from `projection
 from the blue-green rotation tool, whose own note says *"a breaking change to one is a manual in-place
 rebuild."* **No tool performs that rebuild.**
 
-## And the ones that are worse
+### And the ones that are worse
 
 **The two uniqueness counters cannot be rebuilt by anything.** `active-registrations` and `depth` are
 written by **command handlers**, not by events, so no replay of any kind reproduces them. Reconstruction
@@ -102,24 +106,36 @@ The gap is not tooling from scratch — it is **a way to re-emit integration eve
 
 ---
 
-## Open questions for whoever picks this up
+## Open Questions
 
-| # | Question |
-|---|---|
-| 1 | **How do you re-emit integration events?** Replay the source aggregate through its `*IntegrationEventPublisher` into `EventConsumers`, or read the event store and republish to SNS? The first reuses real mapping code; the second risks fanning out to *every* consumer, not just the index being rebuilt |
-| 2 | **How do you rebuild one index without side effects?** Re-publishing `MediaItemApproved` would also hit Registration, AssetManagement and the notifier. Does the rebuild need a targeted consumer, or a replay mode consumers can recognise? |
-| 3 | **Are these rebuilds idempotent?** The seven projectors are `ProjectedVersion`-guarded like any other, so a replay without clearing is a no-op — meaning clearing is mandatory, meaning **the guard is unavailable while the rebuild runs**. Is that acceptable, or does it need the blue-green treatment (rebuild beside, then flip)? |
-| 4 | **Should the seven be versioned and brought into the manifest**, so rotation covers them like every other projection? That is probably the real answer to (3) |
-| 5 | **Counters:** reconciliation job, or make them derivable? A `depth` counter is recomputable from folder parentage; `active-registrations` from live registration refs. Deriving beats reconciling if the read cost is acceptable |
-| 6 | Should the CLI cover the four aggregates it currently skips, and should it clear same-module indexes? |
-| 7 | **How would you know a rebuild is needed?** Without lag detection this is invisible. Does this workstream need a divergence check — compare `ProjectedVersion` against aggregate version — before it needs a rebuild tool? |
+_For whoever picks this up._
+
+| # | Question | Status |
+|---|---|---|
+| 1 | **How do you re-emit integration events?** Replay the source aggregate through its `*IntegrationEventPublisher` into `EventConsumers`, or read the event store and republish to SNS? The first reuses real mapping code; the second risks fanning out to *every* consumer, not just the index being rebuilt | **Open** |
+| 2 | **How do you rebuild one index without side effects?** Re-publishing `MediaItemApproved` would also hit Registration, AssetManagement and the notifier. Does the rebuild need a targeted consumer, or a replay mode consumers can recognise? | **Open** |
+| 3 | **Are these rebuilds idempotent?** The seven projectors are `ProjectedVersion`-guarded like any other, so a replay without clearing is a no-op — meaning clearing is mandatory, meaning **the guard is unavailable while the rebuild runs**. Is that acceptable, or does it need the blue-green treatment (rebuild beside, then flip)? | **Open** |
+| 4 | **Should the seven be versioned and brought into the manifest**, so rotation covers them like every other projection? That is probably the real answer to (3) | **Open** |
+| 5 | **Counters:** reconciliation job, or make them derivable? A `depth` counter is recomputable from folder parentage; `active-registrations` from live registration refs. Deriving beats reconciling if the read cost is acceptable | **Open** |
+| 6 | Should the CLI cover the four aggregates it currently skips, and should it clear same-module indexes? | **Open** |
+| 7 | **How would you know a rebuild is needed?** Without lag detection this is invisible. Does this workstream need a divergence check — compare `ProjectedVersion` against aggregate version — before it needs a rebuild tool? | **Open** |
 
 > **Question 7 may be the one to answer first.** A rebuild tool nobody knows to run is worth less than a
 > check that says *"index X is behind"*. It is also much smaller.
 
 ---
 
-## Sequencing
+## Dependencies
+
+- **MM-022** — `plans/spec-drift-review/spec-repo-drift-review.md`, which carries **X-11.44** (no outbox), **X-11.39** and **X-11.43** (counter drift), **X-11.40** (a dead index) and **X-11.41** (an add-only index)
+- **MM-027** — `reviews/asset-custody/`, the other parked code workstream, same shape
+- `docs/spec/shared/consistency-model.md` (magiq-media repo) — the full lag path and what replay can and cannot rebuild; no document id
+- `docs/spec/shared/cross-aggregate-invariants.md` (magiq-media repo) — what each of the seven indexes is guarding; no document id
+- External blocker: none.
+
+---
+
+## Recommended sequencing
 
 ```
 0. Divergence detection            ← smallest, and it tells you whether the rest is urgent

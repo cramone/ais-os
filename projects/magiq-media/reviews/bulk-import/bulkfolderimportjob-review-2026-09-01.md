@@ -6,7 +6,7 @@ workstream: bulk-import
 raised-by: [MM-022]
 status: draft
 outcome: pending
-todo-id: -
+todo-id: 6f277e3f-6ef8-5fd6-a801-1713314845e5
 created: 2026-09-01
 ---
 
@@ -17,6 +17,8 @@ created: 2026-09-01
 > [`bulkmediaimportjob-review-2026-09-01.md`](./bulkmediaimportjob-review-2026-09-01.md) (MM-037).
 
 # BulkFolderImportJob — a published aggregate with no code at any layer
+
+## Scope
 
 _Scope: **BI-1, BI-2, BI-3** as they apply to `BulkFolderImportJob`. Four spec files, 639 lines, five
 published routes, zero implementation._
@@ -108,7 +110,7 @@ Three options, and the review's job is to make them comparable rather than to ch
 
 ---
 
-## What is genuinely unanswered in the design
+## Open Questions
 
 Worth knowing before anyone calls this "spec'd and ready to build" — from `bulkfolderimportjob.scenarios.md`,
 whose own index flags them:
@@ -123,6 +125,20 @@ whose own index flags them:
   a bulk folder import that lands under a folder later archived inherits that defect at import scale.
 
 **These are design gaps, not documentation gaps** — they cannot be closed by writing, only by deciding.
+
+---
+
+## Dependencies
+
+- MM-022 — `plans/spec-drift-review/spec-repo-drift-review.md` § C.6, which this review was split out of on 2026-09-01.
+- MM-037 — the sibling review; the shared `/v1/import-jobs/**` surface binds both aggregates, so that part of the decision cannot be taken here alone.
+- External blocker: none.
+
+---
+
+## Recommended sequencing
+
+See § What the decision looks like — build, park or delete; the plan refines the ordering from there.
 
 ---
 

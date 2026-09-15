@@ -14,13 +14,17 @@ created: 2026-08-27
 
 # Archive cascade at scale — the ceiling, and what a resumable cascade costs
 
+## Scope
+
 _Opened 2026-08-27, from the question "if the collection was really large, would this approach work?"_
 _Companion to [`archive-cascade-review-2026-08-25.md`](./archive-cascade-review-2026-08-25.md). Tier 1
 landed the same day; **this review argues Tier 2 and has not been implemented.**_
 
 ---
 
-## The one sentence
+## Findings
+
+### The one sentence
 
 The cascade holds an entire subtree in memory and must finish inside a single Lambda or HTTP request, so
 it has a hard ceiling — and **the X-11.16 fix moved the failure at that ceiling from "silently
@@ -29,7 +33,7 @@ urgent.
 
 ---
 
-## Why this is a new finding, not a variation
+### Why this is a new finding, not a variation
 
 The four findings in the sibling review are all about **correctness under failure**. This one is about
 **capacity**, and it has the opposite shape: the code is now correct and that is exactly what makes it
@@ -42,11 +46,11 @@ capacity problem into a visible one, and it means the ceiling now has to be rais
 
 > **This is a numbers-free review.** There is no telemetry on either archive path — no metric, no
 > dashboard, no timing. Every figure below is an order-of-magnitude estimate derived from the code, and
-> **the first task in any plan built on this should be to measure, not to build.** See § What to do first.
+> **the first task in any plan built on this should be to measure, not to build.** See § Recommended sequencing.
 
 ---
 
-## Where the ceilings are, in the order they bind
+### Where the ceilings are, in the order they bind
 
 Assume a collection of ~50,000 media items across ~5,000 folders, depth 6. Estimates, not measurements.
 
@@ -61,7 +65,7 @@ Assume a collection of ~50,000 media items across ~5,000 folders, depth 6. Estim
 Ceiling 4 is the one that decides whether Tier 2 is needed. **Every other ceiling can be pushed; that one
 cannot be pushed, only removed**, because it is a property of doing the whole job in one invocation.
 
-### What Tier 1 already changed
+#### What Tier 1 already changed
 
 | | Before | After 2026-08-27 |
 |---|---|---|
@@ -76,7 +80,7 @@ removes ceiling 4.**
 
 ---
 
-## The knot: our own invariant is what forces durable state
+### The knot: our own invariant is what forces durable state
 
 This is the part worth reading twice before designing anything.
 
@@ -157,7 +161,28 @@ Why this shape:
 
 ---
 
-## What to do first
+## Open Questions
+
+| # | Question | Status |
+|---|---|---|
+| 1 | What is the realistic upper bound on items in one collection, per tenant? **Blocks everything else here** | **Open** |
+| 2 | Is the 500-folder synchronous limit right? It is a guess on a proxy — folder count, not item count — so a wide-but-shallow folder with very many items still passes it and can still 504 | **Open** |
+| 3 | Should the *collection* archive also get a size refusal? It has no pre-flight guard at all, and on dev/qa/staging it runs in-request (**X-11.19**), so it hits the same 29s wall with none of the protection | **Open** |
+| 4 | Does a completed run record become the audit trail for "this collection was archived on this date, comprising N items"? For regulated records that may be worth more than the performance | **Open** |
+
+---
+
+## Dependencies
+
+- **MM-025** — `archive-cascade-review-2026-08-25.md`, the companion correctness review; its open question 1 is answered there
+- **MM-026** — `plans/archive-cascade/archive-cascade-review-2026-08-25.md`, where Tier 1 is recorded and X-11.41 is next
+- **MM-006** — `plans/prod-readiness/prod-readiness-gate.md`; X-11.19 and X-11.41 are gate rows
+- **MM-032** — `reviews/projection-rebuild/`, which shares the "no lag metric, divergence is discovered not detected" problem
+- External blocker: batching the registration guard's counter walk (ceiling 3) needs a change to `IUniquenessCounterService` in the `aspnetcore-platform` repo — it has `IncrementManyAsync` but no batch read
+
+---
+
+## Recommended sequencing
 
 **Not build this.** In order:
 
@@ -177,21 +202,10 @@ Why this shape:
 
 ---
 
-## Open questions
-
-| # | Question |
-|---|---|
-| 1 | What is the realistic upper bound on items in one collection, per tenant? **Blocks everything else here** |
-| 2 | Is the 500-folder synchronous limit right? It is a guess on a proxy — folder count, not item count — so a wide-but-shallow folder with very many items still passes it and can still 504 |
-| 3 | Should the *collection* archive also get a size refusal? It has no pre-flight guard at all, and on dev/qa/staging it runs in-request (**X-11.19**), so it hits the same 29s wall with none of the protection |
-| 4 | Does a completed run record become the audit trail for "this collection was archived on this date, comprising N items"? For regulated records that may be worth more than the performance |
-
----
-
 ## Related
 
 - [`archive-cascade-review-2026-08-25.md`](./archive-cascade-review-2026-08-25.md) — the correctness review; open question 1 is answered there
 - `../../plans/archive-cascade/archive-cascade-review-2026-08-25.md` — the plan, where Tier 1 is recorded
 - `../../plans/prod-readiness/prod-readiness-gate.md` — X-11.19 and X-11.41 are gate rows
-- `../projection-rebuild/` — parked, and shares the "no lag metric, divergence is discovered not detected" problem named in § What to do first
+- `../projection-rebuild/` — parked, and shares the "no lag metric, divergence is discovered not detected" problem named in § Recommended sequencing
 - `docs/spec/contexts/Catalog/sagas/archive-fan-out.md` (magiq-media repo) — the behaviour spec, current as of 2026-08-27

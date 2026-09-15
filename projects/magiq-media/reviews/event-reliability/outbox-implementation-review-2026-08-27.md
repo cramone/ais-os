@@ -14,6 +14,8 @@ created: 2026-08-27
 
 # Implementing `IOutbox` — what adopting it would actually involve
 
+## Scope
+
 _Opened 2026-08-27, from **gate decision 6** and open question 1 of
 [`event-reliability-review-2026-08-25.md`](./event-reliability-review-2026-08-25.md). Scope: **X-3.1,
 X-9.3 and X-11.44** — all three moved here from `plans/spec-drift-review/spec-repo-drift-review.md` on
@@ -77,9 +79,9 @@ would have made new messages invisible to a sparse GSI) and it is not. The deque
 
 ---
 
-## The defects
+## Findings
 
-### O-1 🔴 A sent message is never marked sent — unbounded duplicate publication
+### O-1 · Critical — A sent message is never marked sent, giving unbounded duplicate publication
 
 **`IOutboxStore.MarkAsProcessedAsync` and `EnqueueFailedMessagesAsync` are implemented on both stores and
 called by nothing.** Verified by grep across the entire platform: the only `MarkAsProcessedAsync` call site
@@ -98,7 +100,7 @@ enqueued.** The 7-day TTL is also never set, so nothing ages out.
 For magiq-media this would mean every domain event replayed into `media-domain-events` on every drain
 cycle, forever, hitting every projector.
 
-### O-2 🔴 Nothing invokes the drain
+### O-2 · Critical — Nothing invokes the drain
 
 `IOutboxMessageProcessor` has **exactly one reference in the platform** — its own DI registration in
 `MessagingBuilderExtensions.cs:31`. `ProcessAsync` is a plain method: no `BackgroundService`, no
@@ -113,7 +115,7 @@ exists.
 Whoever adopts this must build the scheduler. That is a design decision, not a wiring task — see open
 question 2.
 
-### O-3 🟠 `Outbox.EnqueueAsync` swallows its exceptions
+### O-3 · High — `Outbox.EnqueueAsync` swallows its exceptions
 
 ```csharp
 try  { await _retryPolicy.ExecuteAsync(() => store.EnqueueAsync(outboxLogicalMessages, cancellationToken)); }
@@ -134,7 +136,7 @@ that signal disappears.
 
 Fix is one line — rethrow — but it is a platform change and it changes behaviour for any future adopter.
 
-### O-4 🟠 One constant partition key for every message and every tenant
+### O-4 · High — One constant partition key for every message and every tenant
 
 `DynamoDbOutboxTableSchema.PartitionKeyValue = "OUTBOX"`. Every item: `PK = "OUTBOX"`, `SK = "MSG#{id}"`.
 The GSI partitions on the same constant.
@@ -152,14 +154,14 @@ multi-tenant records platform for government. The `TenantId` *is* carried in `Me
 works — but that is a payload field, not a partition boundary. This needs a deliberate decision and
 probably a sign-off, not a shrug.
 
-### O-5 🟡 No lease or claim on dequeue
+### O-5 · Medium — No lease or claim on dequeue
 
 `DequeueNextBatchAsync` queries and returns; it does not mark, lease, or conditionally claim. Two
 concurrent drains return the same batch and both publish it. Tolerable under at-least-once delivery *if*
 O-1 is fixed — and unbounded if it is not. It also constrains the answer to open question 2: the drain must
 be a singleton, or claiming must be added.
 
-### O-6 ⚪ `Console.WriteLine` in the retry callback
+### O-6 · Low — `Console.WriteLine` in the retry callback
 
 `Outbox`'s Polly `onRetry` writes to `Console`. The platform's own `CLAUDE.md` says *"Use `ILogger<T>` —
 never `Console.Write` or static loggers."* Trivial, but it is a fair signal about how much production
@@ -230,7 +232,7 @@ is an SDK change affecting every consuming application.
 
 ---
 
-## Open questions for the session that picks this up
+## Open Questions
 
 | # | Question |
 |---|---|
@@ -242,7 +244,14 @@ is an SDK change affecting every consuming application.
 
 ---
 
-## Sequencing
+## Dependencies
+
+- [`event-reliability-review-2026-08-25.md`](./event-reliability-review-2026-08-25.md) (MM-030) — the parent review; this was opened from its gate decision 6 and open question 1.
+- External blocker: the work is almost entirely in `aspnetcore-platform` — O-1…O-6 are platform-repo changes, and who owns them is open question 1.
+
+---
+
+## Recommended sequencing
 
 ```
 0. Gate decision 7 — the divergence metric.

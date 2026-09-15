@@ -1,0 +1,7 @@
+{
+  "enabledMcpjsonServers": [
+    "hermes",
+    "azure-devops"
+  ],
+  "enableAllProjectMcpServers": true
+}

@@ -14,6 +14,8 @@ created: 2026-08-25
 
 # Asset Custody — review
 
+## Scope
+
 _Opened 2026-08-25. **Parked deliberately** — raised while classifying `Asset` for the ownership ADR during
 W22 follow-up, and split out so the spec-drift work could continue. Nothing here is started._
 
@@ -32,7 +34,9 @@ code. This one changes code.**
 
 ---
 
-## The model — decided, not built
+## Findings
+
+### The model — decided, not built
 
 An asset is the only aggregate here that can exist attached to nothing. Something must still be responsible
 for it.
@@ -60,7 +64,7 @@ ADR already defines:
 
 ---
 
-## The blocker — X-11.32
+### The blocker — X-11.32
 
 **Custody cannot transfer on detach, because detach never reaches the Asset aggregate.**
 
@@ -83,7 +87,30 @@ ADR already defines:
 
 ---
 
-## Sequencing — this is the part that matters
+## Open Questions
+
+_For whoever picks this up._
+
+| # | Question | Status |
+|---|---|---|
+| 1 | Who holds custody of an asset that is *never* assigned — the uploader indefinitely, or does it expire? | **Open** |
+| 2 | On detach, does custody go to the detaching actor, or back to the uploader? *(The stated intent is the detaching actor.)* | **Open** |
+| 3 | What happens to custody when an asset is promoted to `VersionArtifact` and later released? `VersionArtifactHolders` is a separate hold mechanism and may already answer this | **Open** |
+| 4 | Does detach need its own command and endpoint, or is consuming `AssetUnassignedFromRole` sufficient? The dead `DetachAssetFromMediaItemCommand` suggests the first was once intended | **Open** |
+| 5 | Should `MediaItemId` becoming null on detach be surfaced on the read model, so a client can list "my unassigned assets"? That is the screen the whole model implies and it does not exist | **Open** |
+
+---
+
+## Dependencies
+
+- **MM-022** — `plans/spec-drift-review/spec-repo-drift-review.md`, which carries **X-11.32** (the blocker), **X-11.33**, and **X-11.30** for the authorization context
+- `docs/adrs/ownership-and-authorization.md` (magiq-media repo) — the decision this review implements; no document id
+- `docs/spec/shared/authorization-matrix.md` (magiq-media repo) — what the 8 `AssetOwnership` guards actually cover; no document id
+- External blocker: none. **X-11.32 is the blocker and it is in this repo.**
+
+---
+
+## Recommended sequencing
 
 **Three things, and the order is not negotiable:**
 
@@ -102,16 +129,6 @@ The Asset-side handler runs in the **`EventConsumers`** host, which has **no HTT
 detaching user's identity must travel on the integration event**, or the consumer has nobody to transfer
 custody to. **Decide this when shaping the event, not afterwards** — it is the one choice that is expensive
 to change later.
-
-### Open questions for whoever picks this up
-
-| # | Question |
-|---|---|
-| 1 | Who holds custody of an asset that is *never* assigned — the uploader indefinitely, or does it expire? |
-| 2 | On detach, does custody go to the detaching actor, or back to the uploader? *(The stated intent is the detaching actor.)* |
-| 3 | What happens to custody when an asset is promoted to `VersionArtifact` and later released? `VersionArtifactHolders` is a separate hold mechanism and may already answer this |
-| 4 | Does detach need its own command and endpoint, or is consuming `AssetUnassignedFromRole` sufficient? The dead `DetachAssetFromMediaItemCommand` suggests the first was once intended |
-| 5 | Should `MediaItemId` becoming null on detach be surfaced on the read model, so a client can list "my unassigned assets"? That is the screen the whole model implies and it does not exist |
 
 ---
 

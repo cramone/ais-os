@@ -3,12 +3,12 @@ id: MM-006
 type: gate
 project: magiq-media
 workstream: prod-readiness
-consumes: []
+consumes: [MM-022, MM-026, MM-029]
 supersedes: -
 status: active
 todo-id: eecf8c43-1452-5bef-9920-42fbe4712d27
 created: 2026-08-25
-exception: consumes is empty only because the plans this gate triages — authorization, archive-cascade, event-reliability, spec-drift-review — are still legacy and carry no ids yet. Add each id here as that workstream is backfilled. A gate legitimately has no review, which is not the exception.
+exception: consumes is short one workstream. Backfilled 2026-09-14 with MM-029 (authorization), MM-026 (archive-cascade) and MM-022 (spec-drift-review, which is review and plan in one — the gate's findings all come from it). event-reliability is still missing because it has no plan: MM-030 is findings-agreed with outcome pending, and MM-035 is a draft review. Add that id when the plan is written. A gate legitimately has no review, which is not the exception.
 ---
 
 # Production Readiness Gate

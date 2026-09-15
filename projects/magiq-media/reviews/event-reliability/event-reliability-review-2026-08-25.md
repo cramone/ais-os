@@ -14,7 +14,9 @@ created: 2026-08-25
 
 # Event reliability — three ways work disappears silently
 
-_Opened 2026-08-25 from the spec-drift review (W19, W25). **Two 🟠 gate blockers.** This was the
+## Scope
+
+_Opened 2026-08-25 from the spec-drift review (W19, W25). **Two gate blockers.** This was the
 thinnest-documented workstream and contains what is arguably the most consequential finding on the gate._
 
 ---
@@ -29,7 +31,9 @@ None of them is theoretical. All three are read directly from source.
 
 ---
 
-## X-11.6 — the saga DLQ is unreachable ☑ **fixed 2026-08-27**
+## Findings
+
+### X-11.6 — the saga DLQ is unreachable ☑ **fixed 2026-08-27**
 
 > **☑ Closed 2026-08-27.** The rule is written into `docs/spec/shared/saga-patterns.md` § *Failure
 > handling* (in the magiq-media repo), and applied to all five pairs. Inner handlers no longer catch at all; the outer
@@ -78,7 +82,7 @@ Only errors *outside* the handler can DLQ — cold start, DI resolution, AWS.Mes
 `Processing.WriteModel/IntegrationEvents/Consuming/Handlers/*SagaHandler.cs` ·
 `hosts/SagaOrchestrator/AssetIngestion/Handlers/*SagaHandler.cs`
 
-### The boundary of this fix — established while making it
+#### The boundary of this fix — established while making it
 
 **A rejected command never reaches any catch, so propagation cannot surface it.** The saga dispatches via
 `ICommandDispatcher.SendAsync(ICommand)` — the **non-generic** overload, which returns bare `Task` and
@@ -98,7 +102,7 @@ Two things follow, and both are good news for sequencing:
 
 ---
 
-## X-11.44 — there is no outbox 🟠
+### X-11.44 — there is no outbox · High
 
 Domain events are published to SNS **after** the event store commits, inside the same request. **The
 ordering is deliberate and correct** — the code says so:
@@ -123,7 +127,7 @@ What should not persist is a documented platform rule that the app silently cont
 
 `Api/Infrastructure/Middleware/DomainEventPublishingMiddleware.cs`
 
-### ⚠ Correction 2026-08-27 — the cost *was* written down, and what it says is wrong
+#### ⚠ Correction 2026-08-27 — the cost *was* written down, and what it says is wrong
 
 **The premise "this consequence was never written down" does not survive reading ADR-005.** It is written
 down, at `docs/adrs/persistence-and-eventing.md:60`, under *Accepted trade-off — dual-write risk*. That
@@ -140,7 +144,7 @@ a revisit trigger that cannot fire.** Three specific defects in that paragraph:
 job than adopting an outbox and a strictly necessary one either way, because the ADR currently tells the
 next reader that a safety net exists.
 
-### And the platform's outbox does not do what ADR-005 assumes
+#### And the platform's outbox does not do what ADR-005 assumes
 
 ADR-005 describes the future option as *"writing the event to a `media-outbox` DynamoDB table **in the same
 transaction as** the event-store write"*. **The platform SDK cannot do that today:**
@@ -166,7 +170,7 @@ application, not a magiq-media-local change.
 
 ---
 
-## X-11.5 — compensation is not idempotent, despite its comment ☑ **core fixed 2026-08-27**
+### X-11.5 — compensation is not idempotent, despite its comment ☑ **core fixed 2026-08-27**
 
 > **☑ The compensation defect is closed 2026-08-27. Two related gaps in the same file remain open** — see
 > *Still open* at the end of this section. ⚠️ **Written without a compiler; not properly closed until
@@ -195,7 +199,7 @@ application, not a magiq-media-local change.
 > refused. That is a sharper failure than X-11.16's *no* tests: here the tests existed, passed, and locked
 > the bug in. Both replaced, plus six new cases covering each arm of the state machine.
 
-### Original finding
+#### Original finding
 
 `AssetIngestionSaga`'s comment: *"Safe to call on an already-terminal aggregate — `FailProcessingJobCommand`
 is a no-op."*
@@ -218,7 +222,7 @@ Asset shows `Failed`.
   serial; **it becomes real the moment a saga handles genuinely concurrent events**, which is exactly what
   a signing saga would do.
 
-### Still open in this finding — deliberately not taken 2026-08-27
+#### Still open in this finding — deliberately not taken 2026-08-27
 
 Both remaining gaps are **separable from the compensation defect** and were left rather than bundled:
 
@@ -252,7 +256,7 @@ can be reproduced outside production.**
 
 ---
 
-## Open questions
+## Open Questions
 
 | # | Question |
 |---|---|
@@ -307,7 +311,14 @@ the finding in everyone's mind while the window is still open.
 
 ---
 
-## Sequencing
+## Dependencies
+
+- `reviews/projection-rebuild/` — the repair path X-11.44 depends on, and shares open question 4.
+- [`outbox-implementation-review-2026-08-27.md`](./outbox-implementation-review-2026-08-27.md) (MM-035) — read before re-opening the option B decision.
+
+---
+
+## Recommended sequencing
 
 ```
 1. X-11.6 — the handler-layer rule, applied to all five pairs   ☑ done 2026-08-27

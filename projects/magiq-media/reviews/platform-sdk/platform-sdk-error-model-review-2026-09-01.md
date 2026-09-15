@@ -6,7 +6,7 @@ workstream: platform-sdk
 raised-by: [MM-022]
 status: findings-agreed
 outcome: pending
-todo-id: -
+todo-id: 2a10ffeb-52b6-5959-aed7-2214367cd174
 created: 2026-09-01
 ---
 
@@ -17,6 +17,8 @@ created: 2026-09-01
 > for weeks; what they have never had is a home.
 
 # Platform SDK — five gaps the consuming app works around
+
+## Scope
 
 _Everything here belongs in **`aspnetcore-platform`**, not `magiq-media`. Each is something more than one
 bounded context needs and the platform does not provide, so each has been worked around locally._
@@ -77,7 +79,9 @@ twice already, and ChangeRequests and DocumentSigning will each want a third cop
 _Was three; **N.2.4** was added 2026-08-23. Unlike the first three it has no local workaround, which is
 why it changed what CR-11 could implement._
 
-## N.2.1 There is no generic `Conflict` factory
+## Findings
+
+### N.2.1 There is no generic `Conflict` factory
 
 _The `N.2.x` numbering is kept deliberately: MM-022's archive and several correction notes cite these ids, and renaming them would orphan those references._
 
@@ -98,7 +102,7 @@ with an explanatory comment attached in two repositories' worth of aggregate cod
 - `magiq-media/src/modules/Registration/Registrations.Domain/Aggregates/DomainErrors.cs` — third copy,
   added 2026-08-22 (R-13)
 
-## N.2.2 `DomainError` has no error-code concept
+### N.2.2 `DomainError` has no error-code concept
 
 `DomainError` carries an `ErrorType`, which fixes the HTTP status and says nothing about *which* rule
 refused. The platform documents `extensions.errorCode` as the convention — every error catalog in
@@ -117,7 +121,7 @@ a module cannot reference another module's Domain project:
 **Three copies is the point at which this stops being a workaround and starts being a convention.**
 ChangeRequests and DocumentSigning will each want a fourth and a fifth.
 
-## N.2.3 `IProblemDetailsFactory` cannot see a `DomainError` at all
+### N.2.3 `IProblemDetailsFactory` cannot see a `DomainError` at all
 
 This is the deepest of the three and the reason the first two only half-work.
 
@@ -142,7 +146,7 @@ pipeline, and anything not using FastEndpoints would silently drop it. `WithMeta
 API — is on the same footing: `RecordTypeAliasNotUnique` attaches `alias` and
 `UnrecognisedCapabilityType` attaches `capabilityType`, and **neither reaches the client today**.
 
-## N.2.4 An index query cannot filter — `Matches` is dead against DynamoDB
+### N.2.4 An index query cannot filter — `Matches` is dead against DynamoDB
 
 _Found 2026-08-23 during CR-11._
 
@@ -187,7 +191,7 @@ interacts badly with pagination — a page can come back nearly empty while `Las
 set. Whoever implements this should decide how the pager reports that, rather than leaving each caller
 to discover it.
 
-## N.2.5 `IReadModelReader` cannot list one parent's children
+### N.2.5 `IReadModelReader` cannot list one parent's children
 
 _Found 2026-08-23 during CR-20._
 
@@ -215,6 +219,19 @@ So a handler that needs a parent's children has three options, and all three are
 `ReadModelReader<T>`, forwarding to the store exactly as the tenant-wide one does. It is a four-line
 change with no behavioural risk, and it removes the only reason a query handler currently reaches past
 the reader.
+
+## Open Questions
+
+None — the one open decision, the layering edge gating Change 3, was decided 2026-09-01 (a new `Magiq.AspNetCore.FastEndpoints.Errors` package).
+
+## Dependencies
+
+- MM-022 — `plans/spec-drift-review/spec-repo-drift-review.md` § N.2, which this review was split out of on 2026-09-01.
+- External blocker: every change here lands in `aspnetcore-platform`, not `magiq-media`.
+
+## Recommended sequencing
+
+The prompt's own order — Change 1, Change 2, Change 3 in `aspnetcore-platform`, then the consuming-app follow-up in `magiq-media`; the plan refines it.
 
 ## Prompt for the `aspnetcore-platform` repo
 

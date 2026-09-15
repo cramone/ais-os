@@ -5,8 +5,8 @@ project: magiq-media
 workstream: document-signing
 raised-by: [MM-022]
 status: parked
-outcome: pending
-todo-id: -
+outcome: parked
+todo-id: 30d95f56-eec6-5d89-ab1d-437732e065d1
 created: 2026-09-01
 ---
 
@@ -20,6 +20,8 @@ created: 2026-09-01
 > otherwise complete.
 
 # DocumentSigning — a specced bounded context that is a skeleton
+
+## Scope
 
 _Scope: the whole `DocumentSigning` module — 7 spec files, **1,537 lines**, describing 12 routes, 9
 commands, an aggregate, a saga and a timeout scanner. **None of it is implemented.**_
@@ -71,7 +73,9 @@ projectors, all 3 query handlers, the saga, the timeout scanner, and the webhook
 
 ---
 
-## Findings — carried over intact
+## Findings
+
+_Carried over intact from MM-022 § H._
 
 _Row bodies are unchanged from the drift review; only their home has moved._
 
@@ -151,6 +155,25 @@ The real fork:
 decision:** DS-1 and DS-12 are publish-honesty, and the fix is two banners. The drift review classified
 them under *"caveat or relocate the spec files that describe absent code, so published contracts stop
 reading as shipped."* That is still the right call, and it does not pre-empt anything.
+
+---
+
+## Open Questions
+
+None — eleven of the twelve findings resolve the moment the module is either built or withdrawn, and none can be closed independently while the module is a skeleton.
+
+---
+
+## Dependencies
+
+- MM-022 — `plans/spec-drift-review/spec-repo-drift-review.md` § H, which this review was split out of on 2026-09-01, carrying DS-1…DS-12 plus X-11.12 and X-11.13.
+- External blocker: none.
+
+---
+
+## Recommended sequencing
+
+See § The decision this review is parked on — DS-1 and DS-12 are publish-honesty and are the one part that should not wait for the build-or-withdraw decision; the plan refines the ordering from there.
 
 ---
 

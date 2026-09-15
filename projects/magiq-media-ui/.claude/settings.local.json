@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /tmp)",
+      "Bash(python subset2.py)",
+      "Bash(awk '{print $5\" bytes\"}')"
+    ]
+  }
+}
