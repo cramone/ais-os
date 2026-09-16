@@ -137,8 +137,10 @@ Indexed in `Catalog/business-scenarios.md`; **the scenario files do not exist in
 | BFI-1..3 | Bulk folder import | BulkFolderImportJob |
 | BMI-1..3 | Bulk media import | BulkMediaImportJob |
 
-Two fully specified aggregates with no class, no command, no projector, no queue, no table, no route.
-Build / delete / badge-as-design is an open decision — see `todos.md` § Two decisions blocking code work.
+**Removed from the spec 2026-09-16** (`MM-001` Q2). Both aggregates were fully specified with no class,
+no command, no projector, no queue, no table and no route behind them; the specified inventory is now
+eleven aggregates. They are re-specified when they are genuinely designed. The inline bulk *endpoints* are
+a different thing and are unaffected.
 
 ---
 
@@ -341,7 +343,7 @@ maintained on every job event.
 | Gap | Why needed |
 |---|---|
 | BULK-1 | Bulk archive MediaItems — operational need; admins process batches |
-| BULK-3 | Bulk delete MediaItems — the `FolderDeleteFanoutWorker` command is outstanding (see `todos.md`) |
+| BULK-3 | Bulk delete MediaItems — the `FolderDeleteFanoutWorker` command is outstanding (ADO `Media` #35086) |
 | BULK-4 | Bulk content export — scope and UI involvement undefined (see `notes.md`) |
 
 ---

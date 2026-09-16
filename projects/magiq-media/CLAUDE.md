@@ -75,7 +75,7 @@ High
 | `brief.md` | Project summary, team, stack, active ADO work |
 | `architecture.md` | Architecture overview |
 | `use-cases.md` | Use case catalogue |
-| `todos.md` | Active todo items |
+| `deploy-runbook.md` | Deploy model, scenarios, and the outstanding deploy/ops checklist (§ Implementation status) |
 | `MEMORY.md` | External memory — read at session start |
 | `plans/` | All plans — in-flight/pre-decision design work *and* point-in-time, cross-cutting implementation plans (e.g. spec-remediation checklists). **One subfolder per workstream since 2026-08-24** — start at `plans/README.md`, which indexes every plan with its status |
 | `plans/README.md` | Index of the plan folders: what each workstream is, which plan is live, what is parked or superseded |
@@ -137,9 +137,14 @@ an AI agent; who decided, and when.
 When a spec is wrong, **fix the statement and delete the wrong one** — the diff is the history. A
 removed feature is simply absent from the spec, never documented as removed.
 
-Where it goes instead: rationale → `docs/adrs/` · build status → the `Media` ADO board · findings and
-evidence → `reviews/<workstream>/` · open questions and tracking → `plans/`, `todos.md` · durable
-session facts → `MEMORY.md`.
+Where it goes instead: rationale → `docs/adrs/` · build status and discrete work items → the `Media` ADO
+board · findings and evidence → `reviews/<workstream>/` · open questions and tracking → `plans/` · deploy
+and ops checklists → `deploy-runbook.md` · durable session facts → `MEMORY.md`.
+
+> `todos.md` was retired 2026-09-16. It had become a parallel backlog citing a drift register that no
+> longer exists, and nothing read it — the Control Tower store superseded it months earlier. Its contents
+> were split by type across the four homes above. **Do not recreate it:** a second place to record open
+> work is how the first one goes stale.
 
 A review may quote a spec file; a spec file may never cite a review. If a remediation item cannot be
 written without naming a finding id, the rule to fix belongs in the spec stated **in its own terms**,

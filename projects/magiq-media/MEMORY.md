@@ -17,8 +17,13 @@ _Last updated: 2026-09-16_
   reader or AI agent; who decided and when. Fix the statement and delete the wrong one — the diff is
   the history; a removed feature is simply absent, never documented as removed. Homes: rationale →
   `docs/adrs/` · build status → `Media` ADO board and the repo `CLAUDE.md` § Known deferred/partial
-  work · findings → `reviews/` · open questions → `plans/`/`todos.md` · durable facts → here. Full
-  rule: repo `CLAUDE.md` § Spec files state the specified system.
+  work · findings → `reviews/` · open questions → `plans/` · deploy and ops checklists →
+  `deploy-runbook.md` · durable facts → here. Full rule: repo `CLAUDE.md` § Spec files state the
+  specified system.
+- **`todos.md` was retired 2026-09-16** and must not be recreated. It had become a parallel backlog citing
+  a drift register that no longer exists. Contents split by type: deploy/ops → `deploy-runbook.md`
+  § Implementation status items 12–16; four concrete fixes → ADO `Media` #35083–#35086; five code-defect
+  clusters → review `MM-002`. Open work lives on the Control Tower board and in `reviews/`/`plans/`.
 - **A review may quote a spec file; a spec file may never cite a review.** If a remediation item can't
   be written without naming a finding id, restate the rule in its own terms in the spec and keep the
   id on the plan side.

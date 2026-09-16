@@ -52,7 +52,9 @@ reference to an `MM-` id above `MM-001`, it is stale and names nothing.
 - **Application code, CDK and tests.** This review is about documents. Do not read code to settle a finding —
   if a question needs code, say so and stop.
 - **Fixing anything during the review.** A review argues; a plan sequences; execution happens after both.
-- **`Z:\claudia\magiq\projects\magiq-media\todos.md`** — legacy, inert, superseded by the tower store.
+- **Code defects.** `MM-002` (`reviews/code-defects/`) holds the code-side work carried out of the retired
+  `todos.md`. It overlaps this review on authorization and the boundary matters: **MM-001 fixes a spec that
+  never stated a rule; MM-002 fixes code that does not enforce one.** Neither closes the other.
 
 ## Working the findings
 
@@ -93,8 +95,12 @@ that row is wrong.
 `shared/authorization-matrix.md` is retired as a source of truth — but only in phase 4c, after the per-endpoint
 mapping covers every route it names. Do not delete it early.
 
-**Nine `**Open**` questions remain**, and they are tiered by blast radius — tier 1 (three scope calls) changes
-the finding list itself and is answered first; tier 4 (ADR shape) is answered last. Work them in that order.
+**All ten questions are Answered as of 2026-09-16 — zero `**Open**` markers remain.** Read § Open Questions
+in full before touching anything: four of the ten are decisions with rejected alternatives recorded, and the
+reasoning is the thing that stops them being re-litigated. Do not reopen one without saying so explicitly.
+
+**The only thing still gating the plan is Chase moving the review to `findings-agreed`.** That is his call and
+never an inference — not from the question count, and not from how complete the review looks.
 
 Two questions an earlier draft carried — signer routing, and what identifies a signing session's owner — have
 been **removed from § Open Questions on purpose**. They are findings (SB-35/SB-31 and SB-12), designed in

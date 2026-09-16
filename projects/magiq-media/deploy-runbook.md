@@ -298,3 +298,49 @@ neither, so it needs a manual seeding pass before the normal flow takes over.
     upgrading the org to GitHub Team+, or building an equivalent check
     outside GitHub's native environment protection (e.g., a manual approval
     step via a different tool). Worth a decision, not just a checkbox.
+
+12. **Cross-account ECR pull rights are not confirmed.** ECR stays central
+    in `738608577325` and every environment pushes there, so each env
+    account's `GitHubOidcMagiqMediaRole` needs pull rights on that registry
+    — both the ECR repository policy and the role's trust. Item 6 confirms
+    the role ARNs are configured per environment; it does not confirm any
+    of them can actually pull. A deploy to a fresh account fails here
+    first, and the failure looks like a missing image rather than a
+    permissions problem.
+
+13. **The CDK deploys eight hosts; magiq-media builds nine.**
+    `SagaOrchestrator.DocumentSigning` (`saga-document-signing`) is built
+    and pushed on every commit and has no `ecrCode(...)` entry in
+    cdk-magiq-media's `magiq-media-stack.ts`, so nothing deploys it. Wire
+    it when the signing host is ready; until then the gap is deliberate and
+    worth knowing so nobody debugs a missing Lambda that was never asked
+    for.
+
+14. **Verify the OIDC role name per account.** Everything above assumes the
+    role is `GitHubOidcMagiqMediaRole` in all four accounts. That is an
+    assumption carried forward from the original design, not a checked
+    fact, and it is cheap to confirm before the first staging deploy.
+
+15. **Staging account readiness is unconfirmed.** Item 6 confirms the
+    GitHub Environment exists with the right `AWS_DEPLOY_ROLE_ARN`
+    (`727517389921`). It does not confirm the AWS account itself is
+    provisioned with the OIDC role and ready to accept a deploy. Those are
+    two different things and only the first has been checked.
+
+16. **Model A is chosen but only half-adopted — worth an ADR.** One AWS
+    account per environment is the decision; `dev`, `qa` and `prod` still
+    share `738608577325`'s registry, and the accounts table shows prod as
+    its own account while the shared-ECR model persists. **Prod sharing
+    infrastructure with non-prod is the higher-risk piece**, and the full
+    multi-account rollout is a decision with a rejected alternative, not a
+    checklist item. It belongs in `docs/adrs/` in the app repo, alongside
+    `deployment-and-resource-naming.md`, rather than here.
+
+> Items 12–16 were carried over from `projects/magiq-media/todos.md` when
+> that file was retired. Everything else in that file's deploy sections was
+> either already covered above or had been overtaken: it described the deploy
+> as `repository_dispatch` with a `client_payload`, which item 3 replaced with
+> the git-driven config commit, and it listed "add a required-reviewer
+> protection rule" for staging and prod, which item 11 records as impossible
+> on this plan. Where the two disagreed, this file was the newer and correct
+> one.
