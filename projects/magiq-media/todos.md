@@ -1,75 +1,11 @@
 # Todos — magiq-media
 
-## Where the plans live (reorganised 2026-08-24)
-_Captured: 2026-08-24_
-_Status: reference — not a todo_
+_Reset 2026-09-15. The `reviews/` and `plans/` trees were removed, so every workstream table, `MM-` id
+and review/plan pointer has been stripped. What remains is the work itself — carried forward verbatim,
+with dead file references removed._
 
-`plans/` is now one subfolder per workstream, indexed by `plans/README.md`. Live entry points:
-
-| Workstream | Folder | Entry point | State |
-|---|---|---|---|
-| Spec ↔ repo drift | `plans/spec-drift-review/` | `spec-repo-drift-review.md` → **§ Execution plan** | **Active** — **18** open rows, all code. ▶ **Review and plan in one; work one wave per session and log it.** **Wave 0 is yours and is not code:** send `magiq-auth-role-claims-requirements.md`, and answer gate decisions 1 and 7. *(69 at the start of 2026-09-01. Four workstreams split out, P-2/P-3 to ADO, then Waves 1, 2, 5, 6 and 7 worked. Plan against the row states, not the headline — it has been wrong three times.)* |
-| Bulk import | `reviews/bulk-import/` | MM-036 (folder) · MM-037 (media) | **Draft, no plan** — split from the drift review 2026-09-01. A build-or-withdraw decision on two fully-specced aggregates with no code. **Yours to make.** |
-| Document signing | `reviews/document-signing/` | MM-038 | **Parked** — split from the drift review 2026-09-01, already parked by your decision. The two publish-honesty banners are worth doing either way. |
-| Platform SDK | `reviews/platform-sdk/` | MM-039 | **Findings agreed, no plan** — split from the drift review 2026-09-01. Five gaps in `aspnetcore-platform`; the error-model one deletes **five** duplicated `DomainErrorCodes.cs` files and closes X-10.3. You chose the new `Magiq.AspNetCore.FastEndpoints.Errors` package. |
-| Domain flow | `plans/domain-flow/` | MM-040 (review) → MM-041 (plan) | **Active — Phase 0 decided 2026-09-14, Phases 1–3 done.** All four calls taken: D1 obligation (+ new `Discharged` state; X-11.40 → delete), D2 make the gate real, D3 sequence behind the migration, D4 six triggers. 20 spec/ADR files edited in `mgq-magiq-media\docs\`. **DF-18 and a third of DF-17 closed as by-products.** **Closed 2026-09-14** — MM-040 `done`/`plan`, MM-041 `done`, docs-only PR pushed. Also decided that day: *the spec is the target, and where source does not match it, source moves.* **The code was dropped from the plan and is unowned**, so ⚠ **all four defects are still live in the running system** — a successful registration still locks its folder permanently. Two bookkeeping items need a shell: record the branch in MM-041's `branches:`, and write the Control Tower card comment. |
-| Aggregate design | `reviews/aggregate-design/` | MM-042 ⚠ *id by hand — verify* | **Findings agreed 2026-09-14 — plannable, no plan yet.** A pure design check: **spec only, no code read**, authz out of scope, records-management lens throughout. Ten passes, 41 findings, **24 decisions (DEC-1…DEC-24)**, five roots all remedied. Pass 10 reviewed the **decided** design and found six more — incl. *a record could be declared with no human review*. Headline gaps closed by decision: **no fixity value anywhere** (capture digest + version manifest), **legal hold inexpressible** (first-class hold), **disposition had no terminus** (`PurgeVersion` becomes a named refusable act), retention and classification move to the **item**, and the edit lock now covers **custody**. ▶ **The plan starts at unit 0** — correct the retention text, because DEC-1 supersedes MM-041's D3 and until then the spec carries **two incompatible retention placements**. **AD-21 is the named residue.** Karen Barton consulted on retention placement. |
-| Architecture-review remediation | `plans/architecture-review-remediation/` | `COWORK-EXECUTION-INSTRUCTIONS.md` → `IMPLEMENTATION-PLAN.md` | Active — 169 ADO items, nothing started |
-| Authz + outbox | `plans/architecture-review-remediation/` | `architecture-review-authz-and-outbox-deferred-plan.md` | **Parked** — deferred in sequencing only, both are pre-prod gates |
-| Projection tables | `plans/projection-tables/` | `schema-versioned-projection-tables-plan.md` | Proposed — supersedes the hot-swap rotation plan beside it |
-| Deployment naming | `plans/deployment-naming/` | `remove-env-suffix-plan.md` | **Done** 2026-09-01 — all 4 decisions resolved; ADR written, DN-1/DN-4 closed |
-| Design | `plans/design/` | `mediaitem-edit-session-design.html` | Active |
-
-Finished workstreams leave these trees for `_archive/plans/<id>-<workstream>/` and
-`_archive/reviews/<id>-<workstream>/`; pre-id archives sit under `_archive/<tree>/_legacy/`.
-
-`reviews/` mirrors this exactly — same workstream folder names, indexed by `reviews/README.md`. Work
-goes **review first, then plan**, and new plans take their review's filename so the pair stays traceable
-after archiving; see `CLAUDE.md § Review → Plan`. The eleven 2026-07 architecture reviews are the one
-many-to-one case: `reviews/architecture-review-remediation/` → the single plan set of the same name.
-
-The DDD coverage review's plan of the same name in `plans/spec-drift-review/` is **Done** (2026-08-25) —
-see the closed todo below.
-
----
-
-## ~~Decide the six questions blocking the DDD remediation plan~~
-_Captured: 2026-08-24_
-_Status: **DONE 2026-08-25** — all six decided; plan MM-024 ran to completion the same day. Closed here 2026-09-01._
-
-All six decisions in `plans/spec-drift-review/spec-ddd-coverage-review-2026-08-24.md` §3 are resolved, and
-the plan they gated is finished — 31 units, W0–W30. How they landed:
-
-- **D1 — authority model.** *Merge, don't banner.* `service-boundaries.md` + `bounded-context.md` →
-  `architecture/bounded-contexts.md`, **both sources deleted**, carrying over the context-relationship
-  types table (the only one in the tree). The runtime half moved to `system-architecture.md`.
-- **D3 — integration event naming.** **`media.item.*` — the code wins**, no alias, ADR written into
-  `adrs/persistence-and-eventing.md`. The sweep found this was not a spelling fix: `media.mediaitem.published`
-  was the wrong *event* — there is no `media.item.published`, a MediaItem going live raises
-  `media.item.approved`. A find-and-replace would have invented three references to a nonexistent event.
-- **D2** search history first (15 of 17 tails recovered), **D4** premise was false — one nine-value
-  `Capability` enum, no restricted list, so no decision was needed, **D5** comprehensive not subset —
-  which is what surfaced that **86 of 132 commands are unguarded**, and **D6** yes, W20 owned the
-  `MediaItemReviewSaga` deletion — where "never built" turned out to be false; it shipped and was deleted
-  2026-06-02.
-
-**The truncation note that stood here is closed too.** It read "the tails are not in git and not in the wiki — they
-have to be rewritten from the code." That was wrong: enumerating *every* blob in both repos
-(`git rev-list --objects --all` + `git fsck --dangling`, comparing **tails not sizes**) recovered 15 of 17,
-**seven of them only from `Media.wiki`'s history** — see the plan's §9.4 for the method. The re-cutting was
-real and is now guarded: `docs-guard.yml` fails any `docs/**` PR ending a spec file mid-construct, and the
-never-rewrite-a-whole-file rule is in both `CLAUDE.md` files.
-
-**Two decisions did fall out of the plan and are still yours** — both in `docs/spec/open-questions.md`,
-neither blocking: **Q-4** ⚖️ infected object, where the evidence-destroying hard-delete is the path that
-ships and `media-quarantine` is provisioned but unwired; and **Q-11** 🔒 MediaProfile scope, where the
-authorization table promises an owner check the code does not perform.
-
----
-
-**Stale reference I could not fix:** the Cowork project instructions point at
-`plans\docs-migration-plan.md`; it is now `plans\Archive\docs-migration-plan.md`. Needs editing in the
-project settings.
+Standing reports that are **not** todos and are not indexed here live in `adhoc/`:
+Catalog, Processing, Registration and DocumentSigning code defects and open decisions (2026-09-07/08).
 
 ---
 
@@ -77,9 +13,7 @@ project settings.
 _Captured: 2026-08-24_
 _Status: todo — code written, never executed_
 
-Both came out of the drift review on 2026-08-24 and are **written but not built or run** — no .NET
-toolchain in the session that wrote them. Detail in `plans/spec-drift-review/spec-repo-drift-review.md`
-§I.9.
+Both are **written but not built or run** — no .NET toolchain in the session that wrote them.
 
 1. **X-9.7 — `MoveMediaItem` (app repo, on `feature/change-requests`).** Handler called `SwapAsync`
    where it needed `MoveAsync`, so every folder-to-folder move failed with a spurious 409. Fixed, plus
@@ -103,7 +37,7 @@ toolchain in the session that wrote them. Detail in `plans/spec-drift-review/spe
 
 ## RESOLVED: deploy mechanism = cross-repo dispatch to cdk-magiq-media
 _Captured: 2026-07-03 · Resolved: 2026-07-03_
-_Status: todo_
+_Status: todo — outstanding items below_
 
 Deploy is done by **`magiqsoftware/cdk-magiq-media`** (separate CDK/TypeScript repo),
 not a step in magiq-media. `.github/workflows/build-and-push.yml` builds + pushes images
@@ -129,14 +63,7 @@ to the shared ECR (738608577325), then dispatches to the CDK repo.
    redundant — deploy role lives in cdk-magiq-media (secrets). Removed; magiq-media envs
    now carry no env-level vars.
 
-See `spec/architecture/branching-and-deployment.md` → "Open questions".
-
----
-
-## Add bulk delete media item command
-_Captured: 2026-06-02T04:52:00Z_
-
-The bulk delete media item needs to be implemented in the FolderDeleteFoanoutWorker.
+See `docs/spec/architecture/branching-and-deployment.md` → "Open questions".
 
 ---
 
@@ -193,101 +120,93 @@ The old repo-level default (`738608577325`) is now unused — all envs override 
 
 ---
 
-## RESOLVED: metadata shape breaking-change versioning gate (api-consistency plan Stage 4)
-_Captured: 2026-07-08 · Resolved: 2026-07-08_
+## Production readiness gate
+_Captured: 2026-08-25_
+_Status: todo — check before setting `PROD_ENABLED` or `STAGING_ENABLED` to `true`_
 
-Checked before `PUT /v1/catalog/items/{itemId}/metadata` and `POST /v1/catalog/items/bulk/metadata`
-ship any further: does the `fields` map→array shape change (`docs/adrs/catalog-domain-invariants.md
-§Metadata Collision Prevention and General Fields`, accepted as a no-migration-path breaking change
-on the premise that "the platform has no released version yet") still hold that premise, or has a
-client integrated against the old map shape in the meantime?
+**Nothing is in production today** (both flags unset, only dev/qa deploy), so nothing is exploitable — the
+risk is that these ship silently when the flags flip. Note `STAGING_ENABLED` does not de-risk prod: staging
+runs as `Development`, so it never exercises the async projection path or the queue behaviour prod uses.
 
-**Answer: premise still holds — shipped in place, no `/v2` needed.**
-- Code already implements the array shape (`SetMetadataBatchRequest.Fields`, `SetMetadataFieldRequest.Origin`)
-  and has since commit `e4c8af88` ("Add MetadataFieldOrigin and RecordTypeAlias options. (#128)"),
-  merged 2026-06-25 — ~2 weeks before this check. No commit since has touched it or any client
-  consuming it.
-- ADO board (`Media` project) shows no work items indicating a UI/client consumer exists yet for
-  either shape: Akshay Gaikwad's current work is all OpenSearch infra provisioning, unrelated to
-  MediaItem metadata endpoints. Estelle Wu's most recent related item (#33946, "Add Metadata
-  Validation") is backend validation work still in Code Review — confirms the endpoint itself is
-  still under active construction, not yet integrated against by any downstream consumer.
-- No action needed. Re-check this if UI/integration work against `PUT/POST .../metadata` starts
-  before the array shape is fully stable.
+**Two 🔴 security blockers:** **X-11.31** — an unprivileged tenant member can disable the guards tenant-wide
+via the policy setters; **five handlers, the smallest fix and the largest effect, do this first**. Then
+**X-11.30** — 86 of 132 write commands have no authorization at all.
+
+**Six 🟠 blockers** on data loss and compliance: X-11.6 (saga DLQ unreachable, events lost — *since fixed;
+verified 2026-09-08*), X-11.44 (no outbox), X-11.16 (fan-out failures discarded), X-11.17 ⚖️
+(registration-locked folders archived anyway), X-11.41 (moved items archived under their old folder),
+X-11.21 (idempotency header name).
 
 ---
 
-## Four leftovers found while writing the deployment-naming ADR
-_Captured: 2026-09-01_
-_Status: todo — all found during MM-004's closing fact-check, none block it_
+## Two decisions blocking code work
+_Captured: 2026-08-25_
+_Status: todo — no research left; both need a call, not investigation_
 
-1. **`EnvironmentResetCommand.cs:201` still derives `media-migrations-{env}` from `ENVIRONMENT_NAME`.**
-   The exact suffix pattern MM-004 removed, surviving in the CLI. Against a current deploy it
-   computes a table name that does not exist, so `EnvironmentReset` fails to exclude the migrations
-   table it is trying to protect. Small fix, real consequence. Recorded in the ADR as a known leftover.
-2. **App-side bucket defaults don't match anything provisioned.** `S3AssetStorageOptions` defaults to
-   `media-originals` / `media-renditions`; the real buckets are `magiq-media-originals-{account}-{region}-an`.
-   Harmless in Lambda (CDK injects the resolved names) but a local/CLI fallback points at nothing.
-   `MediaResourceNaming.cs`'s docblock also claims it emits `originals-{account}-{region}` — it emits nothing.
-   Same for the commented bucket example in `.env.example:101`, still written with `${ENVIRONMENT_NAME}`.
-3. **`docs-guard.yml` triggers on `docs/**` but only scans `docs/spec`.** `docs/adrs` is unguarded — and
-   **two ADRs are in fact truncated**: `api-http-conventions.md:99` and `asset-storage-and-processing.md:128`
-   both end on an unterminated table row with no trailing newline. Exactly the failure mode W1 was built
-   to catch, in the one docs subtree the guard doesn't look at. Recover the tails per `CLAUDE.md`, then
-   widen the guard to `docs/`.
-4. **`bucketName()` in `cdk-magiq-media/lib/config.ts` is dead code** — zero call sites since the bucket
-   construct moved to CloudFormation-generated names on 2026-07-24. Keep it (documents the intended
-   shape for a future explicitly-named bucket) or delete it, but it currently reads as the thing that
-   names the buckets and isn't. The CDK test hedges on both forms, so it wouldn't catch a regression.
+**1. Idempotency — adopt or retire (X-11.21, 🟠).** The middleware is deployed and works: global on the
+`Api` host, table provisioned by CDK, covering every write endpoint. **Nothing sends the header.** Three
+code comments claim the feature does not exist. And the header is **`Idempotency-Key`** while every
+document said `IdempotencyKey` — so a client following the published contract got **zero replay protection,
+silently, with a 2xx**. *Recommendation: adopt* — it is built and paid for, and only the name and the
+OpenAPI declaration are missing. Note it is replay **rejection** (bare 409), not replay, and the key is
+burnt **before** execution, so a failed request blocks its own retry for 24h.
+
+**2. BI-1 — the bulk-import spec.** Two fully specified aggregates with **no class, no command, no
+projector, no queue, no table, no route**. They own **all 16** remaining CI warnings and those warnings are
+correct — the missing sections cannot honestly be written. Build / delete / badge-as-design. *The question
+is not whether the design is good but whether it is being built, and roughly when.* If badging, put the
+deadline in the exemption comment.
+
+**Neither blocks the two 🔴 security items** — those are independent and should start regardless.
 
 ---
 
-## Remove environment-name suffix from resource naming
-_Captured: 2026-07-21_
-_Status: **done 2026-09-01** — code landed 2026-07/08; the ADR, the last item, is written_
+## Authorization
+_Captured: 2026-08-25_
+_Status: todo — both 🔴_
 
-> **Closed.** All four decisions below were resolved (1 keep env-named · 2 inject `''` explicitly ·
-> 3 discard + reseed · 4 **kept and repurposed**, not removed — `ENVIRONMENT_NAME` now selects the
-> Secrets Manager overlay only). The "Key risk" and the one-account invariant are now recorded in
-> `docs/adrs/deployment-and-resource-naming.md` rather than only here. **Not yet done:** the ADR edit
-> is uncommitted on `feature/change-requests`, and `cdk diff` (dev + prod), `dotnet test` and the
-> post-deploy `/healthz` probe still need your environment. See MM-004's header for detail.
+X-11.30, X-11.31, X-11.34, X-11.35, X-11.23.
 
-Treat every deploy as prod-named: drop the `-{env}` suffix from all resource names so the
-"environment" is just the AWS account+region it lands in, with per-env differences delivered
-as host config (not name suffixes). Naming-only — `Media:Environment` / `ASPNETCORE_ENVIRONMENT`
-behaviour is retained.
+**X-11.31 first: five handlers.** The open question — *does magiq-auth issue roles?* — changes the shape of
+everything else. Answer it early, but do not wait for it to fix the five setters.
 
-**Plan:** `plans/deployment-naming/remove-env-suffix-plan.md` — full change inventory across `cdk-magiq-media`
-(`lib/config.ts` `resourceName`/`bucketName`, `magiq-media-stack.ts` `TableSuffix`), the
-`magiq-media` app (`MediaResourceNaming`, `MediaConfigurationExtensions`, host bootstrap),
-spec/docs, plus sequencing, the destructive non-prod cutover, and verification steps.
-
-**Decision (2026-07-21):** naming-only + ADR-first. ADR is the new "Deployment & Resource
-Naming" topic: `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\adrs\deployment-and-resource-naming.md`
-(README index updated).
-
-**Confirm 4 open decisions before coding (top of the plan):**
-1. API Gateway stage segment (`stageName: config.env`) — keep env-named (recommended) or uniform?
-2. Inject `Platform__DynamoDB__TableSuffix: ''` explicitly (recommended) vs stop injecting?
-3. OK to discard dev/qa data on cutover + reseed/replay (recommended)?
-4. Remove vestigial `ENVIRONMENT_NAME` plumbing, or leave inert?
-
-**Key risk:** removing the suffix renames every non-prod stateful resource → CloudFormation
-*replace* (data loss on dev/qa/staging; prod unaffected — already unsuffixed). Safe only while
-no two environments share one AWS account+region.
+Related, from the Catalog report: **no Collection, Folder, MediaItem or MediaProfile command performs an
+ownership check at any layer.** The five MediaProfile governance routes are the only guarded commands.
 
 ---
 
+## Archive cascade
+_Captured: 2026-08-25_
+_Status: todo — four 🟠_
 
-## Asset custody — parked 2026-08-25, separate session
+X-11.15–11.19, X-11.41.
 
-**Review:** `reviews/asset-custody/asset-custody-review-2026-08-25.md` (no plan yet — create
-`plans/asset-custody/` when it is sequenced).
+**X-11.16 first — it closes X-11.18.** The design decision the work turns on: on a per-child failure,
+abort the level or continue and report?
+
+---
+
+## Event reliability
+_Captured: 2026-08-25_
+_Status: todo — two 🟠_
+
+X-11.5, X-11.6, X-11.44.
+
+**X-11.6 was the one losing events; verified fixed 2026-09-08** — all five `AssetIngestion` handlers now
+catch and return `MessageProcessStatus.Failed()`, so the `media-sagas` DLQ is reachable. Do not re-raise it.
+
+Remaining open question — **outbox or documented deviation** — gates X-11.44.
+
+---
+
+## Asset custody
+_Captured: 2026-08-25_
+_Status: parked — separate session_
+
 **Decision:** `docs/adrs/ownership-and-authorization.md` in the magiq-media repo — already written.
 
-**Why parked:** raised while classifying `Asset` for the ownership ADR. Split out because the
-spec-drift review corrects documentation against code, and **this one changes code**.
+**Why parked:** raised while classifying `Asset` for the ownership ADR. Split out because it **changes
+code** rather than documentation.
 
 **The short version.** `Asset` needs a third concept the codebase lacks — **custody**, which unlike
 provenance *transfers*, and unlike authorization attaches to the resource. Split `Asset.OwnerId` into
@@ -311,13 +230,11 @@ today, the ADR holds the decision. No spec file was renamed — including the fo
 
 ---
 
+## Projection rebuild
+_Captured: 2026-08-25_
+_Status: parked — separate session_
 
-## Projection rebuild — parked 2026-08-25, separate session
-
-**Review:** `reviews/projection-rebuild/projection-rebuild-review-2026-08-25.md` (no plan yet).
-
-**Why parked:** raised while writing the consistency model (W25). Changes code, so it is out of scope for
-the spec-drift review — same split as `asset-custody`.
+**Why parked:** raised while writing the consistency model. Changes code — same split as asset custody.
 
 **The short version.** **Seven write-side reference indexes cannot be rebuilt by replay at all** — they are
 fed by integration events from another module and **nothing re-emits integration events**. Replaying the
@@ -331,72 +248,91 @@ after commit is only repairable by rebuild), and with there being **no lag metri
 is discovered rather than detected. The blue-green rebuild runbook has also only ever been run against dev,
 which projects synchronously and therefore has neither lag nor a queue.
 
-**Start with divergence detection, not the rebuild tool** — question 7 in the review. Comparing
-`ProjectedVersion` against aggregate version is small, and it tells you whether the rest is urgent. **Do not
-start by building a bespoke rebuild for seven tables**: if they become versioned manifest tables, the
-existing blue-green rotation already does the work.
+**Start with divergence detection, not the rebuild tool.** Comparing `ProjectedVersion` against aggregate
+version is small, and it tells you whether the rest is urgent. **Do not start by building a bespoke rebuild
+for seven tables**: if they become versioned manifest tables, the existing blue-green rotation already does
+the work.
 
 ---
 
-## Production readiness gate — created 2026-08-25
+## Projection tables — schema-versioned rotation
+_Captured: 2026-08-25_
+_Status: proposed_
 
-**`plans/prod-readiness/prod-readiness-gate.md`** — the triage of all 42 open code findings from the
-spec-drift review. **Check it before setting `PROD_ENABLED` or `STAGING_ENABLED` to `true`.**
-
-**Nothing is in production today** (both flags unset, only dev/qa deploy), so nothing is exploitable — the
-risk is that these ship silently when the flags flip. Note `STAGING_ENABLED` does not de-risk prod: staging
-runs as `Development`, so it never exercises the async projection path or the queue behaviour prod uses.
-
-**Two 🔴 security blockers:** **X-11.31** — an unprivileged tenant member can disable the guards tenant-wide
-via the policy setters; **five handlers, the smallest fix and the largest effect, do this first**. Then
-**X-11.30** — 86 of 132 write commands have no authorization at all.
-
-**Six 🟠 blockers** on data loss and compliance: X-11.6 (saga DLQ unreachable, events lost), X-11.44 (no
-outbox), X-11.16 (fan-out failures discarded), X-11.17 ⚖️ (registration-locked folders archived anyway),
-X-11.41 (moved items archived under their old folder), X-11.21 (idempotency header name).
-
-**Four decisions still owed** — idempotency adopt-or-retire is the live one; BI-1 owns 16 of the 17
-remaining CI warnings.
+Supersedes the hot-swap rotation approach. Related open items that may already belong here:
+- Registration summary rows all land in one partition per tenant (`TENANT#{tenantId}#REGISTRATIONS`).
+- Processing summary rows do the same (`TENANT#{TenantId}#PROCESSING_JOBS`).
+- `media-processing-asset-index` is registered `schemaVersion: null`, which the replay tooling refuses.
+- No CLI rebuild verb exists for `ProcessingJob` or `Registration`.
 
 ---
 
-## Two decisions blocking code work — 2026-08-25
+## Four leftovers found while writing the deployment-naming ADR
+_Captured: 2026-09-01_
+_Status: todo — found during the ADR's closing fact-check_
 
-**Review:** `reviews/pending-decisions/pending-decisions-review-2026-08-25.md`. **No research left — both
-need a call, not investigation.**
-
-**1. Idempotency — adopt or retire (X-11.21, 🟠).** The middleware is deployed and works: global on the
-`Api` host, table provisioned by CDK, covering every write endpoint. **Nothing sends the header.** Three
-code comments claim the feature does not exist. And the header is **`Idempotency-Key`** while every
-document said `IdempotencyKey` — so a client following the published contract got **zero replay protection,
-silently, with a 2xx**. *Recommendation: adopt* — it is built and paid for, and only the name and the
-OpenAPI declaration are missing. Note it is replay **rejection** (bare 409), not replay, and the key is
-burnt **before** execution, so a failed request blocks its own retry for 24h.
-
-**2. BI-1 — the bulk-import spec.** Two fully specified aggregates with **no class, no command, no
-projector, no queue, no table, no route**. They own **all 16** remaining CI warnings and those warnings are
-correct — the missing sections cannot honestly be written. Build / delete / badge-as-design. *The question
-is not whether the design is good but whether it is being built, and roughly when.* If badging, put the
-deadline in the exemption comment — W18 retired the truncation guard's exemption on principle.
-
-**Neither blocks the two 🔴 security items** — those are independent and should start regardless.
-
----
-
-## The three code workstreams — reviews written 2026-08-25
-
-Each has its own review so it can be worked in a separate session. All start from
-`plans/prod-readiness/prod-readiness-gate.md`.
-
-- **`reviews/authorization/authorization-review-2026-08-25.md`** — both 🔴. X-11.30, 31, 34, 35, 23.
-  **X-11.31 first: five handlers.** Open question 1 (does magiq-auth issue roles?) changes the shape of
-  everything else — answer it early, but do not wait for it to fix the five setters.
-- **`reviews/archive-cascade/archive-cascade-review-2026-08-25.md`** — four 🟠. X-11.15–11.19, 11.41.
-  **X-11.16 first — it closes X-11.18.** The design decision the workstream turns on is open question 1:
-  on a per-child failure, abort the level or continue and report?
-- **`reviews/event-reliability/event-reliability-review-2026-08-25.md`** — two 🟠. X-11.5, 11.6, 11.44.
-  **X-11.6 first — it is the one losing events today.** Open question 1 (outbox or documented deviation)
-  gates X-11.44.
+1. **`EnvironmentResetCommand.cs:201` still derives `media-migrations-{env}` from `ENVIRONMENT_NAME`.**
+   The exact suffix pattern that was removed, surviving in the CLI. Against a current deploy it
+   computes a table name that does not exist, so `EnvironmentReset` fails to exclude the migrations
+   table it is trying to protect. Small fix, real consequence. Recorded in the ADR as a known leftover.
+2. **App-side bucket defaults don't match anything provisioned.** `S3AssetStorageOptions` defaults to
+   `media-originals` / `media-renditions`; the real buckets are `magiq-media-originals-{account}-{region}-an`.
+   Harmless in Lambda (CDK injects the resolved names) but a local/CLI fallback points at nothing.
+   `MediaResourceNaming.cs`'s docblock also claims it emits `originals-{account}-{region}` — it emits nothing.
+   Same for the commented bucket example in `.env.example:101`, still written with `${ENVIRONMENT_NAME}`.
+3. **`docs-guard.yml` triggers on `docs/**` but only scans `docs/spec`.** `docs/adrs` is unguarded — and
+   **two ADRs are in fact truncated**: `api-http-conventions.md:99` and `asset-storage-and-processing.md:128`
+   both end on an unterminated table row with no trailing newline. Recover the tails per `CLAUDE.md`, then
+   widen the guard to `docs/`.
+4. **`bucketName()` in `cdk-magiq-media/lib/config.ts` is dead code** — zero call sites since the bucket
+   construct moved to CloudFormation-generated names on 2026-07-24. Keep it (documents the intended
+   shape for a future explicitly-named bucket) or delete it, but it currently reads as the thing that
+   names the buckets and isn't. The CDK test hedges on both forms, so it wouldn't catch a regression.
 
 ---
 
+## Remove environment-name suffix from resource naming
+_Captured: 2026-07-21_
+_Status: **done 2026-09-01** — code landed 2026-07/08; the ADR, the last item, is written_
+
+All four decisions were resolved (1 keep env-named · 2 inject `''` explicitly · 3 discard + reseed ·
+4 **kept and repurposed**, not removed — `ENVIRONMENT_NAME` now selects the Secrets Manager overlay only).
+The key risk and the one-account invariant are recorded in
+`docs/adrs/deployment-and-resource-naming.md`.
+
+**Not yet done:** the ADR edit is uncommitted on `feature/change-requests`, and `cdk diff` (dev + prod),
+`dotnet test` and the post-deploy `/healthz` probe still need your environment.
+
+**Key risk, for the record:** removing the suffix renames every non-prod stateful resource →
+CloudFormation *replace* (data loss on dev/qa/staging; prod unaffected — already unsuffixed). Safe only
+while no two environments share one AWS account+region.
+
+---
+
+## RESOLVED: metadata shape breaking-change versioning gate
+_Captured: 2026-07-08 · Resolved: 2026-07-08_
+
+Checked before `PUT /v1/catalog/items/{itemId}/metadata` and `POST /v1/catalog/items/bulk/metadata`
+ship any further: does the `fields` map→array shape change (`docs/adrs/catalog-domain-invariants.md
+§Metadata Collision Prevention and General Fields`, accepted as a no-migration-path breaking change
+on the premise that "the platform has no released version yet") still hold that premise, or has a
+client integrated against the old map shape in the meantime?
+
+**Answer: premise still holds — shipped in place, no `/v2` needed.**
+- Code already implements the array shape (`SetMetadataBatchRequest.Fields`, `SetMetadataFieldRequest.Origin`)
+  and has since commit `e4c8af88` ("Add MetadataFieldOrigin and RecordTypeAlias options. (#128)"),
+  merged 2026-06-25 — ~2 weeks before this check. No commit since has touched it or any client
+  consuming it.
+- ADO board (`Media` project) shows no work items indicating a UI/client consumer exists yet for
+  either shape.
+- No action needed. Re-check this if UI/integration work against `PUT/POST .../metadata` starts
+  before the array shape is fully stable.
+
+---
+
+## Add bulk delete media item command
+_Captured: 2026-06-02T04:52:00Z_
+
+The bulk delete media item needs to be implemented in the FolderDeleteFanoutWorker.
+
+---

@@ -21,13 +21,6 @@ Serves government agencies and large enterprises managing regulated records. Mul
 
 ---
 
-## Q2 2026 Priorities
-
-1. **Complete the magiq-media API** — API layer, query endpoints, write endpoints, FastEndpoints wiring
-2. **Implement tenant management and authentication** — JWT, `IExecutionContext`, `TenantId` isolation, token replay detection
-3. **Implement user security and policies** — command-level authorisation, actor types (System/User/Guest), role-based access
-
----
 
 ## Tech Stack
 
@@ -36,7 +29,7 @@ Serves government agencies and large enterprises managing regulated records. Mul
 | Language | C# (.NET 8) |
 | Architecture | DDD · CQRS · Event Sourcing |
 | API | FastEndpoints (ASP.NET) |
-| Command dispatch | `ICommandDispatcher` (`Magiq.Platform.WriteModel.Commands`) — **not MediatR** (corrected 2026-08-24, X-9.5) |
+| Command dispatch | `ICommandDispatcher` (`Magiq.Platform.WriteModel.Commands`) 
 | Event Store | DynamoDB (custom append-only) |
 | Read Models | DynamoDB + OpenSearch |
 | Compute | AWS Lambda (containerised) |
@@ -91,35 +84,4 @@ Host: `src/hosts/Media.Api` — single FastEndpoints host wiring all modules.
 
 ---
 
-## Known Gaps (from spec — as at 2026-05-04)
 
-| Gap | Status |
-|---|---|
-| `SigningSessionSummaryProjector` | Deferred — implement when DocumentSigning module is built |
-| `DocumentSigningSaga` | Deferred — not registered in `SagaRegistrations` |
-| `DocumentSigningTimeoutScanner` | Deferred — not implemented |
-
----
-
-## Active Work (from Azure DevOps — 2026-05-03)
-
-- **103 active items** assigned to Chase
-- **34 tasks in Code Review** — naming service additions across write model commands
-- **Active Epics:** Tenant Management, Infrastructure & Host Services, Query API & Read Layer, Write-Model Gaps, Read-Model & Projector Gaps, API Route Corrections, Integration Events & Messaging
-- **In Progress Features:** Lambda projector host, cross-cutting infrastructure, query handlers across all modules, write-model completions
-
----
-
-## Decisions
-
-See `decisions/log.md` for the decision journal (Chase's machine only — in-flight/informal).
-
-Architecture decisions (ADRs) live in `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\adrs\` and are code-reviewed there — this OneDrive path is stale and no longer used. As of 2026-07-08, the ADRs are organized as five topic documents (not a flat numbered sequence — see `docs/adrs/README.md` in that repo for the full index and the old-number → new-location map if you're looking for a specific former `ADR-0XX`):
-
-| Topic doc | Covers |
-|---|---|
-| `persistence-and-eventing.md` | Event store (DynamoDB), domain event bus (SNS→SQS), integration events, search read model (OpenSearch) |
-| `asset-storage-and-processing.md` | Pre-signed S3 upload/download, storage tier lifecycle, processing failure taxonomy |
-| `catalog-domain-invariants.md` | Hierarchy invariant counters, MediaProfile publish guard & conformance tracking, metadata collision prevention |
-| `api-http-conventions.md` | Folder assign/move (unified PUT), response identifier naming, cursor-only pagination |
-| `auth-and-security.md` | Service account authentication (client credentials, JTI replay exemption) |
