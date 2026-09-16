@@ -113,10 +113,6 @@ Three rules:
 `plans/README.md` and `reviews/README.md` index both trees with status. Update them when adding a
 workstream — a folder nobody indexed is a folder the next session won't find.
 
-**One deliberate exception:** `plans/spec-drift-review/spec-repo-drift-review.md` is a review *and* its
-own working checklist. It lives on the plans side because that is where its ✓ column is worked; splitting
-it would separate the findings from the boxes tracking them.
-
 > **Spec and ADRs moved 2026-07-07.** `spec/contexts/`, `spec/shared/`,
 > `spec/architecture/`, and `adrs/` now live in
 > `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\spec\` and `docs\adrs\` — they're
@@ -124,6 +120,30 @@ it would separate the findings from the boxes tracking them.
 > there is no published or mirrored copy. Don't recreate them here. This folder
 > is the AI-operating-system layer — memory, todos, meetings, the decision
 > journal, and in-flight plans — not spec custody.
+
+### Spec purity — what must never be written into a spec file
+
+The rule lives in full in the repo's own `CLAUDE.md` (§ Spec files state the specified system).
+It is restated here because **this folder is where most of the banned content belongs**, and
+because the review → plan cycle is what generates it.
+
+`docs/spec/` states what the system is **specified to be** — present tense, no history, no progress.
+Never write into a spec file: change history or "this previously said…"; citations to anything not
+defined inside `docs/` (review, finding, plan or workstream ids — `X-4.14`, `MM-045`, `DEC-9`, `W29`);
+**build or implementation status** — whether code exists, is wired, deployed or deferred; rationale
+and rejected options; recommendations, open questions or ✓ tracking; notes addressed to a reader or
+an AI agent; who decided, and when.
+
+When a spec is wrong, **fix the statement and delete the wrong one** — the diff is the history. A
+removed feature is simply absent from the spec, never documented as removed.
+
+Where it goes instead: rationale → `docs/adrs/` · build status → the `Media` ADO board · findings and
+evidence → `reviews/<workstream>/` · open questions and tracking → `plans/`, `todos.md` · durable
+session facts → `MEMORY.md`.
+
+A review may quote a spec file; a spec file may never cite a review. If a remediation item cannot be
+written without naming a finding id, the rule to fix belongs in the spec stated **in its own terms**,
+and the id stays on the plan side.
 
 ## Review → Plan cycle
 

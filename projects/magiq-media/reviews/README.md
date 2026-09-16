@@ -7,73 +7,40 @@ them and tracks execution. The convention is in [`../CLAUDE.md`](../CLAUDE.md) �
 One subfolder per workstream. `reviews/<workstream>/` pairs with `plans/<workstream>/` — **the folder name
 is the link**, and it is what survives archiving.
 
-> ⚠ **This index was created on 2026-09-16 and is not known to be complete.**
-> This working copy had no `reviews/` or `plans/` tree when MM-044 was written. The repo spec cites six
-> plan ids — MM-004, MM-026, MM-040, MM-041, MM-042, MM-043 — and **none of them exists; none should have
-> been cited in a spec file at all** (Chase, 2026-09-16). Those 43 citations are a defect in the spec,
-> tracked as finding **SI-5**, not evidence about this tree.
->
-> **Consequence for id minting:** MM-044 and MM-045 were minted from the highest id appearing in the repo
-> spec, which is now known to have been no evidence at all. **The true high-water mark is unknown.** Before
-> any document cross-references them, run the real grep across `reviews/`, `requests/`, `plans/` **and
-> `_archive/`**. Above MM-043 → they collide and must be re-minted. Genuinely empty → they may be
-> renumbered from MM-001, which is tidier and equally valid while nothing points at them. Chase's call
-> either way; ids are never silently renumbered. **MM-045 Phase 0, first item.**
-
 ---
 
 ## Live
 
 | Id | Workstream | Review | Status | Outcome | Plan |
 |---|---|---|---|---|---|
-| MM-044 | `spec-coherence` | [Spec Coherence — Aggregates and Relationships](./spec-coherence/spec-coherence-review-2026-09-16.md) | Done | plan | [MM-045](../plans/spec-coherence/spec-coherence-review-2026-09-16.md) — Active |
+| MM-001 | `spec-baseline` | [Spec Baseline — contradictions, gaps and the missing domain-model record](./spec-baseline/spec-baseline-review-2026-09-16.md) | Draft | pending | — |
 
-**Findings agreed and the review closed 2026-09-16.** MM-045 is written and active; hand-over complete.
-This file is now frozen — no edits, no status changes, no re-scoping. Only two additive cases may touch it:
-a `folded-into` review being added to a closed plan's `consumes:`, and a `supersedes:` pointer on a gate.
+### MM-001 — what it covers
 
-### MM-044 — what it found, and what settled it
+A full read of `docs/` — 103 files across `spec/` and `adrs/`. 70 findings in six groups: authorization is
+largely unspecified; the domain model contradicts itself on aggregates and relationships; eleven cross-file
+contradictions; ~30 behaviour gaps; no ADR records the domain model at all; and residue the automated sweeps
+could not reach.
 
-A design review of the spec documents (`docs/spec/` + `docs/adrs/`), aggregate by aggregate and then
-relationship by relationship: design flaws, inconsistencies, contradictions and invalid invariants. Code
-was not read; authorization was excluded. ~190 findings across eleven aggregates, nine relationship edges,
-ten systemic patterns and four spec-integrity findings.
+Raised immediately after two sweeps on 2026-09-16 removed 430 off-repo citations and all build/implementation
+status from the spec tree. Those sweeps are why the findings are visible — the correction notes and caveats
+that were masking them are gone.
 
-Its § Recommended sequencing carries the eleven-phase order and the three convergence loops — that section
-is what MM-045 transcribes rather than re-derives.
-
-**All fourteen open questions are answered as of 2026-09-16.** Ten were settled in the review itself from
-records-management and media-management practice, with the reasoning stated so each can be overturned on
-its merits. Four were Chase's and are now closed:
-
-1. **Q11** — no live subscribers to `media.item.published`. E-1 is a documentation fix; no migration, no
-   notice owed downstream.
-2. **Q12** — `BulkFolderImportJob` and `BulkMediaImportJob` are **removed** from the spec. The inventory
-   becomes nine coded aggregates plus two specified-and-unbuilt. The inline bulk *endpoints* are unaffected.
-3. **Q13** — **no `MM-nnn` id exists, and none should have been cited in a spec file in the first place.**
-   All 43 citations across 14 files are stripped and every rule that leaned on one is restated in its own
-   terms. Raised as **SI-5** at `Critical`: the repo `CLAUDE.md` already forbids decisions and reasons in
-   spec files, and `spec/README.md` row 14 already names the off-repo project as the wrong place to send a
-   reader.
-
-4. **Q14** — the same defect in three more id families (**SI-6**, 78 occurrences across 24 files). Resolved
-   by splitting them. **`DEC-n` is the decision log of MM-042**, a prior aggregate-design review — the same
-   job this one is doing. All fourteen cited decisions were recovered from their citation sites, where the
-   spec states each one inline, and re-adjudicated in **§ Recovered decisions**: ten adopted, one extended,
-   **DEC-9 overturned** (the disposal clock does not re-stamp on a move), **DEC-3 adopted as new scope** —
-   legal hold, raised as **RS-9**. Eleven of the fourteen this review had already re-derived independently.
-   **`AD-n` and `X-n.n` are finding ids and are stripped outright.** Eight `DEC-` numbers were taken and
-   never cited; they are unrecoverable, and the review says so rather than papering over it.
-
-**Chase agreed the findings 2026-09-16.** The review moved `draft` → `findings-agreed` → `done` /
-`outcome: plan` in that session, and MM-045 was authored against it.
+**Ten questions — one Answered, nine `Open`,** tiered by blast radius: three scope calls that change the
+finding list, two domain-model rulings, three contradictions, and the ADR shape last. Question 1, the pivotal
+one, is settled: authorization is
+specified as **intent, in three places, and not as a matrix**. A Graph-style `Resource.Verb[.All]` vocabulary
+lives once in `shared/api-permissions.md`; the endpoint → scope mapping lives per route *and per query* in each
+`<agg>.api.md`; resource predicates stay as aggregate invariants. **Scopes never replace resource checks** —
+`.All` widens a scope's range, it does not remove the predicate. `shared/authorization-matrix.md` is retired as
+a source of truth, its privileged-command analysis moving to the domain-model ADR. That ruling reshapes
+SB-1…SB-5, raises SB-68/SB-69, and closes SB-70.
 
 ---
 
 ## Archived
 
-None in this working copy. See the warning above — archived magiq-media reviews are expected at
-`_archive/reviews/<id>-<workstream>/` and that tree is not present here either.
+None. This board was reset on 2026-09-16 and the `MM-` sequence restarted at `MM-001`.
 
 ---
 
