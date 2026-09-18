@@ -240,6 +240,69 @@ neither, so it needs a manual seeding pass before the normal flow takes over.
 
 ---
 
+## Scenario 4 — annual restore verification drill
+
+**Cadence: annually. Owner: the Cloud team.** Set 2026-09-17, closing SB-57 from the spec-baseline
+review.
+
+`spec/shared/operations.md` states an RTO of under 30 minutes, an RPO of under a minute, PITR enabled
+across the event store, the platform tables, every projection table and every write-side index, and an
+eight-step DynamoDB recovery runbook. None of that has ever been exercised. **An untested restore
+procedure is a claim, not a capability** — and the numbers above are the ones we would be held to.
+
+### What the drill has to prove
+
+**Restoring a table is the easy half.** PITR restore-to-a-new-table is an AWS operation that either works
+or doesn't, and it touches nothing live. The half that can actually be wrong is **step 5 — cutover** —
+because it differs by table type, and the read-model path runs through `ProjectionReplay`'s `rotate` and
+the `read-model-metadata` pointer rather than any rename.
+
+So the drill is the whole runbook, not a restore. **A pass means a read model was restored, replayed,
+cut over and serving, and the numbers were met.**
+
+### Where to run it
+
+**In dev or qa, end to end.** The runbook's first step sets reserved concurrency to 0 on the writing
+function — that is an outage, and it is not something to do in prod to prove a point.
+
+**Plus one prod-side check that is safe:** a PITR restore of one prod table to a new table name. It
+touches nothing live, and it is the only way to confirm prod's PITR is actually enabled and that its
+recoverable window really reaches back where we think it does. Delete the restored table afterwards.
+
+### The drill
+
+1. **Pick a read model, not the event store.** A projection table exercises the `rotate`/pointer path,
+   which is the part with moving pieces. Note the table and the time you start — RTO is measured from
+   here.
+2. **Stop writes** on the relevant projector, per step 1 of the DR runbook.
+3. **Restore to a new table** via point-in-time restore, choosing a restore point a few minutes back.
+4. **Check the RPO.** Compare the newest row in the restored table against the event store. The gap is
+   the real RPO; under a minute is the claim.
+5. **Rebuild and cut over** with `ProjectionReplay`'s `rotate` — replay into the target schema version and
+   flip the `read-model-metadata` pointer. See `src/tools/ProjectionReplay/RUNBOOK.md`.
+6. **Confirm live hosts pick it up** without a redeploy, within the snapshot TTL of roughly 10 seconds.
+7. **Spot-check** rows against the event log.
+8. **Re-enable writes**, and stop the clock. That elapsed time is the real RTO; under 30 minutes is the
+   claim.
+9. **Try the rollback.** `rollback` flips the pointer back. It is one command and it is what we would
+   reach for if the restore turned out to be worse than the problem — so it gets exercised too.
+
+### Recording it
+
+Write the result into the decision journal under `decisions/`: the date, who ran it, the table, the
+measured RTO and RPO, and anything in the runbook that turned out to be wrong. **A drill that finds the
+runbook wrong has succeeded** — that is what it is for, and the correction goes back into
+`operations.md` in the same pass.
+
+**If a number is missed, that is a finding, not a failure to hide.** Either the target moves or the
+design does, and both of those are decisions with somewhere to live.
+
+> ⚠ **`operations.md` still carries cross-region RTO/RPO rows** — under 4 hours and under 15 minutes —
+> while the same file states there is no cross-region strategy, no standby region and no global table.
+> Do not drill against those; they are already queued for deletion as SB-21.
+
+---
+
 ## Implementation status
 
 **Done:**

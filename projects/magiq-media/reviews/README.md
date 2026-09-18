@@ -13,13 +13,33 @@ is the link**, and it is what survives archiving.
 
 | Id | Workstream | Review | Status | Outcome | Plan |
 |---|---|---|---|---|---|
-| MM-001 | `spec-baseline` | [Spec Baseline — contradictions, gaps and the missing domain-model record](./spec-baseline/spec-baseline-review-2026-09-16.md) | **Active** — findings agreed 2026-09-16 | pending | awaiting authoring |
+| MM-001 | `spec-baseline` | [Spec Baseline — contradictions, gaps and the missing domain-model record](./spec-baseline/spec-baseline-review-2026-09-16.md) | Done | plan | [MM-003](../plans/spec-baseline/spec-baseline-review-2026-09-16.md) — Active |
 | MM-002 | `code-defects` | [Code defects — five clusters carried out of the retired todo file](./code-defects/code-defects-review-2026-09-16.md) | Draft | pending | — |
+| MM-004 | `storage-keys` | [Storage keys — one field, three definitions, and an object that moves](./storage-keys/storage-keys-review-2026-09-17.md) | Draft | pending | — |
 
 **MM-001 and MM-002 are the same subject from opposite sides.** MM-001 fixes a spec that never stated a
 rule; MM-002 fixes code that does not enforce one. Writing the rule does not guard the command, and guarding
 the command does not write the rule — neither review closes the other. Authorization is where they touch
 most: MM-001 Q1 settles the permission model, and MM-002's CD-1 consumes it rather than inventing one.
+
+### MM-004 — what it covers
+
+**Raised by MM-003 on 2026-09-17**, while specifying the quarantine path. Six findings on one field.
+`Asset.StorageKey` is specified three ways — bucket + key in the write model and the domain-model
+inventory, key-only in the read model, single-bucket in the generator that produces it — and
+`AssetManagement/context-overview.md` manages both readings sixteen lines apart, for two events the same
+context consumes. The read model already carries `BucketName` as a separate field, which is the strongest
+evidence for which reading is real.
+
+**The live consequence is the quarantine move.** After it, the stored key names `media-originals` while
+the object is in `media-quarantine`, and the spec instructs readers not to use the field for the thing it
+names. The review argues for deriving the bucket rather than storing it — the key path is identical in
+both buckets, so only the bucket varies and status already determines it — but **that is not adopted**:
+Q2 decides it, and Q1 decides whether this is a spec problem or a code one.
+
+**Nothing here is verified against `src/`.** Q1 is one file — `StorageKeyGenerator`'s return type — and it
+collapses three of the six findings into either *the spec is wrong* or *the code is wrong*. **No plan
+until it is answered.**
 
 ### MM-002 — what it covers
 
@@ -69,7 +89,20 @@ rulings raised seven new findings (SB-68…SB-74) and closed two. **Awaiting `fi
 
 ## Archived
 
-None. This board was reset on 2026-09-16 and the `MM-` sequence restarted at `MM-001`.
+| Id | Workstream | Review | Closed | Plan |
+|---|---|---|---|---|
+| MM-005 | `spec-coherence` | [`_archive/reviews/MM-005-spec-coherence/`](../_archive/reviews/MM-005-spec-coherence/spec-coherence-review-2026-09-17.md) | 2026-09-18 | [MM-006](../_archive/plans/MM-006-spec-coherence/spec-coherence-review-2026-09-17.md) |
+
+**All 51 findings remediated, all fifteen questions answered, and the eleven it parked as *could not
+settle* answered too** — by design from what the spec already commits to, rather than by reading code.
+
+**Two of its own counts were wrong and the remediation found them.** SC-042 was twelve `system-spec.md`
+citations, not eleven; SC-049's "one type only" statement lived in eight places, not four. Both were
+undercounts by enumeration rather than by grep, which is the failure mode to watch for in the next audit.
+
+**Its § Could not settle was the most valuable section in it.** Two of the eleven bore directly on spec
+this remediation had already written, and one — the saga repository's conditional write — was a real
+lost-update on the platform's only genuine race.
 
 ---
 

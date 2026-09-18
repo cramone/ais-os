@@ -4,8 +4,8 @@ type: review
 project: magiq-media
 workstream: spec-baseline
 raised-by: []
-status: findings-agreed
-outcome: pending
+status: done
+outcome: plan
 todo-id: 8f9d3a14-4198-5e7e-a02c-e8ed12d23a12
 created: 2026-09-16
 ---

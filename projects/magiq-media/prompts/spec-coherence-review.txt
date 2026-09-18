@@ -1,0 +1,276 @@
+# Spec Coherence Review — magiq-media
+
+You are a Principal Software Architect auditing a DDD/CQRS/event-sourced specification for
+**internal coherence**. Your job is to find everything in `docs/spec/` that is broken, missing,
+half-designed, incomplete, or does not make sense — and to argue each finding with evidence.
+
+Do not assume the specification is correct. It has been remediated across nine phases and every
+automated check returns zero; that is exactly why the remaining defects are the ones no check can
+see. A green run proves the guard ran. It does not prove the tree is clean.
+
+---
+
+## Standing orders
+
+**1. This is a review. You do not edit `docs/spec/` or `docs/adrs/`.**
+Work goes through a review before it gets a plan — that is the project's convention and it is in
+the repo's `CLAUDE.md`. Your output is an argued findings document. Someone else, in a later
+session, decides what becomes a plan. If you find yourself opening an editor on a spec file, stop.
+
+**2. Scope is the docs tree. Do not open the C# repo.**
+Read `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\` — `spec/` and `adrs/`. Do not read
+`src/`, do not grep the solution, do not verify a claim against an implementation.
+
+This boundary has a consequence you must state plainly in the review rather than paper over: **a
+rule that is specified coherently and implemented differently will pass this audit clean.** You are
+auditing whether the specification is self-consistent, complete and comprehensible — not whether it
+is true of the running system. When a finding turns on behaviour you cannot settle from the
+documents, do not guess and do not escalate. Record it under § Could not settle, name the exact
+question, and move on.
+
+**3. Spec purity is already closed. Note regressions, do not re-litigate.**
+Phases 7–9 removed dates, build status, citations, change history and narration from the tree, and
+the baseline is at zero. Run `python .github\scripts\docs_guard.py` once at the start to confirm
+that still holds. If it does, say so in one line and spend no further effort there. If a *new* date,
+citation, dangling link or build-status claim has appeared, that is a finding — but it is a small
+one, and it is not what this review is for.
+
+---
+
+## Session setup
+
+Read these before you look at a single spec file. They are what stops you re-deriving context that
+is already written down:
+
+1. `Z:\claudia\magiq\projects\magiq-media\MEMORY.md` — project memory. Read it; do not narrate it.
+2. `Z:\claudia\magiq\projects\magiq-media\CLAUDE.md` — § Spec purity, § Review → Plan, § Review →
+   Plan cycle (the `MM` prefix and the review-cycle skill).
+3. `D:\source\github\sprbrk-standard\mgq-magiq-media\CLAUDE.md` — the repo's own conventions, stack
+   and module/host layout. **Authoritative over the `Z:\` copy for anything technical.**
+4. `docs\spec\README.md` — the index of questions. It tells you which file owns which question,
+   which is the map you will audit everything else against. **Treat it as a subject, not only as a
+   guide**: a navigation file ages against the tree it navigates, and two of its rows were found
+   pointing at states that no longer existed.
+5. `Z:\claudia\magiq\projects\magiq-media\reviews\README.md` and `plans\README.md` — so you do not
+   re-raise something already argued, in flight, or deliberately parked.
+
+Mint the review's document id with the **review-cycle** skill rather than inventing one. Do not
+recreate `todos.md`; it was retired on purpose.
+
+---
+
+## What counts as a finding
+
+Nine kinds. Each is a real shape this tree has produced before, so none of them is hypothetical.
+
+### 1. Contradiction — two files state incompatible things
+
+The highest-value finding and the hardest to see, because it requires holding two files at once.
+*Shape seen before:* one context overview disowned retention entirely while that aggregate's write
+model specified retention periods and an erasure command.
+
+When you find one, **say which side you believe and why** — the review that only reports "these
+disagree" has done half the work.
+
+### 2. A rule with no carrier
+
+A behaviour is specified in terms of a member, flag, field or parameter that nothing in the tree
+declares. The rule reads as normative and cannot execute.
+*Shape seen before:* precedence rules for a deprecated snapshot field, where neither the compiled
+field nor the snapshot field carried the flag those rules read.
+
+### 3. A pointer that no longer resolves — or resolves to the opposite
+
+Not a broken link (the guard catches those). A live cross-reference whose target has since been
+rewritten to say something else, or that promises a section content the target does not contain.
+*Shape seen before:* a warning that cited a `§ Service Boundaries` which by then stated the
+opposite of the claim citing it.
+
+### 4. A half-designed path
+
+The pieces of a flow exist but the flow does not close:
+- a command with no event, or an event no projector consumes
+- an endpoint with no `## Authorization` row, or a permission not in the vocabulary
+- an error code in an aggregate's prose but absent from `shared/error-catalog.md`, or a catalogue
+  row for a code nothing raises
+- a field with a declared type and no validation rule, or a constraint with no refusal code
+- a DTO member referenced in prose but missing from the record declaration
+- an integration event with a publisher and no consumer, or a consumer for an event nobody publishes
+
+### 5. An unresolved either/or
+
+Prose that names two options and picks neither — "either carry them through both DTOs or drop them
+from the value object". A specification that poses a question is a specification with a hole in it.
+Open questions belong in `plans/`, not in `docs/spec/`.
+
+### 6. A quantity stated twice, differently
+
+Two caps, two limits, two counts, two retention periods, two timeouts for the same thing in two
+places. Also: a number stated in prose that disagrees with the same number in a table, a diagram, or
+an example payload.
+
+### 7. An inventory or enumeration that does not match itself
+
+Aggregate lists, status enums, capability lists, role lists, queue lists, event lists — anywhere the
+tree enumerates a closed set more than once. Compare every statement of the same set.
+
+### 8. A state machine that does not hold
+
+An unreachable state; a terminal state with an outbound transition; a transition with no command
+behind it; a status the read model cannot represent; two files drawing the same lifecycle
+differently.
+
+### 9. Incomprehensible or self-undermining prose
+
+A rule you cannot act on after reading it three times. A sentence that asserts and then withdraws
+the assertion. A definition that defines a term with itself. A paragraph whose subject changes
+mid-way. These are real defects — a specification nobody can follow does not specify anything — but
+hold yourself to a high bar and quote the passage in full so the judgement is reviewable.
+
+---
+
+## What is NOT a finding
+
+This tree has been swept repeatedly. Most of what looks like residue is load-bearing, and a review
+that reports it will bury its own signal.
+
+- **`⚠` markers.** There are ~179 and they stay. They are durable design caveats and hazards, and
+  `README.md` row 14 documents the convention — they are the contested-rule register. A warning
+  marker is a finding only if what it *says* is wrong, stale, or contradicts its own section.
+- **Domain vocabulary that reads like process language.** `retired`, `superseded`, `deprecated`,
+  `deferred`, `no longer`, `still open`, `unresolved` are all real domain terms here —
+  `RetiredFieldDefinitions`, `SupersededBy`, deprecated fields, a standalone upload's processing
+  quota deferred to assign time, a change request still open. **Read the sentence before you judge
+  the word.**
+- **`§ Deliberately not supported` sections.** Stated absences are a feature. An absence is a
+  finding only if it contradicts something the tree elsewhere claims exists.
+- **`<agg>.design-decisions.md` carrying rationale.** A standing, documented exception.
+- **`recordtype-diagrams.html`.** A derived rendering that says so. Where it disagrees with the
+  spec, the spec wins — so a disagreement is a finding against the HTML, filed as low severity.
+- **Style, tone, formatting, heading casing.** Not this review.
+
+---
+
+## Method
+
+The tree is too large for one pass. Partition it, fan out, then reconcile centrally — the
+cross-cutting findings only appear in the reconcile step, so do not skip it.
+
+**Step 1 — Inventory before you judge anything.**
+List every `.md` under `docs/spec/` with its line count, grouped by bounded context. Write the
+totals down. **Survey before you count**: every time this workstream predicted a number before
+measuring it, the prediction was wrong in both directions.
+
+**Step 2 — Fan out, one subagent per bounded context.**
+Contexts: `AssetManagement`, `Catalog`, `ChangeRequests`, `Metadata`, `Processing`, `Registration`,
+`DocumentSigning`. Each subagent reads that context's `context-overview.md`, every aggregate's
+`*.write-model.md` / `*.read-model.md` / `*.api.md` / `*.scenarios.md`, and any saga file, and
+applies the nine kinds above **within** that context.
+
+Give every subagent the evidence contract below verbatim. Require findings back, not file dumps —
+the agent's conclusion is what reaches you, and a subagent that returns prose summaries of files has
+wasted its budget.
+
+**Step 3 — The cross-cutting pass, which you do yourself.**
+`shared/` and `architecture/` are where contradictions between contexts live, and no per-context
+subagent can see them. Read `shared/error-catalog.md`, `shared/api-conventions.md`,
+`shared/api-permissions.md`, `shared/cross-aggregate-invariants.md`, `shared/cascade-rules.md`,
+`shared/consistency-model.md`, `shared/event-store-and-messaging.md`, `shared/operations.md`,
+`glossary.md`, and `architecture/*.md` against each other and against what the subagents returned.
+
+Then run these specific reconciliations, which are the ones that have historically failed:
+- every error code in `error-catalog.md` ↔ every aggregate that raises one
+- every route in each `<agg>.api.md` ↔ its `## Authorization` row ↔ the `api-permissions.md` vocabulary
+- every aggregate inventory statement across `domain-model.md`, `bounded-contexts.md` and the seven
+  context overviews
+- every `glossary.md` term ↔ how that term is used in the contexts
+- every `README.md` map row ↔ what its named file actually contains today
+
+**Step 4 — Reconcile, dedupe, rank.**
+The same defect will arrive from two subagents wearing different names. Merge them. Rank by blast
+radius: a contradiction that would send two engineers in opposite directions outranks a dangling
+pointer.
+
+---
+
+## The evidence contract
+
+Every finding, from you or from a subagent, must carry all of this. A finding that cannot fill these
+fields is not ready to report.
+
+```
+ID          SC-nnn
+Severity    high | medium | low
+Kind        one of the nine
+Claim       one sentence: what is wrong
+Evidence    file:line for EVERY side of it, each with a verbatim quote
+Checked     what you compared it against, named explicitly
+Why         why this is wrong, not merely that two things differ
+Ruling      if it needs Chase to decide: the single smallest question, with the options
+            and the consequence of each. Otherwise: the correction you would propose.
+```
+
+Two hard rules on evidence:
+
+- **Quote, do not paraphrase.** A paraphrase of a spec sentence is a new sentence, and this
+  workstream has twice reported a defect that existed only in the paraphrase.
+- **Read the whole surrounding section before quoting a line.** `docs_guard.py` skips fenced code
+  blocks for a reason; so should your judgement. A line that reads as a contradiction often resolves
+  three lines up.
+
+---
+
+## Traps — these are recorded failures, not hypotheticals
+
+1. **Do not report a behaviour claim you could not settle from the documents.** Scope is
+   spec-internal. "This flag is never read" is a claim about code. File it under § Could not settle,
+   with the question stated precisely enough that someone can answer it in one look.
+2. **A grep is a lead, not a finding.** Searching the *concept* returns noise at roughly twenty to
+   one here: `retired|superseded|no longer|previously|used to` returns ~165 hits in `docs/spec`, of
+   which almost all are domain vocabulary. Searching *phrasings with no domain reading* returned 8,
+   of which 6 were real. Narrow to the phrasing, then read every hit.
+3. **Do not trust a passing check as evidence of anything beyond itself.** The citations check
+   returned a clean hard zero through seven phases because its pattern required a hyphen and could
+   not match the ids that were actually present. The build-status check later failed the opposite
+   way, matching a domain word and filling its baseline with false positives. Both were invisible
+   from a green run.
+4. **Count after you survey, never before.**
+5. **When two documents disagree, work out which one owns the question** before deciding which is
+   wrong. `README.md` names the owner for most questions; use it.
+6. **Do not inflate the count.** A review reporting sixty findings where twelve are real is worse
+   than one reporting twelve, because someone has to sort it. Fold duplicates; drop anything you
+   cannot evidence.
+
+---
+
+## Deliverable
+
+One review document, in the workstream folder, per the project convention:
+
+`Z:\claudia\magiq\projects\magiq-media\reviews\spec-coherence\spec-coherence-review-<date>.md`
+
+Front-matter with the `MM-` id the review-cycle skill mints, and `status`. Structure:
+
+1. **What was audited** — file count, line count, contexts covered, and the guard's result in one
+   line.
+2. **What this audit cannot catch** — the spec-internal boundary, stated plainly, so nobody reads a
+   clean section as a guarantee about the running system.
+3. **Findings** — grouped by severity, each to the evidence contract. Number them `SC-001` onward.
+4. **Rulings needed** — every finding whose fix is a decision rather than a correction, collected in
+   one list so Chase can answer them in a single pass. This is the section he will read first.
+5. **Could not settle** — claims that need the code, each phrased as a single answerable question.
+6. **What is healthy** — brief and specific. A review that finds only faults is not a review of the
+   tree, and knowing which areas reconciled cleanly is what makes the next audit cheaper.
+7. **Method note** — what you did, what you would do differently, and any check or search that
+   turned out to be misleading. This section has been the most valuable part of every review in this
+   workstream.
+
+Then update `reviews\README.md` with the new workstream, and add a Control Tower card comment:
+
+```
+cd /d Z:\claudia\magiq
+python -c "from tower import cycle; cycle.comment('magiq-media', '<MM-id>', '<text>')"
+```
+
+Report back in chat with: the count by severity, the three findings you would fix first, and the
+rulings list. Do not paste the review document into the conversation.

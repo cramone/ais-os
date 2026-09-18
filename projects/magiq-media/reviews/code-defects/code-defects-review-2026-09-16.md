@@ -64,6 +64,14 @@ this cluster its target.** Do not design the authorization model here; consume i
 ✅ Settled by a re-count against `develop`, plus a decision on whether the five setters ship ahead of the
 rest.
 
+> **Decided 2026-09-18: the five setters ship ahead, and they are the first thing the verification pass
+> looks at.** Smallest fix, closes the escalation path on its own, independent of every other open
+> question. **Verify before building, because the premise may have moved:** these figures are from
+> 2026-08-25, and the spec now states `ProfileGovernanceAuthorization` guarding exactly those five with
+> `TenantAdministratorRequired`, plus a command-level `ProfileOrigin` guard added since. If the code
+> already does that, this downgrades from Critical immediately; if it does not, it is the highest-value
+> fix on the board. One file answers it.
+
 ### CD-2 · Archive cascade loses failures and mis-targets moved items — **High**
 
 A cluster of four, from the same capture. The load-bearing one: **on a per-child failure the cascade
@@ -150,16 +158,84 @@ custody split are the same conversation, and `MediaProfile` has already left it.
 
 ---
 
+### CD-6 · Six specified behaviours that may not be implemented — **unverified, routed here 2026-09-18**
+
+**Raised by MM-006, and routed here by the rule rather than by judgement.** Since 2026-09-18 the repo
+`CLAUDE.md` says the spec wins and a divergence between it and the code is a defect in the code — so a
+statement the spec makes and the system may not honour is a code defect, and this is the code-defect
+review. **Nothing below is verified.** Each is a spec statement written during MM-006 phase 11 from what
+the spec already committed to, on instruction, without reading `src/`.
+
+**Three would create code that does not exist:**
+
+| | Spec now states | Where |
+|---|---|---|
+| **a** | `DynamoDbSagaRepository.SaveAsync` writes **conditionally on `Version`**, retrying from a fresh read on a failed condition. The previous text specified an unconditional `PutItem` with last-writer-wins | `shared/saga-patterns.md` § Guards |
+| **b** | `OpenChangeRequestHandler` validates that `MediaItemId` names an item in the tenant, refusing `404 MediaItemNotFound` | `mediachangerequest.write-model.md` § Handler-side Pre-conditions |
+| **c** | `ChangeRequest.Scope` carries **exactly one** entry equal to `MediaItemId`; anything else is refused `422` | `mediachangerequest.write-model.md:40`, `:89` |
+
+**(a) is the one that matters.** Guards make *duplicate* delivery safe and do nothing for *concurrent*
+delivery — two handlers for different transitions can pass the same guard against the same read, and the
+second silently overwrites the first. **Two `SignerCompleted` callbacks arriving in parallel is exactly
+that shape**, and it is the platform's only genuine race.
+
+**Two change behaviour that exists:**
+
+| | Spec now states | Risk if the code differs |
+|---|---|---|
+| **d** | `RemoveRegistrationRefCommand` is idempotent per `(MediaItemId, RegistrationId)` | `Rejected` is not terminal, so rejected-then-cancelled dispatches twice. If anything decrements, it double-decrements today |
+| **e** | Erasure leaves `OwnerId` present and null; `/search` then reaches the row only for a `Registration.Read.All` holder or a System actor | Read-model nullability, and a query-scoping rule |
+
+**One validates a design already committed:**
+
+| | Spec now states | Consequence if wrong |
+|---|---|---|
+| **f** | The `media-processing` 1800 s visibility timeout is consumed — it bounds the second worker invocation and the in-invocation MediaConvert wait | **MM-006 phase 7's whole design falls.** SC-016 and SC-017 would be two defects rather than one, and the rendition trigger would need re-specifying. Needs the worker *and* `cdk-magiq-media`, which is not mounted |
+
+✅ Six confirmations, or six code defects. **A seventh outcome — correcting the spec to match — is not
+available**; that is what the rule change removed.
+
+---
+
 ## Open Questions
 
 1. **Are these still live?** — **Open.** Captured 2026-08-24 to 2026-09-01; one item in the source was
    already fixed. Nothing here should reach a plan un-reverified, and the re-count for CD-1 in particular
    will move.
-2. **On a per-child cascade failure: abort the level, or continue and report?** (CD-2) — **Open.**
-3. **Outbox, or a documented deviation?** (CD-3) — **Open.** ADR-005 chose inline publication deliberately;
-   the question is whether that still holds, not whether the platform offers an alternative.
-4. **Does detach ship ahead of custody?** (CD-5) — **Open.** The reassignment defect stands alone and may
-   not want to wait.
+2. ~~**On a per-child cascade failure: abort the level, or continue and report?**~~ (CD-2) — **Answered by
+   the spec, 2026-09-18. Not a question any more.** MM-006 specified both paths: the **collection** path
+   swallows per-child failures because the caller already holds a `204`; the **folder** path collects an
+   `ArchiveFanOutReport` and refuses the whole request `422 FolderArchiveIncomplete`, with descendants that
+   did archive staying archived. See `shared/cascade-rules.md`. **Under the spec-wins rule this is
+   implement-to-spec, not a decision to take.**
+3. ~~**Outbox, or a documented deviation?**~~ (CD-3) — **Answered 2026-09-18: ADR-005 stands. Build the
+   metric; the real remedy goes to AP-001.**
+
+   **The question was a false choice and this review carried it.** ADR-005 had already considered the
+   outbox and rejected it on evidence: *"`IOutboxStore.EnqueueAsync` takes no transaction handle and issues
+   its own write, and single-aggregate `DynamoDbEventStore.SaveAsync` is a plain `PutItem` — there is no
+   transaction for an outbox row to join. Adopting `Magiq.Platform.Messaging.Outbox` as it ships **narrows**
+   the window … True atomicity needs a change in `aspnetcore-platform`."* Adopting it is a partial remedy,
+   not a fix, and the ADR names that explicitly as the thing not to do blind.
+
+   **ADR-005's own revisit trigger is the answer, and it is not met.** *"Let measurement choose the
+   remedy"* — a projection-divergence metric comparing `ProjectedVersion` to the aggregate version. It does
+   not exist, so the trigger cannot fire. **Building it is also CD-4's recommended first step**, which
+   makes it one piece of work answering two clusters.
+
+   **The real remedy is scoped into `AP-001`.** A transaction-participating outbox is a change in
+   `aspnetcore-platform`, which is where AP-001 already sits and where a release chain is being paid for
+   alongside the `IIdempotencyStore` work and ADO #35085.
+
+   **Consequence for this cluster:** CD-3 stops being a decision and becomes two items — the metric here,
+   the outbox in AP-001. **No ADR revision**, and no code change to the publication path in this repo.
+4. ~~**Does detach ship ahead of custody?**~~ (CD-5) — **Answered 2026-09-18: yes, and the detaching actor
+   travels on the integration event from its first version.** The reassignment defect is live and
+   standalone — after first assignment an asset can never return to standalone or move to another
+   MediaItem — so it does not wait for the custody design. **The identity decision is taken now rather than
+   with custody**, because the Asset-side handler runs in `EventConsumers` with no HTTP actor: shipping the
+   event without the actor and adding it later is a persisted-shape change and an upcaster, for a decision
+   this review already called cheap today and expensive later.
 5. **Where do the four standing reports live?** — **Open.** The retired file referenced Catalog, Processing,
    Registration and DocumentSigning code-defect reports dated 2026-09-07/08 in an `adhoc/` folder. **That
    folder does not exist in this project and did not exist before the board was cleared.** Those reports are
