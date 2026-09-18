@@ -13,38 +13,40 @@ is the link**, and it is what survives archiving. The plan file takes the primar
 
 | Id | Workstream | Plan | Status | Consumes | Depends on |
 |---|---|---|---|---|---|
-| MM-003 | `spec-baseline` | [Spec Baseline — Remediation Plan](./spec-baseline/spec-baseline-review-2026-09-16.md) | Active | [MM-001](../reviews/spec-baseline/spec-baseline-review-2026-09-16.md) | `AP-001` (unmet — one item only) |
+| MM-003 | `spec-baseline` | [Spec Baseline — Remediation Plan](./spec-baseline/spec-baseline-review-2026-09-16.md) | **Done** 2026-09-18 — awaiting archive | [MM-001](../reviews/spec-baseline/spec-baseline-review-2026-09-16.md) | none (was `AP-001`; removed 2026-09-18) |
 
 ### MM-003 — shape and state
 
-**Eleven phases** on `spec/initial-alignment-work`. Phases 0–9 are documents only; **phase 10 is a release
-gate**. **Phase 1 is closed** (all ten of MM-001's questions answered) and **phase 0 is written and awaiting
-commit** — the five detectors, their baseline and the CI workflow.
+**Closed `done` on 2026-09-18. Ten phases on `spec/initial-alignment-work`, all closed.** Documents only.
+The guard runs seven checks and passes, with an **empty baseline** — the arc was 209 → 192 → 187 → 7 → 0,
+and it only ever shrank.
 
-Phase 0 is first rather than last on purpose. The previous remediation attempt made the same call in the
+> **Closed is not integrated.** At close, `spec/initial-alignment-work` was **78 commits ahead of
+> `origin/develop` and 3 behind**, with **4 unpushed**. MM-006 is stacked behind the same branch and never
+> reached develop either. **Archive is held until that is settled** — archiving a workstream whose commits
+> are unpushed hides where the work actually is.
+
+Phase 0 was first rather than last on purpose. The previous remediation attempt made the same call in the
 same words — *"stripping without a guard just resets the clock"* — recorded the guard as done, and never
 wrote it; `.github/scripts/__pycache__` was all that survived. Nine phases of editing with no detector
 running is how the citations got in.
 
-**The SDK dependency is isolated in phase 10, and it is what stops this plan closing.** Phase 5 writes the
-conformant idempotency contract without waiting — the spec states what the system is *specified* to be and
-is silent on whether the code has caught up, so writing it early is correct by construction rather than
-premature. Phase 10 is the release step that makes it true: `AP-001` shipped, packages published,
-`MagiqPlatformVersion` bumped, and the delivered behaviour checked against the text.
+**Phase 10 was lifted out on 2026-09-18 and is now [ADO #35118](https://dev.azure.com/MAGIQSoftware/Media/_workitems/edit/35118).**
+It was the SDK release gate, and it was the one phase that contradicted this plan's documents-only scope.
+Two things happened the same day: the repo `CLAUDE.md` inverted the spec-versus-code rule — the spec is
+authoritative, a gap is a **code** defect — and `AP-001` was **removed** from `aspnetcore-platform` rather
+than shipped. That left two code-and-release boxes with no dependency to track them, so they moved to the
+board.
 
-**Consequence for anyone working this:** phases 0–9 can all finish while the middleware still does replay
-rejection. At that point the plan is *substantially* complete and **not** complete — SB-20, SB-72, SB-73,
-SB-74 and SB-76 will read as closed in the spec while being open in fact. **Do not set `status: done`
-while any phase 10 box is open**; comment the card instead, saying documentation is complete and naming
-what it waits on. The card's status is projected from front-matter and nothing else, so that line is the
-only mechanism.
+**What has not changed is the gap.** `Magiq.AspNetCore.Idempotency` still does replay rejection while the
+spec states IETF draft-07 conformance. SB-20, SB-72, SB-73, SB-74 and SB-76 are closed **as
+specification** and open **as behaviour** until #35118 ships. The record of that lives permanently in the
+repo `CLAUDE.md` § Known deferred/partial work, which § *When the spec and the code disagree* cites as its
+worked example — **it is not a marker to delete when the SDK catches up.**
 
-`depends-on` resolves **unmet** — AP-001 is a review that has produced no plan — but status is `active`
-under the partial-blocking rule. **Repoint `depends-on` at AP-001's plan id when that plan exists.**
-
-**Largest phase by far is 4b** — every write command *and every query* across ten aggregates gets a scope
+**Largest phase by far was 4b** — every write command *and every query* across ten aggregates got a scope
 and, where the resource is owner- or membership-scoped, a resource predicate. **A row with a scope and no
-predicate on an owner-scoped resource is wrong**; that is the rule most likely to be lost in the volume.
+predicate on an owner-scoped resource is wrong**; that was the rule most likely to be lost in the volume.
 
 ---
 

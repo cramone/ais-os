@@ -5,10 +5,10 @@ project: magiq-media
 workstream: spec-baseline
 consumes: [MM-001]
 blocked-by-external: []
-status: active
+status: done
 todo-id: a85d40df-3c91-5a96-b00d-94438dd9d1ba
 branches: [spec/initial-alignment-work]
-ado: -
+ado: 35118
 created: 2026-09-16
 ---
 
@@ -18,22 +18,26 @@ Consumes [MM-001](../../reviews/spec-baseline/spec-baseline-review-2026-09-16.md
 questions answered. **Documents only:** `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\`
 (`spec\` + `adrs\`), plus the CI guard in phase 0. No application code is written.
 
-**Dependency gate, run at authoring 2026-09-16.** `depends-on: [AP-001]` resolves **unmet** — AP-001 is a
-review in `aspnetcore-platform` that has produced no plan, and the skill's rule 2 reads that as unmet by
-design. **Status is `active`, not `blocked`**, under rule 6: the dependency reaches exactly one phase, and
-blocking eleven of them on it would stop work with no relationship to the SDK.
+**No external dependency. Ten phases, all closed.** `AP-001` was removed from `aspnetcore-platform` on
+2026-09-18 — not delivered, removed: that repo has no `reviews/` folder, no idempotency commits since
+2026-09-13, and the packages still resolve at `1.1.3.x`. With the review gone there is no gate to run and
+nothing to repoint `depends-on` at.
 
-**The dependency is isolated in phase 10, not spread through the plan.** Phases 0–9 are documents and run
-to completion regardless; phase 10 is the release step that makes phase 5's idempotency contract true, and
-it is the reason this plan cannot reach `done` — see § Closing out, *The hard gate*. Re-run this gate at
-every session start and every phase boundary; when AP-001 produces a plan, repoint `depends-on` at that
-plan's id.
+**The SDK release work left this plan with it.** It is code and release work, and this plan is documents
+only — the scope line above has always said so, and phase 10 was the one place that contradicted it. It is
+now **ADO #35118** on the `Media` board: publish the packages, then verify the delivered middleware against
+the contract in the five files that state it. See § Closing out.
+
+**The spec does not wait for it, and does not move for it.** Since 2026-09-18 the repo `CLAUDE.md` § *When
+the spec and the code disagree* makes the spec authoritative and a gap a **code** defect — so a spec that
+is ahead of the middleware is the expected steady state, not an open item on this plan. What keeps that
+honest is the `CLAUDE.md` § Known deferred/partial work entry, which stays permanently.
 
 ---
 
 ## How this plan works
 
-**Eleven phases, ordered so that nothing is written twice.** The spec is a graph of quotations: aggregate
+**Ten phases, ordered so that nothing is written twice.** The spec is a graph of quotations: aggregate
 specs quote the domain model, derived surfaces quote write models, and everything will quote the new
 permission vocabulary. Fixing an authorization row before the vocabulary exists, or a write model before
 the aggregate inventory is settled, guarantees rework. Phases 0 and 1 touch no spec file at all.
@@ -354,7 +358,7 @@ The vocabulary underneath these is now settled. Two items are design work rather
       stated response; `bulk-operations.md` and `api-conventions.md` agree. — **Done (`16b3da69`).** Four cases where there was one. The consume-on-`2xx` rule stays and is now load-bearing rather than incidental — it is what cached replay requires — and the concurrent-duplicate race it would otherwise reopen is closed by making the record **two-phase**: `Pending` with the fingerprint before execution, promoted to `Complete` with the envelope on `2xx`, released otherwise. That is the same shape name reservation already uses. Three error codes added; a dangling anchor into the replaced section repaired in `concurrency-and-consistency.md`, caught by the guard.
 - [x] **Record the idempotency gap where build status belongs.** Add `Magiq.AspNetCore.Idempotency` to the
       repo `CLAUDE.md` § Known deferred/partial work: the spec states the conformant contract, the
-      middleware does replay rejection, and conformance ships with AP-001. ✅ A reader who wants to know
+      middleware does replay rejection, and conformance ships with the SDK release. ✅ A reader who wants to know
       what the running system does finds the answer in one hop, from the file that is allowed to hold it.
 
   > **Why this item is no longer blocked.** The spec states **what the system is specified to be**, and
@@ -364,8 +368,10 @@ The vocabulary underneath these is now settled. Two items are design work rather
   > package release in another repo — would mean the one file everyone reads stays wrong for as long as the
   > release takes.
   >
-  > **What does not move is the truth of it.** Phase 10 holds the release gate, and this plan cannot reach
-  > `done` while that phase is open. Writing the contract is phase 5; making it true is phase 10. — **Done.** The `CLAUDE.md` entry names what the spec states, what the middleware does, and says explicitly **not** to "correct" the spec back to the narrower mechanism while the gap is open.
+  > **What does not move is the truth of it.** Writing the contract is this phase; making it true is the
+  > release, and the release is **ADO #35118**, not a phase of this plan. — **Done.** The `CLAUDE.md` entry
+  > names what the spec states, what the middleware does, and says explicitly **not** to "correct" the spec
+  > back to the narrower mechanism while the gap is open.
 - [x] **Fix the error catalog's exhaustiveness claim.** Closes SB-22. ✅ Either every endpoint's errors are
       catalogued, or the claim is narrowed to what is true. — **Done.** Narrowed to every code a **write** endpoint produces, and the two things deliberately outside that claim are named so their absence is not mistaken for completeness: uncoded `422 InvalidOperation` refusals, and read endpoints (SB-53's, in phase 6).
 - [x] **Reconcile the download guard status sets.** Closes SB-23. ✅ `asset.api.md` and DL-1/DL-2 state the
@@ -525,54 +531,6 @@ a gap, ask.
       fails the run — but there is no longer any accepted residue to hide behind, which makes the next
       failure a real finding rather than a queue-jump.
 
-## Phase 10 — SDK release gate ⛔ **blocked on `AP-001`**
-
-**Phases 0–9 can all be completed without this phase.** Nothing here is documentation work — it is the
-step that makes the idempotency contract phase 5 wrote actually true of the running system, and it cannot
-be done from this repo.
-
-**This phase is the reason the plan cannot be marked `done`.** Every other box can be ticked while the
-`Magiq.AspNetCore.Idempotency` contract is still replay-rejection. That is an acceptable state for the
-*spec* and an unacceptable state for the *plan*, because a plan that closes here would claim SB-20, SB-72,
-SB-73, SB-74 and SB-76 are closed when the system does none of it.
-
-**The platform rule now agrees with that framing.** Since 2026-09-18 the spec is authoritative and a gap
-between it and the code is a defect in the code — so a spec that is ahead is the expected state, and this
-phase is simply the work the spec is ahead *of*. What changed is the remedy: where the middleware and the
-contract differ, the contract does not move.
-
-**Dependency:** `AP-001` in `aspnetcore-platform` — currently a review with no plan, which resolves as
-unmet. Re-run the gate at every session start; repoint `depends-on` at AP-001's plan id once it exists.
-
-> **Re-reviewed 2026-09-18 after MM-006 closed.** Phases 0–9 are now all complete — phase 6's two boxes
-> were done and unticked, verified finding by finding. **This is the only phase left, which is what the
-> plan always said would happen.** Two of its five boxes changed underneath it: box 3's rule was inverted
-> platform-wide, and box 4 acquired a cross-reference. Boxes 1, 2 and 5 are untouched and still wait on
-> `AP-001`.
-
-- [ ] **AP-001 ships.** Its plan reaches `done`: `IIdempotencyStore` carries the response and the
-      fingerprint, `MarkAsync` runs after the pipeline on `2xx` only, the key is scoped to the operation,
-      and `409` means concurrent. ✅ AP-001's plan front-matter reads `status: done`.
-- [ ] **Packages published and consumed.** The `.Abstractions` and plugin packages publish, and
-      `MagiqPlatformVersion` bumps in this repo's `Directory.Packages.props`. Merging is not shipping —
-      this SDK is consumed as NuGet, not by project reference. ✅ The resolved version is not `1.1.3.5`.
-      **Consider shipping with ADO #35085 (`GuidFactory` byte order), which needs the same release chain —
-      paying it twice is avoidable.**
-- [ ] **Confirm the delivered middleware matches the spec.** Read it against the contract **in all five
-      files that state it** — `api-conventions.md` § Idempotency (the owner),
-      `concurrency-and-consistency.md`, `error-catalog.md` (the three codes), `recordtype.api.md` and
-      `mediachangerequest.api.md`. Where they differ, **AP-001 reopens.** ✅ A stated confirmation, naming
-      the version checked.
-      > **Correcting the spec to the middleware is not an available outcome**, and this box used to say it
-      > was. The repo `CLAUDE.md` § *When the spec and the code disagree* now makes the spec authoritative
-      > and the divergence a code defect; taking the other branch here would revert phase 5.
-- [ ] **Remove the deferred-work entry, and the citation that depends on it.** The `CLAUDE.md` § Known
-      deferred/partial work line added in phase 5 comes out, because it is no longer true — **and
-      `CLAUDE.md` § *When the spec and the code disagree* cites that entry as its worked example of a
-      deliberate gap**, so the citation goes or is repointed in the same edit. ✅ `grep -c 'Idempotency'
-      CLAUDE.md` reflects only live statements, and no section points at a removed one.
-- [ ] **Phase exit.** ✅ All items ticked. **Only now may this plan move to `done`.**
-
 ---
 
 ## Closing out
@@ -582,31 +540,51 @@ last box is ticked. The close-out card comment records every branch it was commi
 plan folders then archive together into `_archive/reviews/MM-001-spec-baseline/` and
 `_archive/plans/MM-003-spec-baseline/`, each prefixed with its own id, both keeping the workstream name.
 
-### The hard gate
+### What the hard gate became
 
-**`status: done` requires phase 10 closed. There is no version of "documentation complete" that closes
-this plan.**
+**This plan carried a hard gate until 2026-09-18: `status: done` required phase 10, the SDK release, to
+close. That gate is gone, and it is worth recording why — because "the blocking phase was deleted" is
+exactly what a plan tidying itself up would also look like.**
 
-Phases 0–9 are documents and can all finish while `Magiq.AspNetCore.Idempotency` still does replay
-rejection. When they do, the plan is **substantially** complete and **not** complete: the spec will state
-an idempotency contract the system does not honour, and five findings — SB-20, SB-72, SB-73, SB-74,
-SB-76 — will look closed in the text while being open in fact.
+The gate existed to stop one specific dishonesty: closing MM-003 while the spec stated an idempotency
+contract the middleware did not honour, so that SB-20, SB-72, SB-73, SB-74 and SB-76 read as closed in the
+text while being open in fact. **That risk has not gone away.** The middleware still does replay
+rejection. What changed is which document is responsible for saying so.
 
-That state is correct for the spec and wrong for the plan, and the two must not be conflated. So:
+Two changes on 2026-09-18, in this order:
 
-- **Do not set `status: done`** while any phase 10 box is open, however complete the rest looks. The card's
-  status is projected from this front-matter and nothing else, so this line is the only mechanism.
-- **When phases 0–9 finish, comment the card** saying documentation is complete and the plan is held on
-  phase 10, naming `AP-001` and what it is waiting for. Leave the status `active`. A plan parked on a real
-  external dependency is not the same as a plan nobody is working, and the card comment is what tells the
-  difference.
-- **If the SDK work is abandoned rather than shipped**, that is a decision, not a drift. Phase 5's spec
-  text either reverts to the mechanism the platform actually provides, or the plan closes `superseded`
-  with the reason recorded. **Silently ticking phase 10 to tidy the list is the one outcome that is not
-  available.**
+1. **The platform rule inverted.** The repo `CLAUDE.md` § *When the spec and the code disagree* now makes
+   the spec authoritative and the gap a **code** defect. A spec ahead of its implementation stopped being
+   a debt this plan owed and became the expected steady state. It also removed one of the gate's own two
+   exits — "revert phase 5's text to the mechanism the platform provides" is no longer available, because
+   that section names this very entry and says not to.
+2. **`AP-001` was removed** from `aspnetcore-platform` — not shipped. No `reviews/` folder, no
+   idempotency commits since 2026-09-13, packages still at `1.1.3.x`. The gate's dependency stopped
+   existing without its work being done.
 
-`_archive/` and `plans/README.md` did not exist when this plan was written. Create them at close-out and
-hand-over respectively.
+Which left a documents-only plan holding two code-and-release boxes with no dependency to track them. So
+the work moved rather than closed: **ADO #35118** on the `Media` board carries publishing the packages and
+verifying the delivered middleware against the five files that state the contract.
+
+**The honesty mechanism moved with it, and it is now stronger than a checkbox was.** `CLAUDE.md` § Known
+deferred/partial work states the gap, and § *When the spec and the code disagree* cites that entry as its
+worked example. **That entry is permanent — it is not a marker to delete when #35118 ships.** Phase 10's
+box 4 said to remove it; that box was deleted rather than carried over, because acting on it would break
+the citation and erase the record of a deliberate gap.
+
+So, for whoever closes this plan:
+
+- **`done` is still Chase's call**, not an inference from ticked boxes — the convention in
+  `plans/README.md`, unchanged.
+- **Do not read a clean spec tree as a working system.** The five findings above are closed *as
+  specification*. #35118 is what closes them as behaviour.
+- **If #35118 is abandoned rather than shipped**, that is a decision to record on that item — and the spec
+  text still does not move, because the platform rule no longer permits it.
+
+`_archive/` and `plans/README.md` did not exist when this plan was written. Both exist now — `_archive/`
+holds MM-005/MM-006 — so close-out is an archive of this workstream's pair into
+`_archive/reviews/MM-001-spec-baseline/` and `_archive/plans/MM-003-spec-baseline/`, and an update to both
+index READMEs.
 
 ---
 
@@ -1373,3 +1351,42 @@ and the overwhelming majority are domain vocabulary: `retired` is a real concept
 be narration — `**Replaces**`, `Renamed from`, `had no stated`, `has been removed` — returned **8**, of
 which 6 were real. **The signal is in the phrasing that has no domain reading**, and a grep for the concept
 finds twenty times the noise.
+
+**2026-09-18 — phase 10 lifted out; the plan is documents-complete (Chase).**
+
+*The dependency was removed, not satisfied, and that distinction is the whole entry.* Checked before
+acting rather than taking the marker at face value: `aspnetcore-platform` has **no `reviews/` folder at
+all**, no idempotency commits since 2026-09-13, and the `.Abstractions` and plugin packages still resolve
+at `1.1.3.x`. `AP-001` does not exist any more and the middleware still does replay rejection. **A removed
+dependency marker is not delivered work**, and a session that ticked phase 10 on the strength of the
+marker would have closed five findings that are open in the running system.
+
+*What forced the restructure was the platform rule, not the removal.* Commit `c4f602ea` inverted the
+spec-versus-code rule the same afternoon: the spec is authoritative, a gap is a **code** defect, and the
+repo `CLAUDE.md` names this very idempotency entry as its worked example with *"do not correct the spec
+back to the narrower mechanism."* That **contradicted the plan's own hard gate**, which offered reverting
+phase 5's text as one of two exits. One of them had to go, and the newer platform-wide rule wins. It also
+killed box 4 outright — removing the `CLAUDE.md` deferred-work entry would now break the citation that
+depends on it, so the box was **deleted rather than carried**, and the entry is permanent.
+
+*That left the real problem: two code-and-release boxes inside a plan whose scope line reads "Documents
+only. No application code is written."* Phase 10 was always the exception to that scope; the removal is
+what made it untenable. **Ruled (Chase): lift it out.** Boxes 2 and 3 are now **ADO #35118** on the `Media`
+board — publish the packages, verify the delivered middleware against the contract in all five files that
+state it — carrying the context, the SDK requirements that outlived `AP-001`, and the instruction that the
+spec does not move. Box 1 died with `AP-001`; boxes 4 and 5 were deleted.
+
+*§ The hard gate was rewritten rather than removed*, under § *What the hard gate became*, because
+"the blocking phase was deleted" is indistinguishable from a plan tidying itself up unless the reasoning
+survives. The risk it guarded has not gone; what changed is that `CLAUDE.md` now carries it permanently
+instead of a checkbox carrying it temporarily.
+
+**Phases 0–9 are all closed and the plan is documents-complete. `done` is Chase's call** — the convention
+is unchanged, and ticking the last box is not the same as agreeing the work is finished.
+
+*Also noted, not fixed here.* `plans/README.md` § *MM-003 — shape and state* is stale in its own right: it
+still says phase 0 is "awaiting commit" and phase 1 is the only closed phase, and it describes the AP-001
+gate. `reviews/README.md` lists **MM-004** as `Draft` with no plan while `SK-1..SK-5` commits landed on
+2026-09-18 — work executed without the plan the convention requires. Both belong to whoever picks up
+MM-004; flagged rather than absorbed, per the standing rule that a new defect never becomes a checklist
+item in the plan that found it.
