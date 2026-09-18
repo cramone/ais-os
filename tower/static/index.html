@@ -4227,21 +4227,24 @@
   }
 
   // Delete on a cycle card removes the *document*, not the card — deleting a projection
-  // would only bring it back on the next read. Refused while anything names its id, and
-  // shown as a dead button saying who, rather than a live one that 409s.
+  // would only bring it back on the next read. A referenced document deletes too; the
+  // references are stripped from the documents that name it. The button says so up
+  // front, and the confirm lists exactly which ones before anything is written.
   function _cycleDeleteBtn(board, i) {
     if (board.kind !== 'todo' || !i.cycle || i.cycle.dangling) return '';
     const refs = (i.cycle.deps && i.cycle.deps.blocks) || [];
+    const tail = 'Not undoable from here; the repo is the undo.';
     if (refs.length) {
       const listed = refs.map(e => `${e.id} (${e.via === 'consumes' ? 'consumes' : 'depends-on'})`).join(', ');
-      return `<span class="action-btn" style="opacity:.45;cursor:not-allowed" title="${_attr(
-        `Cannot delete ${i.cycle.id} — it is referenced by ${listed}.\n\n`
-        + 'Delete those first, or set it to `superseded`, which is the status for work that should not have been written.')
-        }">✕ referenced</span>`;
+      return `<button class="action-btn danger" title="${_attr(
+        `Delete ${i.cycle.id} — removes ${i.cycle.path} from disk, along with its prompt file and its card.\n\n`
+        + `${refs.length === 1 ? 'One document references' : `${refs.length} documents reference`} it (${listed}); `
+        + `the reference will be removed from ${refs.length === 1 ? 'it' : 'them'}.\n${tail}`)
+        }" onclick="event.stopPropagation();cycleDelete('${i.cycle.id}')">✕ <span style="font-size:10px;opacity:.8">${refs.length}↗</span></button>`;
     }
     return `<button class="action-btn danger" title="${_attr(
       `Delete ${i.cycle.id} — removes ${i.cycle.path} from disk, along with its prompt file and `
-      + 'its card. Not undoable from here; the repo is the undo.')
+      + `its card. ${tail}`)
       }" onclick="event.stopPropagation();cycleDelete('${i.cycle.id}')">✕</button>`;
   }
 
@@ -4606,16 +4609,49 @@
   }
 
   // Deletes the document a cycle card projects. The confirm names the file, because
-  // "delete this card" and "delete this review off disk" are not the same sentence.
+  // "delete this card" and "delete this review off disk" are not the same sentence —
+  // and names every document that loses a reference, because that is a second edit,
+  // to files nobody opened, and it should not be a surprise found later in a diff.
+  //
+  // The reference list comes from the server rather than the board's own graph: the
+  // dialog and the delete then cannot disagree about what is about to happen.
   async function cycleDelete(docId) {
     const item = (_todoCache || []).concat(_todoArchiveCache || [])
       .find(x => x.cycle && x.cycle.id === docId);
     const path = item && item.cycle ? item.cycle.path : docId;
     const title = item ? item.title : docId;
+
+    let refs = [];
+    try {
+      const r = await fetch(`/api/projects/${_todoSlug}/documents/${docId}/references`);
+      if (r.ok) refs = (await r.json()).references || [];
+    } catch (e) {
+      // Falling back to the board's graph rather than deleting blind. It is the same
+      // data one read older, which is the right way round to be wrong here.
+      refs = (item && item.cycle && item.cycle.deps && item.cycle.deps.blocks) || [];
+    }
+
+    let warning = '';
+    if (refs.length) {
+      warning = `\n${refs.length === 1 ? 'One document references' : `${refs.length} documents reference`} ${docId}. `
+        + 'Deleting it removes the reference:\n'
+        + refs.map(e => `  • ${e.id}${e.title ? ` — ${e.title}` : ''}  [${e.via}]`).join('\n') + '\n';
+      const origins = refs.filter(e => e.via === 'consumes');
+      if (origins.length) {
+        warning += `\n⚠ ${docId} is the origin ${origins.length === 1 ? 'of' : 'of'} `
+          + origins.map(e => e.id).join(', ')
+          + `. ${origins.length === 1 ? 'That plan' : 'Those plans'} will have no origin, `
+          + 'and check() will report it until one is named or the plan is superseded.\n'
+          + `\nIf ${docId} was written and turned out wrong, `
+          + '`superseded` keeps the id and the reasoning. Delete is for work that should never have been filed.\n';
+      }
+    }
+
     if (!confirm(
       `Delete ${docId} — "${title}"?\n\n`
       + `This removes ${path} from disk, with its prompt file and its card.\n`
-      + 'It cannot be undone from the Tower — only from git.')) return;
+      + warning
+      + '\nIt cannot be undone from the Tower — only from git.')) return;
     const res = await fetch(`/api/projects/${_todoSlug}/documents/${docId}`, { method: 'DELETE' });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));

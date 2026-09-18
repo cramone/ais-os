@@ -196,6 +196,201 @@ def is_empty_list(raw: str | None) -> bool:
     return raw is None or raw.strip() in ("", "[]", "-")
 
 
+def _front_matter_bounds(lines: list[str]) -> tuple[int, int]:
+    """(first field line, closing `---` line) for a file already split into lines.
+
+    Raises CycleViolation when the file does not open with front-matter. Accepts both
+    openings `parse_front_matter` does — the bare fence and the HTML-comment-wrapped
+    form.
+    """
+    start = 1 if lines and lines[0].strip() == "<!--" else 0
+    if len(lines) <= start or lines[start].strip() != "---":
+        raise CycleViolation("no front-matter to update.")
+    for index in range(start + 1, len(lines)):
+        if lines[index].strip() == "---":
+            return start + 1, index
+    raise CycleViolation("front-matter is not closed.")
+
+
+_REF_FIELDS = ("consumes", "depends-on")
+
+
+def ref_map(path: Path) -> dict[str, list[str]]:
+    """`{field: [ids]}` for one document's `consumes` / `depends-on`, both list forms.
+
+    **Not the same reader as `dependency_graph`, deliberately.** That one goes through
+    `parse_front_matter`, which flattens front-matter to str->str and so reads the block
+    form
+
+        depends-on:
+          - MM-001
+
+    as an empty value — the ids are on their own lines and the map never sees them.
+    Harmless for a graph that is redrawn on every read; not harmless for a delete, which
+    would leave behind exactly the dangling reference it was supposed to remove. What
+    gets unlinked has to be read from what is written, not from what the board noticed.
+    """
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").split("\n")
+        first, close = _front_matter_bounds(lines)
+    except (CycleViolation, OSError):
+        return {}
+    out: dict[str, list[str]] = {}
+    index = first
+    while index < close:
+        match = _FIELD_RE.match(lines[index])
+        if not match or match.group(1) not in _REF_FIELDS:
+            index += 1
+            continue
+        field, raw = match.group(1), match.group(2).strip()
+        if raw and raw not in ("[]", "-"):
+            out[field] = re.findall(r"[A-Z]{2,}-\d{3}", raw)
+            index += 1
+            continue
+        ids: list[str] = []
+        cursor = index + 1
+        while cursor < close:
+            entry = re.match(r"^\s+-\s*([A-Z]{2,}-\d{3})\s*$", lines[cursor])
+            if not entry:
+                break
+            ids.append(entry.group(1))
+            cursor += 1
+        out[field] = ids
+        index = cursor
+    return out
+
+
+def references_to(slug: str, doc_id: str) -> list[dict[str, Any]]:
+    """Every document that names `doc_id`, with the field that names it.
+
+    One entry per (document, field) pair — a plan that both consumes a review and
+    depends on it is two facts, and the `consumes` one is the one with a consequence.
+    """
+    refs: list[dict[str, Any]] = []
+    for other_id, doc in index_documents(slug).items():
+        if other_id == doc_id:
+            continue
+        fields = ref_map(doc["path"])
+        for field in _REF_FIELDS:
+            if doc_id in fields.get(field, []):
+                refs.append({
+                    "id": other_id,
+                    "title": _title_for(doc),
+                    "type": doc["type"],
+                    "status": doc["status"],
+                    "via": field,
+                })
+    return sorted(refs, key=lambda r: (r["id"], r["via"]))
+
+
+def strip_reference(path: Path, doc_id: str) -> list[str]:
+    """Remove `doc_id` from this document's `consumes` / `depends-on` front-matter.
+
+    Returns the field names actually changed, so the caller can say what it did.
+
+    **Front-matter only.** The bounds are resolved first and nothing outside them is
+    read, let alone rewritten. That is not caution for its own sake: a review's
+    `-prompt.md` carries a worked example of a front-matter block *in its body*, ids
+    and all, and a naive file-wide replace would quietly edit the instructions a future
+    session reads.
+
+    Both list forms are handled — the inline `[MM-001, MM-002]` these files actually
+    use, and the block form, in case one is ever hand-written:
+
+        depends-on:
+          - MM-001
+
+    When the id removed was the only entry, the field is left as `[]` rather than
+    deleted. An absent field and an empty one already mean the same thing to
+    `is_empty_list`, and keeping the line keeps the front-matter blocks uniform.
+    """
+    text = path.read_text(encoding="utf-8", errors="replace")
+    lines = text.split("\n")
+    first, close = _front_matter_bounds(lines)
+    changed: list[str] = []
+    out = list(lines)
+    drop: set[int] = set()
+
+    index = first
+    while index < close:
+        match = _FIELD_RE.match(out[index])
+        if not match or match.group(1) not in _REF_FIELDS:
+            index += 1
+            continue
+        field, raw = match.group(1), match.group(2).strip()
+
+        if raw and raw not in ("[]", "-"):
+            # Inline form. Rebuild from the ids that survive rather than editing the
+            # string, so separators and stray whitespace normalise on the way out.
+            refs = [r for r in re.findall(r"[A-Z]{2,}-\d{3}", raw) if r != doc_id]
+            if len(refs) != len(re.findall(r"[A-Z]{2,}-\d{3}", raw)):
+                out[index] = f"{field}: [{', '.join(refs)}]"
+                changed.append(field)
+            index += 1
+            continue
+
+        # Block form: indented `- ID` lines until the next field or the fence.
+        cursor = index + 1
+        removed = False
+        remaining = 0
+        while cursor < close:
+            entry = re.match(r"^\s+-\s*([A-Z]{2,}-\d{3})\s*$", out[cursor])
+            if not entry:
+                break
+            if entry.group(1) == doc_id:
+                drop.add(cursor)
+                removed = True
+            else:
+                remaining += 1
+            cursor += 1
+        if removed:
+            changed.append(field)
+            if not remaining:
+                out[index] = f"{field}: []"
+        index = cursor
+
+    if not changed:
+        return []
+    path.write_text(
+        "\n".join(line for i, line in enumerate(out) if i not in drop),
+        encoding="utf-8", newline="\n",
+    )
+    return changed
+
+
+def unlink_references(slug: str, doc_id: str) -> list[dict[str, Any]]:
+    """Strip every reference to `doc_id` from the documents that name it.
+
+    Returns one entry per document changed: its id, the fields edited, and whether a
+    `consumes` edge was among them — the caller warns on that separately, because the
+    two link types fail differently. A dropped `depends-on` only means the wait is
+    over. A dropped `consumes` removes a plan's origin, which `check()` reports as a
+    plan that cannot account for itself.
+
+    Driven by `references_to`, so a block-form list is unlinked even though the board's
+    graph could not draw the edge.
+    """
+    index = index_documents(slug)
+    unlinked: list[dict[str, Any]] = []
+    for ref_id in dict.fromkeys(r["id"] for r in references_to(slug, doc_id)):
+        target = index.get(ref_id)
+        if not target:
+            continue
+        try:
+            fields = strip_reference(target["path"], doc_id)
+        except (CycleViolation, OSError):
+            continue
+        if fields:
+            unlinked.append({
+                "id": ref_id,
+                "type": target["type"],
+                "status": target["status"],
+                "fields": fields,
+                "consumed": "consumes" in fields,
+            })
+    return unlinked
+
+
 # --- tree layout ------------------------------------------------------------
 
 
@@ -230,12 +425,18 @@ def workstream_of(path: Path, base: Path) -> str:
 
 
 def index_documents(slug: str) -> dict[str, dict[str, Any]]:
-    """Map document id -> {path, rel, type, status, fields} for one project.
+    """Map document id -> {path, rel, type, status, fields, refs} for one project.
 
     Scans reviews/, requests/ and plans/ recursively plus their `_archive/` mirrors —
     an archived document is still a resolvable id. Files without front-matter are
     legacy and are skipped silently; per the skill their status is UNKNOWN and must
     not be inferred.
+
+    `refs` is `ref_map()`'s `{field: [ids]}` and is the one place `consumes` and
+    `depends-on` are read. `fields` still carries them as raw strings, but reading them
+    from there is a bug waiting to happen: the flat map cannot see a block-form list, so
+    every consumer that parsed the string itself silently disagreed with the ones that
+    did not. Resolved once, here, and shared.
     """
     index: dict[str, dict[str, Any]] = {}
     for folder in DOC_FOLDERS:
@@ -255,6 +456,7 @@ def index_documents(slug: str) -> dict[str, dict[str, Any]]:
                     "type": fields.get("type", ""),
                     "status": fields.get("status", ""),
                     "fields": fields,
+                    "refs": ref_map(path),
                 }
     return index
 
@@ -404,11 +606,6 @@ def reconcile(
     return items, changed
 
 
-def _ids_in(raw: str | None) -> list[str]:
-    """Document ids named in a front-matter list field, in order."""
-    return [] if is_empty_list(raw) else re.findall(r"[A-Z]{2,}-\d{3}", raw or "")
-
-
 # A dependency is met when the thing depended on has finished. `parked` and
 # `superseded` are explicitly NOT met — SKILL.md § Dependency gating: "it is not
 # coming unless someone restarts it", which is the case most worth surfacing.
@@ -455,9 +652,10 @@ def _external_blockers(fields: dict[str, str], path: Path) -> list[dict[str, Any
 def dependency_graph(slug: str) -> dict[str, dict[str, Any]]:
     """Per-document dependency edges, both directions, with met/unmet resolved.
 
-    The forward edges (`consumes`, `depends-on`) are in front-matter. The **reverse**
-    edge — what a document blocks — is not written anywhere, and it is the one that
-    answers "can I close this yet". Derived here so the board can show both.
+    The forward edges (`consumes`, `depends-on`) are in front-matter, read through the
+    index's `refs` so both list forms resolve. The **reverse** edge — what a document
+    blocks — is not written anywhere, and it is the one that answers "can I close this
+    yet". Derived here so the board can show both.
     """
     index = index_documents(slug)
     graph: dict[str, dict[str, Any]] = {
@@ -478,7 +676,7 @@ def dependency_graph(slug: str) -> dict[str, dict[str, Any]]:
     for doc_id, doc in index.items():
         fields = doc["fields"]
         for field, key in (("consumes", "consumes"), ("depends-on", "dependsOn")):
-            for ref in _ids_in(fields.get(field)):
+            for ref in doc["refs"].get(field, []):
                 edge = describe(ref)
                 graph[doc_id][key].append(edge)
                 if ref in graph:
@@ -626,11 +824,23 @@ def delete_document(slug: str, doc_id: str) -> dict[str, Any]:
     it. Anything else in the folder is left, folder and all — a half-finished sibling is
     not this call's to judge.
 
-    **Refused while anything references the id.** `consumes` and `depends-on` resolve by
-    id over one namespace, so deleting a referenced document does not break a link, it
-    makes one point at nothing — and `check()` would then report a dangling id with no
-    file left to explain it. Delete the dependents first, or `superseded` it instead,
-    which is the status that exists for "this should not have been written".
+    **References are unlinked, not refused.** `consumes` and `depends-on` resolve by id
+    over one namespace, so a deleted document that others still name leaves a link
+    pointing at nothing, which `check()` reports as a dangling id with no file left to
+    explain it. The fix is to remove the reference at the same moment as the file —
+    `unlink_references()` strips the id from every document that named it, and each
+    affected card gets a comment saying so, because a front-matter edit nobody asked for
+    should not be something you discover in a diff a week later.
+
+    This used to be refused outright, on the reasoning that an id other work names
+    cannot simply stop existing. True of `consumes`, which is provenance: a plan whose
+    origin is gone cannot account for itself, and `check()` will say so — the caller is
+    expected to have warned before getting here. Not true of `depends-on`, which is a
+    gate. Deleting the thing waited on is a normal way for a wait to end.
+
+    `superseded` is still the better move when the document was written and turned out
+    wrong — it keeps the id and the reasoning. Delete is for work that should never have
+    been filed at all.
 
     Not reversible from the board. The repo is the undo.
     """
@@ -641,16 +851,9 @@ def delete_document(slug: str, doc_id: str) -> dict[str, Any]:
     if not doc:
         raise DocumentNotFound(f"{doc_id} resolves to no document in {slug}.")
 
-    blockers = dependency_graph(slug).get(doc_id, {}).get("blocks") or []
-    if blockers:
-        listed = ", ".join(
-            f"{e['id']} ({'consumes' if e['via'] == 'consumes' else 'depends-on'})"
-            for e in blockers)
-        raise CycleViolation(
-            f"{doc_id} is referenced by {listed}. Delete those first, or set "
-            f"{doc_id} to `superseded` instead — an id other work names cannot "
-            "simply stop existing."
-        )
+    # Before the file goes: while it is still indexed, the graph can still resolve who
+    # names it. Afterwards those edges would read as dangling ids rather than links.
+    unlinked = unlink_references(slug, doc_id)
 
     path: Path = doc["path"]
     removed = [path]
@@ -673,6 +876,10 @@ def delete_document(slug: str, doc_id: str) -> dict[str, Any]:
         delete_interrupt(todos_path, todo_id)
         todo_removed = True
 
+    # Leave a trail on the cards that were edited. The front-matter change is the real
+    # record, but it is in a file the operator was not looking at; the card is.
+    _note_unlinked(slug, doc_id, unlinked)
+
     return {
         "id": doc_id,
         "type": doc["type"],
@@ -680,7 +887,39 @@ def delete_document(slug: str, doc_id: str) -> dict[str, Any]:
         "folderRemoved": folder.relative_to(config.PROJECTS_DIR.parent).as_posix()
         if folder_removed else None,
         "todoRemoved": todo_removed,
+        "unlinked": unlinked,
     }
+
+
+def _note_unlinked(slug: str, doc_id: str, unlinked: list[dict[str, Any]]) -> None:
+    """Comment on each card whose document just lost a reference. Best effort.
+
+    A card that does not exist yet is not an error worth failing a delete over — the
+    next board read reconciles one into being, and the front-matter is already correct.
+    """
+    from tower.interrupts.store import append_activity, load_interrupts
+
+    if not unlinked:
+        return
+    path = config.todos_file(slug)
+    if not path.exists():
+        return
+    known = {i["id"] for i in load_interrupts(path)}
+    for entry in unlinked:
+        todo_id = todo_id_for(slug, entry["id"])
+        if todo_id not in known:
+            continue
+        fields = " and ".join(f"`{f}`" for f in entry["fields"])
+        text = f"{doc_id} was deleted; removed from {fields}."
+        if entry["consumed"]:
+            text += (
+                f" This was {entry['id']}'s origin — it now has none, and `check()` "
+                "will report that until one is named or this is superseded."
+            )
+        try:
+            append_activity(path, todo_id, "comment", text, author="Tower")
+        except KeyError:
+            continue
 
 
 def assert_not_cycle(slug: str, item: dict[str, Any], action: str) -> None:
@@ -780,12 +1019,9 @@ def check(slug: str) -> list[str]:
                     )
 
     for doc_id, rel in seen.items():
-        fields = parse_front_matter(config.PROJECTS_DIR.parent / rel) or {}
-        for field in ("consumes", "depends-on"):
-            raw = fields.get(field)
-            if is_empty_list(raw):
-                continue
-            for ref in re.findall(r"[A-Z]{2,}-\d{3}", raw or ""):
+        refs = ref_map(config.PROJECTS_DIR.parent / rel)
+        for field in _REF_FIELDS:
+            for ref in refs.get(field, []):
                 if ref not in seen:
                     problems.append(
                         f"{doc_id}: `{field}` names {ref}, which resolves to no document"
@@ -836,7 +1072,10 @@ def _check_plans_have_origins(slug: str, seen: dict[str, str]) -> list[str]:
 
             doc_id = fields.get("id", "")
             if DOC_ID_RE.match(doc_id):
-                consumed = _ids_in(fields.get("consumes"))
+                # From the index, not the flat field: a block-form `consumes:` reads as
+                # empty there, and this check would call a plan origin-less for writing
+                # its origin down the other legal way.
+                consumed = index.get(doc_id, {}).get("refs", {}).get("consumes", [])
                 if not consumed:
                     problems.append(
                         f"{doc_id} ({rel}): plan has no origin — `consumes:` is empty. "

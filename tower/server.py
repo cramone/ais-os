@@ -638,7 +638,9 @@ def delete_document(slug: str, doc_id: str) -> dict[str, Any]:
     alone would only bring it back on the next board read. This route names what is
     actually being removed, and takes the document id rather than the card's uuid.
 
-    409 while anything references the id — see `cycle.delete_document`.
+    References to the id are stripped from the documents that name them rather than
+    blocking the delete — see `cycle.delete_document`. `GET …/documents/{id}/references`
+    is the same set, read-only, for the confirm dialog to show first.
     """
     try:
         return cycle.delete_document(slug, doc_id)
@@ -646,6 +648,26 @@ def delete_document(slug: str, doc_id: str) -> dict[str, Any]:
         raise HTTPException(404, str(exc))
     except cycle.CycleViolation as exc:
         raise HTTPException(409, str(exc))
+
+
+@app.get("/api/projects/{slug}/documents/{doc_id}/references")
+def get_document_references(slug: str, doc_id: str) -> dict[str, Any]:
+    """What a delete of `doc_id` would unlink, without touching anything.
+
+    The board already holds a dependency graph, so the UI could assemble this itself —
+    but then the confirm dialog and the delete would be two different opinions about
+    what is about to happen, kept in step by hand. This is the one the delete uses —
+    `cycle.references_to`, which reads the files rather than the board's graph.
+    """
+    if doc_id not in cycle.index_documents(slug):
+        raise HTTPException(404, f"{doc_id} resolves to no document in {slug}.")
+    refs = cycle.references_to(slug, doc_id)
+    return {
+        "id": doc_id,
+        "references": refs,
+        # A consumes edge is the one with a consequence past the link itself.
+        "origins": [r["id"] for r in refs if r["via"] == "consumes"],
+    }
 
 
 @app.delete("/api/projects/{slug}/todos/{todo_id}", status_code=204)
