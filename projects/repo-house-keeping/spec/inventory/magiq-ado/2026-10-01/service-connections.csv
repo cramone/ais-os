@@ -1,0 +1,7 @@
+project,name,type,url,is_shared,created_by
+Documents,aws-devops,AWS,https://aws.amazon.com/,False,jack.della@magiqsoftware.com
+Documents,S3,AWS,https://aws.amazon.com/,False,chase.ramone@NCSSoftware.onmicrosoft.com
+Mobile,aws-engagement-admin,AWS,https://aws.amazon.com/,False,jack.della@magiqsoftware.com
+Performance,Nuget_Service_Connection,externalnugetfeed,https://pkgs.dev.azure.com/MAGIQSoftware/_packaging/MagiqSoftware/nuget/v3/index.json,False,chase.ramone@NCSSoftware.onmicrosoft.com
+MAGIQ Cloud,DevelopmentAccount,AWS,https://aws.amazon.com/,False,tom.fenton@NCSSoftware.onmicrosoft.com
+MAGIQ Cloud,magiq-cloudformation,AWS,https://aws.amazon.com/,False,fred.stoddart@magiqsoftware.com

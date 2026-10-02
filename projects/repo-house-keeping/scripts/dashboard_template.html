@@ -1,0 +1,776 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Repo House Keeping — Migration Dashboard</title>
+<style>
+:root{
+  --bg:#f6f7f9;--panel:#fff;--panel2:#f0f2f5;--line:#dde1e7;--text:#1b2230;--mut:#5d6879;--acc:#2563eb;--acc2:#dbe7ff;
+  --link:#0b57d0;--ok:#16a34a;--warn:#d97706;--bad:#dc2626;--shadow:0 1px 2px rgba(0,0,0,.06);
+  --c-migrate:#16a34a;--c-update-then-migrate:#2563eb;--c-archive-in-place:#64748b;
+  --c-decommission:#dc2626;--c-pending:#d97706;--c-tbd:#9aa3b2;
+  --c-active:#16a34a;--c-stable:#0d9488;--c-stale:#d97706;--c-deprecated:#9333ea;--c-unknown:#9aa3b2;
+  --c-not-started:#9aa3b2;--c-in-progress:#2563eb;--c-migrated:#0d9488;--c-verified:#16a34a;--c-decommissioned:#7f1d1d;--c-skipped:#64748b;
+}
+@media (prefers-color-scheme:dark){:root{--link:#8ab4ff;--bg:#0f141b;--panel:#171d27;--panel2:#1e2632;--line:#2b3544;--text:#e6eaf0;--mut:#98a3b5;--acc:#6ea0ff;--acc2:#1f3256;--shadow:none}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif}
+header{display:flex;align-items:center;gap:16px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;flex-wrap:wrap}
+header h1{font-size:16px;margin:0;font-weight:650}
+header .sub{color:var(--mut);font-size:12px}
+header .sp{flex:1}
+nav{display:flex;gap:2px;padding:0 20px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto;position:sticky;top:calc(var(--ht,49px) - 1px);z-index:19}
+nav button{background:none;border:0;border-bottom:2px solid transparent;padding:10px 14px;color:var(--mut);cursor:pointer;font:inherit;white-space:nowrap}
+nav button.on{color:var(--acc);border-color:var(--acc);font-weight:600}
+nav .badge{background:var(--bad);color:#fff;border-radius:9px;padding:0 6px;font-size:11px;margin-left:5px}
+main{padding:18px 20px 60px;max-width:1700px;margin:0 auto}
+main.wide{max-width:1700px;padding:14px 12px 60px}
+.tw.st{overflow:visible}
+table.cp{table-layout:auto}
+table.cp th,table.cp td{padding:8px 6px;font-size:12.5px}
+table.cp th{top:calc(var(--st,96px) - 3px);z-index:5;font-size:12.5px;padding-top:10px;padding-bottom:10px;box-shadow:0 2px 4px rgba(0,0,0,.12)}
+table.cp td.flg{white-space:normal;max-width:260px;line-height:1.9}
+.ell{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fl{display:inline-block;min-width:20px;text-align:center;border-radius:4px;padding:0 4px;font-size:10.5px;font-weight:700;line-height:17px;margin-right:2px;border:1px solid var(--line);background:var(--panel2);color:var(--mut);cursor:help}
+.fl.warn{color:var(--warn);border-color:var(--warn)}.fl.bad{color:var(--bad);border-color:var(--bad)}.fl.info{color:var(--acc);border-color:var(--acc)}.fl.ok{color:var(--ok);border-color:var(--ok)}
+h2{font-size:14px;margin:0 0 10px;font-weight:650}
+h3{font-size:13px;margin:14px 0 6px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(420px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;box-shadow:var(--shadow)}
+.kpi{cursor:pointer}.kpi:hover{border-color:var(--acc)}
+.kpi .n{font-size:28px;font-weight:700;line-height:1.1}.kpi .l{color:var(--mut);font-size:12px}
+.kpi.warn .n{color:var(--warn)}.kpi.bad .n{color:var(--bad)}.kpi.ok .n{color:var(--ok)}
+.btn{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:7px;padding:5px 11px;cursor:pointer;font:inherit}
+.btn:hover{border-color:var(--acc)}.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}.btn.sm{padding:2px 8px;font-size:12px}
+.btn.danger{color:var(--bad)}
+input,select,textarea{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:5px 8px;font:inherit}
+textarea{width:100%;min-height:70px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+table{border-collapse:collapse;width:100%}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:12px;color:var(--text);font-weight:700;text-transform:capitalize;letter-spacing:.02em;position:sticky;top:96px;background:var(--acc2);border-bottom:2px solid var(--acc);cursor:pointer;white-space:nowrap;z-index:2}
+table.nw th,table.nw td{white-space:nowrap}
+table.nw td.wrap{white-space:normal;min-width:320px;max-width:520px}
+tr.row{cursor:pointer}tr.row:hover td{background:var(--panel2)}
+tr.dirty td:first-child{box-shadow:inset 3px 0 var(--acc)}
+tr.endst td{opacity:.45}tr.endst:hover td{opacity:.9}
+.tw{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:auto}
+.chip{display:inline-block;border-radius:10px;padding:0 8px;font-size:11px;line-height:18px;white-space:nowrap;border:1px solid transparent}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+.f{background:var(--panel2);color:var(--mut);border:1px solid var(--line)}
+.f.warn{color:var(--warn);border-color:var(--warn)}.f.bad{color:var(--bad);border-color:var(--bad)}.f.info{color:var(--acc);border-color:var(--acc)}
+.mut{color:var(--mut)}.small{font-size:12px}.mono{font-family:ui-monospace,Consolas,monospace;font-size:12px}
+.src{font-size:11px;padding:0 6px;border-radius:4px;background:var(--panel2);border:1px solid var(--line)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin:6px 0}
+.stepper{display:flex;gap:8px;flex-wrap:wrap}
+.step{flex:1;min-width:150px;border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:var(--panel2)}
+.step.cur{border-color:var(--acc);background:var(--acc2)}.step b{font-size:12px}
+.prog{height:6px;background:var(--line);border-radius:3px;margin-top:6px;overflow:hidden}.prog i{display:block;height:100%;background:var(--ok)}
+ul.clean{list-style:none;margin:0;padding:0}ul.clean li{padding:6px 0;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:flex-start}
+ul.clean li:last-child{border:0}
+.act{cursor:pointer}.act:hover{color:var(--acc)}
+/* map */
+.src-box{margin-bottom:16px}.proj{display:inline-block;vertical-align:top;margin:0 10px 10px 0;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);max-width:330px}
+.proj .t{font-size:11px;color:var(--mut);margin-bottom:4px}
+.tile{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;margin:1px;border-radius:5px;color:#fff;font-size:10px;font-weight:700;cursor:pointer;border:2px solid transparent}
+.tile.stg{border:2px dashed var(--text);opacity:.85}.tile.sel{outline:2px solid var(--acc)}
+.tile:hover{transform:scale(1.25)}
+/* board */
+.board{display:flex;gap:10px;overflow-x:auto;align-items:flex-start;padding-bottom:10px}
+.col{flex:0 0 250px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px;min-height:200px}
+.col.over{outline:2px dashed var(--acc)}
+.col h4{margin:2px 4px 8px;font-size:12px;display:flex;justify-content:space-between}
+.cardi{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 9px;margin-bottom:7px;cursor:grab;font-size:12px}
+.cardi:hover{border-color:var(--acc)}.cardi .nm{font-weight:600;font-size:13px;word-break:break-word}
+/* drawer */
+#drawer{position:fixed;top:0;right:0;bottom:0;width:min(520px,100vw);background:var(--panel);border-left:1px solid var(--line);box-shadow:-6px 0 24px rgba(0,0,0,.18);z-index:50;transform:translateX(105%);transition:.18s;overflow:auto;padding:16px}
+#drawer.open{transform:none}
+#drawer label{display:block;font-size:12px;color:var(--mut);margin:10px 0 3px}
+#drawer select,#drawer input{width:100%}
+.kv{display:grid;grid-template-columns:130px 1fr;gap:3px 10px;font-size:13px}.kv div:nth-child(odd){color:var(--mut)}
+a.ext{color:var(--link);font-weight:600;text-decoration:underline;text-underline-offset:2px;display:inline-flex;align-items:center;gap:5px}
+a.ext:hover{color:var(--acc);text-decoration-thickness:2px}a.ext svg{flex:none}
+.hint{background:var(--acc2);border-radius:8px;padding:8px 10px;margin:8px 0;font-size:13px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 14px;border-radius:8px;z-index:99}
+pre.b{white-space:pre-wrap;background:var(--panel2);border-radius:8px;padding:10px;font:12px/1.4 ui-monospace,Consolas,monospace;max-height:340px;overflow:auto}
+details{border-bottom:1px solid var(--line);padding:6px 0}summary{cursor:pointer;font-weight:600}
+</style>
+</head>
+<body>
+<header>
+  <h1>Repo House Keeping</h1>
+  <span class="sub">→ github.com/enterprises/springbrooksoftware · built <span id="built"></span></span>
+  <span class="sp"></span>
+  <span id="live" class="chip f"></span>
+  <label class="small mut"><input type="checkbox" id="incStaged" checked> include unmerged inventory</label>
+  <button class="btn" id="hExport">Export changes <span id="hCount"></span></button>
+</header>
+<nav id="nav"></nav>
+<main id="view"></main>
+<div id="drawer"></div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const D = DATA;
+const TODAY = new Date(D.built + 'T00:00:00');
+const DISP = ['pending','update-then-migrate','archive-in-place','migrate','decommission','tbd'];
+const BOARD = ['pending','update-then-migrate','archive-in-place','migrate','decommission']; // tbd rows show in the pending column
+const CLS = ['active','stable','stale','deprecated','unknown'];
+const STAT = ['not-started','in-progress','migrated','verified','decommissioned','skipped'];
+const COLS = D.register.length ? Object.keys(D.register[0]) :
+  'id,name,source,source_url,last_commit_date,last_commit_author,open_prs,has_pipelines,has_lfs,has_packages,visibility,owner,classification,disposition,migration_status,destination_url,notes'.split(',');
+const SOURCES = ['infoxpert-ado','magiq-vs-ado','magiq-ado','github'];
+const PHASES = ['Inventory','Legacy triage','Planning','Execution','Decommission'];
+const TSTAT = ['todo','doing','blocked','done'];
+const $ = (s, el) => (el || document).querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cvar = (k, v) => `var(--c-${v || 'unknown'})`;
+
+/* ---------- persisted pending state ---------- */
+const LS = 'rhk-pending-v1';
+let P = { edits: {}, accepted: {}, taskEdits: {}, newTasks: [] };
+try { const x = JSON.parse(localStorage.getItem(LS) || 'null'); if (x) P = Object.assign(P, x); } catch (e) {}
+const LIVE = !!D.live;                       // served by scripts/serve_dashboard.py -> edits auto-save to the CSVs
+let lastRev = D.rev, inflight = false, again = false, flushTimer = null, DRAWER = null;
+const save = () => { try { localStorage.setItem(LS, JSON.stringify(P)); } catch (e) {} updateCounts(); if (LIVE) queueFlush(); };
+
+/* ---------- rows ---------- */
+const normDisp = v => v === 'hold' ? 'pending' : v;   // legacy value (D-009)
+for (const k of Object.keys(P.edits)) if (P.edits[k].disposition) { P.edits[k].disposition = normDisp(P.edits[k].disposition); if (P.edits[k].disposition === 'migrate-then-archive') delete P.edits[k].disposition; }
+let BASE = [], BY = {};
+function ingest() {
+  const dflt = r => { r.disposition = normDisp(r.disposition); ['backup_2loc', 'confirmed_by', 'confirmed_date'].forEach(f => { if (r[f] == null) r[f] = ''; }); };
+  D.register.forEach(dflt); D.staged.forEach(dflt);
+  BASE = [];
+  D.register.forEach(r => BASE.push({ key: 'r:' + r.id, kind: 'reg', o: r }));
+  D.staged.forEach(r => BASE.push({ key: 's:' + r.source_url.toLowerCase(), kind: 'stg', o: r }));
+  BY = Object.fromEntries(BASE.map(b => [b.key, b]));
+  // prune pending entries that no longer differ from (or no longer exist in) the data on disk
+  for (const k of Object.keys(P.edits)) {
+    if (!BY[k]) { delete P.edits[k]; continue; }
+    for (const f of Object.keys(P.edits[k])) if (P.edits[k][f] === BY[k].o[f]) delete P.edits[k][f];
+    if (!Object.keys(P.edits[k]).length) delete P.edits[k];
+  }
+  for (const k of Object.keys(P.accepted)) if (!BY[k] || BY[k].kind === 'reg') delete P.accepted[k];
+  for (const id of Object.keys(P.taskEdits)) { const t = D.tasks.find(x => x.id === id); if (!t) { delete P.taskEdits[id]; continue; } for (const f of Object.keys(P.taskEdits[id])) if (P.taskEdits[id][f] === t[f]) delete P.taskEdits[id][f]; if (!Object.keys(P.taskEdits[id]).length) delete P.taskEdits[id]; }
+  P.newTasks = P.newTasks.filter(n => !D.tasks.some(t => t.id === n.id));
+}
+ingest();
+
+const eff = b => Object.assign({}, b.o, P.edits[b.key] || {});
+const isIn = b => b.kind === 'reg' || P.accepted[b.key] || (b.kind === 'stg' && $('#incStaged').checked);
+const projOf = e => (/project=([^;]+)/.exec(e.notes || '') || [])[1] || e.name;
+const months = e => { if (!e.last_commit_date) return null; const d = new Date(e.last_commit_date + 'T00:00:00'); return (TODAY - d) / (30.4375 * 864e5); };
+const sizeMB = e => { const m = /([\d.]+)MB/.exec(e.notes || ''); return m ? +m[1] : null; };
+const normName = e => e.name.replace(/^\$\//, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const targetName = e => 'mgq-' + normName(e);
+
+let COLL = {};
+function computeFlags() {
+  const names = {};
+  BASE.forEach(b => { if (!isIn(b)) return; const e = eff(b); if (e.migration_status === 'decommissioned' || e.disposition === 'decommission') return; (names[normName(e)] = names[normName(e)] || []).push(b.key); });
+  COLL = {}; Object.values(names).forEach(a => { if (a.length > 1) a.forEach(k => COLL[k] = a.length); });
+  computeDups();
+}
+
+/* ---------- duplicate detection across sources ---------- */
+const STOP = new Set(['magiq', 'infoxpert', 'mgq', 'old', 'legacy', 'obsolete', 'zzz', 'do', 'not', 'use']);
+const coreName = e => { const t = e.name.replace(/^\$\//, '').toLowerCase().split(/[^a-z0-9]+/).filter(x => x && !STOP.has(x)); return t.join('-') || normName(e); };
+let DUPG = [], DUPOF = {};
+function computeDups() {
+  const rows = BASE.filter(isIn).map(b => ({ k: b.key, b, e: eff(b) })), byKey = Object.fromEntries(rows.map(r => [r.k, r]));
+  const par = {}; rows.forEach(r => par[r.k] = r.k);
+  const find = k => par[k] === k ? k : (par[k] = find(par[k]));
+  const edges = [];
+  const link = (a, c, why) => { if (a === c) return; edges.push([a, c, why]); par[find(a)] = find(c); };
+  const bucket = (fn) => { const m = {}; rows.forEach(r => (m[fn(r.e)] = m[fn(r.e)] || []).push(r)); return Object.values(m).filter(a => a.length > 1); };
+  bucket(e => normName(e)).forEach(a => a.slice(1).forEach(r => link(a[0].k, r.k, 'same')));
+  bucket(e => coreName(e)).forEach(a => a.slice(1).forEach(r => { if (normName(r.e) !== normName(a[0].e)) link(a[0].k, r.k, 'similar'); else link(a[0].k, r.k, 'same'); }));
+  rows.forEach(r => { const m = /(?:overlaps|dup(?:licate)? of|superseded by)\s+([^;(]+)/i.exec(r.e.notes || ''); if (!m) return;
+    const cand = m[1].replace(/magiqsoftware\//i, '').replace(/[?]/g, '').trim(); if (!cand) return;
+    const cn = coreName({ name: cand }), nn = normName({ name: cand });
+    rows.forEach(t => { if (t.k !== r.k && (normName(t.e) === nn || coreName(t.e) === cn)) link(r.k, t.k, 'noted'); }); });
+  const groups = {};
+  rows.forEach(r => (groups[find(r.k)] = groups[find(r.k)] || { rows: [], reasons: new Set() }).rows.push(r));
+  edges.forEach(([a, c, why]) => groups[find(a)].reasons.add(why));
+  DUPG = Object.values(groups).filter(g => g.rows.length > 1).map(g => { g.sources = [...new Set(g.rows.map(r => r.e.source))]; g.cross = g.sources.length > 1;
+    g.title = g.rows.map(r => coreName(r.e)).sort((a, b) => a.length - b.length)[0]; return g; })
+    .sort((a, b) => (b.cross - a.cross) || (b.sources.length - a.sources.length) || a.title.localeCompare(b.title));
+  DUPOF = {}; DUPG.forEach(g => g.rows.forEach(r => DUPOF[r.k] = g));
+}
+function flags(b) {
+  const e = eff(b), m = months(e), f = {};
+  f.tfvc = e.name.startsWith('$/');
+  f.empty = !e.last_commit_date || /empty/i.test(e.notes || '');
+  f.pipe = e.has_pipelines === 'true';
+  f.openpr = (+e.open_prs || 0) > 0;
+  f.noowner = !e.owner;
+  f.unmerged = b.kind === 'stg' && !P.accepted[b.key];
+  f.coll = !!COLL[b.key];
+  f.decomCand = (m == null || m >= 12) && !f.openpr && !f.pipe && e.migration_status !== 'decommissioned';
+  f.awaitConfirm = e.disposition === 'decommission' && e.migration_status !== 'decommissioned' && !e.confirmed_date;
+  f.confirmed = !!e.confirmed_date;
+  f.unconfirmed = !['pending', 'tbd'].includes(e.disposition) && !e.confirmed_date && !['decommissioned', 'skipped', 'verified'].includes(e.migration_status);
+  f.activeHold = e.classification === 'active' && (e.disposition === 'pending' || e.disposition === 'tbd');
+  const elig = e.disposition === 'decommission' || e.disposition === 'archive-in-place' || e.migration_status === 'decommissioned';
+  f.needsBackup = elig && e.backup_2loc !== 'yes' && e.backup_2loc !== 'not-required';
+  f.backedUp = elig && e.backup_2loc === 'yes';
+  f.backupNR = elig && e.backup_2loc === 'not-required';
+  f.large = (sizeMB(e) || 0) > 1000;
+  f.open = !['decommissioned', 'skipped', 'verified'].includes(e.migration_status);
+  f.dup = !!(DUPOF[b.key] && DUPOF[b.key].cross);
+  return f;
+}
+function hint(b) {
+  const e = eff(b), f = flags(b), h = [];
+  if (f.empty && !f.pipe && e.disposition !== 'decommission') h.push('Empty / no commits — decommission candidate (needs your written confirmation).');
+  if (f.tfvc && e.classification === 'active') h.push('TFVC with recent commits — needs git conversion + freeze date (R-006, R-007).');
+  else if (f.tfvc) h.push('TFVC — can’t go through GitHub Importer as-is: convert, snapshot-archive or decommission (R-006).');
+  if (f.decomCand && !f.empty) h.push('Rule 1 candidate: ≥12m idle, 0 PRs, no pipeline. Check branches (R-011) + downstream deps before deciding.');
+  if (f.activeHold) h.push('Active but pending — decide migrate vs. keep, and confirm owner.');
+  if (f.needsBackup) h.push('No 2-location backup recorded — complete it and set “2-location backup = yes”, or “not required” if the repo is empty/obsolete, before deleting/archiving at source.');
+  if (f.openpr) h.push(`${e.open_prs} open PR(s) — close/abandon before migration (R-013).`);
+  if (f.pipe) h.push('Has pipeline(s) — verify service connection + consumers; don’t migrate pipelines until repo is verified.');
+  if (f.large) h.push('>1 GB — check GitHub file-size limits / LFS or archive in place (R-014).');
+  if (f.coll) h.push(`Target name “${targetName(e)}” collides with ${COLL[b.key] - 1} other repo(s) (R-012).`);
+  if (f.dup) h.push('Possible duplicate in another source — see the Duplicates tab and decide which copy is authoritative.');
+  if (f.noowner) h.push('No owner assigned.');
+  return h;
+}
+const flagChips = (b) => {
+  const f = flags(b), c = [];
+  if (f.unmerged) c.push('<span class="chip f info">unmerged</span>');
+  if (f.tfvc) c.push('<span class="chip f warn">TFVC</span>');
+  if (f.awaitConfirm) c.push('<span class="chip f bad">confirm</span>');
+  if (f.decomCand && !f.awaitConfirm) c.push('<span class="chip f">rule-1</span>');
+  if (f.activeHold) c.push('<span class="chip f warn">active+pending</span>');
+  if (f.needsBackup) c.push('<span class="chip f bad">no 2-loc backup</span>');
+  if (f.backedUp) c.push('<span class="chip f" style="color:var(--ok);border-color:var(--ok)">2-loc backup ✔</span>');
+  if (f.backupNR) c.push('<span class="chip f">backup n/r</span>');
+  if (f.openpr) c.push('<span class="chip f warn">PRs</span>');
+  if (f.pipe) c.push('<span class="chip f">pipeline</span>');
+  if (f.coll) c.push('<span class="chip f bad">name clash</span>');
+  if (f.dup) c.push('<span class="chip f warn" title="Possible duplicate in another source">dup</span>');
+  if (f.noowner) c.push('<span class="chip f">no owner</span>');
+  if (f.large) c.push('<span class="chip f warn">&gt;1GB</span>');
+  return c.join(' ');
+};
+const pill = (v, kind) => `<span class="chip" style="background:color-mix(in srgb,${cvar(kind, v)} 18%,transparent);color:${cvar(kind, v)};border-color:color-mix(in srgb,${cvar(kind, v)} 40%,transparent)">${esc(v || '—')}</span>`;
+
+/* ---------- editing ---------- */
+function setEdit(key, field, val) {
+  const b = BY[key]; if (!b) return false;
+  if (field === 'migration_status' && val === 'decommissioned' && !confirm('Mark “' + b.o.name + '” as decommissioned?' + (['yes', 'not-required'].includes(eff(b).backup_2loc) ? '' : '\n\n⚠ No 2-location backup (or “not required”) is recorded for this repo.') + '\nOnly do this once the source is actually removed and you confirmed it in writing.')) return false;
+  if (field === 'disposition' && val === 'decommission' && b.o.disposition !== 'decommission') toast('Recorded as decision only — nothing is deleted. Set “Confirmed by / date” in the drawer once you’ve confirmed.');
+  const wasConfirmed = !!(eff(b).confirmed_by || eff(b).confirmed_date);
+  const put = (f, v) => { const c = P.edits[key] || {}; if (v === (b.o[f] || '')) delete c[f]; else c[f] = v; if (Object.keys(c).length) P.edits[key] = c; else delete P.edits[key]; };
+  put(field, val);
+  if (field === 'confirmed_date' && val && !eff(b).confirmed_by) put('confirmed_by', DEFAULT_CONFIRMER);   // default confirmer unless overridden
+  if (field === 'disposition' && wasConfirmed) {         // a confirmation belongs to a decision: changing it clears the confirmation
+    if (val === b.o.disposition) { put('confirmed_by', b.o.confirmed_by || ''); put('confirmed_date', b.o.confirmed_date || ''); }
+    else { put('confirmed_by', ''); put('confirmed_date', ''); toast('Confirmation cleared because the decision changed — confirm again.'); }
+  }
+  if (b.kind === 'stg' && P.edits[key]) P.accepted[key] = true;
+  save(); return true;
+}
+const DEFAULT_CONFIRMER = 'Chase Ramone';
+// names offered in the "confirmed by" list: everyone entered before (saved or pending), default person first
+function confirmers() {
+  const s = new Set([DEFAULT_CONFIRMER]);
+  [...D.register, ...D.staged].forEach(r => { if (r.confirmed_by) s.add(r.confirmed_by); });
+  Object.values(P.edits).forEach(ed => { if (ed.confirmed_by) s.add(ed.confirmed_by); });
+  return [DEFAULT_CONFIRMER, ...[...s].filter(n => n !== DEFAULT_CONFIRMER).sort((a, b) => a.localeCompare(b))];
+}
+function revertRow(key) { delete P.edits[key]; delete P.accepted[key]; save(); }
+function toast(t) { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); }
+const pendingCount = () => Object.keys(P.edits).length + Object.keys(P.accepted).filter(k => !P.edits[k]).length + Object.keys(P.taskEdits).length + P.newTasks.length;
+/* ---------- live mode: auto-save + sync with files on disk ---------- */
+let liveState = LIVE ? 'ok' : 'static';
+function setLive(s) {
+  liveState = s;
+  const el = $('#live'); if (!el) return;
+  const n = pendingCount();
+  const m = { static: ['Static snapshot — export to apply', 'f', 'Opened as a plain file. Run start-dashboard.bat for live saving.'],
+    ok: ['● Live — saved to disk', 'f ok', 'Edits save straight to spec/*.csv. Backups in spec/.backups/'],
+    saving: ['● Saving…', 'f info', ''],
+    err: [`● Server unreachable — ${n} unsaved`, 'f bad', 'Edits are kept in this browser and retry automatically. You can also export from the Changes tab.'] }[s];
+  el.textContent = m[0]; el.className = 'chip ' + m[1]; el.title = m[2];
+  if (s === 'ok') el.style.cssText = 'color:var(--ok);border-color:var(--ok)'; else el.style.cssText = '';
+}
+function queueFlush() { clearTimeout(flushTimer); flushTimer = setTimeout(flush, 250); }
+async function post(url, body) {
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-RHK': '1' }, body: JSON.stringify(body) });
+  let j = {}; try { j = await r.json(); } catch (e) {}
+  if (r.status === 409) { const e = new Error('conflict'); e.conflicts = j.conflicts || []; throw e; }
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+async function flush() {
+  if (!LIVE) return;
+  if (inflight) { again = true; return; }
+  const rEdits = [], adds = [], addKeys = [], tEdits = [], tAdds = P.newTasks.slice();
+  for (const [k, ed] of Object.entries(P.edits)) { const b = BY[k]; if (!b) continue;
+    if (b.kind === 'reg') rEdits.push({ id: b.o.id, fields: Object.fromEntries(Object.entries(ed).map(([f, v]) => [f, { old: b.o[f] || '', new: v }])) }); }
+  for (const k of Object.keys(P.accepted)) { const b = BY[k]; if (b && b.kind === 'stg') { const row = eff(b); delete row.id; adds.push(row); addKeys.push(k); } }
+  for (const [id, ed] of Object.entries(P.taskEdits)) { const t = D.tasks.find(x => x.id === id); if (t) tEdits.push({ id, fields: Object.fromEntries(Object.entries(ed).map(([f, v]) => [f, { old: t[f] || '', new: v }])) }); }
+  if (!rEdits.length && !adds.length && !tEdits.length && !tAdds.length) { setLive(navigator.onLine === false ? 'err' : 'ok'); return; }
+  inflight = true; setLive('saving');
+  try {
+    if (rEdits.length || adds.length) await post('/api/register', { edits: rEdits, adds });
+    if (tEdits.length || tAdds.length) await post('/api/tasks', { edits: tEdits, adds: tAdds });
+    // clear only what we sent (edits made while saving stay queued)
+    rEdits.forEach(e => { const k = 'r:' + e.id; Object.entries(e.fields).forEach(([f, c]) => { if (P.edits[k] && P.edits[k][f] === c.new) delete P.edits[k][f]; }); if (P.edits[k] && !Object.keys(P.edits[k]).length) delete P.edits[k]; });
+    addKeys.forEach(k => delete P.accepted[k]);
+    tEdits.forEach(e => { Object.entries(e.fields).forEach(([f, c]) => { if (P.taskEdits[e.id] && P.taskEdits[e.id][f] === c.new) delete P.taskEdits[e.id][f]; }); if (P.taskEdits[e.id] && !Object.keys(P.taskEdits[e.id]).length) delete P.taskEdits[e.id]; });
+    P.newTasks = P.newTasks.filter(n => !tAdds.includes(n));
+    try { localStorage.setItem(LS, JSON.stringify(P)); } catch (e) {}
+    await pull(false);
+    setLive('ok');
+  } catch (err) {
+    if (err.conflicts) {
+      err.conflicts.forEach(c => { delete P.edits['r:' + c.id]; delete P.taskEdits[c.id]; });
+      try { localStorage.setItem(LS, JSON.stringify(P)); } catch (e) {}
+      toast('Changed on disk since you loaded it — reloaded; re-apply your edit (' + err.conflicts.map(c => c.id + '.' + c.field).join(', ') + ')');
+      try { await pull(false); setLive('ok'); } catch (e) { setLive('err'); }
+    } else { setLive('err'); if (err.message && !/fetch|network/i.test(err.message)) toast('Save failed: ' + err.message); }
+  }
+  inflight = false; updateCounts();
+  if (again) { again = false; queueFlush(); }
+}
+async function pull(notify) {
+  const r = await fetch('/api/data', { cache: 'no-store' }); if (!r.ok) throw new Error('pull failed');
+  const nd = await r.json(); Object.assign(D, nd); lastRev = nd.rev; ingest();
+  if (notify) toast('Synced changes from disk');
+  softRender();
+}
+function softRender() {
+  const ae = document.activeElement, inDrawer = ae && $('#drawer').contains(ae);
+  const y = window.scrollY;
+  if (S.tab === 'repos' && $('#tb')) { computeFlags(); tableBody(); } else if (!(ae && (ae.id === 'q' || ae.id === 'noteText'))) render();
+  if (DRAWER && !inDrawer && BY[DRAWER]) openDrawer(DRAWER);
+  window.scrollTo(0, y); updateCounts();
+}
+async function poll() {
+  if (!LIVE || inflight) return;
+  try {
+    const r = await fetch('/api/rev', { cache: 'no-store' }); const j = await r.json();
+    if (!P || pendingCount() > 0) { if (liveState === 'err') queueFlush(); }
+    else if (j.rev !== lastRev) await pull(true);
+    if (liveState === 'err' && pendingCount() === 0) setLive('ok');
+  } catch (e) { setLive('err'); }
+}
+if (LIVE) setInterval(poll, 3000);
+
+function updateCounts() {
+  const n = pendingCount();
+  $('#hCount').textContent = n ? `(${n})` : '';
+  if (LIVE) $('#hExport').style.display = n ? '' : 'none';
+  if (liveState === 'err') setLive('err');
+  const nb = $('#nav [data-tab=changes] .badge'); if (nb) nb.textContent = n; if (nb) nb.style.display = n ? '' : 'none';
+}
+
+/* ---------- state ---------- */
+const S = { tab: 'overview', q: '', source: '', project: '', cls: '', disp: '', status: '', flag: '', sort: 'id', dir: 1, sel: new Set(), colorBy: 'disposition', owner: '', bsrc: '', rstat: 'Open', nsrc: '', dsame: false, dq: '' };
+const TABS = [['overview', 'Overview'], ['repos', 'Repos'], ['dups', 'Duplicates'], ['board', 'Triage board'], ['map', 'Map'], ['notes', 'Source notes'], ['infra', 'Infra & dependencies'], ['risks', 'Risks & decisions'], ['work', 'Work queue'], ['changes', 'Changes']];
+function go(tab, patch) { if (patch) { Object.assign(S, { q: '', source: '', project: '', cls: '', disp: '', status: '', flag: '' }, patch); } S.tab = tab; render(); window.scrollTo(0, 0); }
+
+function render() {
+  computeFlags();
+  $('#nav').innerHTML = TABS.map(([k, l]) => `<button data-tab="${k}" class="${S.tab === k ? 'on' : ''}">${l}${k === 'changes' ? '<span class="badge"></span>' : ''}</button>`).join('');
+  $('#nav').querySelectorAll('button').forEach(b => b.onclick = () => go(b.dataset.tab));
+  $('#view').classList.toggle('wide', S.tab === 'repos');
+  ({ overview: vOverview, repos: vRepos, dups: vDups, notes: vNotes, board: vBoard, map: vMap, infra: vInfra, risks: vRisks, work: vWork, changes: vChanges })[S.tab]();
+  setSticky();
+  updateCounts();
+}
+function setSticky() { const h = $('header'), n = $('#nav'); if (h && n) { document.documentElement.style.setProperty('--ht', h.offsetHeight + 'px'); document.documentElement.style.setProperty('--st', (h.offsetHeight - 1 + n.offsetHeight) + 'px'); } }
+window.addEventListener('resize', setSticky);
+
+const active = () => BASE.filter(isIn);
+const count = (arr, fn) => arr.reduce((m, x) => { const k = fn(x); m[k] = (m[k] || 0) + 1; return m; }, {});
+function stackBar(groups, keys, kind, w = 560) {
+  const max = Math.max(1, ...groups.map(g => keys.reduce((s, k) => s + (g.c[k] || 0), 0)));
+  const lw = 110, rh = 26; let y = 4, out = '';
+  groups.forEach(g => {
+    let x = lw; const tot = keys.reduce((s, k) => s + (g.c[k] || 0), 0);
+    out += `<text x="${lw - 6}" y="${y + 16}" text-anchor="end" font-size="12" fill="currentColor">${esc(g.label)}</text>`;
+    keys.forEach(k => { const v = g.c[k] || 0; if (!v) return; const ww = (w - lw - 40) * v / max;
+      out += `<rect class="act" data-go='${esc(JSON.stringify(g.go ? Object.assign({}, g.go, { [kind]: k }) : { [kind]: k }))}' x="${x}" y="${y}" width="${ww}" height="${rh - 6}" fill="${cvar(0, k)}"><title>${esc(g.label)} · ${k}: ${v}</title></rect>`;
+      if (ww > 18) out += `<text x="${x + ww / 2}" y="${y + 14}" text-anchor="middle" font-size="11" fill="#fff" pointer-events="none">${v}</text>`; x += ww; });
+    out += `<text x="${x + 6}" y="${y + 14}" font-size="11" fill="currentColor" opacity=".7">${tot}</text>`; y += rh;
+  });
+  return `<svg viewBox="0 0 ${w} ${y + 4}" width="100%" style="max-width:${w}px">${out}</svg>`;
+}
+const legend = (keys) => `<div class="legend">${keys.map(k => `<span><span class="dot" style="background:${cvar(0, k)}"></span>${k}</span>`).join('')}</div>`;
+
+/* ---------- Overview ---------- */
+function vOverview() {
+  const A = active(), E = A.map(b => ({ b, e: eff(b), f: flags(b) }));
+  const unmerged = BASE.filter(b => b.kind === 'stg' && !P.accepted[b.key]).length;
+  const open = E.filter(x => x.f.open);
+  const kp = (n, l, cls, act) => `<div class="card kpi ${cls || ''}" data-go='${esc(JSON.stringify(act))}'><div class="n">${n}</div><div class="l">${l}</div></div>`;
+  const taskDone = {}, taskTot = {};
+  allTasks().forEach(t => { taskTot[t.phase] = (taskTot[t.phase] || 0) + 1; if (t.status === 'done') taskDone[t.phase] = (taskDone[t.phase] || 0) + 1; });
+  const byState = (fn) => E.filter(x => fn(x)).length;
+  // by source stacks
+  const srcs = SOURCES.map(s => ({ label: s, c: count(E.filter(x => x.e.source === s), x => x.e.disposition), go: { source: s } }));
+  // age histogram
+  const years = []; for (let y = 2016; y <= TODAY.getFullYear(); y++) years.push(y);
+  const hist = years.map(y => ({ label: String(y), c: count(E.filter(x => x.e.last_commit_date && +x.e.last_commit_date.slice(0, 4) === y), x => x.e.classification) }));
+  hist.unshift({ label: 'no commits', c: count(E.filter(x => !x.e.last_commit_date), x => x.e.classification) });
+  // matrix
+  const mx = CLS.map(c => `<tr><td>${pill(c)}</td>${DISP.map(d => { const n = E.filter(x => x.e.classification === c && x.e.disposition === d).length; return `<td class="act" style="text-align:center;${n ? `background:color-mix(in srgb,${cvar(0, d)} ${Math.min(70, 12 + n * 4)}%,transparent);font-weight:600` : 'opacity:.35'}" data-go='${esc(JSON.stringify({ cls: c, disp: d }))}'>${n || '·'}</td>`; }).join('')}</tr>`).join('');
+  const invChecks = [
+    ['infoxpert-ado inventoried', !!D.inventory['infoxpert-ado']],
+    ['magiq-ado inventoried', !!D.inventory['magiq-ado']],
+    ['magiq-vs-ado handled (deleted, archived)', D.register.some(r => r.source === 'magiq-vs-ado')],
+    ['github source inventoried', D.register.some(r => r.source === 'github') || !!D.inventory['github']],
+    ['staged inventory merged into register', unmerged === 0],
+    ['no repo left as classification=unknown', E.every(x => x.e.classification !== 'unknown')],
+    ['every decommission/archive row has a 2-location backup', E.every(x => !x.f.needsBackup)],
+  ];
+  const soon = allTasks().filter(t => t.status !== 'done' && t.due).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 4);
+  const nextA = [];
+  if (unmerged) nextA.push([`${unmerged} staged repos from inventory aren’t in the register yet`, 'repos', { flag: 'unmerged' }]);
+  const aw = byState(x => x.f.awaitConfirm); if (aw) nextA.push([`${aw} decommission decisions awaiting your written confirmation`, 'repos', { flag: 'awaitConfirm' }]);
+  const nb = byState(x => x.f.needsBackup); if (nb) nextA.push([`${nb} decommission/archive repos have no 2-location backup recorded`, 'repos', { flag: 'needsBackup' }]);
+  const ah = byState(x => x.f.activeHold); if (ah) nextA.push([`${ah} active repos still pending/tbd — decide migrate vs. keep`, 'repos', { flag: 'activeHold' }]);
+  const hd = byState(x => x.e.disposition === 'pending' && x.f.decomCand); if (hd) nextA.push([`${hd} pending repos match rule 1 (idle ≥12m, no PR, no pipeline) — verify branches/deps`, 'repos', { disp: 'pending', flag: 'decomCand' }]);
+  const tf = byState(x => x.f.tfvc && x.f.open); if (tf) nextA.push([`${tf} TFVC projects need a conversion / archive decision (R-006)`, 'repos', { flag: 'tfvc' }]);
+  const dg = DUPG.filter(g => g.cross).length; if (dg) nextA.push([`${dg} possible duplicate groups across sources — review which copy is authoritative`, 'dups', {}]);
+  const cl = byState(x => x.f.coll); if (cl) nextA.push([`${cl} repos share a target name — naming convention needed (R-012)`, 'repos', { flag: 'coll' }]);
+  const op = byState(x => x.f.openpr); if (op) nextA.push([`${op} repos have open PRs to close before migration`, 'repos', { flag: 'openpr' }]);
+  if (!D.register.some(r => r.source === 'github') && !D.inventory['github']) nextA.push(['GitHub source orgs not inventoried yet (T-03)', 'work', {}]);
+
+  $('#view').innerHTML = `
+  <div class="card" style="margin-bottom:14px"><h2>Migration phases</h2><div class="stepper">${PHASES.map((p, i) => {
+    const n = i + 1, tot = taskTot[n] || 0, dn = taskDone[n] || 0, pct = tot ? Math.round(100 * dn / tot) : 0;
+    return `<div class="step ${D.phase === n ? 'cur' : ''}"><b>Phase ${n} · ${p}</b>${D.phase === n ? ' <span class="chip f info">current</span>' : ''}<div class="small mut">${dn}/${tot} tasks</div><div class="prog"><i style="width:${pct}%"></i></div></div>`; }).join('')}</div></div>
+  <div class="grid g4" style="margin-bottom:14px">
+    ${kp(E.length, 'repos tracked' + (unmerged && $('#incStaged').checked ? ` (${unmerged} unmerged)` : ''), '', {})}
+    ${kp(byState(x => x.e.disposition === 'pending' || x.e.disposition === 'tbd'), 'awaiting a decision (pending/tbd)', 'warn', { flag: 'undecided' })}
+    ${kp(aw, 'decommission: need written confirm', aw ? 'bad' : 'ok', { flag: 'awaitConfirm' })}
+    ${kp(byState(x => x.e.disposition === 'migrate' || x.e.disposition === 'update-then-migrate'), 'marked to migrate', 'ok', { disp: 'migrate' })}
+    ${kp(nb, 'decommission/archive without 2-loc backup', nb ? 'bad' : 'ok', { flag: 'needsBackup' })}
+    ${kp(byState(x => x.e.migration_status === 'verified'), 'migrated + verified', 'ok', { status: 'verified' })}
+    ${kp(tf, 'TFVC to convert', 'warn', { flag: 'tfvc' })}
+    ${kp(D.risks.filter(r => /open/i.test(r.status)).length, 'open risks', 'bad', 'risks')}
+    ${kp(allTasks().filter(t => t.status !== 'done').length, 'open tasks', '', 'work')}
+  </div>
+  <div class="grid g2">
+    <div class="card"><h2>Decisions by source</h2>${stackBar(srcs, DISP, 'disp')}${legend(DISP)}<div class="small mut">github: no rows yet · click a bar to drill in</div></div>
+    <div class="card"><h2>Last commit (default branch) by year</h2>${stackBar(hist, CLS, 'cls', 560)}${legend(CLS)}<div class="small mut">R-011: default-branch dates only — feature branches can hide activity</div></div>
+    <div class="card"><h2>Classification × disposition</h2><div style="overflow:auto"><table><tr><th></th>${DISP.map(d => `<th style="top:auto;font-size:10px">${d.replace(/-/g, '-<wbr>')}</th>`).join('')}</tr>${mx}</table></div></div>
+    <div class="card"><h2>Next actions</h2><ul class="clean">${nextA.map(a => `<li class="act" data-tab-go='${esc(JSON.stringify([a[1], a[2]]))}'>→ <span>${esc(a[0])}</span></li>`).join('') || '<li class="mut">Nothing queued</li>'}</ul>
+      <h3>Upcoming dates</h3><ul class="clean">${soon.map(t => { const dd = Math.round((new Date(t.due + 'T00:00:00') - TODAY) / 864e5); return `<li><b>${t.due}</b> <span>${esc(t.title)}</span> <span class="chip f ${dd < 7 ? 'bad' : ''}">${dd}d</span></li>`; }).join('') || '<li class="mut">None</li>'}</ul></div>
+    <div class="card"><h2>Phase 1 exit checklist</h2><ul class="clean">${invChecks.map(([l, ok]) => `<li><span style="color:var(${ok ? '--ok' : '--bad'})">${ok ? '✔' : '✘'}</span> ${esc(l)}</li>`).join('')}</ul></div>
+    <div class="card"><h2>Inventory snapshots</h2><ul class="clean">${Object.entries(D.inventory).map(([s, d]) => `<li><span class="src">${s}</span> ${d}</li>`).join('')}${D.archives.map(a => `<li><span class="src">archive</span> ${esc(a)}</li>`).join('')}</ul>
+      <div class="small mut">${LIVE ? 'Live mode: this page reloads automatically when the files on disk change.' : 'Static snapshot: run <span class="mono">start-dashboard.bat</span> for live mode, or rebuild with <span class="mono">python scripts/build_dashboard.py</span>'}</div></div>
+  </div>`;
+  bindGo();
+}
+
+/* ---------- generic click routing ---------- */
+function bindGo(root) {
+  (root || $('#view')).querySelectorAll('[data-go]').forEach(el => el.onclick = () => {
+    let x; try { x = JSON.parse(el.dataset.go); } catch (e) { x = el.dataset.go; }
+    if (typeof x === 'string') return go(x);
+    go('repos', x);
+  });
+  (root || $('#view')).querySelectorAll('[data-tab-go]').forEach(el => el.onclick = () => { const [t, p] = JSON.parse(el.dataset.tabGo); go(t, p); });
+  (root || $('#view')).querySelectorAll('[data-open]').forEach(el => el.onclick = ev => { if (ev.target.closest('input,select,button,a')) return; openDrawer(el.dataset.open); });
+}
+
+/* ---------- Repos ---------- */
+const FLAGS = { '': 'any flag', unmerged: 'unmerged inventory', awaitConfirm: 'decommission: needs confirm', confirmed: 'decision confirmed', unconfirmed: 'decided but not confirmed', decomCand: 'rule-1 decom candidate', activeHold: 'active + pending/tbd', undecided: 'pending / tbd', needsBackup: 'decom/archive: no 2-loc backup', backedUp: 'decom/archive: 2-loc backup done', backupNR: 'decom/archive: backup not required', tfvc: 'TFVC', openpr: 'open PRs', pipe: 'has pipelines', noowner: 'no owner', coll: 'name collision', dup: 'duplicate in another source', empty: 'empty repo', large: '>1 GB', dirty: 'has pending change' };
+function filtered() {
+  const q = S.q.toLowerCase();
+  return active().map(b => ({ b, e: eff(b), f: flags(b) })).filter(({ b, e, f }) =>
+    (!q || (e.name + ' ' + e.notes + ' ' + e.owner + ' ' + e.last_commit_author + ' ' + projOf(e)).toLowerCase().includes(q)) &&
+    (!S.source || e.source === S.source) && (!S.project || projOf(e) === S.project) && (!S.cls || e.classification === S.cls) &&
+    (!S.disp || e.disposition === S.disp) && (!S.status || e.migration_status === S.status) &&
+    (!S.flag || (S.flag === 'undecided' ? (e.disposition === 'pending' || e.disposition === 'tbd') : S.flag === 'dirty' ? !!P.edits[b.key] || !!P.accepted[b.key] : f[S.flag])))
+    .sort((a, c) => { const k = S.sort; let x = k === 'project' ? projOf(a.e) : k === 'age' ? (months(a.e) ?? 1e4) : k === 'id' ? (+a.e.id || 1e6 + a.b.key.length) : (a.e[k] ?? ''); let y = k === 'project' ? projOf(c.e) : k === 'age' ? (months(c.e) ?? 1e4) : k === 'id' ? (+c.e.id || 1e6 + c.b.key.length) : (c.e[k] ?? ''); return (x > y ? 1 : x < y ? -1 : 0) * S.dir; });
+}
+const opts = (arr, cur, lab) => arr.map(v => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(lab ? lab[v] : v) || '(all)'}</option>`).join('');
+function vRepos() {
+  const A = active().map(eff);
+  const projects = [...new Set(A.filter(e => !S.source || e.source === S.source).map(projOf))].sort();
+  $('#view').innerHTML = `
+  <div class="bar">
+    <input id="q" placeholder="Search name, notes, owner, author…" value="${esc(S.q)}" style="min-width:260px">
+    <select id="fSource">${opts(['', ...SOURCES], S.source)}</select>
+    <select id="fProject">${opts(['', ...projects], S.project)}</select>
+    <select id="fCls">${opts(['', ...CLS], S.cls)}</select>
+    <select id="fDisp">${opts(['', ...DISP], S.disp)}</select>
+    <select id="fStatus">${opts(['', ...STAT], S.status)}</select>
+    <select id="fFlag">${opts(Object.keys(FLAGS), S.flag, FLAGS)}</select>
+    <button class="btn sm" id="fClear">Clear</button>
+    <span class="mut small" id="cnt"></span><span class="sp" style="flex:1"></span>
+    <span id="bulk"></span>
+  </div>
+  <div class="tw st"><table class="nw cp"><thead><tr>
+    <th style="width:26px"><input type="checkbox" id="selAll"></th>
+    ${[['id', 'ID'], ['name', 'Name'], ['source', 'Source'], ['project', 'Project'], ['age', 'Last Commit'], ['last_commit_author', 'Author'], ['open_prs', 'PRs'], ['owner', 'Owner'], ['classification', 'Class'], ['disposition', 'Disposition'], ['migration_status', 'Status'], ['backup_2loc', '2-Loc Backup'], ['confirmed_date', 'Confirmed']].map(([k, l]) => `<th data-sort="${k}">${l}${S.sort === k ? (S.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}<th>Flags</th></tr></thead><tbody id="tb"></tbody></table></div>`;
+  const bind = (id, k) => $(id).onchange = ev => { S[k] = ev.target.value; if (k === 'source') S.project = ''; vRepos(); };
+  bind('#fSource', 'source'); bind('#fProject', 'project'); bind('#fCls', 'cls'); bind('#fDisp', 'disp'); bind('#fStatus', 'status'); bind('#fFlag', 'flag');
+  $('#fClear').onclick = () => go('repos', {});
+  $('#q').oninput = ev => { S.q = ev.target.value; tableBody(); };
+  $('#view').querySelectorAll('th[data-sort]').forEach(th => th.onclick = () => { const k = th.dataset.sort; if (S.sort === k) S.dir *= -1; else { S.sort = k; S.dir = 1; } vRepos(); });
+  $('#selAll').onchange = ev => { filtered().forEach(x => ev.target.checked ? S.sel.add(x.b.key) : S.sel.delete(x.b.key)); tableBody(); };
+  tableBody();
+}
+function tableBody() {
+  const rows = filtered(); $('#cnt').textContent = `${rows.length} of ${active().length} repos`;
+  const END = ['verified', 'decommissioned', 'skipped'];
+  $('#tb').innerHTML = rows.map(({ b, e, f }) => `<tr class="row ${P.edits[b.key] || P.accepted[b.key] ? 'dirty' : ''} ${!S.status && END.includes(e.migration_status) ? 'endst' : ''}" data-open="${esc(b.key)}">
+    <td><input type="checkbox" data-sel="${esc(b.key)}" ${S.sel.has(b.key) ? 'checked' : ''}></td>
+    <td class="mono mut">${f.unmerged ? 'new' : esc(e.id)}</td><td><b class="ell" style="max-width:200px" title="${esc(e.name)}">${esc(e.name)}</b></td><td><span class="src">${esc(e.source)}</span></td>
+    <td><span class="ell" style="max-width:130px" title="${esc(projOf(e))}">${esc(projOf(e))}</span></td><td>${esc(e.last_commit_date || '—')}${months(e) != null ? ` <span class="mut">(${months(e) < 24 ? Math.round(months(e)) + 'm' : (months(e) / 12).toFixed(1) + 'y'})</span>` : ''}</td>
+    <td><span class="ell" style="max-width:110px" title="${esc(e.last_commit_author)}">${esc(e.last_commit_author)}</span></td><td>${esc(e.open_prs)}</td><td><span class="ell" style="max-width:110px" title="${esc(e.owner)}">${esc(e.owner)}</span></td>
+    <td>${pill(e.classification)}</td><td>${pill(e.disposition)}</td><td>${pill(e.migration_status)}</td><td>${f.backedUp ? '<span style="color:var(--ok)">✔ yes</span>' : f.backupNR ? '<span class="mut">n/r</span>' : f.needsBackup ? '<span style="color:var(--bad)">✘ no</span>' : '<span class="mut">–</span>'}</td><td>${e.confirmed_date ? `<span title="Confirmed by ${esc(e.confirmed_by || DEFAULT_CONFIRMER)}">${esc(e.confirmed_date)} <span class="mut">${esc((e.confirmed_by || DEFAULT_CONFIRMER).split(' ')[0])}</span></span>` : '<span class="mut">–</span>'}</td><td class="flg">${flagChips(b)}</td></tr>`).join('') || '<tr><td colspan="15" class="mut" style="padding:20px">No repos match.</td></tr>';
+  bindGo($('#tb'));
+  $('#tb').querySelectorAll('[data-sel]').forEach(c => c.onchange = () => { c.checked ? S.sel.add(c.dataset.sel) : S.sel.delete(c.dataset.sel); bulkBar(); });
+  bulkBar();
+}
+function bulkBar() {
+  const n = S.sel.size;
+  $('#bulk').innerHTML = n ? `<b>${n} selected</b> <select id="bF"><option value="disposition">disposition</option><option value="classification">classification</option><option value="migration_status">status</option><option value="owner">owner</option></select>
+   <select id="bV"></select><button class="btn pri sm" id="bApply">Apply</button> <button class="btn sm" id="bClr">Clear</button>` : '';
+  if (!n) return;
+  const fill = () => { const f = $('#bF').value; $('#bV').outerHTML = f === 'owner' ? '<input id="bV" placeholder="owner name">' : `<select id="bV">${(f === 'disposition' ? DISP : f === 'classification' ? CLS : STAT).map(v => `<option>${v}</option>`).join('')}</select>`; };
+  $('#bF').onchange = fill; fill();
+  $('#bApply').onclick = () => { const f = $('#bF').value, v = $('#bV').value; let ok = 0; S.sel.forEach(k => { if (setEdit(k, f, v)) ok++; }); S.sel.clear(); toast(`${ok} queued`); vRepos(); };
+  $('#bClr').onclick = () => { S.sel.clear(); vRepos(); };
+}
+
+/* ---------- Drawer ---------- */
+function openDrawer(key) {
+  const b = BY[key]; if (!b) return; DRAWER = key; const e = eff(b), f = flags(b), dr = $('#drawer'), id = e.id;
+  const builds = D.builds.filter(x => x.repo_name === e.name && (e.source === 'magiq-ado' ? x._src === 'magiq-ado' : x._src === e.source));
+  const svc = D.svc.filter(x => x._src === e.source && x.project === projOf(e));
+  const deps = D.pkgdeps.filter(x => x.repo_id && x.repo_id === id);
+  const sel = (fld, arr) => `<select data-f="${fld}">${arr.map(v => `<option ${v === e[fld] ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
+  dr.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:start"><div><div class="small mut">${f.unmerged ? 'unmerged inventory row · id assigned on merge' : 'register id ' + esc(id)}</div><h2 style="font-size:18px;margin:2px 0">${esc(e.name)}</h2><span class="src">${esc(e.source)}</span> <span class="small mut">${esc(projOf(e))}</span></div><button class="btn sm" id="dClose">✕</button></div>
+  <div style="margin:8px 0">${flagChips(b)}</div>
+  ${hint(b).map(h => `<div class="hint">${esc(h)}</div>`).join('')}
+  <label>Disposition</label>${sel('disposition', DISP)}
+  <label>Classification</label>${sel('classification', CLS)}
+  <label>Migration status</label>${sel('migration_status', STAT)}
+  ${(f.needsBackup || f.backedUp || f.backupNR) ? `<label>2-location backup (required before deleting at source)</label><select data-f="backup_2loc">${[['', 'not recorded'], ['no', 'no — not done'], ['yes', 'yes — 2 locations confirmed'], ['not-required', 'not required — empty or obsolete']].map(([v, l]) => `<option value="${v}" ${v === (e.backup_2loc || '') ? 'selected' : ''}>${l}</option>`).join('')}</select><div class="small mut">Record where the copies live in Notes (e.g. NAS + S3, SHA-256). For “not required”, note why (empty repo / obsolete).</div>` : ''}
+  <label>Owner</label><input data-f="owner" value="${esc(e.owner)}" placeholder="team or person accountable">
+  <label>Notes</label><textarea data-f="notes">${esc(e.notes)}</textarea>
+  <label>Decision confirmed by${e.disposition === 'decommission' ? ' <b style="color:var(--bad)">(required before any decommission)</b>' : ''}</label>
+  <div style="display:grid;grid-template-columns:1fr 150px;gap:8px"><select data-f="confirmed_by">${confirmers().map(n => `<option ${n === (e.confirmed_by || DEFAULT_CONFIRMER) ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="__new__">+ Add another person…</option></select><input type="date" data-f="confirmed_date" value="${esc(e.confirmed_date)}"></div>
+  <div style="margin-top:6px;display:flex;gap:8px;align-items:center">${e.confirmed_date ? '<button class="btn sm" id="dUnconfirm">Clear</button>' : ''}<span class="small mut">Pick the date to record the confirmation (name defaults to ${DEFAULT_CONFIRMER}). Records the decision only; nothing is deleted. Changing the disposition clears it.</span></div>
+  <h3>Details</h3><div class="kv">
+    <div>Project</div><div><a class="ext" href="${esc(e.source_url)}" target="_blank" rel="noopener noreferrer" title="Open in a new window: ${esc(e.source_url)}">${esc(projOf(e))}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a></div>
+    <div>Last commit</div><div>${esc(e.last_commit_date || '—')} · ${esc(e.last_commit_author || '—')}</div>
+    <div>Open PRs</div><div>${esc(e.open_prs)}</div>
+    <div>Pipelines / LFS / pkgs</div><div>${esc(e.has_pipelines)} / ${esc(e.has_lfs)} / ${esc(e.has_packages)}</div>
+    <div>Size</div><div>${sizeMB(e) != null ? sizeMB(e) + ' MB' : '—'}</div>
+    <div>Target name</div><div class="mono">${esc(targetName(e))} <span class="mut">(convention TBD)</span></div>
+    <div>Destination</div><div>${esc(e.destination_url || '—')}</div></div>
+  ${builds.length ? `<h3>Pipelines</h3>${builds.map(x => `<div class="small">${esc(x.definition)} · last ${esc(x.last_build || 'never')} ${esc(x.last_result)}</div>`).join('')}` : ''}
+  ${svc.length ? `<h3>Service connections in project</h3>${svc.map(x => `<div class="small">${esc(x.name)} <span class="chip f">${esc(x.type)}</span> ${esc(x.created_by)}</div>`).join('')}` : ''}
+  ${deps.length ? `<h3>Packages from this repo</h3>${deps.map(x => `<div class="small mono">${esc(x.package_id)} · ${esc(x.check_status)}</div>`).join('')}` : ''}
+  <div style="margin-top:16px;display:flex;gap:8px"><button class="btn" id="dRevert">Revert my changes</button>${f.unmerged ? '<button class="btn pri" id="dAccept">Add to register queue</button>' : ''}</div>`;
+  dr.classList.add('open');
+  $('#dClose').onclick = closeDrawer;
+  dr.querySelectorAll('[data-f]').forEach(el => el.onchange = () => {
+    let v = el.value;
+    if (v === '__new__') { v = (prompt('Name of the person confirming?') || '').trim(); if (!v) { openDrawer(key); return; } }
+    if (!setEdit(key, el.dataset.f, v)) { openDrawer(key); return; } openDrawer(key); refreshCurrent(); });
+  $('#dRevert').onclick = () => { revertRow(key); openDrawer(key); refreshCurrent(); };
+  if ($('#dAccept')) $('#dAccept').onclick = () => { P.accepted[key] = true; save(); openDrawer(key); refreshCurrent(); };
+  if ($('#dUnconfirm')) $('#dUnconfirm').onclick = () => { setEdit(key, 'confirmed_by', ''); setEdit(key, 'confirmed_date', ''); openDrawer(key); refreshCurrent(); };
+}
+function closeDrawer() { DRAWER = null; $('#drawer').classList.remove('open'); }
+function refreshCurrent() { const y = window.scrollY; const t = S.tab; if (t === 'repos') { computeFlags(); tableBody(); } else render(); window.scrollTo(0, y); updateCounts(); }
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape') closeDrawer(); });
+
+/* ---------- Duplicates ---------- */
+function vDups() {
+  const q = S.dq.toLowerCase();
+  const gs = DUPG.filter(g => (S.dsame || g.cross) && (!q || g.rows.some(r => (r.e.name + ' ' + r.e.source).toLowerCase().includes(q))));
+  const nRows = gs.reduce((n, g) => n + g.rows.length, 0), nCross = DUPG.filter(g => g.cross).length;
+  const WHY = { same: 'same name', similar: 'similar name', noted: 'noted in register' };
+  const MIG = ['migrate', 'update-then-migrate'];
+  $('#view').innerHTML = `<div class="bar"><input id="dq" placeholder="Filter by repo name or source…" value="${esc(S.dq)}" style="min-width:260px">
+    <label class="small"><input type="checkbox" id="dsame" ${S.dsame ? 'checked' : ''}> include same-source duplicates</label>
+    <span class="mut small">${gs.length} groups · ${nRows} repos${S.dsame ? '' : ` · ${DUPG.length - nCross} same-source groups hidden`}</span></div>
+   <div class="card small" style="margin-bottom:12px">Grouped by: identical name, name after dropping MAGIQ / infoxpert / legacy / obsolete words, and “overlaps / dup of / superseded by” notes in the register. These are <b>candidates</b>: confirm by comparing content before deciding. Use the disposition dropdown on each row to decide which copy is authoritative.</div>
+   ${gs.map(g => { const rows = g.rows.slice().sort((a, b) => (b.e.last_commit_date || '').localeCompare(a.e.last_commit_date || ''));
+     const disp = new Set(rows.map(r => r.e.disposition)), mig = rows.filter(r => MIG.includes(r.e.disposition)).length, newest = rows.find(r => r.e.last_commit_date);
+     return `<div class="card" style="margin-bottom:12px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px"><b style="font-size:14px">${esc(g.title)}</b>
+       ${[...g.reasons].map(w => `<span class="chip f info">${WHY[w]}</span>`).join('')}${g.sources.map(s => `<span class="src">${esc(s)}</span>`).join('')}
+       ${g.cross ? '' : '<span class="chip f">same source</span>'}${disp.size > 1 ? '<span class="chip f warn">decisions differ</span>' : ''}${mig > 1 ? '<span class="chip f bad">multiple set to migrate</span>' : ''}</div>
+       <div class="tw"><table class="nw cp"><thead><tr><th>ID</th><th>Name</th><th>Source</th><th>Project</th><th>Last Commit</th><th>Size</th><th>Class</th><th>Disposition</th><th>Status</th><th>Notes</th></tr></thead><tbody>
+       ${rows.map(r => `<tr class="row" data-open="${esc(r.k)}"><td class="mono mut">${r.b.kind === 'stg' && !P.accepted[r.k] ? 'new' : esc(r.e.id)}</td><td><b>${esc(r.e.name)}</b></td><td><span class="src">${esc(r.e.source)}</span></td><td>${esc(projOf(r.e))}</td>
+         <td>${esc(r.e.last_commit_date || '—')}</td><td>${sizeMB(r.e) != null ? sizeMB(r.e) + ' MB' : '—'}</td><td>${pill(r.e.classification)}</td>
+         <td><select data-dd="${esc(r.k)}">${DISP.map(d => `<option ${d === r.e.disposition ? 'selected' : ''}>${d}</option>`).join('')}</select></td><td>${pill(r.e.migration_status)}</td>
+         <td class="wrap small mut">${esc((r.e.notes || '').replace(/^project=[^;]+;?\s*/, ''))}</td></tr>`).join('')}</tbody></table></div>
+       ${newest ? `<div class="small mut" style="margin-top:5px">Most recent commit: <b>${esc(newest.e.name)}</b> (${esc(newest.e.source)}, ${esc(newest.e.last_commit_date)})</div>` : ''}</div>`; }).join('') || '<div class="card mut">No duplicate candidates found.</div>'}`;
+  $('#dq').oninput = ev => { S.dq = ev.target.value; vDups(); const i = $('#dq'); i.focus(); i.setSelectionRange(S.dq.length, S.dq.length); };
+  $('#dsame').onchange = ev => { S.dsame = ev.target.checked; vDups(); };
+  bindGo();
+  document.querySelectorAll('[data-dd]').forEach(s => s.onchange = () => { if (setEdit(s.dataset.dd, 'disposition', s.value)) { computeFlags(); vDups(); } else vDups(); });
+}
+
+/* ---------- Source notes ---------- */
+const NLS = 'rhk-notes-v1'; let NT = {}, NSTAT = {}, NCONF = {}, noteTimer = null;
+try { NT = JSON.parse(localStorage.getItem(NLS) || '{}') || {}; } catch (e) {}
+const noteText = s => NT[s] != null ? NT[s] : ((D.notes || {})[s] || '');
+function persistNT() { try { localStorage.setItem(NLS, JSON.stringify(NT)); } catch (e) {} }
+async function saveNote(src) {
+  if (NT[src] == null) return;
+  if (!LIVE) { persistNT(); NSTAT[src] = 'Saved in this browser only (static mode) — use Download'; return noteStatus(src); }
+  NSTAT[src] = 'Saving…'; noteStatus(src);
+  try {
+    await post('/api/notes', { source: src, old: (D.notes || {})[src] || '', new: NT[src] });
+    D.notes[src] = NT[src]; delete NT[src]; persistNT(); delete NCONF[src];
+    NSTAT[src] = 'Saved ' + new Date().toLocaleTimeString(); try { lastRev = (await (await fetch('/api/rev', { cache: 'no-store' })).json()).rev; } catch (e) {}
+  } catch (err) { NSTAT[src] = 'Not saved: ' + err.message; if (/conflict/.test(err.message)) { try { const r = await fetch('/api/data', { cache: 'no-store' }); NCONF[src] = (await r.json()).notes[src]; } catch (e) {} NSTAT[src] = 'Not saved — the file changed on disk'; vNotes(); return; } }
+  noteStatus(src);
+}
+function noteStatus(src) { const el = $('#noteStat'); if (el && (S.nsrc || SOURCES[0]) === src) el.textContent = NSTAT[src] || ''; }
+function vNotes() {
+  const src = S.nsrc || SOURCES[0];
+  const E = active().map(b => eff(b)).filter(e => e.source === src), byD = count(E, e => e.disposition);
+  $('#view').innerHTML = `<div class="bar">${SOURCES.map(s => `<button class="btn ${s === src ? 'pri' : ''}" data-ns="${s}">${s}${noteText(s).replace(/^# .*\n+/, '').trim() ? ' ●' : ''}</button>`).join('')}</div>
+   <div class="card" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><b>${src}</b> <span class="mut small">${E.length} repos</span> ${Object.entries(byD).map(([d, n]) => `<span class="chip f">${d} ${n}</span>`).join(' ')}</div>
+     <div class="small mut"><span id="noteStat">${esc(NSTAT[src] || '')}</span> · spec/notes/${src}.md</div></div>
+     ${NCONF[src] != null ? `<div class="hint" style="margin-top:8px">The file changed on disk while you were editing. <button class="btn sm" id="nKeep">Keep mine (overwrite)</button> <button class="btn sm" id="nLoad">Load disk version</button></div>` : ''}
+     <textarea id="noteText" spellcheck="true" style="min-height:62vh;margin-top:10px;font:13px/1.5 ui-monospace,Consolas,monospace" placeholder="Ad-hoc working notes for ${src}: findings, questions, follow-ups…">${esc(noteText(src))}</textarea>
+     <div class="small mut" style="margin-top:6px">Markdown/plain text. ${LIVE ? 'Saves automatically while you type.' : 'Static mode: kept in this browser; use Download to put it in the folder.'} Claude reads these files too.
+       ${LIVE ? '' : `<button class="btn sm" id="nDl">Download ${src}.md</button>`}</div></div>`;
+  document.querySelectorAll('[data-ns]').forEach(b => b.onclick = () => { S.nsrc = b.dataset.ns; vNotes(); });
+  $('#noteText').oninput = ev => { NT[src] = ev.target.value; NSTAT[src] = 'Unsaved…'; noteStatus(src); persistNT(); clearTimeout(noteTimer); noteTimer = setTimeout(() => saveNote(src), 800); };
+  $('#noteText').onblur = () => { clearTimeout(noteTimer); saveNote(src); };
+  if ($('#nKeep')) $('#nKeep').onclick = () => { D.notes[src] = NCONF[src]; delete NCONF[src]; saveNote(src).then(vNotes); };
+  if ($('#nLoad')) $('#nLoad').onclick = () => { D.notes[src] = NCONF[src]; delete NCONF[src]; delete NT[src]; persistNT(); NSTAT[src] = 'Loaded disk version'; vNotes(); };
+  if ($('#nDl')) $('#nDl').onclick = () => dl(src + '.md', noteText(src));
+}
+
+/* ---------- Triage board ---------- */
+function vBoard() {
+  const E = active().map(b => ({ b, e: eff(b), f: flags(b) })).filter(x => (!S.bsrc || x.e.source === S.bsrc) && (!S.cls || x.e.classification === S.cls) && (!S.q || (x.e.name + x.e.notes).toLowerCase().includes(S.q.toLowerCase())) && x.f.open);
+  $('#view').innerHTML = `<div class="bar"><input id="q" placeholder="Filter…" value="${esc(S.q)}"><select id="bs">${opts(['', ...SOURCES], S.bsrc)}</select><select id="bc">${opts(['', ...CLS], S.cls)}</select>
+    <span class="mut small">Drag a card to change its disposition (queued, not saved to CSV until you export). Skipped / verified / decommissioned repos are hidden.</span></div>
+   <div class="board">${BOARD.map(d => { const items = E.filter(x => x.e.disposition === d || (d === 'pending' && x.e.disposition === 'tbd')); return `<div class="col" data-disp="${d}"><h4><span>${pill(d)}</span><span class="mut">${items.length}</span></h4>${items.map(({ b, e, f }) => `<div class="cardi" draggable="true" data-key="${esc(b.key)}" data-open="${esc(b.key)}">
+      <div class="nm">${esc(e.name)}</div><div class="mut">${esc(e.source)} · ${esc(projOf(e))}</div><div>${esc(e.last_commit_date || 'no commits')} ${pill(e.classification)}</div><div style="margin-top:3px">${flagChips(b)}</div></div>`).join('')}</div>`; }).join('')}</div>`;
+  $('#q').oninput = ev => { S.q = ev.target.value; vBoard(); $('#q').focus(); $('#q').setSelectionRange(S.q.length, S.q.length); };
+  $('#bs').onchange = ev => { S.bsrc = ev.target.value; vBoard(); }; $('#bc').onchange = ev => { S.cls = ev.target.value; vBoard(); };
+  bindGo();
+  document.querySelectorAll('.cardi').forEach(c => c.ondragstart = ev => ev.dataTransfer.setData('text/plain', c.dataset.key));
+  document.querySelectorAll('.col').forEach(col => {
+    col.ondragover = ev => { ev.preventDefault(); col.classList.add('over'); };
+    col.ondragleave = () => col.classList.remove('over');
+    col.ondrop = ev => { ev.preventDefault(); col.classList.remove('over'); const k = ev.dataTransfer.getData('text/plain'); if (k && setEdit(k, 'disposition', col.dataset.disp)) vBoard(); };
+  });
+}
+
+/* ---------- Map ---------- */
+function vMap() {
+  const kinds = { disposition: DISP, classification: CLS, migration_status: STAT };
+  const E = active().map(b => ({ b, e: eff(b), f: flags(b) }));
+  const ageColor = e => { const m = months(e); return m == null ? '#9aa3b2' : m < 6 ? '#16a34a' : m < 12 ? '#84cc16' : m < 36 ? '#d97706' : '#dc2626'; };
+  const col = e => S.colorBy === 'age' ? ageColor(e) : cvar(0, e[S.colorBy]);
+  $('#view').innerHTML = `<div class="bar"><b>Colour by</b> <select id="cb">${['disposition', 'classification', 'migration_status', 'age'].map(k => `<option ${S.colorBy === k ? 'selected' : ''}>${k}</option>`).join('')}</select>
+    <span class="mut small">Each tile is a repo, grouped source → project. Dashed outline = not yet in the register. “T” = TFVC. Click a tile for details.</span></div>
+   ${S.colorBy === 'age' ? '<div class="legend"><span><span class="dot" style="background:#16a34a"></span>&lt;6m</span><span><span class="dot" style="background:#84cc16"></span>6–12m</span><span><span class="dot" style="background:#d97706"></span>1–3y</span><span><span class="dot" style="background:#dc2626"></span>&gt;3y</span><span><span class="dot" style="background:#9aa3b2"></span>none</span></div>' : legend(kinds[S.colorBy])}
+   ${SOURCES.map(s => { const items = E.filter(x => x.e.source === s); const pj = {}; items.forEach(x => (pj[projOf(x.e)] = pj[projOf(x.e)] || []).push(x));
+     return `<div class="src-box"><h3>${s} <span class="mut">· ${items.length} repos${D.inventory[s] ? ' · inventory ' + D.inventory[s] : ''}</span></h3>${items.length ? Object.keys(pj).sort().map(p => `<div class="proj"><div class="t">${esc(p)} (${pj[p].length})</div>${pj[p].map(({ b, e, f }) => `<span class="tile ${f.unmerged ? 'stg' : ''} ${S.sel.has(b.key) ? 'sel' : ''}" style="background:${col(e)}" data-open="${esc(b.key)}" title="${esc(e.name)} · ${esc(e.disposition)} · ${esc(e.last_commit_date || 'no commits')}">${f.tfvc ? 'T' : ''}</span>`).join('')}</div>`).join('') : '<div class="card mut small">Not inventoried yet — no rows.</div>'}</div>`; }).join('')}`;
+  $('#cb').onchange = ev => { S.colorBy = ev.target.value; vMap(); };
+  bindGo();
+}
+
+/* ---------- Infra & deps ---------- */
+function vInfra() {
+  const feedRows = D.feeds.map(f => `<tr><td><span class="src">${f.source}</span></td><td><b>${esc(f.feed)}</b></td><td>${f.count}</td><td>${f.y2026}</td><td>${esc(f.latest)}</td><td>${f.y2026 > 20 ? '<span class="chip f bad">LIVE feed — R-010</span>' : f.source === 'infoxpert-ado' ? '<span class="chip f warn">R-001</span>' : ''}</td></tr>`).join('');
+  const bRows = D.builds.map(x => { const m = D.register.find(r => r.name === x.repo_name && r.source === x._src); const stale = !x.last_build || (TODAY - new Date(x.last_build)) / 864e5 > 365; return `<tr><td>${esc(x.project)}</td><td>${esc(x.definition)}</td><td>${esc(x.repo_name)} ${m ? '' : '<span class="chip f bad">repo not in register</span>'}</td><td>${esc(x.last_build || 'never')} ${stale ? '<span class="chip f">idle &gt;1y</span>' : ''}</td><td>${esc(x.last_result)}</td></tr>`; }).join('');
+  const sRows = D.svc.map(x => `<tr><td>${esc(x.project)}</td><td>${esc(x.name)}</td><td><span class="chip f ${x.type === 'AWS' ? 'warn' : ''}">${esc(x.type)}</span></td><td>${esc(x.created_by)} ${/ncssoftware/i.test(x.created_by) ? '<span class="chip f warn">former tenant</span>' : ''}</td></tr>`).join('');
+  const pRows = D.pkgdeps.map(x => `<tr><td class="mono">${esc(x.package_id)}</td><td>${esc(x.feed)} ${esc(x.latest_version)}</td><td>${pill(x.check_status === 'not-checked' ? 'unknown' : 'verified').replace(/>[^<]*</, '>' + esc(x.check_status) + '<')}</td><td class="small wrap">${esc(x.consumers_found || '')}</td><td class="small mut wrap">${esc(x.notes)}</td></tr>`).join('');
+  const mc = D.mycommits.map(x => `<tr><td>${esc(x.project)}</td><td>${esc(x.repo)}</td><td>${esc(x.vc)}</td><td>${esc(x.my_commits)}</td><td>${esc(x.my_last_commit)}</td></tr>`).join('');
+  const T = (h, body) => `<div class="tw"><table class="nw"><thead><tr>${h.map(x => `<th style="top:auto;cursor:default">${x}</th>`).join('')}</tr></thead><tbody>${body || '<tr><td class="mut">None</td></tr>'}</tbody></table></div>`;
+  $('#view').innerHTML = `<div class="grid">
+   <div><h2>Package feeds (not moved by GitHub Importer)</h2>${T(['source', 'feed', 'packages', 'published 2026', 'latest', ''], feedRows)}</div>
+   <div><h2>Held-library package consumers (spec/package-dependencies.csv)</h2>${T(['package', 'feed / version', 'check', 'consumers', 'notes'], pRows)}</div>
+   <div><h2>Build pipelines</h2>${T(['project', 'definition', 'repo', 'last build', 'result'], bRows)}</div>
+   <div><h2>Service connections</h2>${T(['project', 'name', 'type', 'created by'], sRows)}<div class="small mut" style="margin-top:4px">Do not migrate pipelines until repos are verified. AWS connections → revoke IAM keys in Phase 5 (R-015).</div></div>
+   <div><h2>Repos you’ve committed to that aren’t in the register</h2>${T(['project', 'repo', 'vc', 'your commits', 'last'], mc)}</div></div>`;
+}
+
+/* ---------- Risks & decisions ---------- */
+function vRisks() {
+  const rs = D.risks.filter(r => S.rstat === 'All' || r.status.toLowerCase().startsWith(S.rstat.toLowerCase()));
+  const md = s => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  $('#view').innerHTML = `<div class="grid g2" style="align-items:start">
+   <div><h2>Risk register</h2><div class="bar">${['Open', 'Accepted', 'Closed', 'All'].map(s => `<button class="btn sm ${S.rstat === s ? 'pri' : ''}" data-rs="${s}">${s}</button>`).join('')}</div>
+   <div class="tw"><table><tbody>${rs.map(r => `<tr><td class="mono" style="white-space:nowrap">${r.id}<br><span class="chip f ${/open/i.test(r.status) ? 'bad' : ''}">${esc(r.status)}</span></td><td><b>${md(r.risk)}</b><div class="small">${md(r.impact)}</div><div class="small mut">↳ ${md(r.mitigation)}</div></td></tr>`).join('')}</tbody></table></div></div>
+   <div><h2>Decision log</h2><div class="card">${D.decisions.slice().reverse().map(d => `<details><summary>${d.id} · ${esc(d.title)} <span class="mut small">${d.date}</span></summary><pre class="b">${esc(d.body)}</pre></details>`).join('')}</div></div></div>`;
+  document.querySelectorAll('[data-rs]').forEach(b => b.onclick = () => { S.rstat = b.dataset.rs; vRisks(); });
+}
+
+/* ---------- Work queue ---------- */
+const allTasks = () => D.tasks.map(t => Object.assign({}, t, P.taskEdits[t.id] || {})).concat(P.newTasks);
+function vWork() {
+  const T = allTasks().filter(t => !S.owner || t.owner === S.owner);
+  const pr = { urgent: 0, high: 1, medium: 2, low: 3 };
+  $('#view').innerHTML = `<div class="bar"><b>Owner</b> <select id="wo">${opts(['', 'Chase', 'Claude'], S.owner, { '': 'everyone' })}</select> <button class="btn sm" id="addT">+ Task</button>
+    <span class="mut small">Tasks live in spec/tasks.csv. ${LIVE ? 'Changes save automatically.' : 'Changes queue until you export.'} “Hand to Claude” copies a ready prompt.</span></div>
+   <div class="board">${TSTAT.map(st => `<div class="col" style="flex-basis:300px" data-tst="${st}"><h4><span>${st}</span><span class="mut">${T.filter(t => t.status === st).length}</span></h4>
+     ${T.filter(t => t.status === st).sort((a, b) => (pr[a.priority] ?? 9) - (pr[b.priority] ?? 9)).map(t => `<div class="cardi" draggable="true" data-tid="${t.id}" style="cursor:grab"><div class="nm">${esc(t.id)} · ${esc(t.title)}</div>
+       <div class="small"><span class="chip f ${t.owner === 'Claude' ? 'info' : ''}">${esc(t.owner)}</span> <span class="chip f ${t.priority === 'urgent' ? 'bad' : ''}">${esc(t.priority)}</span> <span class="chip f">phase ${esc(t.phase)}</span>${t.due ? ` <span class="chip f warn">due ${esc(t.due)}</span>` : ''}${t.linked ? ` <span class="mut">${esc(t.linked)}</span>` : ''}</div>
+       ${t.notes ? `<div class="small mut" style="margin-top:3px">${esc(t.notes)}</div>` : ''}
+       <div style="margin-top:5px;display:flex;gap:5px"><select data-ts="${t.id}">${TSTAT.map(s => `<option ${s === t.status ? 'selected' : ''}>${s}</option>`).join('')}</select>${t.owner === 'Claude' ? `<button class="btn sm" data-hand="${t.id}">Hand to Claude</button>` : ''}</div></div>`).join('')}</div>`).join('')}</div>`;
+  $('#wo').onchange = ev => { S.owner = ev.target.value; vWork(); };
+  const setT = (id, st) => { const base = D.tasks.find(t => t.id === id); if (base) { const cur = P.taskEdits[id] || {}; if (base.status === st) delete cur.status; else cur.status = st; if (Object.keys(cur).length) P.taskEdits[id] = cur; else delete P.taskEdits[id]; } else { const n = P.newTasks.find(t => t.id === id); if (n) n.status = st; } save(); vWork(); };
+  document.querySelectorAll('[data-ts]').forEach(s => s.onchange = () => setT(s.dataset.ts, s.value));
+  document.querySelectorAll('[data-hand]').forEach(b => b.onclick = () => { const t = allTasks().find(x => x.id === b.dataset.hand); copy(`Task ${t.id} (phase ${t.phase}, ${t.priority}): ${t.title}\nLinked: ${t.linked || '-'}\nNotes: ${t.notes || '-'}\nPlease do this task, update the relevant files (repo-register.csv / package-dependencies.csv / risks.md as needed), show exact CSV diffs, and mark ${t.id} done in spec/tasks.csv.`); });
+  document.querySelectorAll('.col[data-tst]').forEach(col => { col.ondragover = ev => { ev.preventDefault(); col.classList.add('over'); }; col.ondragleave = () => col.classList.remove('over'); col.ondrop = ev => { ev.preventDefault(); const id = ev.dataTransfer.getData('text/plain'); if (id) setT(id, col.dataset.tst); }; });
+  document.querySelectorAll('.cardi[data-tid]').forEach(c => c.ondragstart = ev => ev.dataTransfer.setData('text/plain', c.dataset.tid));
+  $('#addT').onclick = () => { const title = prompt('Task title?'); if (!title) return; const owner = (prompt('Owner (Chase / Claude)?', 'Chase') || 'Chase'); const n = Math.max(0, ...allTasks().map(t => +t.id.replace(/\D/g, ''))) + 1; P.newTasks.push({ id: 'T-' + String(n).padStart(2, '0'), title, owner, phase: String(D.phase), status: 'todo', priority: 'medium', due: '', linked: '', notes: '' }); save(); vWork(); };
+}
+function copy(t) { (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Copied — paste into Claude'), () => { const a = document.createElement('textarea'); a.value = t; document.body.appendChild(a); a.select(); try { document.execCommand('copy'); toast('Copied — paste into Claude'); } catch (e) { prompt('Copy:', t); } a.remove(); }); }
+
+/* ---------- Changes / export ---------- */
+const csvCell = v => { v = v == null ? '' : String(v); return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+const toCsv = (cols, rows) => (D.bom ? '﻿' : '') + [cols.join(',')].concat(rows.map(r => cols.map(c => csvCell(r[c])).join(','))).join(D.eol || '\n') + (D.eol || '\n');
+function buildExports() {
+  const maxId = Math.max(0, ...D.register.map(r => +r.id || 0)); let nid = maxId;
+  const rows = D.register.map(r => Object.assign({}, r, P.edits['r:' + r.id] || {}));
+  const adds = BASE.filter(b => b.kind === 'stg' && P.accepted[b.key]).map(b => { const r = Object.assign({}, eff(b)); r.id = String(++nid); return r; });
+  const diff = [];
+  D.register.forEach(r => { const ed = P.edits['r:' + r.id]; if (!ed) return; diff.push(`id ${r.id} · ${r.name} (${r.source})`); Object.keys(ed).forEach(f => diff.push(`  ${f}: ${r[f] || '(blank)'} → ${ed[f] || '(blank)'}`)); });
+  adds.forEach(r => diff.push(`NEW id ${r.id} · ${r.name} (${r.source}) — ${r.disposition}/${r.classification}/${r.migration_status}`));
+  const tasks = allTasks(); const tcols = ['id', 'title', 'owner', 'phase', 'status', 'priority', 'due', 'linked', 'notes'];
+  const tdiff = D.tasks.filter(t => P.taskEdits[t.id]).map(t => `${t.id}: status ${t.status} → ${P.taskEdits[t.id].status}`).concat(P.newTasks.map(t => `NEW ${t.id}: ${t.title} (${t.owner})`));
+  return { register: toCsv(COLS, rows.concat(adds)), tasks: toCsv(tcols, tasks), diff: `## repo-register.csv updates (${D.built})\n\n` + (diff.join('\n') || '(none)') + `\n\n## tasks.csv updates\n\n` + (tdiff.join('\n') || '(none)') + '\n', adds, diffLines: diff, tdiff };
+}
+function dl(name, text) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' })); a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
+function vChanges() {
+  const x = buildExports(), n = pendingCount();
+  $('#view').innerHTML = `<div class="bar"><h2 style="margin:0">Pending changes</h2><span class="mut">${LIVE ? (n ? n + ' not yet saved — retrying automatically; you can also export below.' : 'Nothing pending: live mode saves each edit straight to spec/*.csv (old versions in spec/.backups/).') : n + ' queued — nothing touches your files until you export + apply.'}</span></div>
+  <div class="bar"><button class="btn pri" id="eReg" ${n ? '' : 'disabled'}>Download repo-register.csv</button><button class="btn" id="eTask">Download tasks.csv</button><button class="btn" id="eDiff">Download diff.md</button><button class="btn" id="eCopy">Copy diff for Claude</button><button class="btn danger" id="eClear" ${n ? '' : 'disabled'}>Discard all</button></div>
+  <div class="card small" style="margin-bottom:12px">Apply: drop the downloaded CSV over <span class="mono">spec/repo-register.csv</span> (or paste the diff to Claude and ask it to apply), then rerun <span class="mono">python scripts/build_dashboard.py</span>. Rows are never deleted; new rows get ids ${x.adds.length ? Math.max(...x.adds.map(a => +a.id)) - x.adds.length + 1 + '–' + Math.max(...x.adds.map(a => +a.id)) : ''} on export. Decommission needs your written confirmation (recorded in notes).</div>
+  <pre class="b">${esc(x.diff)}</pre>
+  ${Object.keys(P.edits).length ? '<h3>Revert individual rows</h3>' + Object.keys(P.edits).map(k => `<span class="chip f act" data-rv="${esc(k)}">✕ ${esc(BY[k].o.name)}</span> `).join('') : ''}`;
+  $('#eReg').onclick = () => dl('repo-register.csv', x.register); $('#eTask').onclick = () => dl('tasks.csv', x.tasks); $('#eDiff').onclick = () => dl('diff.md', x.diff);
+  $('#eCopy').onclick = () => copy(x.diff + '\nPlease apply these updates to spec/repo-register.csv / spec/tasks.csv, keeping existing rows (never delete).');
+  $('#eClear').onclick = () => { if (confirm('Discard all pending changes?')) { P = { edits: {}, accepted: {}, taskEdits: {}, newTasks: [] }; save(); vChanges(); } };
+  document.querySelectorAll('[data-rv]').forEach(c => c.onclick = () => { revertRow(c.dataset.rv); vChanges(); });
+}
+
+$('#built').textContent = D.built;
+$('#hExport').onclick = () => go('changes');
+$('#incStaged').onchange = () => render();
+render();
+setLive(liveState);
+if (LIVE && pendingCount()) queueFlush();   // push anything left over from a previous session
+</script>
+</body>
+</html>

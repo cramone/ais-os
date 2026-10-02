@@ -1,0 +1,26 @@
+# ── Secrets ──────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pat
+*.secret
+
+# ── Archived source (cold storage, never commit) ─────────
+archive/**/*.zip
+archive/**/*.bundle
+archive/**/mirror.git/
+archive/**/src/
+# keep: archive/**/ARCHIVE.md, *.sha256, archive-manifest.txt
+
+# ── Inventory raw API dumps (CSVs are tracked) ───────────
+spec/inventory/**/raw/
+
+# ── Tooling ──────────────────────────────────────────────
+__pycache__/
+*.pyc
+.venv/
+.vs/
+.idea/
+
+# ── Live dashboard backups ────────────────────────────────
+spec/.backups/

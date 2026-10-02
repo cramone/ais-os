@@ -1,0 +1,5 @@
+feed,feed_scope,package,protocol,latest_version,published
+MAGIQ,org,MAGIQ.Extensions.FluentXml,NuGet,1.0.1,2016-10-24
+MAGIQ,org,MAGIQ.Extensions.Specifications,NuGet,1.0.1,2016-10-21
+MAGIQ,org,MAGIQ.Extensions.Specifications.Abstractions,NuGet,1.0.1,2016-10-21
+MAGIQ,org,MAGIQ.Extensions.Specifications.Nuget,NuGet,0.9.9,2016-10-20

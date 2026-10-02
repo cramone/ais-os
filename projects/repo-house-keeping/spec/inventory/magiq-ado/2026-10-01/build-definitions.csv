@@ -1,0 +1,15 @@
+project,definition,id,repo_type,repo_name,queue_status,last_build,last_result
+MagiqOffice,MagiqOffice,19,TfsGit,MagiqOffice,enabled,2022-10-25,succeeded
+Documents,MagiqCMS-Old,11,TfsGit,MagiqCMS-Old,enabled,2020-09-28,succeeded
+Documents,DocumentsApi CI,2,TfsGit,DocumentsApi-obsolete,enabled,2020-03-22,succeeded
+KarensTestProject,PartsUnlimitedE2E,9,TfsGit,PartsUnlimited,enabled,,
+Mobile,Engagement,25,TfsGit,Engagement,enabled,,
+Mobile,Engagement Deploy Elastic Beanstalk,6,TfsGit,Engagement,enabled,2021-12-01,succeeded
+Performance,Performance Multi Tenancy,20,TfsGit,LEGACY -DO NOT USE- Performance,enabled,2024-03-17,succeeded
+Performance,Performance Test,15,TfsGit,LEGACY -DO NOT USE- Performance,enabled,2024-03-17,succeeded
+Performance,Scheduled Work Item Queries,13,TfsGit,LEGACY -DO NOT USE- Performance,enabled,,
+Performance,Performance Azure Build,5,TfsGit,LEGACY -DO NOT USE- Performance,enabled,2024-03-20,succeeded
+Demo,Demo,12,TfsGit,Demo,enabled,2020-12-10,succeeded
+Engagement,Engagement,26,TfsGit,Engagement,enabled,,
+MAGIQ Cloud,MAGIQ-Cloud-IaC,24,TfsGit,MAGIQ-Cloud-IaC,enabled,2023-01-27,succeeded
+MAGIQ Cloud,magiq-aws-waf,22,TfsGit,magiq-aws-waf,enabled,2021-06-03,succeeded

@@ -1,0 +1,11 @@
+package_id,area,repo_id,repo_name,feed,latest_version,consumers_found,consumer_repo_ids,check_status,notes
+MAGIQ.Extensions.FluentXml,FluentXml,1,Extensions,infoxpert-ado/MAGIQ,1.0.1,,,not-checked,Feed v1.0.1 (2016-10); zip csproj has no <Version> (=1.0.0) so likely built from infoxpert $/MAGIQ Extensions TFVC
+MAGIQ.Extensions.FluentXml.Abstractions,FluentXml,1,Extensions,none-known,,,,not-checked,
+MAGIQ.Extensions.Http,Http,1,Extensions,none-known,,,,not-checked,
+MAGIQ.Extensions.Http.Abstractions,Http,1,Extensions,none-known,,,,not-checked,
+MAGIQ.Extensions.Http.Soap,Http,1,Extensions,none-known,,,,not-checked,
+MAGIQ.Extensions.Middleware.Abstractions,Middleware,1,Extensions,none-known,,,,not-checked,Renamed from tracker: zip only contains .Abstractions
+MAGIQ.Extensions.Pagination,Pagination,1,Extensions,none-known,,,,not-checked,
+MAGIQ.Extensions.Specifications,Specifications,1,Extensions,infoxpert-ado/MAGIQ,1.0.1,,,not-checked,Feed v1.0.1 (2016-10); zip csproj has no <Version> (=1.0.0) so likely built from infoxpert $/MAGIQ Extensions TFVC
+MAGIQ.Extensions.Specifications.Abstractions,Specifications,1,Extensions,infoxpert-ado/MAGIQ,1.0.1,,,not-checked,Feed v1.0.1 (2016-10); zip csproj has no <Version> (=1.0.0) so likely built from infoxpert $/MAGIQ Extensions TFVC
+MAGIQ.Extensions.Specifications.Nuget,Specifications,,,infoxpert-ado/MAGIQ,0.9.9,,,not-checked,Feed only (2016-10-20); no matching project in Extensions zip

@@ -301,6 +301,47 @@ design does, and both of those are decisions with somewhere to live.
 > while the same file states there is no cross-region strategy, no standby region and no global table.
 > Do not drill against those; they are already queued for deletion as SB-21.
 
+## Saga manual intervention
+
+**Asset ingestion.** A direct edit to `media-sagas` is the last resort. Pair it with a check that the `Asset` and
+`ProcessingJob` aggregates agree with whatever status is written.
+
+**Document signing.** The runbook covers at least:
+
+- an envelope stuck with the provider after the signing budget elapses;
+- a webhook that arrives for a session already terminal;
+- a session whose `MediaItem` was released but not unlinked;
+- a session unlinked while its `MediaItem` was not released.
+
+Start from `DocumentSigningSession.Status`, not the saga; see `documentsigningsaga.md` § Manual Intervention
+Runbook in the app repo.
+
+## Tenant classification scheme
+
+A tenant's protective-marking scheme is the tenant setting `Media:Catalog:ClassificationScheme` on its record
+in the platform `tenants` table (`TENANT#<name>/METADATA`). It is set by provisioning, never through a Media
+Management route.
+
+**At onboarding.** Set the token of the tenant's jurisdiction — one of the schemes Catalog publishes (see
+`mediaprofile.write-model.md` § `security_classification`). Provisioning refuses any other token. Leave it unset
+only for a tenant that will not use the `Governance` capability. Live hosts pick the value up within the
+tenant-settings cache TTL (default 5 minutes); no redeploy.
+
+**Changing it** is an operations act, not a migration:
+
+- Existing profiles keep the scheme they pinned; existing items keep their snapshot and stored markings.
+- A profile moves to the new scheme only when its owner removes `Governance` and adds it again.
+- Re-marking existing records under a new jurisdiction is a records-management exercise — plan it with the
+  domain owner; the platform does not do it.
+- Record who changed it, when, and why: the tenants table keeps no history of its own. **Confirm with the cloud
+  architect** whether provisioning logs the change or CloudTrail data events cover the table.
+
+**Watch** `Catalog/GovernanceGroupUnresolved`. A non-zero count means a profile declared `Governance` in a tenant
+with no scheme, or an unpublished one; the warning log names the tenant and the value.
+
+**Adding a scheme** is a release: a new embedded resource in Catalog, reviewed with the domain owner, then the
+token added to provisioning's accepted set.
+
 ---
 
 ## Implementation status
@@ -407,3 +448,21 @@ design does, and both of those are decisions with somewhere to live.
 > protection rule" for staging and prod, which item 11 records as impossible
 > on this plan. Where the two disagreed, this file was the newer and correct
 > one.
+
+17. **A second approver on lifting a legal hold is recorded, not built.** The spec's
+    `LiftLegalHold` takes one person holding `MediaItem.Manage`; whether a lift needs a second approver is
+    a compliance question for the records owner, not a rule the spec states. Settle it with compliance
+    before the first production tenant relies on holds; if it becomes a rule, it is a MediaItem
+    write-model change with its own ADR.
+
+18. **Metadata is not production-ready until two things land.** The identity provider must issue the
+    `roles` / `actor_type` claims (`spec/shared/magiq-auth-role-claims-requirements.md`), and the
+    destructive RecordType commands must be guarded as `recordtype.api.md` § Authorization specifies.
+    Until then do not set `PROD_ENABLED` for a build that exposes the Metadata routes. (Moved here from
+    `branching-and-deployment.md` by the Wave 4c purity sweep.)
+
+19. **A gated dispatch run reports green.** A `workflow_dispatch` whose staging or prod job is skipped by
+    `STAGING_ENABLED` / `PROD_ENABLED` finishes successfully — check which jobs actually ran. The
+    `PROD_ENABLED` guard is mirrored in cdk-magiq-media's `deploy.yml` (`gate-blocked-prod` summary job) and
+    the variable is per-repository, so prod needs it set in both repos. (Moved here from
+    `branching-and-deployment.md` by the Wave 4c purity sweep.)

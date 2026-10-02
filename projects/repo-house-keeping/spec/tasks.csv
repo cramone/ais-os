@@ -1,0 +1,18 @@
+id,title,owner,phase,status,priority,due,linked,notes
+T-01,Copy Extensions.zip + SHA-256 to a second location (S3/other backup),Chase,1,done,urgent,2026-10-08,R-002,Only copy once source deleted. ADO recycle bin fallback ends 2026-10-29 (R-004)
+T-02,Review + merge 38 staged magiq-ado repos into repo-register.csv,Claude,1,done,high,,,Applied 2026-10-02 as ids 76-113 (owner blank; staged dispositions kept). Dashboard showed them in Repos > 'Unmerged inventory'. Accept there and export; Claude applies and reassigns ids (staged ids collide with register)
+T-03,Inventory GitHub source orgs/repos (gh) into spec/inventory/github/,Chase,1,todo,high,,,Source 'github' has 0 rows; org list still TBD
+T-04,Scan inventoried repos for MAGIQ.Extensions.* consumers,Claude,1,todo,high,,R-001;R-003,Via ADO connector for MAGIQSoftware repos; local clones for infoxpert. Update spec/package-dependencies.csv
+T-05,Identify repos that publish MagiqSoftware feed packages (204 pkgs),Chase,1,todo,high,,R-010,No ADO pipeline has run since 2024-03 so publisher is outside ADO. Plan feed migration as separate workstream
+T-06,Check non-default branches on stale MAGIQSoftware repos before any decommission,Claude,2,todo,high,,R-011,ADO connector: list branches + last commit per branch; flag hidden activity
+T-07,Decide TFVC conversion approach (git-tfs full history vs tip-only vs snapshot),Chase,2,todo,high,,R-006;R-008,15 of 17 infoxpert projects are TFVC
+T-08,Agree cutover/freeze date for InfoXpert Legacy and Support Tools,Chase,2,todo,medium,,R-007,Active Sep-2026 commits
+T-09,Settle mgq- naming convention (casing/separators/project prefix),Chase,2,todo,high,,R-012;D-001,Collisions: documents / engagement / licensing
+T-10,Confirm empty-repo decommissions in writing (9 candidates),Chase,2,todo,medium,,,Triage board > decommission column; confirm per repo
+T-11,Decide archive vs migrate for LEGACY -DO NOT USE- Performance (3.6 GB),Chase,2,todo,medium,,R-014,
+T-12,Assign owner for Mobile repo (owner TBD),Chase,2,todo,medium,,,Active sso-mk2 branches; main last touched 2024-02
+T-13,Close/abandon 17 stale open PRs,Chase,3,todo,low,,R-013,Do before migration
+T-14,Delete magiq.visualstudio.com org (needs written confirmation),Chase,5,blocked,medium,2026-10-31,D-008,One-time scheduled task fires 2026-10-31
+T-15,Revoke AWS IAM keys behind 5 ADO service connections,Chase,5,todo,medium,,R-015,Check usage first
+T-16,Delete orphaned pipeline magiq-aws-waf during ADO cleanup,Chase,5,todo,low,,R-016,
+T-17,Lock down .env ACL or move off NAS share,Chase,1,todo,medium,,R-005,
