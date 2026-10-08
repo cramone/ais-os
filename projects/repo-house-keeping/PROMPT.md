@@ -91,6 +91,7 @@ id,name,source,source_url,last_commit_date,last_commit_author,open_prs,has_pipel
 | `decommission` | Delete after confirming no live dependencies |
 | `update-then-migrate` | Needs cleanup/rename/restructure before migration |
 | `pending` | Decision deferred — needs investigation or sign-off (formerly `hold`, D-009) |
+| `not-my-decision` | Someone else owns this decision; Chase is not deciding it (D-014) |
 | `tbd` | Not yet decided |
 
 ### Migration Status

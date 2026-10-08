@@ -1,0 +1,13 @@
+{
+  "id": "67",
+  "source": "infoxpert-ado",
+  "name": "$/Licensing",
+  "created": "2026-10-07T13:42:11",
+  "files": {
+    "Licensing.zip": {
+      "size": 9328818,
+      "sha256": "77C7ACA63DAED83D197AE11C85DDCA15F8E666790763007AC1B0884AFA4BE167",
+      "hashed": "2026-10-07"
+    }
+  }
+}

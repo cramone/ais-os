@@ -1,0 +1,13 @@
+{
+  "id": "69",
+  "source": "infoxpert-ado",
+  "name": "MAGIQ Conversion",
+  "created": "2026-10-06T15:43:37",
+  "files": {
+    "MAGIQ Conversion.zip": {
+      "size": 5760335,
+      "sha256": "3769B357C27CB99DBD961A74C10B04151EA9A058AD9340F1B964C48B742E6373",
+      "hashed": "2026-10-06"
+    }
+  }
+}

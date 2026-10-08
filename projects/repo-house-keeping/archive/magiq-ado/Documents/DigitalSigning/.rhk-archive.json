@@ -1,0 +1,13 @@
+{
+  "id": "13",
+  "source": "magiq-ado",
+  "name": "DigitalSigning",
+  "created": "2026-10-02T14:38:17",
+  "files": {
+    "DigitalSigning.zip": {
+      "size": 1248813,
+      "sha256": "D7B487BDE6BFE08C34857B0356F69BE6F35C7485EAF3B95BF063920848DB9091",
+      "hashed": "2026-10-02"
+    }
+  }
+}

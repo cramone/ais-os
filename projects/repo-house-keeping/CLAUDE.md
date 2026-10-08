@@ -27,7 +27,7 @@ Full role, schema, triage rules and phases come from the project instructions (s
 | spec/notes/<source>.md | Ad-hoc working notes per source (edited in the dashboard's Source notes tab; Claude may read them for context) |
 | spec/tasks.csv | Work queue (owner Chase/Claude) shown in dashboard Work Queue tab |
 | spec/package-dependencies.csv | Per-package consumer tracking for held library repos |
-| archive/ | Local cold-storage mirrors of held repos (see archive/README.md) |
+| archive/ | Local cold-storage mirrors/zips of held repos (see archive/README.md). Folders are created/deleted from the dashboard drawer (**Archive location**); the `rhk:status` block in each `ARCHIVE.md` and the index in `archive/README.md` are dashboard-managed, so write notes outside those markers |
 | scripts/ | `inventory_ado.py` (catalog an org into `spec/inventory/`), `archive-ado-repo.sh`, `lib/env.sh` |
 | spec/inventory/<source>/<date>/ | Raw inventory output. Merged into the register after review |
 | brief.md | Background, integrations, scope detail |

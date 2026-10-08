@@ -1,0 +1,13 @@
+{
+  "id": "3",
+  "source": "magiq-ado",
+  "name": "Conversion",
+  "created": "2026-10-06T09:33:49",
+  "files": {
+    "Conversion.zip": {
+      "size": 39896060,
+      "sha256": "6EEAE6C7B4E4C66022EAC7720C3EA68C076618BA376CB4A192D81086620ACAE8",
+      "hashed": "2026-10-06"
+    }
+  }
+}

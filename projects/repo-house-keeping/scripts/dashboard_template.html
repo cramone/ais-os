@@ -9,7 +9,7 @@
   --bg:#f6f7f9;--panel:#fff;--panel2:#f0f2f5;--line:#dde1e7;--text:#1b2230;--mut:#5d6879;--acc:#2563eb;--acc2:#dbe7ff;
   --link:#0b57d0;--ok:#16a34a;--warn:#d97706;--bad:#dc2626;--shadow:0 1px 2px rgba(0,0,0,.06);
   --c-migrate:#16a34a;--c-update-then-migrate:#2563eb;--c-archive-in-place:#64748b;
-  --c-decommission:#dc2626;--c-pending:#d97706;--c-tbd:#9aa3b2;
+  --c-decommission:#dc2626;--c-pending:#d97706;--c-tbd:#9aa3b2;--c-not-my-decision:#8b5cf6;
   --c-active:#16a34a;--c-stable:#0d9488;--c-stale:#d97706;--c-deprecated:#9333ea;--c-unknown:#9aa3b2;
   --c-not-started:#9aa3b2;--c-in-progress:#2563eb;--c-migrated:#0d9488;--c-verified:#16a34a;--c-decommissioned:#7f1d1d;--c-skipped:#64748b;
 }
@@ -116,8 +116,8 @@ details{border-bottom:1px solid var(--line);padding:6px 0}summary{cursor:pointer
 const DATA = /*__DATA__*/null;
 const D = DATA;
 const TODAY = new Date(D.built + 'T00:00:00');
-const DISP = ['pending','update-then-migrate','archive-in-place','migrate','decommission','tbd'];
-const BOARD = ['pending','update-then-migrate','archive-in-place','migrate','decommission']; // tbd rows show in the pending column
+const DISP = ['pending','update-then-migrate','archive-in-place','migrate','decommission','not-my-decision','tbd'];
+const BOARD = ['pending','update-then-migrate','archive-in-place','migrate','decommission','not-my-decision']; // tbd rows show in the pending column
 const CLS = ['active','stable','stale','deprecated','unknown'];
 const STAT = ['not-started','in-progress','migrated','verified','decommissioned','skipped'];
 const COLS = D.register.length ? Object.keys(D.register[0]) :
@@ -213,7 +213,7 @@ function flags(b) {
   f.decomCand = (m == null || m >= 12) && !f.openpr && !f.pipe && e.migration_status !== 'decommissioned';
   f.awaitConfirm = e.disposition === 'decommission' && e.migration_status !== 'decommissioned' && !e.confirmed_date;
   f.confirmed = !!e.confirmed_date;
-  f.unconfirmed = !['pending', 'tbd'].includes(e.disposition) && !e.confirmed_date && !['decommissioned', 'skipped', 'verified'].includes(e.migration_status);
+  f.unconfirmed = !['pending', 'tbd', 'not-my-decision'].includes(e.disposition) && !e.confirmed_date && !['decommissioned', 'skipped', 'verified'].includes(e.migration_status);
   f.activeHold = e.classification === 'active' && (e.disposition === 'pending' || e.disposition === 'tbd');
   const elig = e.disposition === 'decommission' || e.disposition === 'archive-in-place' || e.migration_status === 'decommissioned';
   f.needsBackup = elig && e.backup_2loc !== 'yes' && e.backup_2loc !== 'not-required';
@@ -278,6 +278,13 @@ function setEdit(key, field, val) {
 }
 const DEFAULT_CONFIRMER = 'Chase Ramone';
 // names offered in the "confirmed by" list: everyone entered before (saved or pending), default person first
+// everyone known: owners + confirmers (saved or pending), default person first
+function people() {
+  const s = new Set([DEFAULT_CONFIRMER]);
+  [...D.register, ...D.staged].forEach(r => { if (r.owner) s.add(r.owner); if (r.confirmed_by) s.add(r.confirmed_by); });
+  Object.values(P.edits).forEach(ed => { if (ed.owner) s.add(ed.owner); if (ed.confirmed_by) s.add(ed.confirmed_by); });
+  return [DEFAULT_CONFIRMER, ...[...s].filter(n => n !== DEFAULT_CONFIRMER).sort((a, b) => a.localeCompare(b))];
+}
 function confirmers() {
   const s = new Set([DEFAULT_CONFIRMER]);
   [...D.register, ...D.staged].forEach(r => { if (r.confirmed_by) s.add(r.confirmed_by); });
@@ -304,8 +311,8 @@ function queueFlush() { clearTimeout(flushTimer); flushTimer = setTimeout(flush,
 async function post(url, body) {
   const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-RHK': '1' }, body: JSON.stringify(body) });
   let j = {}; try { j = await r.json(); } catch (e) {}
-  if (r.status === 409) { const e = new Error('conflict'); e.conflicts = j.conflicts || []; throw e; }
-  if (!r.ok) throw new Error(j.error || r.statusText);
+  if (r.status === 409 && j.error === 'conflict') { const e = new Error('conflict'); e.conflicts = j.conflicts || []; e.data = j; throw e; }
+  if (!r.ok) { const e = new Error(j.error || r.statusText); e.data = j; throw e; }
   return j;
 }
 async function flush() {
@@ -561,9 +568,10 @@ function openDrawer(key) {
   <label>Classification</label>${sel('classification', CLS)}
   <label>Migration status</label>${sel('migration_status', STAT)}
   ${(f.needsBackup || f.backedUp || f.backupNR) ? `<label>2-location backup (required before deleting at source)</label><select data-f="backup_2loc">${[['', 'not recorded'], ['no', 'no — not done'], ['yes', 'yes — 2 locations confirmed'], ['not-required', 'not required — empty or obsolete']].map(([v, l]) => `<option value="${v}" ${v === (e.backup_2loc || '') ? 'selected' : ''}>${l}</option>`).join('')}</select><div class="small mut">Record where the copies live in Notes (e.g. NAS + S3, SHA-256). For “not required”, note why (empty repo / obsolete).</div>` : ''}
-  <label>Owner</label><input data-f="owner" value="${esc(e.owner)}" placeholder="team or person accountable">
+  ${archiveSection(b, e)}
+  <label>Owner</label><select data-f="owner"><option value="" ${e.owner ? '' : 'selected'}>— unassigned —</option>${people().map(n => `<option ${n === e.owner ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="__new__">+ Add another person…</option></select>
   <label>Notes</label><textarea data-f="notes">${esc(e.notes)}</textarea>
-  <label>Decision confirmed by${e.disposition === 'decommission' ? ' <b style="color:var(--bad)">(required before any decommission)</b>' : ''}</label>
+  <label>Decision confirmed by${e.disposition === 'decommission' && !e.confirmed_date ? ' <b style="color:var(--bad)">(required before any decommission)</b>' : ''}</label>
   <div style="display:grid;grid-template-columns:1fr 150px;gap:8px"><select data-f="confirmed_by">${confirmers().map(n => `<option ${n === (e.confirmed_by || DEFAULT_CONFIRMER) ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="__new__">+ Add another person…</option></select><input type="date" data-f="confirmed_date" value="${esc(e.confirmed_date)}"></div>
   <div style="margin-top:6px;display:flex;gap:8px;align-items:center">${e.confirmed_date ? '<button class="btn sm" id="dUnconfirm">Clear</button>' : ''}<span class="small mut">Pick the date to record the confirmation (name defaults to ${DEFAULT_CONFIRMER}). Records the decision only; nothing is deleted. Changing the disposition clears it.</span></div>
   <h3>Details</h3><div class="kv">
@@ -582,11 +590,47 @@ function openDrawer(key) {
   $('#dClose').onclick = closeDrawer;
   dr.querySelectorAll('[data-f]').forEach(el => el.onchange = () => {
     let v = el.value;
-    if (v === '__new__') { v = (prompt('Name of the person confirming?') || '').trim(); if (!v) { openDrawer(key); return; } }
+    if (v === '__new__') { v = (prompt(el.dataset.f === 'owner' ? 'Name of the new owner?' : 'Name of the person confirming?') || '').trim(); if (!v) { openDrawer(key); return; } }
     if (!setEdit(key, el.dataset.f, v)) { openDrawer(key); return; } openDrawer(key); refreshCurrent(); });
-  $('#dRevert').onclick = () => { revertRow(key); openDrawer(key); refreshCurrent(); };
+  bindArchive(key, b, e);
+  $('#dRevert').onclick =() => { revertRow(key); openDrawer(key); refreshCurrent(); };
   if ($('#dAccept')) $('#dAccept').onclick = () => { P.accepted[key] = true; save(); openDrawer(key); refreshCurrent(); };
   if ($('#dUnconfirm')) $('#dUnconfirm').onclick = () => { setEdit(key, 'confirmed_by', ''); setEdit(key, 'confirmed_date', ''); openDrawer(key); refreshCurrent(); };
+}
+const fmtSize = n => n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : n < 1073741824 ? (n / 1048576).toFixed(1) + ' MB' : (n / 1073741824).toFixed(2) + ' GB';
+function archiveSection(b, e) {
+  const A = (D.arch || {})[e.id];
+  if (!A || b.kind !== 'reg') return '';
+  const elig = ['archive-in-place', 'decommission'].includes(e.disposition);
+  if (!elig && !A.exists) return '';
+  if (e.backup_2loc === 'not-required' && !A.exists) return '';   // nothing to archive; still shown if a folder already exists so it can be managed/deleted
+  const files = A.files.length ? `<table class="nw" style="margin-top:6px"><tbody>${A.files.map(f => `<tr><td class="mono">${esc(f.name)}</td><td>${fmtSize(f.size)}</td><td class="mono" title="${esc(f.sha256)}">${f.sha256 ? esc(f.sha256.slice(0, 12)) + '…' : '<span class="mut">no SHA-256</span>'}</td></tr>`).join('')}</tbody></table>` : '<div class="small mut" style="margin-top:6px">No files yet.</div>';
+  const btn = (id, label, cls = '') => `<button class="btn sm ${cls}" id="${id}">${label}</button>`;
+  return `<h3>Archive location</h3><div class="small mono" style="word-break:break-all">${esc(A.rel)}/</div>
+   ${A.exists ? files : ''}
+   <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">${!LIVE ? '<span class="small mut">Folder actions need the live server (start-dashboard.bat).</span>' : A.exists
+     ? btn('dArchCopy', 'Copy path') + btn('dArchScan', 'Rescan files + SHA-256') + btn('dArchDel', 'Delete folder…', 'danger')
+     : btn('dArchCreate', 'Create archive folder', 'pri')}</div>
+   <div class="small mut" style="margin-top:6px">${A.exists ? 'Copy the archive zip into this folder, click <b>Rescan</b> to record its SHA-256 in ARCHIVE.md, then set <b>2-location backup</b> to yes once a second copy exists.' : 'Creates the folder with a starter ARCHIVE.md and updates archive/README.md. Never overwrites an existing archive.'}</div>`;
+}
+function bindArchive(key, b, e) {
+  const run = async (btnId, fn) => { const el = $(btnId); if (!el) return; el.onclick = async () => { el.disabled = true; try { await fn(el); } catch (err) { toast((err.data && err.data.error) || err.message); } el.disabled = false; }; };
+  const refresh = async () => { await pull(false); openDrawer(key); };
+  run('#dArchCreate', async () => { await post('/api/archive/create', { id: e.id }); toast('Archive folder created'); await refresh(); });
+  run('#dArchCopy', async () => { const A = D.arch[e.id]; copy(A.abs); });
+  run('#dArchScan', async (el) => { el.textContent = 'Hashing… large files take a while'; const r = await post('/api/archive/rescan', { id: e.id }); toast('Rescanned ' + r.files.length + ' item(s); ARCHIVE.md updated'); await refresh(); });
+  run('#dArchDel', async () => {
+    const A = D.arch[e.id], name = A.rel.split('/').pop(), had = eff(b).backup_2loc === 'yes';
+    let confirmTxt;
+    if (A.files.length) {
+      const ans = prompt(`Delete archive folder ${A.rel}?\n\nIt holds: ${A.files.map(f => f.name).join(', ')}\nThe contents are moved to archive/.trash/ (recoverable), not erased.${had ? '\n2-location backup will be reset to "no".' : ''}\n\nType the folder name to confirm:\n${name}`);
+      if (ans == null) return; if (ans.trim() !== name) { toast('Name did not match — nothing deleted'); return; }
+      confirmTxt = ans.trim();
+    } else if (!confirm(`Delete the empty archive folder ${A.rel}?`)) return;
+    const r = await post('/api/archive/delete', { id: e.id, confirm: confirmTxt });
+    if (had) setEdit(key, 'backup_2loc', 'no');
+    toast(r.trashed ? 'Moved to ' + r.trashed : 'Archive folder deleted'); await refresh();
+  });
 }
 function closeDrawer() { DRAWER = null; $('#drawer').classList.remove('open'); }
 function refreshCurrent() { const y = window.scrollY; const t = S.tab; if (t === 'repos') { computeFlags(); tableBody(); } else render(); window.scrollTo(0, y); updateCounts(); }

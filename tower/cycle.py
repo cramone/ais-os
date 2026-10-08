@@ -97,6 +97,7 @@ _TO_TODO: dict[tuple[str, str], tuple[str, str | None]] = {
     ("feature-request", "declined"):   ("done",        "declined"),
     ("feature-request", "parked"):     ("deferred",    "parked"),
     ("feature-request", "superseded"): ("done",        "superseded"),
+    ("plan", "new"):               ("new",         None),
     ("plan", "active"):            ("in-progress", None),
     ("plan", "blocked"):           ("deferred",    "blocked"),
     ("plan", "parked"):            ("deferred",    "parked"),

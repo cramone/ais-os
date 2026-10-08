@@ -1,0 +1,13 @@
+{
+  "id": "59",
+  "source": "infoxpert-ado",
+  "name": "$/Applications",
+  "created": "2026-10-06T15:46:46",
+  "files": {
+    "Applications.zip": {
+      "size": 25369220,
+      "sha256": "3C2871707634912F834C635495D35BAD39F0BA63E1DA8E79035A132186FF6329",
+      "hashed": "2026-10-06"
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "28",
+  "source": "magiq-ado",
+  "name": "OfficeAddins",
+  "created": "2026-10-06T10:10:43",
+  "files": {
+    "OfficeAddins.zip": {
+      "size": 834845,
+      "sha256": "B855D6EB6E512FA24F6C5B4C7B0CBE00C2BDA61FB9E7CEBA8AA3A0E1F20D60BD",
+      "hashed": "2026-10-06"
+    }
+  }
+}

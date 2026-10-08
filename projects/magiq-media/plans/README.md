@@ -77,6 +77,13 @@ the merge. **It never reached `develop` and was never meant to** — it is stack
 
 - **Ids** — `MM-<nnn>`, monotonic, never reused, never renumbered. One id space covers reviews, feature
   requests, plans and gates. Cross-references are ids, never paths.
+- **Dependency-gap workstreams** (`docs/dependency-gaps/`) keep workstream ids `WS-<nn>` in the
+  `workstream:` field, but the plan itself carries a monotonic `MM-<nnn>` id (Tower regex
+  `^[A-Z]{2,}-\d{3}$`). Because gap files are the origin — not a review or feature-request
+  document — each such plan carries an `exception:` line citing the gap file and the theme
+  INDEX row. Joint workstreams split into `WS-NNa` (external repo: `aspnetcore-platform` /
+  `magiq-auth` / `cdk-magiq-media`) and `WS-NNb` (magiq-media integration); each half gets its
+  own plan folder when scheduled.
 - **Plan status** — `active` | `blocked` | `parked` | `superseded` | `done`. Front-matter is authoritative;
   the Control Tower board is a projection of it and cannot be edited.
 - **`blocked` is derived** from unmet dependencies, never set by hand. Partial blocking marks the phase,

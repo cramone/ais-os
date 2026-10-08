@@ -1,0 +1,13 @@
+{
+  "id": "15",
+  "source": "magiq-ado",
+  "name": "documents-client-models",
+  "created": "2026-10-02T14:35:55",
+  "files": {
+    "documents-client-models.zip": {
+      "size": 40180,
+      "sha256": "2EADB89BA26F5974A54B3AEBB6DD699774441445FBAC1CEB87D0F7938EA79EB6",
+      "hashed": "2026-10-02"
+    }
+  }
+}

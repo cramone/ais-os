@@ -1,0 +1,13 @@
+{
+  "id": "44",
+  "source": "magiq-ado",
+  "name": "Deployment",
+  "created": "2026-10-06T09:05:38",
+  "files": {
+    "Deployment.zip": {
+      "size": 78872,
+      "sha256": "186067D0C09A22A0D185EE99756E1AE0E4212BAFF4577A1F6FF3726A9864DB2C",
+      "hashed": "2026-10-06"
+    }
+  }
+}

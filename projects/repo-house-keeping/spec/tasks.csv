@@ -16,3 +16,5 @@ T-14,Delete magiq.visualstudio.com org (needs written confirmation),Chase,5,bloc
 T-15,Revoke AWS IAM keys behind 5 ADO service connections,Chase,5,todo,medium,,R-015,Check usage first
 T-16,Delete orphaned pipeline magiq-aws-waf during ADO cleanup,Chase,5,todo,low,,R-016,
 T-17,Lock down .env ACL or move off NAS share,Chase,1,todo,medium,,R-005,
+T-18,Convert $/Enterprise Connector (TFVC) to git and push to magiq-ado Documents/EnterpriseConnector; zip TFVC snapshot to archive/ first,Chase,2,todo,high,,R-006;R-008,Register id 63 -> 114. Needs T-07 approach decision
+T-19,Confirm no live consumers of Enterprise Connector before decommissioning $/Enterprise Connector (id 63),Chase,2,todo,high,,,Teams Integration saves chat logs into it

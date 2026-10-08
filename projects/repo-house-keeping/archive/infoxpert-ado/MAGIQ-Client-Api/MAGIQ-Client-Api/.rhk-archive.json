@@ -1,0 +1,13 @@
+{
+  "id": "68",
+  "source": "infoxpert-ado",
+  "name": "$/MAGIQ Client Api",
+  "created": "2026-10-07T13:46:07",
+  "files": {
+    "MAGIQ Client Api.zip": {
+      "size": 977924,
+      "sha256": "9C58F42A089D4089D6F08FE76250929C44BAC6E3DB41FA940B9525DE9037A616",
+      "hashed": "2026-10-07"
+    }
+  }
+}

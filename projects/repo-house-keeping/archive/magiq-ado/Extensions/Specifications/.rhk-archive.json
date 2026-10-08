@@ -1,0 +1,13 @@
+{
+  "id": "42",
+  "source": "magiq-ado",
+  "name": "Specifications",
+  "created": "2026-10-06T09:44:59",
+  "files": {
+    "Specifications.zip": {
+      "size": 23060,
+      "sha256": "D6F29E64CAE98267F891A06AF04ED5E2105B34794A4280BB51C01BD95E8BDA2F",
+      "hashed": "2026-10-06"
+    }
+  }
+}

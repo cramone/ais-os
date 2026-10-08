@@ -1,0 +1,13 @@
+{
+  "id": "45",
+  "source": "magiq-ado",
+  "name": "Documents",
+  "created": "2026-10-06T09:06:49",
+  "files": {
+    "Documents.zip": {
+      "size": 288279,
+      "sha256": "B097C38168BE4DE2E31F23A33E09D812D28E725E63F61B220A6AB7D504AD67E6",
+      "hashed": "2026-10-06"
+    }
+  }
+}

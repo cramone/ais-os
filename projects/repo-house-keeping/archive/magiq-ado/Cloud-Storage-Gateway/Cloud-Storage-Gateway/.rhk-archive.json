@@ -1,0 +1,13 @@
+{
+  "id": "2",
+  "source": "magiq-ado",
+  "name": "Cloud Storage Gateway",
+  "created": "2026-10-02T12:28:19",
+  "files": {
+    "Cloud Storage Gateway.zip": {
+      "size": 2773416,
+      "sha256": "1739C9AE0A304AD84AF19C6E9346CFE72BF8A4784C59EC724750929518791EF1",
+      "hashed": "2026-10-02"
+    }
+  }
+}

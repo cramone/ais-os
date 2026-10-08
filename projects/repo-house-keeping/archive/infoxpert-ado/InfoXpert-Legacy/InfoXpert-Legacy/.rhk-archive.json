@@ -1,0 +1,13 @@
+{
+  "id": "66",
+  "source": "infoxpert-ado",
+  "name": "$/InfoXpert Legacy",
+  "created": "2026-10-07T14:19:57",
+  "files": {
+    "InfoXpert Legacy.zip": {
+      "size": 442427791,
+      "sha256": "E0B1CCDA90C4C95C46F7ECCDC46C19C33F6E2ECF7FA184E82D6FDAED89147574",
+      "hashed": "2026-10-07"
+    }
+  }
+}

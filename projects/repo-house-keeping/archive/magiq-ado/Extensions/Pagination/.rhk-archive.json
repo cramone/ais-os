@@ -1,0 +1,13 @@
+{
+  "id": "41",
+  "source": "magiq-ado",
+  "name": "Pagination",
+  "created": "2026-10-06T09:49:52",
+  "files": {
+    "Pagination.zip": {
+      "size": 24862,
+      "sha256": "762EC33F683C2589388D2B52F23519ED6B729C5F05BD3D6BF292DF62BA817B3C",
+      "hashed": "2026-10-06"
+    }
+  }
+}

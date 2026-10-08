@@ -1,0 +1,13 @@
+{
+  "id": "36",
+  "source": "magiq-ado",
+  "name": "Extensibility",
+  "created": "2026-10-06T09:43:38",
+  "files": {
+    "Extensibility.zip": {
+      "size": 17416,
+      "sha256": "35663159B3B844948156BD660020B34ACE7E119F63A7A4293E55AA4BF037B37A",
+      "hashed": "2026-10-06"
+    }
+  }
+}

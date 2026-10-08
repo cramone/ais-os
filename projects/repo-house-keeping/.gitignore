@@ -7,10 +7,16 @@
 
 # ── Archived source (cold storage, never commit) ─────────
 archive/**/*.zip
+archive/**/*.7z
+archive/**/*.rar
+archive/**/*.tar
+archive/**/*.tar.gz
+archive/**/*.tgz
 archive/**/*.bundle
 archive/**/mirror.git/
 archive/**/src/
-# keep: archive/**/ARCHIVE.md, *.sha256, archive-manifest.txt
+archive/.trash/
+# keep: archive/**/ARCHIVE.md, *.sha256, archive-manifest.txt, .rhk-archive.json
 
 # ── Inventory raw API dumps (CSVs are tracked) ───────────
 spec/inventory/**/raw/

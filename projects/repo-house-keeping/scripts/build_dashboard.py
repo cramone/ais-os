@@ -9,6 +9,9 @@ Output: dashboard.html (single self-contained file, no network needed)
 import csv, json, re, sys, datetime
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import archive_lib  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 SPEC = ROOT / "spec"
 NOTE_SOURCES = ["infoxpert-ado", "magiq-vs-ado", "magiq-ado", "github"]
@@ -124,6 +127,8 @@ def collect():
         notes={src: ((SPEC / "notes" / f"{src}.md").read_text(encoding="utf-8").replace("\r\n", "\n")
                      if (SPEC / "notes" / f"{src}.md").exists() else "")
                for src in NOTE_SOURCES},
+        arch=archive_lib.scan(register),
+        archiveRoot=str(ROOT / "archive"),
         phase=1,  # current migration phase (1-5); bump when a phase closes
     )
     return data
@@ -145,6 +150,7 @@ def rev():
             parts.append(f"{f.name}:{st.st_mtime_ns}:{st.st_size}")
         except OSError:
             parts.append(f"{f.name}:missing")
+    parts.append(archive_lib.fingerprint(None))
     return str(abs(hash("|".join(parts))))
 
 

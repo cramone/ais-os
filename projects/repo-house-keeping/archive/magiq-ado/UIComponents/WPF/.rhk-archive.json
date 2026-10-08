@@ -1,0 +1,13 @@
+{
+  "id": "56",
+  "source": "magiq-ado",
+  "name": "WPF",
+  "created": "2026-10-02T14:00:55",
+  "files": {
+    "WPF.zip": {
+      "size": 2150655,
+      "sha256": "513E8BEA422BECBE4E03263B945CAFDCF66051FEBF5D0C4DB8BAF984D97DB7EC",
+      "hashed": "2026-10-02"
+    }
+  }
+}

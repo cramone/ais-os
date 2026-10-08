@@ -1,0 +1,13 @@
+{
+  "id": "35",
+  "source": "magiq-ado",
+  "name": "DomainModeling",
+  "created": "2026-10-06T09:41:31",
+  "files": {
+    "DomainModeling.zip": {
+      "size": 15253,
+      "sha256": "D7AA833058079141FFE11774F939211E8D081045467453E821E242E75CE2ED6F",
+      "hashed": "2026-10-06"
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "72",
+  "source": "infoxpert-ado",
+  "name": "$/MAGIQ Infrastructure",
+  "created": "2026-10-07T13:53:04",
+  "files": {
+    "MAGIQ Infrastructure.zip": {
+      "size": 393712,
+      "sha256": "F4CE4D727E4D83E9A73877103EBE54378CC96D94BAF067E2B7987A045BBD7B0F",
+      "hashed": "2026-10-07"
+    }
+  }
+}

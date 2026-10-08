@@ -1,0 +1,13 @@
+{
+  "id": "63",
+  "source": "infoxpert-ado",
+  "name": "$/Enterprise Connector",
+  "created": "2026-10-07T14:12:06",
+  "files": {
+    "Enterprise Connector.zip": {
+      "size": 31949014,
+      "sha256": "E674A61BA76484DCEFFFFF1C4E72434C3B007D2BFEE83DB9403FCB0254F05691",
+      "hashed": "2026-10-07"
+    }
+  }
+}

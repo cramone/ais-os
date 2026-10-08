@@ -1,0 +1,13 @@
+{
+  "id": "18",
+  "source": "magiq-ado",
+  "name": "DocumentsExport",
+  "created": "2026-10-02T14:29:29",
+  "files": {
+    "Magiq.DocumentsExport.zip": {
+      "size": 448,
+      "sha256": "C345E7DC39D0125C4F263B5F5001630AA2D37E54AFC0CB4C6000C1735B0B22B0",
+      "hashed": "2026-10-02"
+    }
+  }
+}

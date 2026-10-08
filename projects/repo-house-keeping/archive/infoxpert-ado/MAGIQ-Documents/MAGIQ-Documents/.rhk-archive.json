@@ -1,0 +1,13 @@
+{
+  "id": "70",
+  "source": "infoxpert-ado",
+  "name": "$/MAGIQ Documents",
+  "created": "2026-10-07T13:49:00",
+  "files": {
+    "MAGIQ Documents.zip": {
+      "size": 328323,
+      "sha256": "95604DB1A9AF8463BB2B89DD027841A03BBE9E5666FF669EE0070E9F98BEC009",
+      "hashed": "2026-10-07"
+    }
+  }
+}

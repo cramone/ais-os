@@ -1,0 +1,13 @@
+{
+  "id": "73",
+  "source": "infoxpert-ado",
+  "name": "$/MAGIQ Licensing",
+  "created": "2026-10-07T13:54:10",
+  "files": {
+    "MAGIQ Licensing.zip": {
+      "size": 604143,
+      "sha256": "2D03542B46AE71F44B45C057145A9F56716C2B7CC3877A2352CA885209B899E1",
+      "hashed": "2026-10-07"
+    }
+  }
+}

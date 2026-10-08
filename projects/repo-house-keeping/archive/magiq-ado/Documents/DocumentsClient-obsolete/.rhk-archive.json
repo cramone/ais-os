@@ -1,0 +1,13 @@
+{
+  "id": "17",
+  "source": "magiq-ado",
+  "name": "DocumentsClient-obsolete",
+  "created": "2026-10-02T14:34:18",
+  "files": {
+    "DocumentsClient-obsolete.zip": {
+      "size": 147551,
+      "sha256": "16E3B8695B9FB12E9C3A480597FF93E0A4669B2CE965460D5006D68A17F5B54E",
+      "hashed": "2026-10-02"
+    }
+  }
+}

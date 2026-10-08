@@ -18,13 +18,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import build_dashboard as bd  # noqa: E402
+import archive_lib as al  # noqa: E402
 
 ROOT, SPEC = bd.ROOT, bd.SPEC
 BACKUPS = SPEC / ".backups"
 REG, TASKS = SPEC / "repo-register.csv", SPEC / "tasks.csv"
 
 ENUMS = {
-    "disposition": {"pending", "update-then-migrate", "archive-in-place", "migrate", "decommission", "tbd"},
+    "disposition": {"pending", "update-then-migrate", "archive-in-place", "migrate", "decommission", "not-my-decision", "tbd"},
     "classification": {"active", "stable", "stale", "deprecated", "unknown"},
     "migration_status": {"not-started", "in-progress", "migrated", "verified", "decommissioned", "skipped"},
     "backup_2loc": {"", "yes", "no", "not-required"},
@@ -144,7 +145,76 @@ def apply(path, kind, editable, payload, id_field, new_id, required):
     if plan or assigned:
         write_table(path, cols, rows, bom, eol)
         log_change(kind, payload, assigned)
+        if kind == "register":
+            _sync_archives(rows, plan)
     return {"ok": True, "assigned": assigned}
+
+
+def _sync_archives(rows, plan):
+    """Keep ARCHIVE.md managed blocks + README index aligned with register edits. Never fails the save."""
+    try:
+        trail = {}
+        for row, f, new in plan:
+            if f == "backup_2loc":
+                trail.setdefault(row["id"], []).append(f"2-location backup set to `{new or 'not recorded'}`.")
+            elif f == "disposition":
+                trail.setdefault(row["id"], []).append(f"Disposition changed to `{new}`.")
+            elif f == "confirmed_date" and new:
+                trail.setdefault(row["id"], []).append(f"Decision confirmed by {row.get('confirmed_by') or 'Chase Ramone'} on {new}.")
+            elif f == "migration_status":
+                trail.setdefault(row["id"], []).append(f"Migration status set to `{new}`.")
+        touched = {row["id"] for row, f, new in plan}
+        by = {r["id"]: r for r in rows}
+        changed = False
+        for rid in touched:
+            if al.sync_md(by[rid], rows, trail=trail.get(rid)):
+                changed = True
+        if changed:
+            al.write_index(rows)
+    except Exception as ex:  # noqa: BLE001
+        print("archive sync warning:", ex)
+
+
+def _row(payload):
+    _, rows, _, _ = load_table(REG)
+    rid = str(payload.get("id"))
+    row = next((r for r in rows if r["id"] == rid), None)
+    if row is None:
+        raise ApiError(404, {"error": f"No register row {rid}"})
+    return row, rows
+
+
+def archive_action(action, payload):
+    row, rows = _row(payload)
+    if action == "create":
+        if row.get("disposition") not in al.ELIGIBLE:
+            raise ApiError(400, {"error": "Archive folders are for archive-in-place or decommission rows."})
+        try:
+            p = al.create(row, rows)
+        except FileExistsError as ex:
+            raise ApiError(409, {"error": str(ex)})
+        al.write_index(rows)
+        log_change("archive-create", {"edits": [{"id": row["id"], "path": str(p)}]})
+        return {"ok": True, "rel": str(p.relative_to(bd.ROOT)).replace("\\", "/")}
+    if action == "rescan":
+        try:
+            files = al.rescan(row, rows)
+        except FileNotFoundError as ex:
+            raise ApiError(404, {"error": str(ex)})
+        al.write_index(rows)
+        log_change("archive-rescan", {"edits": [{"id": row["id"], "files": files}]})
+        return {"ok": True, "files": files}
+    if action == "delete":
+        try:
+            res = al.remove(row, rows, payload.get("confirm"))
+        except FileNotFoundError as ex:
+            raise ApiError(404, {"error": str(ex)})
+        if res.get("needs_confirm"):
+            raise ApiError(400, {"error": "confirm", **res})
+        al.write_index(rows)
+        log_change("archive-delete", {"edits": [{"id": row["id"], **res}]})
+        return res
+    raise ApiError(404, {"error": "unknown archive action"})
 
 
 def save_note(payload):
@@ -243,6 +313,8 @@ class H(BaseHTTPRequestHandler):
                     res = apply(REG, "register", REG_EDITABLE, payload, "id", next_reg_id, ["name", "source", "source_url"])
                 elif self.path == "/api/tasks":
                     res = apply(TASKS, "tasks", TASK_EDITABLE, payload, "id", next_task_id, ["title", "owner"])
+                elif self.path.startswith("/api/archive/"):
+                    res = archive_action(self.path.rsplit("/", 1)[-1], payload)
                 elif self.path == "/api/notes":
                     res = save_note(payload)
                 else:
@@ -282,6 +354,15 @@ def main():
             continue
     else:
         print("No free port found (8765-8774)."); return 1
+    try:                                   # move any old flat archive folders into archive/<source>/<project>/<repo>/
+        _, regrows, _, _ = load_table(REG)
+        moved = al.migrate_layout(regrows)
+        if moved:
+            al.write_index(regrows)
+            for o, n in moved:
+                print(f" Archive folder moved: {o} -> {n}")
+    except Exception as ex:  # noqa: BLE001
+        print("archive layout migration warning:", ex)
     url = f"http://localhost:{port}"
     print("=" * 60)
     print(" Repo House Keeping - live dashboard")

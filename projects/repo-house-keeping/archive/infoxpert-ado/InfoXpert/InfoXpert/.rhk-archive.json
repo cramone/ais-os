@@ -1,0 +1,13 @@
+{
+  "id": "65",
+  "source": "infoxpert-ado",
+  "name": "$/InfoXpert",
+  "created": "2026-10-07T13:17:34",
+  "files": {
+    "InfoXpert.zip": {
+      "size": 1078941101,
+      "sha256": "1E50AA2E26B5183F857C09E39B9E43BEA5AAC4477C088A455AE2552DF01AA5A0",
+      "hashed": "2026-10-07"
+    }
+  }
+}

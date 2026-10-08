@@ -1,0 +1,13 @@
+{
+  "id": "52",
+  "source": "magiq-ado",
+  "name": "MagiqSDK",
+  "created": "2026-10-02T14:16:41",
+  "files": {
+    "MagiqSDK.zip": {
+      "size": 10930646,
+      "sha256": "A856EB965C9B19D1B0FBA90BB8552AAA8B4A0B7797BE56612B71A5A720FFB8BF",
+      "hashed": "2026-10-02"
+    }
+  }
+}

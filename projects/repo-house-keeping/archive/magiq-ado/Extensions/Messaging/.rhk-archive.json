@@ -1,0 +1,13 @@
+{
+  "id": "39",
+  "source": "magiq-ado",
+  "name": "Messaging",
+  "created": "2026-10-06T09:47:04",
+  "files": {
+    "Messaging.zip": {
+      "size": 93373,
+      "sha256": "C897A6ECA1840B9A5947A53427FC99B0D2A8B62DBDA796DF4CF1B02237CC08F3",
+      "hashed": "2026-10-06"
+    }
+  }
+}

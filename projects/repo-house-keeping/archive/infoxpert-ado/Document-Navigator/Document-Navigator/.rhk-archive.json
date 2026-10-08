@@ -1,0 +1,13 @@
+{
+  "id": "61",
+  "source": "infoxpert-ado",
+  "name": "$/Document Navigator",
+  "created": "2026-10-06T16:20:59",
+  "files": {
+    "Document Navigator.zip": {
+      "size": 11126353,
+      "sha256": "AD51673135CF4F8C9E61B4B626D35D12B5CB52EC6FCBBD9E8EF9743FE20C7662",
+      "hashed": "2026-10-06"
+    }
+  }
+}

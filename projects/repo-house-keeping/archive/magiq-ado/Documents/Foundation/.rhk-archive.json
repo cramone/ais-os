@@ -1,0 +1,13 @@
+{
+  "id": "21",
+  "source": "magiq-ado",
+  "name": "Foundation",
+  "created": "2026-10-02T15:02:51",
+  "files": {
+    "Foundation.zip": {
+      "size": 27971146,
+      "sha256": "2C5F59C0A2921566FED015653F2A3B5C4A1F8121E2682C631AC093557E8DC8F8",
+      "hashed": "2026-10-02"
+    }
+  }
+}
