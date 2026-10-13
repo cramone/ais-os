@@ -7,8 +7,11 @@ repo: aspnetcore-platform
 tags: [aspnetcore-platform, sdk, projections, ordering]
 consumes: []
 blocked-by-external: []
-status: new
-branches: []
+status: shipped
+branches: [feature/chase/MM-019-WS-17a-projector-gap-fill]
+pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/38
+merge-sha: 3eb18200
+shipped: 2026-10-12
 created: 2026-10-08
 exception: dependency-gap workstream — origin is docs/dependency-gaps/platform-capabilities/F022-projector-gap-fill-read.md and INDEX.md#WS-17; no separate review document.
 ---
@@ -72,4 +75,12 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 - [ ] INTEGRATION-BACKLOG: MM-037 (WS-17b) ready
 
 ## Session log
-- 2026-10-08: plan drafted
+- 2026-10-08: plan drafted.
+- 2026-10-12: scoped (b) — ship gap-fill on BOTH single + batch dispatch paths rather than only single, because the F022 defect scenario (batchSize=10 SQS delivery, inter-batch reorder) lives in the batch path. Shipping only single would close the test case and leave production broken.
+  - `IEventStore.ReadStreamSegmentAsync(tenantId, aggregateType, aggregateId, fromExclusive, toInclusive)` added as mandatory interface member. DynamoDb impl queries SK BETWEEN :from+1 AND :to, ConsistentRead=true, filters by `IVersionedDomainEvent.AggregateVersion` for rows that bundle events straddling the boundary. InMemory impl filters append log. Three test-stub `IEventStore` impls in SnapshotTests updated. Breaking for any out-of-repo impls.
+  - `AggregateStreamIdentity` record + `IGapFillAwareProjectionHandler<TEvent, TModel>` opt-in interface in Projections.Abstractions. Handlers that don't implement keep fence-only behaviour — non-breaking to existing projectors.
+  - `ProjectionDispatcher` gains mandatory `IEventStore` + `ProjectionDispatcherMetrics` deps. `GapFillAsync` helper runs on both `DispatchAsync` and before the first event of each per-key group in `DispatchBatchAsync`. Each gap event is persisted individually so a mid-gap failure leaves `ProjectedVersion` at the last successful apply and bubbles `ProjectionException` for SQS retry. Non-`TEvent` events in the stream advance nothing (per spec). Fence still refuses duplicate apply when a concurrent dispatcher closed the same gap.
+  - `projector.gap_fill_events` counter on `Magiq.Platform.Projections` meter, tagged `aggregate.type` + `model.type`. `AddProjections` wires `services.AddMetrics()` + singleton `ProjectionDispatcherMetrics`.
+  - Multi-facet `IProjector<TRow>` reshape (spec item: per-facet `SourceVersion` slots) explicitly out of scope. Spec's "SourceVersion per facet convention" stays handler-level. Deferred as its own workstream when it bites in practice.
+  - 8 new unit tests green locally; full solution build clean; 61 all-WS regression tests pass together.
+- 2026-10-12: PR #38 merged to `aspnetcore-platform/main` as `3eb18200`. F022 → `status: sdk-shipped` with remainder noted. platform-capabilities/INDEX.md WS-17 split: WS-17a shipped row, WS-17b flipped to `ready`. INTEGRATION-BACKLOG MM-019 moved to § Shipped; MM-037 (WS-17b) flipped `new` → `ready`. Readiness summary bumped 62→61 `new`, 5→6 `ready`, 10→11 `shipped`.

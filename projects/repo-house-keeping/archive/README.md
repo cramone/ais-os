@@ -53,10 +53,11 @@ Regenerated automatically when an archive folder is created, deleted or rescanne
 | magiq-ado | Documents | DocumentsExport | 18 | decommission | not-required | `archive/magiq-ado/Documents/DocumentsExport` | `Magiq.DocumentsExport.zip` |
 | magiq-ado | Documents | Foundation | 21 | decommission | yes | `archive/magiq-ado/Documents/Foundation` | `Foundation.zip` |
 | magiq-ado | Documents | OfficeAddins | 28 | decommission | yes | `archive/magiq-ado/Documents/OfficeAddins` | `OfficeAddins.zip` |
+| magiq-ado | Documents | VERS | 31 | archive-in-place | yes | `archive/magiq-ado/Documents/VERS` | `VERS.zip` |
 | magiq-ado | Extensions | Commands | 34 | decommission | yes | `archive/magiq-ado/Extensions/Commands` | `Commands.zip` |
 | magiq-ado | Extensions | DomainModeling | 35 | decommission | yes | `archive/magiq-ado/Extensions/DomainModeling` | `DomainModeling.zip` |
 | magiq-ado | Extensions | Extensibility | 36 | decommission | — | `archive/magiq-ado/Extensions/Extensibility` | `Extensibility.zip` |
-| magiq-ado | Extensions | Messaging | 39 | decommission | — | `archive/magiq-ado/Extensions/Messaging` | `Messaging.zip` |
+| magiq-ado | Extensions | Messaging | 39 | migrate | — | `archive/magiq-ado/Extensions/Messaging` | `Messaging.zip` |
 | magiq-ado | Extensions | Middleware | 40 | decommission | yes | `archive/magiq-ado/Extensions/Middleware` | `Middleware.zip` |
 | magiq-ado | Extensions | Pagination | 41 | decommission | yes | `archive/magiq-ado/Extensions/Pagination` | `Pagination.zip` |
 | magiq-ado | Extensions | Specifications | 42 | decommission | yes | `archive/magiq-ado/Extensions/Specifications` | `Specifications.zip` |

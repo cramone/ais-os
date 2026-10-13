@@ -7,8 +7,11 @@ repo: aspnetcore-platform
 tags: [aspnetcore-platform, sdk, step-functions, saga]
 consumes: []
 blocked-by-external: []
-status: new
-branches: []
+status: shipped
+branches: [feature/chase/MM-010-WS-05-sdk-task-client]
+pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/36
+merge-sha: b89ef0e1
+shipped: 2026-10-12
 created: 2026-10-08
 exception: dependency-gap workstream — origin is docs/dependency-gaps/saga-orchestration/INDEX.md#WS-05; no separate review document.
 ---
@@ -61,4 +64,11 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 - [ ] Unblocks MM-031 (WS-04), MM-075 (WS-08), MM-076 (WS-07)
 
 ## Session log
-- 2026-10-08: plan drafted
+- 2026-10-08: plan drafted.
+- 2026-10-12: shipped on branch `feature/chase/MM-010-WS-05-sdk-task-client`.
+  - Phase 0 found ADR spelled execution name as `{tenantId}#{correlationId}` but Step Functions `StartExecution` refuses `#` (reserved along with other shell metacharacters). Separator swapped `#` → `_` across the four example rows + the summary sentence + added a short rationale paragraph in § Execution Name Carries the Tenant. ADR edit sits on branch `spec/initial-alignment` in `sprbrk-standard/mgq-magiq-media`; lands with Chase's existing spec-alignment stream.
+  - New projects `Magiq.Platform.Messaging.StepFunctions{.Abstractions,}` built on `AWSSDK.StepFunctions 4.0.0.26` (compatible with `AWSSDK.Core 4.0.3.12`). Abstractions carry `IStepFunctionsTaskClient` + `StepFunctionsExecutionName`; the AWS project carries `StepFunctionsTaskClient` + `AddStepFunctionsTaskClient()`.
+  - `StepFunctionsExecutionName.For(string tenantId, params string[] correlationParts)` composes `{tenantId}_{part0}_{part1}...`, validates per-segment against `^[0-9A-Za-z-._]+$` and bounds the composite to 80 chars (the AWS limit). The signature uses `correlationParts` rather than the plan's `(tenantId, sagaType, sagaId)` — the ADR puts saga type on the state machine, not the execution name, and all four saga types already compose multiple correlation segments (AssetIngestion is `{AssetId}_{AttemptNumber}`).
+  - `MessageMetadata.TaskToken` added as init-only nullable property, not a positional constructor parameter — non-breaking. Round-trips through System.Text.Json automatically; absent token deserializes to null.
+  - 22 new unit tests green locally; full solution build clean (0 errors, 4 warnings — pre-existing).
+- 2026-10-12: PR #36 merged to `aspnetcore-platform/main` as `b89ef0e1`. saga-orchestration/INDEX.md WS-05 moved to § Shipped; WS-04 (CDK) flipped `open` → `ready`. INTEGRATION-BACKLOG MM-010 to § Shipped; MM-031 (WS-04) flipped `new` → `ready`. Readiness summary bumped 64→63 `new`, 3→4 `ready`, 8→9 `shipped`. MM-075 (WS-08) + MM-076 (WS-07) remain blocked pending MM-031.

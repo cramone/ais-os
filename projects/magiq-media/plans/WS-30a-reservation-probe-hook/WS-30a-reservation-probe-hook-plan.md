@@ -7,8 +7,11 @@ repo: aspnetcore-platform
 tags: [aspnetcore-platform, sdk, name-reservation]
 consumes: []
 blocked-by-external: []
-status: new
-branches: []
+status: shipped
+branches: [feature/chase/MM-021-WS-30a-reservation-probe-hook]
+pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/40
+merge-sha: fd8e31c8
+shipped: 2026-10-12
 created: 2026-10-08
 exception: dependency-gap workstream — origin is docs/dependency-gaps/name-reservation/INDEX.md#WS-30 (no gap file; row-tracked); no separate review document.
 ---
@@ -66,4 +69,11 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 - [ ] INTEGRATION-BACKLOG: MM-040 (WS-30b) ready
 
 ## Session log
-- 2026-10-08: plan drafted
+- 2026-10-08: plan drafted.
+- 2026-10-12: shipped on branch `feature/chase/MM-021-WS-30a-reservation-probe-hook`.
+  - `IReservationOwnerProbe.GetOwnerIdAsync(ScopeKey, string, CancellationToken) → Task<OwnerId?>` + `IReservationOwnerProbeRegistry.TryGet(ScopeKey) → IReservationOwnerProbe?` in `Magiq.Platform.UniquenessRegistry.Abstractions`. Default dictionary-backed `ReservationOwnerProbeRegistry` snapshots DI-registered probes at container-build time.
+  - `NameReservationService` ctor gains `IReservationOwnerProbeRegistry` param. `ApplyAsync` catches `NameAlreadyTakenException`, looks up probe for refused scope, extracts intent's own `OwnerId` for the refused name (works for `ReserveNameIntent` + `BulkReserveNameIntent` — both carry owner mappings; swap/move/release not applicable). Match → treat as success. No probe / null probe / mismatch → rethrow.
+  - New overload `INameReservationService.GetOwnerIdAsync(ScopeKey, string, CancellationToken)` returns probe's answer directly for handler-side availability checks.
+  - `AddReservationProbe<TProbe>(ScopeKey)` on `IUniquenessRegistryBuilder` with helper `ReservationProbeRegistration` record collecting registrations.
+  - 9 unit tests: probe-less refuse, matching-owner success, different-owner refuse, null-probe-answer refuse, BulkReserveName matched + mismatched, `GetOwnerIdAsync` overload delegates + null-when-no-probe, no-refusal probe-not-consulted. 90 all-WS regression tests pass.
+- 2026-10-12: PR #40 merged to `aspnetcore-platform/main` as `fd8e31c8`. name-reservation/INDEX.md: WS-30 split — WS-30a shipped row, WS-30b flipped `open` → `ready`. INTEGRATION-BACKLOG MM-021 moved to § Shipped; MM-040 (WS-30b) flipped `new` → `ready`. Readiness summary bumped 60→59 `new`, 7→8 `ready`, 12→13 `shipped`.

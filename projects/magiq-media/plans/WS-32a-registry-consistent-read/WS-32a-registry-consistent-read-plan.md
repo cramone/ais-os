@@ -7,8 +7,8 @@ repo: aspnetcore-platform
 tags: [aspnetcore-platform, sdk, name-reservation, consistency]
 consumes: []
 blocked-by-external: []
-status: new
-branches: []
+status: shipped
+branches: [WS-32a-registry-consistent-read]
 created: 2026-10-08
 exception: dependency-gap workstream — origin is docs/dependency-gaps/name-reservation/INDEX.md#WS-32 (no gap file; row-tracked); no separate review document.
 ---
@@ -32,36 +32,38 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 > PR to `aspnetcore-platform/main`.
 
 ## Phase 0 — Scope confirmation
-- [ ] Read `docs/spec/shared/consistency-model.md` § Name reservation Tier-1
-- [ ] Locate `NameRegistry.GetItem` + availability-check path
-- [ ] Enumerate current Tier-1 refusal exception sites
+- [x] Read `docs/spec/shared/consistency-model.md` § Name reservation Tier-1
+- [x] Locate `NameRegistry.GetItem` + availability-check path
+- [x] Enumerate current Tier-1 refusal exception sites
 
 ## Phase 1 — `ConsistentRead = true` on registry read
-- [ ] `NameRegistry.GetItem` + any availability-check `Query` → `ConsistentRead = true`
-- [ ] Document 2× RCU cost on registry table
+- [x] `NameRegistry.GetItem` + any availability-check `Query` → `ConsistentRead = true`
+- [x] Document 2× RCU cost on registry table
 
 ## Phase 2 — Tier-1 refusal error shape
-- [ ] Define `NameAlreadyTakenException` (or `Result<T, NameAlreadyTaken>`)
-- [ ] Carries `ScopeKey`, `Name`, `OwnerAggregateId` (null when no probe)
-- [ ] Not derived from `InvalidOperationException`
+- [x] Define `NameAlreadyTakenException` (or `Result<T, NameAlreadyTaken>`)
+- [x] Carries `ScopeKey`, `Name`, `OwnerAggregateId` (null when no probe)
+- [x] Not derived from `InvalidOperationException`
 
 ## Phase 3 — Mapping guidance
-- [ ] XML doc: consumers map to `409 …AlreadyExists` ProblemDetails
-- [ ] Platform problem-details mapper (if present) wires default mapping
+- [x] XML doc: consumers map to `409 …AlreadyExists` ProblemDetails
+- [x] Platform problem-details mapper (if present) wires default mapping
 
 ## Phase 4 — Tests
-- [ ] Unit: registry read parameters assert `ConsistentRead = true`
-- [ ] Unit: Tier-1 refusal throws `NameAlreadyTakenException`
-- [ ] Unit: exception carries scope + name
-- [ ] Unit: default mapper → `409`
+- [x] Unit: registry read parameters assert `ConsistentRead = true`
+- [x] Unit: Tier-1 refusal throws `NameAlreadyTakenException`
+- [x] Unit: exception carries scope + name
+- [x] Unit: default mapper → `409`
 
 ## Phase 5 — Package + ship
-- [ ] Bump `Magiq.Platform.*` version
-- [ ] PR to `aspnetcore-platform/main`
+- [x] Bump `Magiq.Platform.*` version
+- [x] PR to `aspnetcore-platform/main`
 
 ## Phase 6 — Close
-- [ ] name-reservation/INDEX.md: WS-32 split — `WS-32a shipped`, `WS-32b open`
-- [ ] INTEGRATION-BACKLOG: MM-039 (WS-32b) ready
+- [x] name-reservation/INDEX.md: WS-32 split — `WS-32a shipped`, `WS-32b open`
+- [x] INTEGRATION-BACKLOG: MM-039 (WS-32b) ready
 
 ## Session log
 - 2026-10-08: plan drafted
+- 2026-10-08: activated after WS-24 (MM-008) shipped. Same repo (`aspnetcore-platform`), no deps, direct thematic sibling (ConsistentRead on registry read + exception shape).
+- 2026-10-09: shipped — [PR #32](https://github.com/magiqsoftware/aspnetcore-platform/pull/32), merge `63328bf9`. Reality note: current refusal already threw a dedicated `NameReservationConflictException` (not `InvalidOperationException` as the plan assumed). Renamed to plan-agreed `NameAlreadyTakenException`, added nullable `OwnerAggregateId` payload, flipped `ConsistentRead = true` on `GetOwnerIdAsync`, `IsNameAvailableAsync`, `HasItemsInScopeAsync`, and both `BatchGetItem` helpers. No separate platform problem-details mapper to wire (none exists); XML/README guidance covers consumer mapping. 10 new unit tests. Unblocks WS-32b (MM-039).

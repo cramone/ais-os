@@ -18,6 +18,11 @@ archive/**/src/
 archive/.trash/
 # keep: archive/**/ARCHIVE.md, *.sha256, archive-manifest.txt, .rhk-archive.json
 
+# ── NuGet feed packages (binary, catalog in nuget-feeds/README.md) ─
+archive/**/nuget-feeds/**/*.nupkg
+archive/**/nuget-feeds/**/*.snupkg
+archive/.nupkg-catalog.json
+
 # ── Inventory raw API dumps (CSVs are tracked) ───────────
 spec/inventory/**/raw/
 

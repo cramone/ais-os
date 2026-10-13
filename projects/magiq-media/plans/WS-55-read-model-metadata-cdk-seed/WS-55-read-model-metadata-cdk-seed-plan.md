@@ -121,3 +121,5 @@ The plan's card moves to `done` only after Chase agrees the work is implemented 
 
 ## Session log
 - 2026-10-08: plan drafted. Spec § Seeding and the ADR bullet written the same day. Origin: review of aspnetcore-platform `feature/guid-projection-rotation`, which added host-startup seeding — rejected for cold-start cost and because it needs write access on read-only hosts (see MM-078).
+- 2026-10-08: activated after MM-078 (WS-56) shipped (PR #28, `b97b9772`): the SDK no longer seeds from hosts, so until this ships nothing seeds `read-model-metadata` in any deployed environment.
+- 2026-10-08: returned to `new` before any work started — Chase is sequencing the SDK plans first and all CDK plans (MM-077, MM-009, MM-026, MM-027, MM-031) last. No `schemaVersion` bump until this ships.

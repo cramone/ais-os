@@ -7,11 +7,11 @@ _Managed by the dashboard. Anything between these markers is overwritten; write 
 |---|---|
 | Register id | 39 |
 | Source repo | https://dev.azure.com/MAGIQSoftware/Extensions/_git/Messaging |
-| Disposition | decommission |
-| Migration status | decommissioned |
+| Disposition | migrate |
+| Migration status | migrated |
 | 2-location backup | not recorded |
-| Decision confirmed | Chase Ramone, 2026-10-06 |
-| Last synced | 2026-10-06 |
+| Decision confirmed | Chase Ramone, 2026-10-09 |
+| Last synced | 2026-10-09 |
 
 | File | Size | SHA-256 |
 |---|---|---|
@@ -43,3 +43,6 @@ _Managed by the dashboard. Anything between these markers is overwritten; write 
 - 2026-10-06: Archive folder created from the dashboard (disposition: decommission).
 - 2026-10-06: Decision confirmed by Chase Ramone on 2026-10-06.
 - 2026-10-06: Migration status set to `decommissioned`.
+- 2026-10-09: Disposition changed to `migrate`.
+- 2026-10-09: Migration status set to `migrated`.
+- 2026-10-09: Decision confirmed by Chase Ramone on 2026-10-09.

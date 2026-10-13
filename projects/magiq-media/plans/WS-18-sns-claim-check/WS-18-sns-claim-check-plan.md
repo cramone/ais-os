@@ -7,8 +7,11 @@ repo: aspnetcore-platform
 tags: [aspnetcore-platform, sdk, outbox, sns, s3, claim-check]
 consumes: []
 blocked-by-external: [MM-023]
-status: new
-branches: []
+status: shipped
+branches: [feature/chase/MM-029-WS-18-sns-claim-check]
+pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/49
+merge-sha: afa706db
+shipped: 2026-10-13
 created: 2026-10-08
 exception: dependency-gap workstream — origin is docs/dependency-gaps/platform-capabilities/F008-sns-claim-check-and-item-offload.md and INDEX.md#WS-18; no separate review document.
 ---
@@ -76,3 +79,11 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 
 ## Session log
 - 2026-10-08: plan drafted (blocked on MM-023 ship)
+- 2026-10-13: shipped SDK side on branch `feature/chase/MM-029-WS-18-sns-claim-check`.
+  - **Event-store item-level offload.** `DynamoDbEventStoreOptions.S3OffloadThresholdBytes` default 400 KB → 350 KB and is applied to the whole `media-events` row, not per payload. New `EventStreamItemSerializer.SerializeEventStreamItemStreamsForItemAsync(events, itemBudgetBytes, ct)` runs three passes — build items inline, measure combined inline size, offload largest-first to `event-payloads/{guid}` until the row fits, then serialize streams. `DynamoDbEventStore.SaveAsync` (single + txn + batch) switched to the item-aware method. Three 150 KB events in one append (the F008 reproducer) now write cleanly in one `PutItem`.
+  - **Outbox SNS claim-check envelope.** `OutboxOptions.EnvelopeClaimCheckThresholdBytes = 240_000` + `EnvelopeS3BucketName` + `EnvelopeClaimCheckEnabled()`. New `OutboxEnvelopeReference(string EnvelopeRef)` record. New `IOutboxEnvelopeStore` + `S3OutboxEnvelopeStore` writing to `event-envelopes/{guid}`. New `IOutboxEnvelopeOffloader` + default `OutboxEnvelopeOffloader` runs between `IOutboxLogicalMessageFactory.Create` and `IOutboxStore.EnqueueAsync` in all three `Outbox.EnqueueAsync` overloads; no-op unless both the store is registered and the bucket name is set. `OutboxLogicalMessage.EnvelopeS3Uri` (nullable) + ctor param. `DynamoDbOutboxTableSchema.Attributes.EnvelopeS3Uri` round-trips the attribute. `OutboxMessageProcessor.ProcessAsync` detects `EnvelopeS3Uri` at relay time and republishes an `OutboxEnvelopeReference` as the SNS `data`, keeping the original `MessageTypeIdentifier` so SNS subscriber filters still match. `IOutboxBuilder.AddClaimCheckEnvelope(bucketName, threshold = 240_000)` on the DynamoDb outbox builder is the opt-in.
+  - **Bounded relay retries (Phase 3).** Already shipped under WS-21c (10-attempt park + `outbox.entry_parked` metric). No work this PR.
+  - 10 new unit tests: 5 under `tests/.../EventSourcing/ItemLevelS3OffloadTests.cs` (under-budget inline, single-over-budget offloaded, mixed largest-first, no-S3-store no-op, empty batch) + 5 under `tests/.../Messaging/OutboxEnvelopeClaimCheckTests.cs` (offloader respects threshold, offloads with stub + `EnvelopeS3Uri`, no-op without store or without bucket, processor republishes `OutboxEnvelopeReference` as data). Full non-Docker regression 225 pass. Docker-dependent fixtures unchanged.
+  - **Scope cut**: downstream consumer-side resolution (SQS reader detects `envelopeRef`, fetches from S3, deserializes full envelope) not in this PR. `IOutboxEnvelopeStore.DownloadEnvelopeAsync` is on the interface for the next workstream to wire.
+  - **No `Magiq.Platform.*` version bump** — batched once the dependency-gap plans are done.
+- 2026-10-13: PR #49 merged to `aspnetcore-platform/main` as `afa706db`. Tower MM-029 flipped `new` → `done`. Phase 4 (S3 bucket + IAM + CloudWatch alarm) is cdk-magiq-media work; cross-reference added under WS-21d / WS-25-cdk tracking. `docs/dependency-gaps/platform-capabilities/INDEX.md` + F008 status update not in the Z:/claudia/magiq snapshot — closure recorded in Tower + this session log only.

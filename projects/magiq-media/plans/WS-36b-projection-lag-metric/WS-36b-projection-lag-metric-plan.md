@@ -6,7 +6,7 @@ workstream: WS-36b-projection-lag-metric
 repo: magiq-media
 tags: [magiq-media, projections, metrics, observability]
 consumes: []
-blocked-by-external: [MM-027]
+blocked-by-external: [MM-027, MM-080]
 status: new
 branches: []
 created: 2026-10-08
@@ -55,3 +55,4 @@ Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-
 
 ## Session log
 - 2026-10-08: plan drafted (blocked on MM-027 + user policy)
+- 2026-10-08: now also depends on MM-080 (WS-58, metrics export pipeline). The lag metric has no path to CloudWatch until the export mechanism is decided and built.

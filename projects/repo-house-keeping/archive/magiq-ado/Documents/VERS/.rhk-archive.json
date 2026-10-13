@@ -1,0 +1,13 @@
+{
+  "id": "31",
+  "source": "magiq-ado",
+  "name": "VERS",
+  "created": "2026-10-10T17:48:04",
+  "files": {
+    "VERS.zip": {
+      "size": 192706,
+      "sha256": "FA5B57F9552A8307FB6A679DF43C6DB44AD5F55D493DF18ECF83B5E03CA425F4",
+      "hashed": "2026-10-10"
+    }
+  }
+}

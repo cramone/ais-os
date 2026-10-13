@@ -7,8 +7,11 @@ repo: aspnetcore-platform
 tags: [aspnetcore-platform, sdk, messaging, actor, context]
 consumes: []
 blocked-by-external: []
-status: new
-branches: []
+status: shipped
+branches: [feature/chase/MM-017-WS-15a-originating-actor]
+pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/37
+merge-sha: b0720738
+shipped: 2026-10-12
 created: 2026-10-08
 exception: dependency-gap workstream — origin is docs/dependency-gaps/platform-capabilities/F079-originating-actor-and-scanner-context.md and INDEX.md#WS-15; no separate review document.
 ---
@@ -68,4 +71,12 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 - [ ] INTEGRATION-BACKLOG: MM-035 (WS-15b) ready
 
 ## Session log
-- 2026-10-08: plan drafted
+- 2026-10-08: plan drafted.
+- 2026-10-12: shipped on branch `feature/chase/MM-017-WS-15a-originating-actor`.
+  - `MessageMetadata.OriginatingActorId` added as init-only nullable prop — non-breaking, round-trips SNS→SQS + event-store envelope via existing System.Text.Json path.
+  - `IExecutionContext.OriginatingActorId` as default-interface-method returning `Actor.Id` (self-originating). HTTP / Console / Lambda contexts inherit without change. `MessageExecutionContext` overrides as init-only prop; `MessageMetadataExecutionContextAccessor` sets `metadata.OriginatingActorId ?? metadata.ActorId` (first-hop fallback = acting actor is the chain's root).
+  - `IScannerExecutionContextFactory.Create(string tenantId, string? originatingActorId = null)` → `IExecutionContext` (new `ScannerExecutionContext`) with `Actor = Actor.System` + supplied tenant + supplied originating actor. Default `ScannerExecutionContextFactory` singleton registered via `AddScannerExecutionContextFactory()`. New instance per call, no sweep bleed.
+  - Divergence from plan Phase 2: context slot is `string?` (plan wording), not `IActor?` (gap-file wording). The id alone is enough for audit chaining — full actor rehydration would need a per-tenant actor directory the SDK doesn't own.
+  - Scope deliberately excluded: dispatcher-side `IExecutionContext.TenantId = command.TenantId` enforcement (gap-file item), scanner conversion in magiq-media (WS-15b).
+  - 8 new unit tests green; full solution build clean.
+- 2026-10-12: PR #37 merged to `aspnetcore-platform/main` as `b0720738`. F079 → `status: sdk-shipped` with remainder noted. platform-capabilities/INDEX.md WS-15 split: WS-15a shipped row, WS-15b flipped to `ready` under its own row. INTEGRATION-BACKLOG MM-017 moved to § Shipped; MM-035 (WS-15b) flipped `new` → `ready`. Readiness summary bumped 63→62 `new`, 4→5 `ready`, 9→10 `shipped`.

@@ -7,8 +7,12 @@ repo: aspnetcore-platform
 tags: [aspnetcore-platform, sdk, idempotency, http]
 consumes: []
 blocked-by-external: []
-status: new
-branches: []
+status: shipped
+branches: [feature/chase/MM-011-MM-012-WS-19-20-idempotency-rewrite]
+pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/35
+merge-sha: 68706c06
+shipped: 2026-10-12
+shipped-jointly-with: MM-011 (WS-19-idempotency-replay-headers)
 created: 2026-10-08
 exception: dependency-gap workstream — origin is docs/dependency-gaps/platform-capabilities/F072-idempotency-pending-ttl.md and INDEX.md#WS-20; no separate review document.
 ---
@@ -66,4 +70,5 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 - [ ] platform-capabilities/INDEX.md: WS-20 → § Shipped
 
 ## Session log
-- 2026-10-08: plan drafted
+- 2026-10-08: plan drafted.
+- 2026-10-12: shipped jointly with WS-19 under one middleware rewrite PR — the two gaps are one capability. See WS-19 plan session log for the full implementation record. Branch `feature/chase/MM-011-MM-012-WS-19-20-idempotency-rewrite`; PR #35; merge SHA `68706c06`. Phase 1–5 acceptance covered by the WS-19 shipment (two-phase record, Pending TTL distinct from Window, `IdempotencyOptions.PendingHorizon` default 20min > 15min Lambda, 409 IdempotentRequestInProgress only when Pending within horizon, Completed replay unchanged, handler-crash scenario via Pending TTL expiry). Host-side invariant `PendingHorizon > ApiLambdaTimeout + PipelineRetryBudget` is host-owned since the SDK can't see the Lambda ceiling — plugin enforces `PendingHorizon < Window` and documents the stronger invariant in XML doc.

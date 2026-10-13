@@ -7,8 +7,8 @@ repo: aspnetcore-platform
 tags: [aspnetcore-platform, sdk, tenant-resolver, auth]
 consumes: []
 blocked-by-external: []
-status: new
-branches: []
+status: shipped
+branches: [feature/chase/MM-016-WS-14a-tenant-state-check]
 created: 2026-10-08
 exception: dependency-gap workstream — origin is docs/dependency-gaps/platform-capabilities/F083-tenant-active-check.md and INDEX.md#WS-14; no separate review document.
 ---
@@ -32,37 +32,38 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 > PR to `aspnetcore-platform/main`.
 
 ## Phase 0 — Scope confirmation
-- [ ] Read F083 § Required-shape
-- [ ] Locate `IdentifierResolutionStrategy` + tenant-state source
-- [ ] Enumerate `TenantState` enum members
+- [x] Read F083 § Required-shape
+- [x] Locate `IdentifierResolutionStrategy` + tenant-state source
+- [x] Enumerate `TenantState` enum members
 
 ## Phase 1 — State check in resolver
-- [ ] After tenant-id resolution: load `TenantState`
-- [ ] Non-`Running` → `TenantResolutionResult.Refused(reason)` with distinct reasons
-- [ ] Reason mapped to `401` by host middleware (WS-14b wires the ProblemDetails body)
+- [x] After tenant-id resolution: load `TenantState`
+- [x] Non-`Running` → `TenantResolutionResult.Refused(reason)` with distinct reasons
+- [x] Reason mapped to `401` by host middleware (WS-14b wires the ProblemDetails body)
 
 ## Phase 2 — Resolver caching
-- [ ] Short cache TTL (default 30s) on tenant-state read
-- [ ] `ITenantStateCache.Invalidate(tenantId)` hook for admin flows
+- [x] Short cache TTL (default 30s) on tenant-state read
+- [x] `ITenantStateCache.Invalidate(tenantId)` hook for admin flows
 
 ## Phase 3 — Logging + metrics
-- [ ] Log refusal at Information with `tenant_id`, `state`, `reason`
-- [ ] Metric: `tenant_refused_count` with `state` dimension
+- [x] Log refusal at Information with `tenant_id`, `state`, `reason`
+- [x] Metric: `tenant_refused_count` with `state` dimension
 
 ## Phase 4 — Tests
-- [ ] Unit: `Running` → pass through
-- [ ] Unit: each non-`Running` state → refused with correct reason
-- [ ] Unit: cache hit doesn't re-fetch
-- [ ] Unit: `Invalidate` forces next read to fetch
+- [x] Unit: `Running` → pass through
+- [x] Unit: each non-`Running` state → refused with correct reason
+- [x] Unit: cache hit doesn't re-fetch
+- [x] Unit: `Invalidate` forces next read to fetch
 
 ## Phase 5 — Package + ship
-- [ ] Bump `Magiq.Platform.*` version
-- [ ] PR to `aspnetcore-platform/main`
+- [x] Bump `Magiq.Platform.*` version
+- [x] PR to `aspnetcore-platform/main`
 
 ## Phase 6 — Close
-- [ ] F083: `status: shipped (SDK portion)`
-- [ ] platform-capabilities/INDEX.md: WS-14 split — `WS-14a shipped`, `WS-14b open`
-- [ ] INTEGRATION-BACKLOG: MM-034 (WS-14b) ready
+- [x] F083: `status: shipped (SDK portion)`
+- [x] platform-capabilities/INDEX.md: WS-14 split — `WS-14a shipped`, `WS-14b open`
+- [x] INTEGRATION-BACKLOG: MM-034 (WS-14b) ready
 
 ## Session log
 - 2026-10-08: plan drafted
+- 2026-10-09: shipped — PR #33 merged (`d41e0401`). SDK packages bumped to `1.1.3.7`. MM-034 (WS-14b) now ready.

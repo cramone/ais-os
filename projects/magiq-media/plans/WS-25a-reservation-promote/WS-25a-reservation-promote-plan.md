@@ -7,8 +7,11 @@ repo: aspnetcore-platform
 tags: [aspnetcore-platform, sdk, name-reservation, transaction]
 consumes: []
 blocked-by-external: [MM-023]
-status: new
-branches: []
+status: shipped
+branches: [feature/chase/MM-028-WS-25a-reservation-promote]
+pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/46
+merge-sha: e2d1ca06
+shipped: 2026-10-12
 created: 2026-10-08
 exception: dependency-gap workstream — origin is docs/dependency-gaps/platform-capabilities/INDEX.md#WS-25 (no gap file; row-tracked); no separate review document.
 ---
@@ -64,3 +67,11 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 
 ## Session log
 - 2026-10-08: plan drafted (blocked on MM-023 ship)
+- 2026-10-12: shipped on branch `feature/chase/MM-028-WS-25a-reservation-promote`.
+  - New types in `Magiq.Platform.UniquenessRegistry.Abstractions`: `ReservationState` (Pending/Claimed), `ReservationApplyToken(TenantId, ScopeKey, Name, AggregateId)`, `ReservationPromotionFailedException(Token)`.
+  - `INameReservationService.ApplyAsync` return type → `Task<IReadOnlyList<ReservationApplyToken>>`. Reserve / BulkReserve / BulkReserveAcrossScopes emit one token per newly staked row written `State = PENDING`; swap / move / release emit none (nothing to promote). Same-owner idempotent retries emit no tokens — the existing row's state is left untouched.
+  - New `INameReservationService.PromoteAsync(IReadOnlyList<ReservationApplyToken>, IEventStoreTransaction, CancellationToken)` enlists one conditional `UpdateItem` per token on the shared transaction. DynamoDb path writes `SET #state = :claimed` with `ConditionExpression: #state = :pending`; the update rides the same `TransactWriteItems` as the event-store append so promote succeeds iff the event-store commit does. Condition failure surfaces as `ReservationPromotionFailedException`; rollback leaves the row in Pending for later reaper cleanup. In-memory path enlists an equivalent flip callback on `InMemoryEventStoreTransaction`.
+  - `DynamoDbEventStoreTransaction` gained `AddConditionalWriteItem(TransactWriteItem, string description, Func<Exception, Exception> translateConditionalFailure)` + `CustomConditionContext` record so collaborators outside `Magiq.Platform.EventSourcing.DynamoDb` can wire their own exception translator without inverting the dependency. Single-item commit path now handles `Update` items alongside `Put` (so a promote-only commit works).
+  - 6 new unit tests under `tests/Magiq.AspNetCore.Tests/UniquenessRegistry/ReservationPromoteTests.cs` cover: committed-promote-flips-row (second promote on same tokens fails — row is Claimed), dispose-without-commit-stays-pending, concurrent-promote-second-commit-fails, bulk-reserve-emits-one-token-per-entry, release-emits-no-tokens, empty-token-list-promote-is-no-op. 25 UniquenessRegistry tests + 174 non-Docker regression tests pass. Pre-existing failures (`Magiq.Platform.Tenants.Abstractions → AspNetCore` arch violation, Docker-dependent integration fixtures) unchanged by this PR.
+  - `tests/Magiq.AspNetCore.Tests.csproj` gained `Magiq.Platform.UniquenessRegistry.Stores.InMemory` ref. `InMemoryNameReservationStore` promoted internal → public to match the DynamoDb store (now instantiable by tests without DI). Version prefix bumped 1.1.3.6 → 1.1.3.7 in `build/Magiq.AspNetCore.Commons.props` (merge may have reset).
+- 2026-10-12: PR #46 merged to `aspnetcore-platform/main` as `e2d1ca06`. Tower MM-028 (WS-25a) flipped `new` → `done`; MM-042 (WS-25b) tagged `ready` — the SDK primitive is now in place for the magiq-media middleware wiring. The plan's referenced docs — `docs/dependency-gaps/platform-capabilities/INDEX.md` and `INTEGRATION-BACKLOG` — were not located in the current snapshot, so closure was recorded in Tower only.

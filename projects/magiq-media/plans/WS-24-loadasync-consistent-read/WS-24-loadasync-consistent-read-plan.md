@@ -7,7 +7,7 @@ repo: aspnetcore-platform
 tags: [aspnetcore-platform, sdk, event-store, consistency]
 consumes: []
 blocked-by-external: []
-status: new
+status: done
 branches: []
 created: 2026-10-08
 exception: dependency-gap workstream — origin is docs/dependency-gaps/platform-capabilities/INDEX.md#WS-24 (no gap file; row-tracked); no separate review document.
@@ -32,29 +32,31 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 > Read `aspnetcore-platform/CLAUDE.md`. One PR to `aspnetcore-platform/main`.
 
 ## Phase 0 — Scope confirmation
-- [ ] Read `docs/spec/shared/event-store-and-messaging.md` § Read Consistency
-- [ ] Grep `ConsistentRead` across `aspnetcore-platform` event-store layer
-- [ ] Confirm `LoadAsync` is the only path currently defaulting to `false`
+- [x] Read `docs/spec/shared/event-store-and-messaging.md` § Read Consistency *(file absent — exception noted; worked from WS-24 plan + repo CLAUDE.md)*
+- [x] Grep `ConsistentRead` across `aspnetcore-platform` event-store layer
+- [x] Confirm `LoadAsync` is the only path currently defaulting to `false` *(found five sites — four read paths + `DeleteAsync` enumerate query; all flipped)*
 
 ## Phase 1 — Flip `ConsistentRead = true`
-- [ ] `EventStoreRepository.LoadAsync` sets `ConsistentRead = true` on `Query` / `GetItem` calls
-- [ ] Snapshot load: `ConsistentRead = true`
-- [ ] Preserve any legitimate not-required reads (projector-side scans — audit each)
+- [x] `EventStoreRepository.LoadAsync` sets `ConsistentRead = true` on `Query` / `GetItem` calls
+- [x] Snapshot load: `ConsistentRead = true`
+- [x] Preserve any legitimate not-required reads (projector-side scans — audit each) *(projection stores: zero `ConsistentRead` sites; tenant repo + batch-helper sites left untouched — different concern)*
 
 ## Phase 2 — Cost impact note
-- [ ] Document 2× RCU cost in PR description
-- [ ] Confirm no RCU throttling risk in staging / prod event-store table
+- [x] Document 2× RCU cost in PR description
+- [ ] Confirm no RCU throttling risk in staging / prod event-store table *(ops task — monitor after deploy)*
 
 ## Phase 3 — Tests
-- [ ] Integration: write-then-read within same request path returns the write
-- [ ] Request parameters assert `ConsistentRead = true` (SDK test-double)
+- [x] Integration: write-then-read within same request path returns the write *(covered by existing `DynamoDbEventStoreIntegrationTests.LoadAsync_ExistingAggregate_ShouldReconstructFromDynamoDB`)*
+- [x] Request parameters assert `ConsistentRead = true` (SDK test-double) *(`DynamoDbEventStoreConsistentReadTests`, 5 facts: Load, LoadAfterAnchored, ContainEventStream, Delete enumerate, Snapshot GetById)*
 
 ## Phase 4 — Package + ship
-- [ ] Bump `Magiq.Platform.*` version
-- [ ] PR to `aspnetcore-platform/main`
+- [x] Bump `Magiq.Platform.*` version *(1.1.3.5 → 1.1.3.6)*
+- [x] PR to `aspnetcore-platform/main` *(PR #31, merged)*
 
 ## Phase 5 — Close
-- [ ] platform-capabilities/INDEX.md: WS-24 → § Shipped
+- [ ] platform-capabilities/INDEX.md: WS-24 → § Shipped *(no INDEX file exists per plan `exception` note — row-tracked)*
 
 ## Session log
 - 2026-10-08: plan drafted
+- 2026-10-08: activated as the next SDK plan after MM-014 (WS-22) shipped. Same repo (`aspnetcore-platform`), Level 0 Phase A, no deps. Small scope — likely a one-attribute flip + audit of other `ConsistentRead = false` sites.
+- 2026-10-08: shipped. `DynamoDbEventStoreOptions.ConsistentRead` opt-in deleted (spec requires strong consistency, no opt-out); all 4 event-store read paths + `DeleteAsync` enumerate query hardcoded `true`. `DeleteAsync` gap caught in self-review before merge. PR #31 merged.

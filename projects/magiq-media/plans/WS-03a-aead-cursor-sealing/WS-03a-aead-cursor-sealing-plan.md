@@ -7,8 +7,11 @@ repo: aspnetcore-platform
 tags: [aspnetcore-platform, sdk, security, pagination, aead]
 consumes: []
 blocked-by-external: []
-status: new
-branches: []
+status: shipped
+branches: [feature/chase/MM-020-WS-03a-aead-cursor-sealing]
+pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/39
+merge-sha: e8b0c8bd
+shipped: 2026-10-12
 created: 2026-10-08
 exception: dependency-gap workstream — origin is docs/dependency-gaps/security/F093-pagination-cursor-sealing.md and INDEX.md#WS-03; no separate review document.
 ---
@@ -76,4 +79,15 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 - [ ] INTEGRATION-BACKLOG: MM-038 (WS-03b) ready
 
 ## Session log
-- 2026-10-08: plan drafted
+- 2026-10-08: plan drafted.
+- 2026-10-12: shipped on branch `feature/chase/MM-020-WS-03a-aead-cursor-sealing`. Security-class pre-staging work.
+  - New project `Magiq.Platform.Navigation.Sealing` carrying `IPaginationCursorSealer` + `AesGcmPaginationCursorSealer`, `IPaginationSealingKeyProvider` + `InMemoryPaginationSealingKeyProvider`, `PaginationCursorContext` + `PaginationCursorUnsealResult<T>` + `PaginationCursorFailureReason`, `PaginationCursorOptions`, `AddPaginationCursorSealing()`.
+  - **AEAD choice**: AES-256-GCM via .NET 8 `System.Security.Cryptography.AesGcm`. 12-byte random nonce per seal from `RandomNumberGenerator`, 16-byte tag.
+  - **AAD binding**: `tenantId \x1F routeKey \x1F paramsHash` (unit-separator between fields — no valid UTF-8 collision in id/route/hash values). Any mismatch at unseal fails authentication → `Invalid`.
+  - **Payload JSON**: `{tid, rk, ph, iat, c}` — short field names keep tokens compact for URL use. Plaintext fields re-verified post-decrypt (defence in depth). Continuation serialized to UTF-8 JSON then base64url-wrapped inside the payload.
+  - **Wire format**: `version(1) | keyIdLength(1) | keyId(N) | nonce(12) | tag(16) | ciphertext(M)` base64url-encoded.
+  - **Rotation**: cursor envelope carries the KeyId. `IPaginationSealingKeyProvider.TryGet(keyId)` returns null for keys past retention; unseal with unknown KeyId → `Invalid`. Hosts replace the in-memory provider with a KMS-backed one at the composition root.
+  - **TTL**: default 24h (`PaginationCursorOptions.CursorTtl`); exceeded → `Expired`. Options validate at startup: `CurrentKeyId` set + present in `Keys`, every key is 32 bytes, TTL positive.
+  - **Error enum**: `Invalid` and `Expired` returned at runtime. `TenantMismatch`/`RouteMismatch`/`ParamsMismatch` reserved for a future (β) impl where AAD is minimal and plaintext comparisons become distinguishable; the default (α) binds all three in AAD so mismatches collapse to `Invalid`. Documented in enum XML.
+  - 16 unit tests: round-trip, three field swaps (tenant/route/params), four tamper positions (version/keyId/nonce/ciphertext), TTL within + past window, key rotation (previous key unseals), key removal after rotation (fails), empty / non-base64url / short-envelope input, nonce freshness per seal. 77 all-WS regression tests pass together.
+- 2026-10-12: PR #39 merged to `aspnetcore-platform/main` as `e8b0c8bd`. F093 → `status: sdk-shipped` with remainder noted (WS-03b magiq-media wiring + cdk-magiq-media infra + host KMS-backed provider swap). security/INDEX.md: WS-03 split — WS-03a shipped row, WS-03b flipped to `ready` under its own row. INTEGRATION-BACKLOG MM-020 moved to § Shipped; MM-038 (WS-03b) flipped `new` → `ready`. Readiness summary bumped 61→60 `new`, 6→7 `ready`, 11→12 `shipped`.
