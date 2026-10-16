@@ -1,4 +1,4 @@
-# Reviews — aspnetcore-platform
+# Reviews — mgq-dotnet-platform
 
 **Work goes through a review before it gets a plan.** The review argues the findings; the plan sequences
 them and tracks execution. The adoption marker is in [`../CLAUDE.md`](../CLAUDE.md) § Review → Plan cycle;

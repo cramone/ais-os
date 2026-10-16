@@ -1,4 +1,4 @@
-# aspnetcore-platform
+# mgq-dotnet-platform
 
 ## Project Overview
 The .NET Core framework SDK that MAGIQ application code runs on top of. Provides shared platform infrastructure, conventions, and abstractions consumed by all MAGIQ services including magiq-media and other bounded contexts.

@@ -1,0 +1,1 @@
+# Notes — mgq-dotnet-platform

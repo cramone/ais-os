@@ -1,4 +1,4 @@
-# aspnetcore-platform
+# mgq-dotnet-platform
 _Captured: 2026-07-12T00:00:00Z_
 
 ## Description

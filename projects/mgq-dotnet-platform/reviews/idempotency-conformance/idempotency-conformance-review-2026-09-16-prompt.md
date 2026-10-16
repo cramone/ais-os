@@ -6,12 +6,12 @@ Paste into a fresh session. It assumes no prior context.
 
 ## Where you are
 
-**Project:** `aspnetcore-platform` · slug `aspnetcore-platform`
-**Project folder:** `Z:\claudia\magiq\projects\aspnetcore-platform`
-**Code repo:** `D:\source\github\magiqsoftware\aspnetcore-platform`
+**Project:** `mgq-dotnet-platform` · slug `mgq-dotnet-platform`
+**Project folder:** `Z:\claudia\magiq\projects\mgq-dotnet-platform`
+**Code repo:** `D:\source\github\sprbrk-standard\mgq-dotnet-platform`
 
 **Document:** `AP-001`, a review
-**Path:** `Z:\claudia\magiq\projects\aspnetcore-platform\reviews\idempotency-conformance\idempotency-conformance-review-2026-09-16.md`
+**Path:** `Z:\claudia\magiq\projects\mgq-dotnet-platform\reviews\idempotency-conformance\idempotency-conformance-review-2026-09-16.md`
 **Todo id:** `f7899288-c1d1-58b9-b00c-6c9954c9d51e`
 
 `AP-001` is the **first id minted in this project.** The `## Review → Plan cycle` marker was added to its
@@ -21,7 +21,7 @@ across the workspace: `AP` here, `MM` magiq-media, `MA` magiq-auth.
 ## First action, before anything else
 
 ```bash
-python -c "from tower import cycle; cycle.comment('aspnetcore-platform', 'AP-001', 'Picked up AP-001. Found: <state>. Working: <what>.')"
+python -c "from tower import cycle; cycle.comment('mgq-dotnet-platform', 'AP-001', 'Picked up AP-001. Found: <state>. Working: <what>.')"
 ```
 
 Run it from `Z:\claudia\magiq` so `tower` imports. The card's status is projected from the document's
@@ -34,7 +34,7 @@ front-matter and **cannot be set from the board** — do not try.
    against. Read it before forming a view; several findings only make sense against its three-way split of
    retry / concurrent / payload-mismatch.
 3. The five source files named in § Scope.
-4. `Z:\claudia\magiq\projects\aspnetcore-platform\MEMORY.md`.
+4. `Z:\claudia\magiq\projects\mgq-dotnet-platform\MEMORY.md`.
 
 ## Why this exists
 
@@ -76,10 +76,10 @@ contract.
 ## Writing the plan
 
 When the gate opens, write
-`Z:\claudia\magiq\projects\aspnetcore-platform\plans\idempotency-conformance\idempotency-conformance-review-2026-09-16.md`
+`Z:\claudia\magiq\projects\mgq-dotnet-platform\plans\idempotency-conformance\idempotency-conformance-review-2026-09-16.md`
 — the plan takes the review's filename. Front-matter: a freshly minted `AP-` id, `type: plan`,
 `consumes: [AP-001]`, `depends-on: []`, `status: active`, `todo-id` from
-`cycle.todo_id_for('aspnetcore-platform', '<new-id>')`, `branches: []`, `ado: -`.
+`cycle.todo_id_for('mgq-dotnet-platform', '<new-id>')`, `branches: []`, `ado: -`.
 
 A phase is a `## Phase <N> — <name>` heading, then `- [ ]` items small enough for one session, each naming
 the `IC-` finding it closes and its acceptance check. The heading shape is parsed by tooling — keep it.

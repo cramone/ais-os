@@ -1,4 +1,4 @@
-# Memory — aspnetcore-platform
+# Memory — mgq-dotnet-platform
 _Last updated: 2026-07-12_
 
 ## Memory
