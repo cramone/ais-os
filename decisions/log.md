@@ -417,3 +417,19 @@ unnecessary complexity for Q2.
 **Consequence worth noting:** `_check_plans_have_origins` is **stricter** than the check it replaced. The old one accepted any non-empty `consumes:`; the new one verifies at least one named id is actually an origin type, so a plan consuming only other plans or a gate now trips. `cycle.check()` is clean across all 8 projects after the change.
 
 **ADR:** references/adrs/0002-feature-requests-are-peers-of-reviews.md
+
+## 2026-10-16 — ADO MCP registered at user scope, not per-repo `.mcp.json`
+
+**Project:** (cross-cutting — AIS-OS tooling / ADO access)
+
+**Decision:** `azure-devops` is registered at **user scope** — `claude mcp add --scope user --transport http azure-devops https://mcp-ado.ramonedevelopment.com/mcp`, stored in `~/.claude.json` → top-level `mcpServers`. The repo's gitignored `.mcp.json` entry stays as-is for consumers that read the repo instead of `~/.claude.json` (Claudia on Cortex); project scope wins there, same URL, so it is a no-op. The Cortex HTTP gateway transport (ADR 0001) is unchanged.
+
+**Why:** The ADO MCP worked in sessions started in `Z:\claudia\magiq` and nowhere else. `.mcp.json` is per-folder and gitignored, so it exists only in this repo — a Claude Code session in a code checkout got no ADO tools, while the gateway was healthy the whole time. Project-scoped servers also sit behind an approval gate (`~/.claude/settings.json` → `enabledMcpjsonServers`, which lists only `hermes`), so even a copied `.mcp.json` needs a per-folder yes. User scope is folder-independent and skips that gate — ADO work items are needed from code repos, which is exactly where the old wiring didn't reach. Verified `✓ Connected` via `claude mcp list` from an unrelated directory.
+
+**Alternatives considered:** Copy `.mcp.json` into each code repo (rejected — N copies of a URL to drift, each gitignored or, worse, committed; plus the approval gate per folder). Add `azure-devops` to `enabledMcpjsonServers` (rejected — fixes approval, not reach; still only loads where a `.mcp.json` exists). Commit `.mcp.json` (rejected — the convention keeps it gitignored, and the per-folder reach problem stays).
+
+**Owner:** Chase Ramone
+
+**Consequence worth noting:** ADO tools now load in every cwd, so the tailnet dependency is felt everywhere — off-tailnet or in WSL (no MagicDNS in `resolv.conf`) the server fails to connect at session start rather than being silently absent. `~/.claude.json` backed up to `.claude.json.bak-20261016-211120` before the change.
+
+**Full detail:** `mcp/azure-devops/README.md` (new — deploy path, sync flow, client wiring, troubleshooting, rollback). ADR 0001 amendment, `connections.md` row 5.
