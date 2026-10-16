@@ -54,7 +54,7 @@ handler bridged but no producer.
 
 Repos: app code `D:\source\github\sprbrk-standard\mgq-magiq-media`; deploy topology
 `D:\source\github\sprbrk-standard\mgq-magiq-media-infra`; platform publish/consume mechanism
-`D:\source\github\magiqsoftware\aspnetcore-platform`; spec/ADRs under
+`D:\source\github\sprbrk-standard\mgq-dotnet-platform`; spec/ADRs under
 `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\`. Read each repo's `CLAUDE.md` first.
 
 - **Modules** (`src/modules/**`): `AssetManagement`, `Catalog`
@@ -75,7 +75,7 @@ Repos: app code `D:\source\github\sprbrk-standard\mgq-magiq-media`; deploy topol
   tables, and ADRs on the event bus, integration-event publisher, hierarchy
   invariants, and persistence/eventing — for what the seams are *supposed* to do.
 - **Platform SDK**: the integration-event publishing pipeline / outbox in
-  `aspnetcore-platform` — enough to judge whether dual-write / outbox / bus
+  `mgq-dotnet-platform` — enough to judge whether dual-write / outbox / bus
   registration is correct, not a full SDK review.
 
 ## Rules

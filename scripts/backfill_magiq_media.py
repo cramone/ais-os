@@ -186,7 +186,7 @@ review("MM-034", "reviews/archive-cascade/archive-cascade-scale-review.md",
             "is no telemetry on either path.")
 review("MM-035", "reviews/event-reliability/outbox-implementation-review-2026-08-27.md",
        "event-reliability", "2026-08-27", "draft", "pending",
-       note="Not yet planned; the work is almost entirely in `aspnetcore-platform`. Verdict: "
+       note="Not yet planned; the work is almost entirely in `mgq-dotnet-platform`. Verdict: "
             "`Magiq.Platform.Messaging.Outbox` has never been run — zero adopters, zero tests, "
             "the drain is invoked by nothing and sent messages are never marked sent, so "
             "adopting it as-is would produce **unbounded duplicate publication** of every event. "

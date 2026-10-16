@@ -3,13 +3,13 @@ id: MM-011
 type: plan
 project: magiq-media
 workstream: WS-19-idempotency-replay-headers
-repo: aspnetcore-platform
-tags: [aspnetcore-platform, sdk, idempotency, http]
+repo: mgq-dotnet-platform
+tags: [mgq-dotnet-platform, sdk, idempotency, http]
 consumes: []
 blocked-by-external: []
 status: shipped
 branches: [feature/chase/MM-011-MM-012-WS-19-20-idempotency-rewrite]
-pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/35
+pr: https://github.com/sprbrk-standard/mgq-dotnet-platform/pull/35
 merge-sha: 68706c06
 shipped: 2026-10-12
 shipped-jointly-with: MM-012 (WS-20-idempotency-pending-ttl)
@@ -19,7 +19,7 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/platform
 
 # WS-19 — Idempotency replay-header allowlist
 
-**Target repo:** `aspnetcore-platform` — `D:\source\github\magiqsoftware\aspnetcore-platform`
+**Target repo:** `mgq-dotnet-platform` — `D:\source\github\sprbrk-standard\mgq-dotnet-platform`
 **Depends on:** none
 **Unblocks:** complete `draft-ietf-httpapi-idempotency-key-header-07` conformance (pairs with MM-012 for Pending TTL)
 
@@ -27,13 +27,13 @@ Delivers F070. Current `Magiq.AspNetCore.Idempotency` stores status + body only,
 
 ## Session invocation
 
-Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnetcore-platform`. Paste:
+Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-dotnet-platform`. Paste:
 
 > Picking up WS-19 (plan MM-011). Plan at `Z:\claudia\magiq\projects\magiq-media\plans\WS-19-idempotency-replay-headers\WS-19-idempotency-replay-headers-plan.md`. Gap file: `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\dependency-gaps\platform-capabilities\F070-idempotency-replay-headers.md`.
 >
 > Add `IdempotencyOptions.ReplayHeaders` list. Store allowlisted response headers on completion write; replay on cache hit. Default list: `ETag`, `Magiq-Aggregate-ETag`, `Magiq-Schema-Budget-Remaining`.
 >
-> Read `aspnetcore-platform/CLAUDE.md`. PR to `aspnetcore-platform/main`.
+> Read `mgq-dotnet-platform/CLAUDE.md`. PR to `mgq-dotnet-platform/main`.
 
 ## Phase 0 — Scope confirmation
 - [ ] Read F070 § Required-shape + `docs/spec/shared/api-conventions.md` idempotency section
@@ -56,7 +56,7 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 
 ## Phase 4 — Package + ship
 - [ ] Bump `Magiq.AspNetCore.*` version; push internal NuGet
-- [ ] PR to `aspnetcore-platform/main`
+- [ ] PR to `mgq-dotnet-platform/main`
 
 ## Phase 5 — Close
 - [ ] F070: shipped
@@ -71,4 +71,4 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
   - `IdempotencyOptions`: `PendingHorizon` (20min default), `ReplayHeaders` (default ETag, Magiq-Aggregate-ETag, Magiq-Schema-Budget-Remaining); existing `Window` becomes the completion TTL. Startup validates `PendingHorizon < Window`.
   - Host-side invariant `PendingHorizon > ApiLambdaTimeout + PipelineRetryBudget` not enforced in the plugin — SDK doesn't know host timeout. Documented in `IdempotencyOptions.PendingHorizon` XML doc.
   - 14 new unit tests (4 store + 10 middleware) green locally; `IsEnabled`/scope-key patterns handled with `CA1873` suppressed project-wide (sibling of repo-wide `CA1848`).
-- 2026-10-12: PR #35 merged to `aspnetcore-platform/main` as `68706c06`. F070 + F072 flipped to shipped, platform-capabilities/INDEX.md WS-19 + WS-20 moved to § Shipped, INTEGRATION-BACKLOG MM-011 + MM-012 moved to § Shipped, readiness summary bumped 67→65 `new`, 6→8 `shipped`.
+- 2026-10-12: PR #35 merged to `mgq-dotnet-platform/main` as `68706c06`. F070 + F072 flipped to shipped, platform-capabilities/INDEX.md WS-19 + WS-20 moved to § Shipped, INTEGRATION-BACKLOG MM-011 + MM-012 moved to § Shipped, readiness summary bumped 67→65 `new`, 6→8 `shipped`.

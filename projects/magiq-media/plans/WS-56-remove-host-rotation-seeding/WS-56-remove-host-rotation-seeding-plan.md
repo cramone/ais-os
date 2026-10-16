@@ -3,8 +3,8 @@ id: MM-078
 type: plan
 project: magiq-media
 workstream: WS-56-remove-host-rotation-seeding
-repo: aspnetcore-platform
-tags: [aspnetcore-platform, sdk, projections, rotation, read-model-metadata]
+repo: mgq-dotnet-platform
+tags: [mgq-dotnet-platform, sdk, projections, rotation, read-model-metadata]
 consumes: []
 blocked-by-external: []
 status: done
@@ -15,7 +15,7 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/projecti
 
 # WS-56 — Hosts do not seed `read-model-metadata`
 
-**Target repo:** `aspnetcore-platform` — `D:\source\github\magiqsoftware\aspnetcore-platform`
+**Target repo:** `mgq-dotnet-platform` — `D:\source\github\sprbrk-standard\mgq-dotnet-platform`
 **Branch:** `feature/guid-projection-rotation` (unmerged; 5 commits ahead of `main`). This lands **before** that branch's PR to `main`, so host seeding never reaches a release.
 **Depends on:** none
 **Pairs with:** MM-077 (WS-55) — the CDK seeds the rows
@@ -33,7 +33,7 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/projecti
 
 ## Session invocation
 
-Open a new Claude Code session and `cd` into `D:\source\github\magiqsoftware\aspnetcore-platform`. Check out `feature/guid-projection-rotation`. Paste:
+Open a new Claude Code session and `cd` into `D:\source\github\sprbrk-standard\mgq-dotnet-platform`. Check out `feature/guid-projection-rotation`. Paste:
 
 > Picking up WS-56 (plan MM-078). Plan at `Z:\claudia\magiq\projects\magiq-media\plans\WS-56-remove-host-rotation-seeding\WS-56-remove-host-rotation-seeding-plan.md`.
 >
@@ -66,7 +66,7 @@ Every comment below currently says seeding runs at startup, in every host, or "u
 
 ## Phase 4 — Ship
 - [x] Commit on `feature/guid-projection-rotation`
-- [x] Included in that branch's PR to `aspnetcore-platform/main`. No package bump here — Chase's policy is to bump once all dependency-gap plans are implemented.
+- [x] Included in that branch's PR to `mgq-dotnet-platform/main`. No package bump here — Chase's policy is to bump once all dependency-gap plans are implemented.
 
 ## Phase 5 — Close
 - [x] `docs/dependency-gaps/projections/INDEX.md`: WS-56 → § Shipped
@@ -80,4 +80,4 @@ The plan's card moves to `done` only after Chase agrees the work is implemented 
 - 2026-10-08: plan drafted from the review of `feature/guid-projection-rotation`. Chase ruled hosts must not seed (startup delay); the CDK seeds instead (MM-077), and the migration seeding stays for development environments. Folded in the `GuidFactory` comment correction for the same PR.
 - 2026-10-08: activated — picked up as the next step; gates the `feature/guid-projection-rotation` PR to `main`.
 - 2026-10-08: committed `c6eb6dc6` on `feature/guid-projection-rotation`, after `17f740b9` (LF enforcement: `.gitattributes` + `.editorconfig`; the working copy had rewritten 11 files as CRLF). Not yet pushed. Phase 5 waits on the merge to `main`.
-- 2026-10-08: shipped — PR #28 merged to `aspnetcore-platform/main` as `b97b9772`. WS-56 and MM-078 moved to § Shipped. Status `done` (Chase). Build/test box left as recorded: not run in-session; Chase merged the PR.
+- 2026-10-08: shipped — PR #28 merged to `mgq-dotnet-platform/main` as `b97b9772`. WS-56 and MM-078 moved to § Shipped. Status `done` (Chase). Build/test box left as recorded: not run in-session; Chase merged the PR.

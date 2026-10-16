@@ -3,13 +3,13 @@ id: MM-023e
 type: plan
 project: magiq-media
 workstream: WS-21e-outbox-metrics
-repo: aspnetcore-platform
-tags: [aspnetcore-platform, sdk, outbox, metrics, observability]
+repo: mgq-dotnet-platform
+tags: [mgq-dotnet-platform, sdk, outbox, metrics, observability]
 consumes: []
 blocked-by-external: []
 status: shipped
 branches: [feature/chase/MM-023e-WS-21e-outbox-metrics]
-pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/48
+pr: https://github.com/sprbrk-standard/mgq-dotnet-platform/pull/48
 merge-sha: f6d47c08
 shipped: 2026-10-13
 created: 2026-10-12
@@ -21,7 +21,7 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/platform
 
 # WS-21e — Outbox instrumentation
 
-**Target repo:** `aspnetcore-platform` — `D:\source\github\magiqsoftware\aspnetcore-platform`
+**Target repo:** `mgq-dotnet-platform` — `D:\source\github\sprbrk-standard\mgq-dotnet-platform`
 **Depends on:** MM-080a (SDK EMF bridge, shipped). **Not** blocked on MM-023d — latency and failure classification live inside `OutboxMessageProcessor.ProcessAsync`, which is already in the SDK; the relay Lambda is only the AWS trigger around it.
 **Unblocks:** none directly — the host registration (MM-080c) picks up these instruments automatically once wired.
 
@@ -98,7 +98,7 @@ Expose as `OutboxMetrics.FailureReason*` string constants so relay tags are froz
 A thrown `PublishAsync` has no round-trip to measure (the request never returned). Record only `outbox.publish_failure_rate` in that path; the latency histogram stays clean of outlier zero / exception-timing samples. Document this in the processor comment next to the outer `catch`.
 
 ## Phase 4 — Ship
-- [ ] PR to `aspnetcore-platform/main` titled `Outbox publish latency + failure instruments (WS-21e / MM-023e)`
+- [ ] PR to `mgq-dotnet-platform/main` titled `Outbox publish latency + failure instruments (WS-21e / MM-023e)`
 - [ ] No `Magiq.Platform.*` version bump — batched once the dependency-gap plans are done
 - [ ] Document `outbox.depth` deferral in `src/platform/Messaging/Magiq.Platform.Messaging.Outbox/README.md` (if present) or inline on `OutboxMetrics` XML — point readers at the DynamoDB native metric
 
@@ -116,4 +116,4 @@ A thrown `PublishAsync` has no round-trip to measure (the request never returned
   - `OutboxMessageProcessor.MarkMessageAsFailed` signature now takes an explicit `failureReason`; every call site (`serializer is null`, `messageType is null`, deserialize threw, `PublishStatus.Failed`) passes a frozen taxonomy constant. `PublishAsync` wrapped in `Stopwatch`; `elapsedMs` recorded via `RecordPublishLatency` per message in `results`. Router-threw catch records `FailureReasonRouterException` per in-flight message (filtered by `messagesToSend` id set so already-serialization-failed rows are not double-tagged) and skips latency emission — no round-trip to measure.
   - 8 unit tests in `tests/Magiq.AspNetCore.Tests/Messaging/OutboxMetricsTests.cs`: serializer-null, type-resolver-null, deserialize-throws, PublishStatus.Failed, router throws (no latency on exception path), happy path (latency per message, no failure counter), taxonomy constants frozen at stable string values, empty `message.type` doesn't throw. 15 pass across `OutboxMetricsTests` + `OutboxParkingTests`; full non-Docker regression 215 pass.
   - No `Magiq.Platform.*` version bump — batched once the dependency-gap plans are done.
-- 2026-10-13: PR #48 merged to `aspnetcore-platform/main` as `f6d47c08`. Tower MM-023e flipped `new` → `done`. MM-023d (relay Lambda) — no new relay-side instrumentation code required; Lambda invokes `OutboxMessageProcessor.ProcessAsync` and the instruments emit from there. `docs/dependency-gaps/platform-capabilities/INDEX.md` + `INTEGRATION-BACKLOG` not present in the Z:/claudia/magiq snapshot — closure recorded in Tower + this session log only. Cross-reference to MM-080b (CDK dashboards + alarms) pending — alarm expressions should bind to the four `failure.reason` tag values + the `outbox.publish_latency` percentile dimensions.
+- 2026-10-13: PR #48 merged to `mgq-dotnet-platform/main` as `f6d47c08`. Tower MM-023e flipped `new` → `done`. MM-023d (relay Lambda) — no new relay-side instrumentation code required; Lambda invokes `OutboxMessageProcessor.ProcessAsync` and the instruments emit from there. `docs/dependency-gaps/platform-capabilities/INDEX.md` + `INTEGRATION-BACKLOG` not present in the Z:/claudia/magiq snapshot — closure recorded in Tower + this session log only. Cross-reference to MM-080b (CDK dashboards + alarms) pending — alarm expressions should bind to the four `failure.reason` tag values + the `outbox.publish_latency` percentile dimensions.

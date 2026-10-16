@@ -3,24 +3,24 @@ id: MM-013
 type: plan
 project: magiq-media
 workstream: WS-23-snapshot-load-fallback
-repo: aspnetcore-platform
-tags: [aspnetcore-platform, sdk, event-store, snapshots]
+repo: mgq-dotnet-platform
+tags: [mgq-dotnet-platform, sdk, event-store, snapshots]
 consumes: []
 blocked-by-external: []
 status: done
 branches: [feature/ws-23-snapshot-load-fallback]
 created: 2026-10-08
-exception: dependency-gap workstream — origin is docs/dependency-gaps/platform-capabilities/INDEX.md#WS-23 (no gap file; row-tracked); no separate review document. Evidence and proposed design live in aspnetcore-platform `snapshot-load-resilience-findings.md` (repo root; on main since PR #28, b97b9772).
+exception: dependency-gap workstream — origin is docs/dependency-gaps/platform-capabilities/INDEX.md#WS-23 (no gap file; row-tracked); no separate review document. Evidence and proposed design live in mgq-dotnet-platform `snapshot-load-resilience-findings.md` (repo root; on main since PR #28, b97b9772).
 ---
 
 # WS-23 — Snapshot load falls back to full replay
 
-**Target repo:** `aspnetcore-platform` — `D:\source\github\magiqsoftware\aspnetcore-platform`
+**Target repo:** `mgq-dotnet-platform` — `D:\source\github\sprbrk-standard\mgq-dotnet-platform`
 **Depends on:** none
 **Unblocks:**
 - MM-079 (WS-57, snapshot revision): a revision mismatch is one more trigger for this fallback
 - resilience to an unreadable snapshot row — today one bad row takes an aggregate offline permanently, for every command and query, until someone deletes the row by hand
-**Findings:** `aspnetcore-platform/snapshot-load-resilience-findings.md` — §-references below point there
+**Findings:** `mgq-dotnet-platform/snapshot-load-resilience-findings.md` — §-references below point there
 
 **Spec** (`docs/spec/shared/event-store-and-messaging.md`):
 - § A snapshot that cannot be read falls back to full replay
@@ -82,13 +82,13 @@ All settled. The rationale for D5–D7 is in `docs/adrs/persistence-and-eventing
 
 ## Session invocation
 
-Open a new Claude Code session and `cd` into `D:\source\github\magiqsoftware\aspnetcore-platform`. Branch off `main` as `feature/ws-23-snapshot-load-fallback`. Paste:
+Open a new Claude Code session and `cd` into `D:\source\github\sprbrk-standard\mgq-dotnet-platform`. Branch off `main` as `feature/ws-23-snapshot-load-fallback`. Paste:
 
 > Picking up WS-23 (plan MM-013). Plan at `Z:\claudia\magiq\projects\magiq-media\plans\WS-23-snapshot-load-fallback\WS-23-snapshot-load-fallback-plan.md`; evidence in `snapshot-load-resilience-findings.md` at the repo root; spec in magiq-media `docs/spec/shared/event-store-and-messaging.md` § A snapshot that cannot be read falls back to full replay.
 >
 > Implement the plan's Design decisions D1–D8 exactly: broad-minus-cancellation catch around snapshot fetch + restore; `LoadAfterAsync` failures still fail the load; awaited non-throwing eviction via a new identity-keyed `ISnapshotStore.DeleteAsync` overload; snapshot-only strict member reading; the `SK >= v` anchor check with the anchor event skipped; an `IMeterFactory` counter with bounded tags. No snapshot revision and no exporter — those are separate plans.
 >
-> Read `CLAUDE.md` first. One PR to `aspnetcore-platform/main`.
+> Read `CLAUDE.md` first. One PR to `mgq-dotnet-platform/main`.
 
 ## Phase 0 — Scope confirmation
 - [x] ~~Decide D5, D6, D7~~ — recorded above (2026-10-08)
@@ -150,7 +150,7 @@ Store **incompatible** snapshots, never round-trip a current one (findings §9).
 - [x] ~~Identity-keyed delete removes the row in both stores~~ — in-memory covered by `IdentityKeyedDelete_InMemory_RemovesRow`; DynamoDB path shares the same test aggregate but needs Docker (unchanged guard)
 
 ## Phase 8 — Ship
-- [x] ~~Branch `feature/ws-23-snapshot-load-fallback` off `main`; PR to `aspnetcore-platform/main`~~ — PR [#29](https://github.com/magiqsoftware/aspnetcore-platform/pull/29), merge sha `7e938fa2`
+- [x] ~~Branch `feature/ws-23-snapshot-load-fallback` off `main`; PR to `mgq-dotnet-platform/main`~~ — PR [#29](https://github.com/sprbrk-standard/mgq-dotnet-platform/pull/29), merge sha `7e938fa2`
 - [x] ~~PR notes: consumers seeing `PersistenceFailure` on a known-bad aggregate will recover; out-of-repo `ISnapshotStore` implementers must add the overload; no package bump (bumped once the dependency-gap plans are done)~~
 
 ## Phase 9 — Close
@@ -164,14 +164,14 @@ The plan's card moves to `done` only after Chase agrees the work is implemented 
 
 ## Session log
 - 2026-10-08: plan drafted
-- 2026-10-08: folded in `snapshot-load-resilience-findings.md` (aspnetcore-platform, 7d4c36b8). Changed: catch scope narrow → broad-minus-cancellation (D1 — the narrow list missed `Type.GetType`, S3 and serializer failures and contradicted the spec); eviction async-after-load → awaited-before-replay (D4 — Lambda); added identity-keyed `DeleteAsync` overload (Phase 1 — the plan's delete step was unimplementable without it); added D5 (renames are silent under current JSON options), D6, D7, D8; added §6.4 order guard and §3 doc-comment fix; expanded tests to findings §9 plus cancellation and fetch-failure cases. Noted findings §5's RecordType-snapshot hold is superseded by spec.
+- 2026-10-08: folded in `snapshot-load-resilience-findings.md` (mgq-dotnet-platform, 7d4c36b8). Changed: catch scope narrow → broad-minus-cancellation (D1 — the narrow list missed `Type.GetType`, S3 and serializer failures and contradicted the spec); eviction async-after-load → awaited-before-replay (D4 — Lambda); added identity-keyed `DeleteAsync` overload (Phase 1 — the plan's delete step was unimplementable without it); added D5 (renames are silent under current JSON options), D6, D7, D8; added §6.4 order guard and §3 doc-comment fix; expanded tests to findings §9 plus cancellation and fetch-failure cases. Noted findings §5's RecordType-snapshot hold is superseded by spec.
 - 2026-10-08: activated as the next SDK plan (CDK plans deferred to the end). Blocked at Phase 0 until Chase decides D5, D6 and D7.
 - 2026-10-08: decisions recorded after a best-practice review (Axon snapshot revision filtering; Microsoft metrics guidance). D5 = strict member reading here, revision split to MM-079 (WS-57) because it changes the stored format and needed a spec change; D6 = anchor check on the event at the snapshot's version, in scope, no extra request; D7 = `IMeterFactory` counter, export split to MM-080 (WS-58). Spec + ADR updated the same day. Phase 0 unblocked.
-- 2026-10-08: implemented and merged. Branch `feature/ws-23-snapshot-load-fallback` → PR [#29](https://github.com/magiqsoftware/aspnetcore-platform/pull/29) merged into `aspnetcore-platform/main` as `7e938fa2` (commit `51ad0247`). 90 non-Docker unit tests pass locally including 22 in `SnapshotTests.cs`. Breaking change for out-of-repo `UseSnapshotStore<T>` and `UseStore<T>` consumers (new `ISnapshotStore.DeleteAsync` identity-keyed overload + new `IEventStore.LoadAfterAnchoredAsync`); no package bump yet. Unblocks MM-079 (WS-57a). magiq-media CLAUDE.md bullet retained until magiq-media consumes the next SDK release.
+- 2026-10-08: implemented and merged. Branch `feature/ws-23-snapshot-load-fallback` → PR [#29](https://github.com/sprbrk-standard/mgq-dotnet-platform/pull/29) merged into `mgq-dotnet-platform/main` as `7e938fa2` (commit `51ad0247`). 90 non-Docker unit tests pass locally including 22 in `SnapshotTests.cs`. Breaking change for out-of-repo `UseSnapshotStore<T>` and `UseStore<T>` consumers (new `ISnapshotStore.DeleteAsync` identity-keyed overload + new `IEventStore.LoadAfterAnchoredAsync`); no package bump yet. Unblocks MM-079 (WS-57a). magiq-media CLAUDE.md bullet retained until magiq-media consumes the next SDK release.
 
 ## Closing card comment
 
-- Branch: `feature/ws-23-snapshot-load-fallback` (aspnetcore-platform)
-- PR: [#29](https://github.com/magiqsoftware/aspnetcore-platform/pull/29) — merged 2026-10-08
+- Branch: `feature/ws-23-snapshot-load-fallback` (mgq-dotnet-platform)
+- PR: [#29](https://github.com/sprbrk-standard/mgq-dotnet-platform/pull/29) — merged 2026-10-08
 - Commit on `main`: merge `7e938fa2`, implementation `51ad0247`
 - Package bump: deferred until the dependency-gap plans are done (per plan Phase 8)

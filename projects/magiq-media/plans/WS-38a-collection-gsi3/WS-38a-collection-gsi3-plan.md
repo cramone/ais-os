@@ -56,3 +56,4 @@ Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-
 
 ## Session log
 - 2026-10-08: plan drafted
+- 2026-10-15: shipped on `spec/initial-alignment` in `cdk-magiq-media` (pending merge). One commit — pre-manifest override pattern in `lib/constructs/dynamodb/read-models.ts` (`applyPreManifestOverrides(tableId, table)`), applied to the current version + every retained previous version. GSI shape: `GSI3PK` String, no sort key, KEYS_ONLY projection (handler loads the collection aggregate separately through the event store). Spec specifies GSI3PK only — no GSI3SK, differing from the Phase 1 plan draft which assumed GSI3SK; corrected to spec. Follow-up commit cleared pre-existing DistributedMap `executionType` deprecation on the saga cascades. MM-045 (WS-38b) flipped `new -> ready`.

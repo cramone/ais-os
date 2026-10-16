@@ -3,13 +3,13 @@ id: MM-017
 type: plan
 project: magiq-media
 workstream: WS-15a-originating-actor
-repo: aspnetcore-platform
-tags: [aspnetcore-platform, sdk, messaging, actor, context]
+repo: mgq-dotnet-platform
+tags: [mgq-dotnet-platform, sdk, messaging, actor, context]
 consumes: []
 blocked-by-external: []
 status: shipped
 branches: [feature/chase/MM-017-WS-15a-originating-actor]
-pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/37
+pr: https://github.com/sprbrk-standard/mgq-dotnet-platform/pull/37
 merge-sha: b0720738
 shipped: 2026-10-12
 created: 2026-10-08
@@ -18,7 +18,7 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/platform
 
 # WS-15a — `OriginatingActorId` on `MessageMetadata` + scanner execution-context factory
 
-**Target repo:** `aspnetcore-platform` — `D:\source\github\magiqsoftware\aspnetcore-platform`
+**Target repo:** `mgq-dotnet-platform` — `D:\source\github\sprbrk-standard\mgq-dotnet-platform`
 **Depends on:** none
 **Unblocks:** MM-035 (WS-15b — magiq-media populates originating actor on dispatched commands + scanner context)
 
@@ -26,13 +26,13 @@ Delivers F079. Scanner / saga / cascade work carries originating actor forward s
 
 ## Session invocation
 
-Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnetcore-platform`. Paste:
+Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-dotnet-platform`. Paste:
 
 > Picking up WS-15a (plan MM-017). Plan at `Z:\claudia\magiq\projects\magiq-media\plans\WS-15a-originating-actor\WS-15a-originating-actor-plan.md`. Gap: `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\dependency-gaps\platform-capabilities\F079-originating-actor-and-scanner-context.md`.
 >
 > Add optional `OriginatingActorId` on `MessageMetadata` (SNS/SQS envelope + event-store envelope round-trip). Add nullable `IExecutionContext.OriginatingActorId`. Add `IScannerExecutionContextFactory` that produces per-dispatch context with `Actor = System` + supplied originating actor.
 >
-> PR to `aspnetcore-platform/main`.
+> PR to `mgq-dotnet-platform/main`.
 
 ## Phase 0 — Scope confirmation
 - [ ] Read F079 § Required-shape
@@ -63,7 +63,7 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 
 ## Phase 6 — Package + ship
 - [ ] Bump `Magiq.Platform.*` version
-- [ ] PR to `aspnetcore-platform/main`
+- [ ] PR to `mgq-dotnet-platform/main`
 
 ## Phase 7 — Close
 - [ ] F079: `status: shipped (SDK portion)`
@@ -79,4 +79,4 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
   - Divergence from plan Phase 2: context slot is `string?` (plan wording), not `IActor?` (gap-file wording). The id alone is enough for audit chaining — full actor rehydration would need a per-tenant actor directory the SDK doesn't own.
   - Scope deliberately excluded: dispatcher-side `IExecutionContext.TenantId = command.TenantId` enforcement (gap-file item), scanner conversion in magiq-media (WS-15b).
   - 8 new unit tests green; full solution build clean.
-- 2026-10-12: PR #37 merged to `aspnetcore-platform/main` as `b0720738`. F079 → `status: sdk-shipped` with remainder noted. platform-capabilities/INDEX.md WS-15 split: WS-15a shipped row, WS-15b flipped to `ready` under its own row. INTEGRATION-BACKLOG MM-017 moved to § Shipped; MM-035 (WS-15b) flipped `new` → `ready`. Readiness summary bumped 63→62 `new`, 4→5 `ready`, 9→10 `shipped`.
+- 2026-10-12: PR #37 merged to `mgq-dotnet-platform/main` as `b0720738`. F079 → `status: sdk-shipped` with remainder noted. platform-capabilities/INDEX.md WS-15 split: WS-15a shipped row, WS-15b flipped to `ready` under its own row. INTEGRATION-BACKLOG MM-017 moved to § Shipped; MM-035 (WS-15b) flipped `new` → `ready`. Readiness summary bumped 63→62 `new`, 4→5 `ready`, 9→10 `shipped`.

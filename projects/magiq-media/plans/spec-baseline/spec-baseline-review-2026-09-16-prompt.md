@@ -32,7 +32,7 @@ and **cannot be set from the board** — do not try.
 Required at every session start and every phase boundary, not just the first.
 
 1. Read `depends-on` in the plan's front-matter: `[AP-001]`.
-2. Resolve it — `grep -rn "^id: AP-001" Z:\claudia\magiq\projects\aspnetcore-platform` and read its
+2. Resolve it — `grep -rn "^id: AP-001" Z:\claudia\magiq\projects\mgq-dotnet-platform` and read its
    `status`. **A review that has produced no plan resolves as unmet.**
 3. Unmet is expected and is **not** a reason to stop. The dependency reaches phase 10 only; phases 0–9 run
    regardless. If AP-001 has since produced a plan, **repoint `depends-on` at that plan's id.**

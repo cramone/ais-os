@@ -54,3 +54,4 @@ Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-
 
 ## Session log
 - 2026-10-08: plan drafted
+- 2026-10-15: shipped on `spec/initial-alignment` in `cdk-magiq-media` (pending merge). One commit — `ProjectionLagDashboard` construct: dedicated `media-projection-lag` dashboard with row per projector (ReadModel, Search); each row carries a summary widget (MAX/p99/p50 across aggregate types) + a per-aggregate p99 series via CloudWatch metric search so new aggregates auto-appear. Two p99 alarms paging `media-alarms-pager` — ReadModel > 30 s and Search > 60 s, both across 3 consecutive 5-minute periods. Metric contract: `MagiqMedia/Projections::projection.lag_seconds` dims `aggregate_type` + `projector`. Removed the aggregate-less `media-projection-lag` alarm from `MetricsAlarms` (MM-080b) so alarms don't double-fire. MM-047 (WS-36b) flipped `new -> ready`.

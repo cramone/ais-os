@@ -3,13 +3,13 @@ id: MM-023a
 type: plan
 project: magiq-media
 workstream: WS-21a-transactional-outbox-sdk-primitive
-repo: aspnetcore-platform
-tags: [aspnetcore-platform, sdk, outbox, dynamodb, messaging, transaction]
+repo: mgq-dotnet-platform
+tags: [mgq-dotnet-platform, sdk, outbox, dynamodb, messaging, transaction]
 consumes: []
 blocked-by-external: []
 status: shipped
 branches: [feature/chase/MM-023-WS-21-transactional-outbox]
-pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/42
+pr: https://github.com/sprbrk-standard/mgq-dotnet-platform/pull/42
 merge-sha: d973466c
 shipped: 2026-10-12
 created: 2026-10-08
@@ -20,7 +20,7 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/platform
 
 # WS-21a — Transactional outbox SDK primitive
 
-**Target repo:** `aspnetcore-platform` — `D:\source\github\magiqsoftware\aspnetcore-platform`
+**Target repo:** `mgq-dotnet-platform` — `D:\source\github\sprbrk-standard\mgq-dotnet-platform`
 **Depends on:** none
 **Unblocks:** MM-023b, MM-023c, MM-023d, MM-023e
 **Downstream (post-full WS-21 chain):** MM-028 (WS-25a PromoteAsync), MM-029 (WS-18 F008 claim-check), MM-069 (WS-35 membership indexes) — only released once MM-023b+c+d ship
@@ -93,7 +93,7 @@ Narrow SDK ship. The full "transactional outbox" delivery was one plan (old MM-0
 - [ ] 92 all-WS regression suite green
 
 ## Phase 7 — PR
-- [ ] PR to `aspnetcore-platform/main`
+- [ ] PR to `mgq-dotnet-platform/main`
 - [ ] Body explicitly lists MM-023b/c/d/e as deferred follow-ups
 - [ ] No version bump — batched per prior policy
 

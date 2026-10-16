@@ -3,13 +3,13 @@ id: MM-012
 type: plan
 project: magiq-media
 workstream: WS-20-idempotency-pending-ttl
-repo: aspnetcore-platform
-tags: [aspnetcore-platform, sdk, idempotency, http]
+repo: mgq-dotnet-platform
+tags: [mgq-dotnet-platform, sdk, idempotency, http]
 consumes: []
 blocked-by-external: []
 status: shipped
 branches: [feature/chase/MM-011-MM-012-WS-19-20-idempotency-rewrite]
-pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/35
+pr: https://github.com/sprbrk-standard/mgq-dotnet-platform/pull/35
 merge-sha: 68706c06
 shipped: 2026-10-12
 shipped-jointly-with: MM-011 (WS-19-idempotency-replay-headers)
@@ -19,7 +19,7 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/platform
 
 # WS-20 — Idempotency `Pending` TTL separate from completion window
 
-**Target repo:** `aspnetcore-platform` — `D:\source\github\magiqsoftware\aspnetcore-platform`
+**Target repo:** `mgq-dotnet-platform` — `D:\source\github\sprbrk-standard\mgq-dotnet-platform`
 **Depends on:** none
 **Unblocks:** `draft-ietf-httpapi-idempotency-key-header-07` conformance (pairs with MM-011)
 
@@ -27,13 +27,13 @@ Delivers F072. Current middleware uses one TTL for both Pending + Completed stat
 
 ## Session invocation
 
-Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnetcore-platform`. Paste:
+Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-dotnet-platform`. Paste:
 
 > Picking up WS-20 (plan MM-012). Plan at `Z:\claudia\magiq\projects\magiq-media\plans\WS-20-idempotency-pending-ttl\WS-20-idempotency-pending-ttl-plan.md`. Gap: `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\dependency-gaps\platform-capabilities\F072-idempotency-pending-ttl.md`.
 >
 > Two-phase record: `State = Pending | Completed`. Pending TTL (default 20 min, > Api Lambda 15-min timeout). Completion TTL (default 24h). `409 IdempotentRequestInProgress` returned only when Pending within TTL.
 >
-> Read `aspnetcore-platform/CLAUDE.md`. PR to `aspnetcore-platform/main`.
+> Read `mgq-dotnet-platform/CLAUDE.md`. PR to `mgq-dotnet-platform/main`.
 
 ## Phase 0 — Scope confirmation
 - [ ] Read F072 § Required-shape
@@ -63,7 +63,7 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 
 ## Phase 5 — Package + ship
 - [ ] Bump version; push internal NuGet
-- [ ] PR to `aspnetcore-platform/main`
+- [ ] PR to `mgq-dotnet-platform/main`
 
 ## Phase 6 — Close
 - [ ] F072: shipped

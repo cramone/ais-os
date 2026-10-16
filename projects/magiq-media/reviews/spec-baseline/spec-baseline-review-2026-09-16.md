@@ -21,7 +21,7 @@ created: 2026-09-16
 where two documents disagree this review says so without ruling on which is right — the code is not
 evidence here and was not consulted.
 
-**One deliberate scope exception, 2026-09-16.** `Magiq.AspNetCore.Idempotency` in the `aspnetcore-platform`
+**One deliberate scope exception, 2026-09-16.** `Magiq.AspNetCore.Idempotency` in the `mgq-dotnet-platform`
 repo was read — `IIdempotencyStore`, `IdempotencyMiddleware` and `IdempotencyOptions` — to settle whether the
 SDK can store and replay a response envelope. The exception is taken because the answer decides the plan's
 **status field** rather than any document's content: if the SDK cannot, phase 5 is blocked on another repo
@@ -109,7 +109,7 @@ This is the cluster Chase asked to be got right, and it is where the spec contra
 | SB-20 | High | **Idempotency is specified two ways.** Bulk: *"A replayed key with the same payload returns the cached envelope without re-processing."* Conventions: the middleware rejects the duplicate with `409` and an empty body, and never replays. *(Resolved by Q9 toward the bulk statement: conform to `draft-ietf-httpapi-idempotency-key-header-07` in full. `api-conventions.md` § Idempotency is rewritten; bulk then becomes correct as written.)* | `bulk-operations.md:155` vs `api-conventions.md` § What it actually does |
 | SB-72 | High | **No idempotency fingerprint, and no `422` for key reuse.** The draft (§2.4) requires a checksum of the request payload stored with the key so that a key replayed with a *different* body is refused `422` rather than silently returning the cached response. Neither the fingerprint nor the code exists in the spec. On a multi-tenant platform this is the failure mode that matters, and the draft treats it as a security consideration. | `api-conventions.md` § Idempotency; draft §2.4, §2.7 |
 | SB-73 | Medium | **`409` conflates a concurrent request with a completed duplicate.** The draft reserves `409` for a retry arriving while the original is still in flight, and specifies a `ProblemDetails` body. The spec returns `409` with an empty body for every repeat inside the window. | `api-conventions.md:94` |
-| SB-76 | High | **The idempotency key is not scoped to the operation.** `IIdempotencyStore` keys on tenant + owner + key only, so the same `Idempotency-Key` sent to two different endpoints collides — the second is refused `409` having never executed. The IETF draft requires a key not be reused with a *different payload*; this is weaker still, since the key is not bound to the route either. Confirmed against `IIdempotencyStore.cs` and `DynamoDbIdempotencyStoreTableSchema.cs`. Part of the same SDK change as SB-20. | `aspnetcore-platform`: `IIdempotencyStore.cs`, `IdempotencyMiddleware.cs` |
+| SB-76 | High | **The idempotency key is not scoped to the operation.** `IIdempotencyStore` keys on tenant + owner + key only, so the same `Idempotency-Key` sent to two different endpoints collides — the second is refused `409` having never executed. The IETF draft requires a key not be reused with a *different payload*; this is weaker still, since the key is not bound to the route either. Confirmed against `IIdempotencyStore.cs` and `DynamoDbIdempotencyStoreTableSchema.cs`. Part of the same SDK change as SB-20. | `mgq-dotnet-platform`: `IIdempotencyStore.cs`, `IdempotencyMiddleware.cs` |
 | SB-74 | Low | **A missing `Idempotency-Key` on a documented idempotent operation is unspecified.** The draft specifies `400` with a link to the idempotency documentation. The spec states only that a request without the header passes through, which is correct for opt-in endpoints but says nothing about endpoints where the key is required. | `api-conventions.md` § Idempotency |
 | SB-21 | Low | **Cross-region DR is both a target and out of scope.** The RTO/RPO table specifies cross-region RTO < 4 h via active-passive failover; the runbook states there is no cross-region strategy in this design. *(Resolved by Q3 — single-region is the design. Severity dropped from High: this is now a two-row deletion plus one runbook sentence, worked in phase 8.)* | `operations.md:229` vs § runbook |
 | SB-22 | Medium | **The error catalog claims to be exhaustive and is not.** *"Every error code produced by any endpoint in the platform is listed here."* Read-side behaviour is no longer stated, and MediaProfile draft refusals are specified as uncoded `422 InvalidOperation` with no rows. | `error-catalog.md:7` |
@@ -162,7 +162,7 @@ history projector, and whether a backfill is specified · SB-52 **High** Registr
 3-year periods and erasure tombstoning with no specified actor, trigger evaluation or process · SB-53 read
 endpoints are specified as carrying no `errorCode`, which contradicts `api-conventions.md` · SB-59 the permitted
 `WithMetadata` extension member set is unspecified · SB-60 the name-reservation probe assumes an
-`aspnetcore-platform` registration point that no document specifies.
+`mgq-dotnet-platform` registration point that no document specifies.
 
 **Platform / operations** — SB-54 the `deploySearch` activation condition for `Projectors.Search` now exists
 only inside fenced diagrams · SB-55 the staging promote mechanism is unspecified · SB-56 the prod gate defers
@@ -614,8 +614,8 @@ answering them is remediation work rather than a precondition for starting it.
 
 ## Dependencies
 
-**Documents:** **`AP-001`** — [Idempotency — the store contract cannot express the standard](../../../aspnetcore-platform/reviews/idempotency-conformance/idempotency-conformance-review-2026-09-16.md),
-raised in `aspnetcore-platform` on 2026-09-16 out of this review's Q9.
+**Documents:** **`AP-001`** — [Idempotency — the store contract cannot express the standard](../../../mgq-dotnet-platform/reviews/idempotency-conformance/idempotency-conformance-review-2026-09-16.md),
+raised in `mgq-dotnet-platform` on 2026-09-16 out of this review's Q9.
 
 **Promote this to the plan's `depends-on` when the plan is written**, and point it at `AP-001`'s *plan* id
 rather than the review id once that exists — a review that has produced no plan resolves as an **unmet**
@@ -633,7 +633,7 @@ Otherwise none. This was the first review on a fresh board; `reviews/` and `plan
 Specifying authorization (group A) does not depend on it — the rule can be written before the claim is issued —
 but implementing it will.
 
-`aspnetcore-platform` is **not** an external blocker. It carried no adoption marker until 2026-09-16, which
+`mgq-dotnet-platform` is **not** an external blocker. It carried no adoption marker until 2026-09-16, which
 would have made it one; the marker was added (`prefix: AP`, `we-operate: true`) because we own that repo, so
 the work is tracked there as a first-class review instead of as a hand-off note here.
 
@@ -697,7 +697,7 @@ quoting it is rewritten**, and the domain model is quoted by everything.
      Needs the infected-originals ADR from phase 2 first.
    - **SB-20 + SB-72 + SB-73 + SB-74** — idempotency, rewritten against the IETF draft. **First task of the
      item is establishing whether `Magiq.AspNetCore.Idempotency` can store and replay a response envelope.**
-     If it cannot, this becomes `blocked-by-external` on `aspnetcore-platform` and the plan records it as
+     If it cannot, this becomes `blocked-by-external` on `mgq-dotnet-platform` and the plan records it as
      such rather than as a spec edit.
 6. **Close the context gaps** (group D), one bounded context at a time — DocumentSigning first, since it has
    the most and is least entangled with the rest.
@@ -717,7 +717,7 @@ than what the documents say:
 - **Branch strategy.** The repo sits on `spec/initial-alignment`, which is not in the GitFlow table in the
   repo `CLAUDE.md`. This workstream touches ~100 files across nine phases. One long-lived branch or one per
   phase is a real choice, and the plan's `branches: []` expects appends either way.
-- **The `aspnetcore-platform` question** (Q9). Resolve it early: it decides whether phase 5 contains a spec
+- **The `mgq-dotnet-platform` question** (Q9). Resolve it early: it decides whether phase 5 contains a spec
   edit or a `blocked-by-external` entry, and that changes the plan's status.
 - **Who owns the seven seeded platform `MediaProfile`s** once `owner_system` is removed (Q5). Flagged as
   phase 3, not a blocker on starting, but it is new design and needs an owner.

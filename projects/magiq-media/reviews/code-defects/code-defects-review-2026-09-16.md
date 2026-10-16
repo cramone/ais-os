@@ -215,7 +215,7 @@ available**; that is what the rule change removed.
    outbox and rejected it on evidence: *"`IOutboxStore.EnqueueAsync` takes no transaction handle and issues
    its own write, and single-aggregate `DynamoDbEventStore.SaveAsync` is a plain `PutItem` — there is no
    transaction for an outbox row to join. Adopting `Magiq.Platform.Messaging.Outbox` as it ships **narrows**
-   the window … True atomicity needs a change in `aspnetcore-platform`."* Adopting it is a partial remedy,
+   the window … True atomicity needs a change in `mgq-dotnet-platform`."* Adopting it is a partial remedy,
    not a fix, and the ADR names that explicitly as the thing not to do blind.
 
    **ADR-005's own revisit trigger is the answer, and it is not met.** *"Let measurement choose the
@@ -224,7 +224,7 @@ available**; that is what the rule change removed.
    makes it one piece of work answering two clusters.
 
    **The real remedy is scoped into `AP-001`.** A transaction-participating outbox is a change in
-   `aspnetcore-platform`, which is where AP-001 already sits and where a release chain is being paid for
+   `mgq-dotnet-platform`, which is where AP-001 already sits and where a release chain is being paid for
    alongside the `IIdempotencyStore` work and ADO #35085.
 
    **Consequence for this cluster:** CD-3 stops being a decision and becomes two items — the metric here,

@@ -3,13 +3,13 @@ id: MM-018
 type: plan
 project: magiq-media
 workstream: WS-16a-authority-metadata
-repo: aspnetcore-platform
-tags: [aspnetcore-platform, sdk, messaging, authority, audit]
+repo: mgq-dotnet-platform
+tags: [mgq-dotnet-platform, sdk, messaging, authority, audit]
 consumes: []
 blocked-by-external: []
 status: shipped
 branches: [feature/chase/MM-018-WS-16a-authority-metadata]
-pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/50
+pr: https://github.com/sprbrk-standard/mgq-dotnet-platform/pull/50
 merge-sha: fd6fc381
 shipped: 2026-10-13
 created: 2026-10-08
@@ -18,7 +18,7 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/platform
 
 # WS-16a — `Authority` on `MessageMetadata` + event-store envelope + SNS propagation
 
-**Target repo:** `aspnetcore-platform` — `D:\source\github\magiqsoftware\aspnetcore-platform`
+**Target repo:** `mgq-dotnet-platform` — `D:\source\github\sprbrk-standard\mgq-dotnet-platform`
 **Depends on:** none
 **Unblocks:** MM-036 (WS-16b — magiq-media populates `Authority` on retention/legal-hold/court-order flows)
 
@@ -26,13 +26,13 @@ Delivers F094. Enables cross-service audit traceability for authority-driven eve
 
 ## Session invocation
 
-Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnetcore-platform`. Paste:
+Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-dotnet-platform`. Paste:
 
 > Picking up WS-16a (plan MM-018). Plan at `Z:\claudia\magiq\projects\magiq-media\plans\WS-16a-authority-metadata\WS-16a-authority-metadata-plan.md`. Gap: `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\dependency-gaps\platform-capabilities\F094-authority-on-message-metadata.md`.
 >
 > `Authority = { Kind, Reference, Narrative? }`. Optional on `MessageMetadata`, event-store envelope, `IExecutionContext`. Propagated unchanged through command dispatch → event raise → outbox → SNS. Consuming handler's raised event inherits `Authority` from source event's metadata (document rule).
 >
-> PR to `aspnetcore-platform/main`.
+> PR to `mgq-dotnet-platform/main`.
 
 ## Phase 0 — Scope confirmation
 - [ ] Read F094 § Required-shape + § Detection signals
@@ -65,7 +65,7 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 
 ## Phase 6 — Package + ship
 - [ ] Bump `Magiq.Platform.*` version
-- [ ] PR to `aspnetcore-platform/main`
+- [ ] PR to `mgq-dotnet-platform/main`
 
 ## Phase 7 — Close
 - [ ] F094: `status: shipped (SDK portion)`

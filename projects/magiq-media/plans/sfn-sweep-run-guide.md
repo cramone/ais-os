@@ -5,7 +5,7 @@ Purpose: sequential steps and copy-paste prompts to (A) sweep `docs/spec/**` for
 Guardrails throughout:
 
 - Never `/commit` without user say-so per session — this guide names the commit moments.
-- Never read `magiq-media` `src/`, `tests/`, or infra. Only `aspnetcore-platform` if a platform capability check is needed.
+- Never read `magiq-media` `src/`, `tests/`, or infra. Only `mgq-dotnet-platform` if a platform capability check is needed.
 - Never edit spec files outside the current step's file list.
 - If `docs_guard.py` fails, fix before landing — never `--no-verify`.
 - Fresh Claude session between Phase A and Phase B — keeps context focused.

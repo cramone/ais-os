@@ -34,7 +34,7 @@ running is how the citations got in.
 **Phase 10 was lifted out on 2026-09-18 and is now [ADO #35118](https://dev.azure.com/MAGIQSoftware/Media/_workitems/edit/35118).**
 It was the SDK release gate, and it was the one phase that contradicted this plan's documents-only scope.
 Two things happened the same day: the repo `CLAUDE.md` inverted the spec-versus-code rule — the spec is
-authoritative, a gap is a **code** defect — and `AP-001` was **removed** from `aspnetcore-platform` rather
+authoritative, a gap is a **code** defect — and `AP-001` was **removed** from `mgq-dotnet-platform` rather
 than shipped. That left two code-and-release boxes with no dependency to track them, so they moved to the
 board.
 
@@ -81,7 +81,7 @@ the merge. **It never reached `develop` and was never meant to** — it is stack
   `workstream:` field, but the plan itself carries a monotonic `MM-<nnn>` id (Tower regex
   `^[A-Z]{2,}-\d{3}$`). Because gap files are the origin — not a review or feature-request
   document — each such plan carries an `exception:` line citing the gap file and the theme
-  INDEX row. Joint workstreams split into `WS-NNa` (external repo: `aspnetcore-platform` /
+  INDEX row. Joint workstreams split into `WS-NNa` (external repo: `mgq-dotnet-platform` /
   `magiq-auth` / `cdk-magiq-media`) and `WS-NNb` (magiq-media integration); each half gets its
   own plan folder when scheduled.
 - **Plan status** — `active` | `blocked` | `parked` | `superseded` | `done`. Front-matter is authoritative;

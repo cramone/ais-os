@@ -73,7 +73,7 @@ Open a new Claude Code session and `cd` into `D:\source\github\sprbrk-standard\m
 
 ## Phase 0 — Scope confirmation
 - [ ] Read spec § Seeding (`system-architecture.md`) and the ADR bullet
-- [ ] Confirm the row shape against `aspnetcore-platform` `ReadModelTableMetadataStore.InitializeAsync` + `Map` (attribute names and types)
+- [ ] Confirm the row shape against `mgq-dotnet-platform` `ReadModelTableMetadataStore.InitializeAsync` + `Map` (attribute names and types)
 - [ ] List every host function in `magiq-media-stack.ts` that must depend on the seed
 - [ ] Check stack resource headroom: +24 custom resources + 1 provider (CloudFormation 500-resource limit)
 
@@ -120,6 +120,7 @@ Open a new Claude Code session and `cd` into `D:\source\github\sprbrk-standard\m
 The plan's card moves to `done` only after Chase agrees the work is implemented and complete. The closing card comment records every branch the work was committed to.
 
 ## Session log
-- 2026-10-08: plan drafted. Spec § Seeding and the ADR bullet written the same day. Origin: review of aspnetcore-platform `feature/guid-projection-rotation`, which added host-startup seeding — rejected for cold-start cost and because it needs write access on read-only hosts (see MM-078).
+- 2026-10-08: plan drafted. Spec § Seeding and the ADR bullet written the same day. Origin: review of mgq-dotnet-platform `feature/guid-projection-rotation`, which added host-startup seeding — rejected for cold-start cost and because it needs write access on read-only hosts (see MM-078).
 - 2026-10-08: activated after MM-078 (WS-56) shipped (PR #28, `b97b9772`): the SDK no longer seeds from hosts, so until this ships nothing seeds `read-model-metadata` in any deployed environment.
 - 2026-10-08: returned to `new` before any work started — Chase is sequencing the SDK plans first and all CDK plans (MM-077, MM-009, MM-026, MM-027, MM-031) last. No `schemaVersion` bump until this ships.
+- 2026-10-15: shipped on `spec/initial-alignment` in `cdk-magiq-media` (pending merge). One commit — `ReadModelMetadataSeed` construct per plan § Design: one `AwsCustomResource` per manifest table doing conditional `PutItem` with `attribute_not_exists(TableId)`; `ConditionalCheckFailedException` ignored; no `onDelete`. Row shape matches `ReadModelTableMetadataStore.InitializeAsync` (`TableId` + `ActiveVersion` + `ReplayInProgress` + `LastRotatedAt`). Scoped IAM (`dynamodb:PutItem` on the metadata table ARN only + CMK). `addDependents()` helper wires every host Lambda to depend on every seed so CloudFormation writes rows before deployed code runs. `installLatestAwsSdk: false`. Follow-up commit cleared a DistributedMap validation that surfaced during synth (dropped `mode: DISTRIBUTED` from the four cascade `itemProcessor` configs — `mapExecutionType` on the DistributedMap constructor is the authoritative execution-type setter). MM-067 (WS-33) flipped `new -> ready`.

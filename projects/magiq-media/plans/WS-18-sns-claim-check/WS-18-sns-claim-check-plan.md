@@ -3,13 +3,13 @@ id: MM-029
 type: plan
 project: magiq-media
 workstream: WS-18-sns-claim-check
-repo: aspnetcore-platform
-tags: [aspnetcore-platform, sdk, outbox, sns, s3, claim-check]
+repo: mgq-dotnet-platform
+tags: [mgq-dotnet-platform, sdk, outbox, sns, s3, claim-check]
 consumes: []
 blocked-by-external: [MM-023]
 status: shipped
 branches: [feature/chase/MM-029-WS-18-sns-claim-check]
-pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/49
+pr: https://github.com/sprbrk-standard/mgq-dotnet-platform/pull/49
 merge-sha: afa706db
 shipped: 2026-10-13
 created: 2026-10-08
@@ -18,7 +18,7 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/platform
 
 # WS-18 — SNS claim-check envelope + item-level S3 offload + bounded relay retries
 
-**Target repo:** `aspnetcore-platform` — `D:\source\github\magiqsoftware\aspnetcore-platform`
+**Target repo:** `mgq-dotnet-platform` — `D:\source\github\sprbrk-standard\mgq-dotnet-platform`
 **Depends on:** MM-023 (WS-21 — outbox + relay)
 **Unblocks:** large events / envelopes stop being unshippable
 
@@ -26,13 +26,13 @@ Delivers F008. Item-level offload > 350 KB; outbox-envelope claim-check > 240 KB
 
 ## Session invocation
 
-Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnetcore-platform`. Confirm MM-023 (WS-21) shipped. Paste:
+Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-dotnet-platform`. Confirm MM-023 (WS-21) shipped. Paste:
 
 > Picking up WS-18 (plan MM-029). Plan at `Z:\claudia\magiq\projects\magiq-media\plans\WS-18-sns-claim-check\WS-18-sns-claim-check-plan.md`. Gap: `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\dependency-gaps\platform-capabilities\F008-sns-claim-check-and-item-offload.md`.
 >
 > Depends on WS-21 (MM-023). Pre-publish: event > 350 KB → S3 `event-payloads/{guid}`, body = `{"payloadRef":"s3://..."}`. Outbox entry > 240 KB → S3 `event-envelopes/{guid}`, SNS message = `{"envelopeRef":"s3://..."}`. Outbox relay 10-attempt bound; exhaustion raises `OutboxEntryParked` + dead store.
 >
-> PR to `aspnetcore-platform/main`.
+> PR to `mgq-dotnet-platform/main`.
 
 ## Phase 0 — Scope confirmation
 - [ ] Read F008 § Required-shape, § Detection signals
@@ -70,7 +70,7 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 
 ## Phase 6 — Package + ship
 - [ ] Bump `Magiq.Platform.*` version
-- [ ] PR to `aspnetcore-platform/main`
+- [ ] PR to `mgq-dotnet-platform/main`
 
 ## Phase 7 — Close
 - [ ] F008: shipped
@@ -86,4 +86,4 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
   - 10 new unit tests: 5 under `tests/.../EventSourcing/ItemLevelS3OffloadTests.cs` (under-budget inline, single-over-budget offloaded, mixed largest-first, no-S3-store no-op, empty batch) + 5 under `tests/.../Messaging/OutboxEnvelopeClaimCheckTests.cs` (offloader respects threshold, offloads with stub + `EnvelopeS3Uri`, no-op without store or without bucket, processor republishes `OutboxEnvelopeReference` as data). Full non-Docker regression 225 pass. Docker-dependent fixtures unchanged.
   - **Scope cut**: downstream consumer-side resolution (SQS reader detects `envelopeRef`, fetches from S3, deserializes full envelope) not in this PR. `IOutboxEnvelopeStore.DownloadEnvelopeAsync` is on the interface for the next workstream to wire.
   - **No `Magiq.Platform.*` version bump** — batched once the dependency-gap plans are done.
-- 2026-10-13: PR #49 merged to `aspnetcore-platform/main` as `afa706db`. Tower MM-029 flipped `new` → `done`. Phase 4 (S3 bucket + IAM + CloudWatch alarm) is cdk-magiq-media work; cross-reference added under WS-21d / WS-25-cdk tracking. `docs/dependency-gaps/platform-capabilities/INDEX.md` + F008 status update not in the Z:/claudia/magiq snapshot — closure recorded in Tower + this session log only.
+- 2026-10-13: PR #49 merged to `mgq-dotnet-platform/main` as `afa706db`. Tower MM-029 flipped `new` → `done`. Phase 4 (S3 bucket + IAM + CloudWatch alarm) is cdk-magiq-media work; cross-reference added under WS-21d / WS-25-cdk tracking. `docs/dependency-gaps/platform-capabilities/INDEX.md` + F008 status update not in the Z:/claudia/magiq snapshot — closure recorded in Tower + this session log only.

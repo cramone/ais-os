@@ -101,7 +101,7 @@ Supporting context, read only as needed:
   validators, response-DTO `TenantId` leak) are **out of scope** unless they change
   what another module receives or does.
 - Route by the project's folder map: code in `D:\source\github\sprbrk-standard\mgq-magiq-media`, spec/ADRs
-  in its `docs\`, deploy in `cdk-magiq-media`, platform SDK in `aspnetcore-platform`.
+  in its `docs\`, deploy in `cdk-magiq-media`, platform SDK in `mgq-dotnet-platform`.
   Don't hand-edit the `Media.wiki`.
 - Preserve the review's finding IDs (MI-C2, MI-H1, MI-H2, MI-FP1, MI-FC1, …) so the
   report is traceable back to the source review.

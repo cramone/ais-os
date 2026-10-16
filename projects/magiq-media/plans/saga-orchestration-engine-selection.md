@@ -580,7 +580,7 @@ substrate.
 
 - The four state machine definitions (specified but not deployed as CDK
   constructs in `cdk-magiq-media`)
-- Step Functions client integration in `aspnetcore-platform` (task-token
+- Step Functions client integration in `mgq-dotnet-platform` (task-token
   callback helpers, execution-name conventions, activity worker registration)
 
 **Estimated time:** one iteration.

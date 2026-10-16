@@ -3,13 +3,13 @@ id: MM-023c
 type: plan
 project: magiq-media
 workstream: WS-21c-outbox-table-split
-repo: aspnetcore-platform
-tags: [aspnetcore-platform, sdk, outbox, dynamodb, schema]
+repo: mgq-dotnet-platform
+tags: [mgq-dotnet-platform, sdk, outbox, dynamodb, schema]
 consumes: []
 blocked-by-external: []
 status: shipped
 branches: [feature/chase/MM-023c-WS-21c-outbox-table-split]
-pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/44
+pr: https://github.com/sprbrk-standard/mgq-dotnet-platform/pull/44
 merge-sha: 084dd6a8
 shipped: 2026-10-12
 created: 2026-10-12
@@ -20,7 +20,7 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/platform
 
 # WS-21c — Outbox table split (`outbox-pending` + `outbox-dead`)
 
-**Target repo:** `aspnetcore-platform` (+ `cdk-magiq-media` for CDK side)
+**Target repo:** `mgq-dotnet-platform` (+ `cdk-magiq-media` for CDK side)
 
 ## Scope — corrected 2026-10-12
 

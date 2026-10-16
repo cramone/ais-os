@@ -49,5 +49,5 @@ Current CLI covers 6 of 11: `asset`, `media-item`, `folder`, `collection`, `medi
 
 ## Session log
 - 2026-10-08: plan drafted (blocked by user policy)
-- 2026-10-08: added External prerequisite on the SDK `RotationMetadataSeeder` (aspnetcore-platform `feature/guid-projection-rotation`); corrected the remaining-five aggregate list against `consistency-model.md` § 1.
+- 2026-10-08: added External prerequisite on the SDK `RotationMetadataSeeder` (mgq-dotnet-platform `feature/guid-projection-rotation`); corrected the remaining-five aggregate list against `consistency-model.md` § 1.
 - 2026-10-08: prerequisite moved from the SDK startup seeder to MM-077 (WS-55, CDK seeding) after Chase ruled hosts must not seed; `blocked-by-external: [MM-077]`.

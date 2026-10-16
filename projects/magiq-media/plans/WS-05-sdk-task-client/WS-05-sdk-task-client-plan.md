@@ -3,13 +3,13 @@ id: MM-010
 type: plan
 project: magiq-media
 workstream: WS-05-sdk-task-client
-repo: aspnetcore-platform
-tags: [aspnetcore-platform, sdk, step-functions, saga]
+repo: mgq-dotnet-platform
+tags: [mgq-dotnet-platform, sdk, step-functions, saga]
 consumes: []
 blocked-by-external: []
 status: shipped
 branches: [feature/chase/MM-010-WS-05-sdk-task-client]
-pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/36
+pr: https://github.com/sprbrk-standard/mgq-dotnet-platform/pull/36
 merge-sha: b89ef0e1
 shipped: 2026-10-12
 created: 2026-10-08
@@ -18,7 +18,7 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/saga-orc
 
 # WS-05 — SDK task-client helpers for Step Functions
 
-**Target repo:** `aspnetcore-platform` — `D:\source\github\magiqsoftware\aspnetcore-platform`
+**Target repo:** `mgq-dotnet-platform` — `D:\source\github\sprbrk-standard\mgq-dotnet-platform`
 **Depends on:** none
 **Unblocks:** MM-031 (WS-04 CDK state machines), MM-075 (WS-08 infection branch activity), MM-076 (WS-07 DocumentSigning activity Lambdas)
 
@@ -26,17 +26,17 @@ ADR `docs/adrs/saga-orchestration-engine.md` requires platform SDK helpers for S
 
 ## Session invocation
 
-Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnetcore-platform`. Paste:
+Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-dotnet-platform`. Paste:
 
 > Picking up WS-05 (plan MM-010). Plan at `Z:\claudia\magiq\projects\magiq-media\plans\WS-05-sdk-task-client\WS-05-sdk-task-client-plan.md`. Reference ADR: `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\adrs\saga-orchestration-engine.md`.
 >
 > Deliver `IStepFunctionsTaskClient` with `SendTaskSuccessAsync` + `SendTaskFailureAsync`. Add optional `TaskToken` on `MessageMetadata`, serialize across SNS→SQS. Add `StepFunctionsExecutionName.For(tenantId, sagaType, sagaId)` helper enforcing SFN naming rules.
 >
-> Read `aspnetcore-platform/CLAUDE.md`. PR to `aspnetcore-platform/main`.
+> Read `mgq-dotnet-platform/CLAUDE.md`. PR to `mgq-dotnet-platform/main`.
 
 ## Phase 0 — Scope confirmation
 - [ ] Read ADR § Platform SDK requirements
-- [ ] Read `aspnetcore-platform/CLAUDE.md`; identify messaging layer namespaces
+- [ ] Read `mgq-dotnet-platform/CLAUDE.md`; identify messaging layer namespaces
 - [ ] Confirm no existing `IStepFunctionsTaskClient` type
 
 ## Phase 1 — `IStepFunctionsTaskClient` + implementation
@@ -57,7 +57,7 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 - [ ] Unit: round-trip serialization, invalid execution-name refusal
 - [ ] Integration with LocalStack SFN (if infra available)
 - [ ] Bump `Magiq.Platform.*` package; push internal NuGet
-- [ ] PR to `aspnetcore-platform/main`
+- [ ] PR to `mgq-dotnet-platform/main`
 
 ## Phase 5 — Close
 - [ ] saga-orchestration/INDEX.md: WS-05 → § Shipped
@@ -71,4 +71,4 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
   - `StepFunctionsExecutionName.For(string tenantId, params string[] correlationParts)` composes `{tenantId}_{part0}_{part1}...`, validates per-segment against `^[0-9A-Za-z-._]+$` and bounds the composite to 80 chars (the AWS limit). The signature uses `correlationParts` rather than the plan's `(tenantId, sagaType, sagaId)` — the ADR puts saga type on the state machine, not the execution name, and all four saga types already compose multiple correlation segments (AssetIngestion is `{AssetId}_{AttemptNumber}`).
   - `MessageMetadata.TaskToken` added as init-only nullable property, not a positional constructor parameter — non-breaking. Round-trips through System.Text.Json automatically; absent token deserializes to null.
   - 22 new unit tests green locally; full solution build clean (0 errors, 4 warnings — pre-existing).
-- 2026-10-12: PR #36 merged to `aspnetcore-platform/main` as `b89ef0e1`. saga-orchestration/INDEX.md WS-05 moved to § Shipped; WS-04 (CDK) flipped `open` → `ready`. INTEGRATION-BACKLOG MM-010 to § Shipped; MM-031 (WS-04) flipped `new` → `ready`. Readiness summary bumped 64→63 `new`, 3→4 `ready`, 8→9 `shipped`. MM-075 (WS-08) + MM-076 (WS-07) remain blocked pending MM-031.
+- 2026-10-12: PR #36 merged to `mgq-dotnet-platform/main` as `b89ef0e1`. saga-orchestration/INDEX.md WS-05 moved to § Shipped; WS-04 (CDK) flipped `open` → `ready`. INTEGRATION-BACKLOG MM-010 to § Shipped; MM-031 (WS-04) flipped `new` → `ready`. Readiness summary bumped 64→63 `new`, 3→4 `ready`, 8→9 `shipped`. MM-075 (WS-08) + MM-076 (WS-07) remain blocked pending MM-031.

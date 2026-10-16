@@ -1,0 +1,138 @@
+---
+id: MM-120
+type: plan
+project: magiq-media
+workstream: WS-80-mediaitem-missing-routes
+repo: magiq-media
+tags: [magiq-media, catalog, mediaitem, http, routes, checkout, legal-hold, retention, erasure, dispositions]
+consumes: []
+blocked-by-external: []
+status: active
+branches: []
+created: 2026-10-16
+depends-on: 'MediaItem × write-model plan'
+breaking-change: API wire
+source: alignment-sweep-2026-10-15 cell MediaItem × http-routes
+---
+
+# WS-80 — MediaItem missing routes (12) + `DELETE /items/{id}` deprecation
+
+**Target repo:** `magiq-media`
+**Depends on:** MediaItem × write-model cell plan (provides commands/aggregate methods for checkout, legal-hold, retention, erasure, dispositions, reviewer-removal, role-order)
+
+## Problem
+
+Spec names 38 MediaItem HTTP routes. Code wires 27. **12 missing + 1 non-spec deprecation.**
+
+Missing (12):
+
+| spec route | theme |
+|---|---|
+| `PUT /v1/items/{itemId}/roles/{roleName}/order` | role management |
+| `DELETE /v1/items/{itemId}/reviewers/{reviewerId}` | review roster |
+| `POST /v1/items/{itemId}/dispositions` | lifecycle — disposition |
+| `POST /v1/items/{itemId}/legal-holds` | legal-hold |
+| `POST /v1/items/{itemId}/legal-holds/{holdId}/lift` | legal-hold |
+| `PUT /v1/items/{itemId}/retention-schedule` | retention |
+| `POST /v1/items/{itemId}/erase-personal-data` | erasure (named exception from `If-Match`) |
+| `POST /v1/items/{itemId}/checkout` | checkout |
+| `POST /v1/items/{itemId}/checkin` | checkout |
+| `POST /v1/items/{itemId}/checkout/abandon` | checkout |
+| `POST /v1/items/{itemId}/checkout/renew` | checkout |
+| `POST /v1/items/{itemId}/checkout/force-release` | checkout (System or `.All`) |
+
+Non-spec deprecation (1):
+
+- `DELETE /v1/items/{itemId}` — code wires it; spec removes it. Soft-delete is replaced by `POST /archive` (already wired) + `POST /dispositions` for terminal removal. Deprecate with `Deprecation: true` + `Sunset: <date>` headers for one release before removal.
+
+## Scope boundary
+
+- **Endpoint layer only.** Commands + handlers + aggregate methods for checkout, legal-hold, retention, erasure, dispositions, reviewer-removal, role-order belong to MediaItem × write-model cell plan. This plan dispatches commands that plan implements.
+- **Not in scope:** error-code wiring on new routes — MM-118 (`MediaItemErrorCodes`).
+- **Not in scope:** middleware adoption (`IPermissionService`, `If-Match`, `ETag`) — future MediaItem × middleware cell plan.
+- `POST /erase-personal-data` is a named `If-Match` exception (per `api-conventions.md`); middleware plan will exempt it.
+
+## Wire-visibility
+
+- Additive — 12 new routes.
+- Breaking — `DELETE /items/{itemId}` deprecated. Clients migrate to `POST /archive` + `POST /dispositions`.
+
+## What the spec requires
+
+- 12 new endpoints at the spec-named verbs + paths.
+- Each dispatches a spec-named command (write-model cell plan): `UpdateRoleOrderCommand`, `RemoveReviewerCommand`, `DisposeMediaItemCommand`, `PlaceLegalHoldCommand`, `LiftLegalHoldCommand`, `PinRetentionScheduleCommand`, `ErasePersonalDataCommand`, `CheckoutMediaItemCommand`, `CheckinMediaItemCommand`, `AbandonCheckoutCommand`, `RenewCheckoutCommand`, `ForceReleaseCheckoutCommand`.
+- `POST /checkout/force-release`: Authorization admits `actor.ActorType == "System"` **alongside** the resource predicate (per CLAUDE.md § Auth).
+- `POST /erase-personal-data` returns `204 No Content`; irrevocably erases personal data per erasure policy; **no `If-Match`** per spec exception.
+- `DELETE /items/{itemId}` route keeps 2xx + emits `Deprecation: true` + `Sunset: <ISO date>` headers for one release.
+
+## Session invocation
+
+Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-magiq-media`. Paste:
+
+> Picking up WS-80 (plan MM-120). MediaItem × write-model cell plan must ship first (12 new commands + aggregate methods for checkout/legal-hold/retention/erasure/dispositions/reviewer-removal/role-order). Wire 12 endpoints + deprecate DELETE /items/{itemId}.
+
+## Phase 0 — Scope confirmation
+
+- [ ] MediaItem × write-model plan shipped (12 new commands + aggregate methods)
+- [ ] `MediaItemErrorCodes` constants reachable (MM-118)
+- [ ] Confirm `DELETE /items/{itemId}` wire today (sanity)
+
+## Phase 1 — Role management + review roster
+
+- [ ] `UpdateRoleOrderEndpoint` at `PUT /v1/items/{itemId}/roles/{roleName}/order`
+- [ ] `RemoveReviewerEndpoint` at `DELETE /v1/items/{itemId}/reviewers/{reviewerId}`
+
+## Phase 2 — Lifecycle
+
+- [ ] `DisposeMediaItemEndpoint` at `POST /v1/items/{itemId}/dispositions`
+
+## Phase 3 — Legal hold
+
+- [ ] `PlaceLegalHoldEndpoint` at `POST /v1/items/{itemId}/legal-holds`
+- [ ] `LiftLegalHoldEndpoint` at `POST /v1/items/{itemId}/legal-holds/{holdId}/lift`
+
+## Phase 4 — Retention + erasure
+
+- [ ] `PinRetentionScheduleEndpoint` at `PUT /v1/items/{itemId}/retention-schedule`
+- [ ] `ErasePersonalDataEndpoint` at `POST /v1/items/{itemId}/erase-personal-data` — no `If-Match` (named exception)
+
+## Phase 5 — Checkout
+
+- [ ] `CheckoutMediaItemEndpoint` at `POST /v1/items/{itemId}/checkout`
+- [ ] `CheckinMediaItemEndpoint` at `POST /v1/items/{itemId}/checkin`
+- [ ] `AbandonCheckoutEndpoint` at `POST /v1/items/{itemId}/checkout/abandon`
+- [ ] `RenewCheckoutEndpoint` at `POST /v1/items/{itemId}/checkout/renew`
+- [ ] `ForceReleaseCheckoutEndpoint` at `POST /v1/items/{itemId}/checkout/force-release` — Authorization admits `System` actor + resource predicate
+
+## Phase 6 — Deprecate `DELETE /items/{itemId}`
+
+- [ ] Response emits `Deprecation: true` + `Sunset: <ISO date>` headers
+- [ ] Release notes name sunset date
+- [ ] Migration guidance: `POST /archive` (soft) + `POST /dispositions` (terminal)
+
+## Phase 7 — Tests
+
+- [ ] Integration per route: happy path + guard precedence (permission → exists → state → resource predicate per MM-118 refusals)
+- [ ] Integration: `POST /force-release` admits System actor
+- [ ] Integration: `POST /erase-personal-data` ignores `If-Match` (exempt)
+- [ ] Integration: `DELETE /items/{itemId}` still works + emits deprecation headers
+
+## Phase 8 — Communicate change
+
+- [ ] Breaking-changes.md entry (added in this sweep's Phase 3)
+- [ ] Coordinate with magiq-media-ui on 12 new routes + DELETE deprecation
+
+## Phase 9 — Ship
+
+- [ ] PR to `develop`
+
+## Phase 10 — Close
+
+- [ ] CLAUDE.md § KDPW: bullet removed
+- [ ] INTEGRATION-BACKLOG.md: MM-120 → § Shipped
+- [ ] spec-divergence/INDEX.md: WS-80 close row
+- [ ] breaking-changes.md: entry moves on release cut
+
+## Session log
+
+- 2026-10-16: plan drafted (alignment-sweep-2026-10-15 cell MediaItem × http-routes; status candidate; depends on MediaItem × write-model plan)

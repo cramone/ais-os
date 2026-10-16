@@ -1,0 +1,124 @@
+---
+id: MM-139
+type: plan
+project: magiq-media
+workstream: WS-99-retentionschedule-error-codes
+repo: magiq-media
+tags: [magiq-media, metadata, retentionschedule, error-codes, problemdetails]
+consumes: []
+blocked-by-external: []
+status: active
+branches: []
+created: 2026-10-16
+depends-on: 'MM-100 (SDK errorCode slot), MM-032 (duplicate-id exception)'
+breaking-change: API wire
+source: alignment-sweep-2026-10-15 cell RetentionSchedule × error-codes
+---
+
+# WS-99 — RetentionSchedule error codes: 24 `RetentionScheduleErrorCodes`
+
+**Target repo:** `magiq-media`
+**Depends on:** MM-100, MM-032
+
+> **Scope boundary — constants only.** Aggregate wholly unbuilt. This plan ships the `RetentionScheduleErrorCodes` constants class standalone. Handler + aggregate refusal-site uptake lands with MM-143 (RetentionSchedule × write-model), which consumes the constants.
+
+## Problem
+
+Spec [`error-catalog.md § Metadata — RetentionSchedule`](../../../../docs/spec/shared/error-catalog.md) names 24 codes. `RetentionSchedule` aggregate is **wholly unbuilt** in `src/` — zero files match. `RetentionScheduleErrorCodes` constants class absent; no handler emits a code.
+
+Spec codes (24):
+
+| code | status | condition |
+|---|---|---|
+| `RetentionScheduleNotFound` | 404 | Absent |
+| `RetentionScheduleVersionNotFound` | 404 | Named version never published |
+| `RetentionScheduleAlreadyExists` | 409 | Duplicate caller id |
+| `RetentionScheduleNameConflict` | 409 | Name taken (case-insensitive) |
+| `InvalidRetentionScheduleName` | 400 | Blank / > 128 |
+| `InvalidRetentionDefinition` | 400 | Required text blank / enum unknown / yearEnd invalid |
+| `InvalidRetentionPeriod` | 400 | Not ISO 8601 YMD duration with positive component |
+| `RetentionPeriodMismatch` | 422 | Period/action mismatch |
+| `PeriodBasisMismatch` | 422 | Basis/yearEnd/period mismatch |
+| `RetentionScheduleDraftAlreadyInProgress` | 409 | Revision open |
+| `RetentionScheduleNoActiveDraft` | 409 | Draft-gated with no draft |
+| `RetentionScheduleNothingToRevise` | 422 | Revision on never-published |
+| `CannotDiscardInitialRetentionScheduleDraft` | 422 | Discard initial draft |
+| `RetentionScheduleAlreadyPublished` | 422 | Abandon on published |
+| `RetentionScheduleAlreadyAbandoned` | 422 | Any command on abandoned |
+| `RetentionScheduleNotPublished` | 422 | Deprecate never-published |
+| `RetentionScheduleAlreadyDeprecated` | 422 | Second whole-schedule deprecate |
+| `RetentionScheduleDeprecated` | 422 | Mutation on deprecated |
+| `RetentionScheduleVersionAlreadyDeprecated` | 422 | Named version already deprecated |
+| `CannotDeprecateLastRetentionScheduleVersion` | 422 | Only live version |
+| `RetentionScheduleNotDeprecated` | 422 | Supersession on non-deprecated |
+| `RetentionScheduleVersionNotDeprecated` | 422 | Supersession on non-deprecated version |
+| `RetentionScheduleSupersessionAlreadyRecorded` | 422 | Pointer set |
+| `InvalidSupersededByRetentionSchedule` | 422 | `supersededBy` invalid |
+
+Related, out of scope: `RetentionScheduleNotPinnable 422` — owned by MediaItem (`error-catalog.md § MediaItem`), handled by MM-118.
+
+## What the spec requires
+
+- `RetentionScheduleErrorCodes` constants class — one `const string` per code.
+- Every refusal path in the forthcoming aggregate + handlers returns `DomainError.<Verb>(RetentionScheduleErrorCodes.<Code>, prose)`.
+- SDK slot (MM-100) carries the code to RFC 9457 ProblemDetails `errorCode` root.
+- Bulk-command envelope surfaces per-item `errorCode` under its row.
+
+## Wire-visibility
+
+- Additive — new `errorCode` payload on 400/404/409/422 refusals from (as-yet unbuilt) RetentionSchedule routes.
+
+## Scope boundary
+
+- Constants class only + handler-site uptake once write-model lands.
+- Aggregate build + handlers + endpoints → RetentionSchedule × write-model plan.
+- `RetentionScheduleNotPinnable 422` on MediaItem routes → MM-118.
+- `conflictingRetentionScheduleId` extension payload on name conflicts → folded into this plan (small; same shape as WS-51 for RecordType).
+
+## Session invocation
+
+Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-magiq-media`. Paste:
+
+> Picking up WS-99 (plan MM-139). MM-100 (SDK slot) + MM-032 must ship first; RetentionSchedule × write-model lands alongside.
+
+## Phase 0 — Scope confirmation
+
+- [ ] MM-100 shipped
+- [ ] MM-032 shipped (`AggregateAlreadyExistsException` surface)
+- [ ] RetentionSchedule × write-model plan in flight (aggregate + handlers that will call these constants)
+
+## Phase 1 — Constants + extension payload
+
+- [ ] `RetentionScheduleErrorCodes` static class with 24 `const string` entries matching catalog
+- [ ] `RetentionScheduleNameConflict` carries `conflictingRetentionScheduleId` extension payload (`DomainError.AlreadyExists(code, prose, extensions)`)
+
+## Phase 2 — Handler-site uptake
+
+- [ ] Every aggregate refusal returns `DomainError.<Verb>(RetentionScheduleErrorCodes.<Code>, prose)` — co-landed with RetentionSchedule × write-model
+
+## Phase 3 — Bulk envelope
+
+- [ ] Any bulk route (`POST /retention-schedules:batch` if present) surfaces per-item `errorCode`
+
+## Phase 4 — Tests
+
+- [ ] Unit: each code → ProblemDetails emits root-level `errorCode`
+- [ ] Integration: name conflict → body carries `conflictingRetentionScheduleId`
+
+## Phase 5 — Communicate change
+
+- [ ] Breaking-changes.md entry — API wire additive (new `errorCode` payload on refusals)
+
+## Phase 6 — Ship
+
+- [ ] PR to `develop`
+
+## Phase 7 — Close
+
+- [ ] CLAUDE.md § KDPW: bullet removed
+- [ ] INTEGRATION-BACKLOG.md: MM-139 → § Shipped
+- [ ] spec-divergence/INDEX.md: WS-99 close row
+
+## Session log
+
+- 2026-10-16: plan drafted (alignment-sweep-2026-10-15 cell RetentionSchedule × error-codes; mirror of MM-101/107/113/118/124/128/133 pattern; aggregate wholly unbuilt — call sites land with write-model plan)

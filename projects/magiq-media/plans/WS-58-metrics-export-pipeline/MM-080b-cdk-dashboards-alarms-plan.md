@@ -41,3 +41,4 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/platform
 
 ## Session log
 - 2026-10-12: drafted after WS-58 split.
+- 2026-10-15: shipped on `spec/initial-alignment` in `cdk-magiq-media` (pending merge). Two commits: (1) `MetricsDashboards` construct — five dashboards keyed by Meter namespace (MagiqMedia-{Messaging, EventSourcing, Projections, Catalog, Tenancy}) with widgets per spec-named metric; (2) `MetricsAlarms` construct — six alarms (`ArchivedItemsWithActiveRegistrations`, `GovernanceGroupUnresolved`, three `MediaErasurePending.*`, `projection.lag_seconds`) all paging `media-alarms-pager`. `OutboxEntryParked` alarm stays on OutboxRelay construct (MM-023d). Pager topic (`media-alarms-pager`) already shipped in MM-031 scaffolding; MM-080b scope narrowed accordingly. Alarms whose emitters are pending (F041 erasure, WS-36b lag) carry `TreatMissingData.NOT_BREACHING`. Nothing emits yet — WS-58c host registration remaining.

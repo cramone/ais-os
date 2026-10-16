@@ -3,8 +3,8 @@ id: MM-008
 type: plan
 project: magiq-media
 workstream: WS-24-loadasync-consistent-read
-repo: aspnetcore-platform
-tags: [aspnetcore-platform, sdk, event-store, consistency]
+repo: mgq-dotnet-platform
+tags: [mgq-dotnet-platform, sdk, event-store, consistency]
 consumes: []
 blocked-by-external: []
 status: done
@@ -15,7 +15,7 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/platform
 
 # WS-24 — `EventStoreRepository.LoadAsync` with `ConsistentRead = true`
 
-**Target repo:** `aspnetcore-platform` — `D:\source\github\magiqsoftware\aspnetcore-platform`
+**Target repo:** `mgq-dotnet-platform` — `D:\source\github\sprbrk-standard\mgq-dotnet-platform`
 **Depends on:** none
 **Unblocks:** safer read-your-write for name-reservation + aggregate loads
 
@@ -23,17 +23,17 @@ Spec requires strongly-consistent reads of the event-store. Today `LoadAsync` de
 
 ## Session invocation
 
-Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnetcore-platform`. Paste:
+Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-dotnet-platform`. Paste:
 
 > Picking up WS-24 (plan MM-008). Plan at `Z:\claudia\magiq\projects\magiq-media\plans\WS-24-loadasync-consistent-read\WS-24-loadasync-consistent-read-plan.md`.
 >
 > Flip `ConsistentRead = true` on `EventStoreRepository.LoadAsync` and snapshot read. Grep for other `ConsistentRead = false` in event-store layer and audit each. Document 2× RCU cost impact in PR description.
 >
-> Read `aspnetcore-platform/CLAUDE.md`. One PR to `aspnetcore-platform/main`.
+> Read `mgq-dotnet-platform/CLAUDE.md`. One PR to `mgq-dotnet-platform/main`.
 
 ## Phase 0 — Scope confirmation
 - [x] Read `docs/spec/shared/event-store-and-messaging.md` § Read Consistency *(file absent — exception noted; worked from WS-24 plan + repo CLAUDE.md)*
-- [x] Grep `ConsistentRead` across `aspnetcore-platform` event-store layer
+- [x] Grep `ConsistentRead` across `mgq-dotnet-platform` event-store layer
 - [x] Confirm `LoadAsync` is the only path currently defaulting to `false` *(found five sites — four read paths + `DeleteAsync` enumerate query; all flipped)*
 
 ## Phase 1 — Flip `ConsistentRead = true`
@@ -51,12 +51,12 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 
 ## Phase 4 — Package + ship
 - [x] Bump `Magiq.Platform.*` version *(1.1.3.5 → 1.1.3.6)*
-- [x] PR to `aspnetcore-platform/main` *(PR #31, merged)*
+- [x] PR to `mgq-dotnet-platform/main` *(PR #31, merged)*
 
 ## Phase 5 — Close
 - [ ] platform-capabilities/INDEX.md: WS-24 → § Shipped *(no INDEX file exists per plan `exception` note — row-tracked)*
 
 ## Session log
 - 2026-10-08: plan drafted
-- 2026-10-08: activated as the next SDK plan after MM-014 (WS-22) shipped. Same repo (`aspnetcore-platform`), Level 0 Phase A, no deps. Small scope — likely a one-attribute flip + audit of other `ConsistentRead = false` sites.
+- 2026-10-08: activated as the next SDK plan after MM-014 (WS-22) shipped. Same repo (`mgq-dotnet-platform`), Level 0 Phase A, no deps. Small scope — likely a one-attribute flip + audit of other `ConsistentRead = false` sites.
 - 2026-10-08: shipped. `DynamoDbEventStoreOptions.ConsistentRead` opt-in deleted (spec requires strong consistency, no opt-out); all 4 event-store read paths + `DeleteAsync` enumerate query hardcoded `true`. `DeleteAsync` gap caught in self-review before merge. PR #31 merged.

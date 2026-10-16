@@ -4,7 +4,7 @@ type: plan
 project: magiq-media
 workstream: WS-58-metrics-export-pipeline
 repo: magiq-media
-tags: [magiq-media, aspnetcore-platform, cdk-magiq-media, observability, metrics]
+tags: [magiq-media, mgq-dotnet-platform, cdk-magiq-media, observability, metrics]
 consumes: []
 blocked-by-external: []
 status: superseded
@@ -19,7 +19,7 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/platform
 
 **Target repos:**
 - the decision: `magiq-media` `docs/adrs/`
-- implementation: `aspnetcore-platform`, `cdk-magiq-media`, and the magiq-media hosts
+- implementation: `mgq-dotnet-platform`, `cdk-magiq-media`, and the magiq-media hosts
 
 **Depends on:** none
 **Unblocks:**

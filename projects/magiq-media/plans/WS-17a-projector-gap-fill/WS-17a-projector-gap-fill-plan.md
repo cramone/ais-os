@@ -3,13 +3,13 @@ id: MM-019
 type: plan
 project: magiq-media
 workstream: WS-17a-projector-gap-fill
-repo: aspnetcore-platform
-tags: [aspnetcore-platform, sdk, projections, ordering]
+repo: mgq-dotnet-platform
+tags: [mgq-dotnet-platform, sdk, projections, ordering]
 consumes: []
 blocked-by-external: []
 status: shipped
 branches: [feature/chase/MM-019-WS-17a-projector-gap-fill]
-pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/38
+pr: https://github.com/sprbrk-standard/mgq-dotnet-platform/pull/38
 merge-sha: 3eb18200
 shipped: 2026-10-12
 created: 2026-10-08
@@ -18,7 +18,7 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/platform
 
 # WS-17a — Projector stream-tail gap-fill read
 
-**Target repo:** `aspnetcore-platform` — `D:\source\github\magiqsoftware\aspnetcore-platform`
+**Target repo:** `mgq-dotnet-platform` — `D:\source\github\sprbrk-standard\mgq-dotnet-platform`
 **Depends on:** none
 **Unblocks:** MM-037 (WS-17b — regression tests on magiq-media)
 
@@ -26,13 +26,13 @@ Delivers F022. Today `ProjectionDispatcher` only compares `ProjectedVersion` —
 
 ## Session invocation
 
-Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnetcore-platform`. Paste:
+Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-dotnet-platform`. Paste:
 
 > Picking up WS-17a (plan MM-019). Plan at `Z:\claudia\magiq\projects\magiq-media\plans\WS-17a-projector-gap-fill\WS-17a-projector-gap-fill-plan.md`. Gap: `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\dependency-gaps\platform-capabilities\F022-projector-gap-fill-read.md`.
 >
 > On gap `N > P + 1`: read stream `(P, N]` with `ConsistentRead = true`, apply events sequentially, advance `ProjectedVersion` after each. Apply failure mid-batch: do not advance past failure. Multi-facet rows keep per-facet `SourceVersion`.
 >
-> PR to `aspnetcore-platform/main`.
+> PR to `mgq-dotnet-platform/main`.
 
 ## Phase 0 — Scope confirmation
 - [ ] Read F022 § Required-shape + § Detection signals
@@ -67,7 +67,7 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 
 ## Phase 6 — Package + ship
 - [ ] Bump `Magiq.Platform.*` version
-- [ ] PR to `aspnetcore-platform/main`
+- [ ] PR to `mgq-dotnet-platform/main`
 
 ## Phase 7 — Close
 - [ ] F022: `status: shipped (SDK portion)`
@@ -83,4 +83,4 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
   - `projector.gap_fill_events` counter on `Magiq.Platform.Projections` meter, tagged `aggregate.type` + `model.type`. `AddProjections` wires `services.AddMetrics()` + singleton `ProjectionDispatcherMetrics`.
   - Multi-facet `IProjector<TRow>` reshape (spec item: per-facet `SourceVersion` slots) explicitly out of scope. Spec's "SourceVersion per facet convention" stays handler-level. Deferred as its own workstream when it bites in practice.
   - 8 new unit tests green locally; full solution build clean; 61 all-WS regression tests pass together.
-- 2026-10-12: PR #38 merged to `aspnetcore-platform/main` as `3eb18200`. F022 → `status: sdk-shipped` with remainder noted. platform-capabilities/INDEX.md WS-17 split: WS-17a shipped row, WS-17b flipped to `ready`. INTEGRATION-BACKLOG MM-019 moved to § Shipped; MM-037 (WS-17b) flipped `new` → `ready`. Readiness summary bumped 62→61 `new`, 5→6 `ready`, 10→11 `shipped`.
+- 2026-10-12: PR #38 merged to `mgq-dotnet-platform/main` as `3eb18200`. F022 → `status: sdk-shipped` with remainder noted. platform-capabilities/INDEX.md WS-17 split: WS-17a shipped row, WS-17b flipped to `ready`. INTEGRATION-BACKLOG MM-019 moved to § Shipped; MM-037 (WS-17b) flipped `new` → `ready`. Readiness summary bumped 62→61 `new`, 5→6 `ready`, 10→11 `shipped`.

@@ -3,13 +3,13 @@ id: MM-079
 type: plan
 project: magiq-media
 workstream: WS-57a-snapshot-revision-sdk
-repo: aspnetcore-platform
-tags: [aspnetcore-platform, sdk, event-store, snapshots]
+repo: mgq-dotnet-platform
+tags: [mgq-dotnet-platform, sdk, event-store, snapshots]
 consumes: []
 blocked-by-external: [MM-013]
 status: shipped
 branches: [feature/chase/MM-079-WS-57a-snapshot-revision-sdk]
-pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/47
+pr: https://github.com/sprbrk-standard/mgq-dotnet-platform/pull/47
 merge-sha: 8109ffdd
 shipped: 2026-10-13
 created: 2026-10-08
@@ -18,7 +18,7 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/platform
 
 # WS-57a — Snapshots carry a revision (SDK)
 
-**Target repo:** `aspnetcore-platform` — `D:\source\github\magiqsoftware\aspnetcore-platform`
+**Target repo:** `mgq-dotnet-platform` — `D:\source\github\sprbrk-standard\mgq-dotnet-platform`
 **Depends on:** MM-013 (WS-23). A revision mismatch is one more trigger for WS-23's fallback, eviction and counter.
 **Unblocks:** MM-081 (WS-57b) — magiq-media declares `ChangeRequestSnapshot` at revision 2
 
@@ -47,11 +47,11 @@ Rationale: `docs/adrs/persistence-and-eventing.md` § A Snapshot Is a Cache. Axo
 
 ## Session invocation
 
-Open a new Claude Code session and `cd` into `D:\source\github\magiqsoftware\aspnetcore-platform`. Confirm MM-013 (WS-23) is merged. Branch off `main` as `feature/ws-57a-snapshot-revision`. Paste:
+Open a new Claude Code session and `cd` into `D:\source\github\sprbrk-standard\mgq-dotnet-platform`. Confirm MM-013 (WS-23) is merged. Branch off `main` as `feature/ws-57a-snapshot-revision`. Paste:
 
 > Picking up WS-57a (plan MM-079). Plan at `Z:\claudia\magiq\projects\magiq-media\plans\WS-57a-snapshot-revision-sdk\WS-57a-snapshot-revision-sdk-plan.md`. Spec: magiq-media `docs/spec/shared/event-store-and-messaging.md` § Snapshots.
 >
-> Add `[Snapshot(Revision = n)]` (default 1), store `Revision` on the snapshot row on save, compare stored (absent ⇒ 1) to declared on load before deserializing, and throw `SnapshotRevisionMismatchException` so WS-23's fallback discards, evicts and counts it with reason `revision_mismatch`. Read `CLAUDE.md` first. One PR to `aspnetcore-platform/main`.
+> Add `[Snapshot(Revision = n)]` (default 1), store `Revision` on the snapshot row on save, compare stored (absent ⇒ 1) to declared on load before deserializing, and throw `SnapshotRevisionMismatchException` so WS-23's fallback discards, evicts and counts it with reason `revision_mismatch`. Read `CLAUDE.md` first. One PR to `mgq-dotnet-platform/main`.
 
 ## Phase 0 — Scope confirmation
 - [ ] MM-013 (WS-23) merged: fallback, identity-keyed eviction, reason-tagged counter in place
@@ -78,7 +78,7 @@ Open a new Claude Code session and `cd` into `D:\source\github\magiqsoftware\asp
 - [ ] `SnapshotAttribute` rejects `Revision < 1`
 
 ## Phase 4 — Ship
-- [ ] PR to `aspnetcore-platform/main`; note the additive stored-format change and that consumers retire stale snapshots by bumping `[Snapshot(Revision = n)]`
+- [ ] PR to `mgq-dotnet-platform/main`; note the additive stored-format change and that consumers retire stale snapshots by bumping `[Snapshot(Revision = n)]`
 - [ ] No package bump (bumped once the dependency-gap plans are done)
 
 ## Phase 5 — Close
@@ -97,4 +97,4 @@ The plan's card moves to `done` only after Chase agrees the work is implemented 
   - `EventSourcingMetrics.ReasonRevisionMismatch = "revision_mismatch"`. `EventStoreRepository.ClassifyFallbackReason` routes `SnapshotRevisionMismatchException` to it, so WS-23's existing fallback-eviction-counter path handles it without any further changes.
   - 7 unit tests under `tests/Magiq.AspNetCore.Tests/EventSourcing/SnapshotRevisionTests.cs`: attribute rejects `Revision < 1`, lookup absent-attribute → 1, lookup honours declared revision on a `[Snapshot(2)]` test type, in-memory default round trip, in-memory stored-ahead-of-declared throws `SnapshotRevisionMismatchException`, repo revision-mismatch falls back to replay + evicts + counter tagged `revision_mismatch`, and the serializer throws before deserializing payload (deliberately undeserializable payload still yields `revision_mismatch`, not `restore`). Full non-Docker suite 207 pass; Docker-dependent fixtures unchanged.
   - No `Magiq.Platform.*` version bump — batched once the dependency-gap plans are done.
-- 2026-10-13: PR #47 merged to `aspnetcore-platform/main` as `8109ffdd`. Tower MM-079 (WS-57a) flipped `new` → `done`; MM-081 (WS-57b — magiq-media declares `ChangeRequestSnapshot` at revision 2) tagged `ready`. `docs/dependency-gaps/platform-capabilities/INDEX.md` + `INTEGRATION-BACKLOG` not present in the Z:/claudia/magiq snapshot — closure recorded in Tower + this session log only.
+- 2026-10-13: PR #47 merged to `mgq-dotnet-platform/main` as `8109ffdd`. Tower MM-079 (WS-57a) flipped `new` → `done`; MM-081 (WS-57b — magiq-media declares `ChangeRequestSnapshot` at revision 2) tagged `ready`. `docs/dependency-gaps/platform-capabilities/INDEX.md` + `INTEGRATION-BACKLOG` not present in the Z:/claudia/magiq snapshot — closure recorded in Tower + this session log only.

@@ -3,13 +3,13 @@ id: MM-023b
 type: plan
 project: magiq-media
 workstream: WS-21b-transactional-outbox-pipeline-wiring
-repo: aspnetcore-platform
-tags: [aspnetcore-platform, sdk, outbox, pipeline, middleware]
+repo: mgq-dotnet-platform
+tags: [mgq-dotnet-platform, sdk, outbox, pipeline, middleware]
 consumes: []
 blocked-by-external: []
 status: shipped
 branches: [feature/chase/MM-023b-WS-21b-outbox-pipeline-wiring]
-pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/43
+pr: https://github.com/sprbrk-standard/mgq-dotnet-platform/pull/43
 merge-sha: 8da1d997
 shipped: 2026-10-12
 created: 2026-10-12
@@ -20,7 +20,7 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/platform
 
 # WS-21b — Transactional outbox pipeline wiring
 
-**Target repo:** `aspnetcore-platform`
+**Target repo:** `mgq-dotnet-platform`
 **Depends on:** MM-023a (shipped primitive)
 **Unblocks:** MM-023d (relay Lambda) only in combination with MM-023c, downstream MM-028/MM-029/MM-069 unblocked once c+d ship
 

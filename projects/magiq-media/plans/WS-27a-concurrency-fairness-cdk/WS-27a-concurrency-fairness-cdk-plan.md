@@ -67,3 +67,4 @@ Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-
 
 ## Session log
 - 2026-10-08: plan drafted
+- 2026-10-15: shipped on `spec/initial-alignment` in `cdk-magiq-media` (pending merge). Two commits plus a prerequisite spec patch: (0) spec correction in `event-store-and-messaging.md` — the two `media.collection.{archive,unarchive}-started` catalog rows said consumers routed "via media-cascade-triggers" but the queue-topology table + saga ADR both put them on EventBridge → StartExecution; corrected to spec; (1) `media-cascade-triggers` SQS queue + DLQ + depth alarm + body-scope filter on `{media.folder.closed, media.profile.published}`; `QueuePairOptions` gained `filterPolicyWithMessageBody`; (2) `reservedConcurrentExecutions = 100` on Api + QueryApi, `maxConcurrency` on four event-source mappings (ReadModel 50, Search 20, CrossModule 50, Processing 20). MM-046 (WS-27b) flipped `new -> ready`.

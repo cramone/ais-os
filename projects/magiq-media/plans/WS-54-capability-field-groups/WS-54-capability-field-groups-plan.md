@@ -16,20 +16,20 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/spec-div
 # WS-54 — Capability field groups (`ICapabilityFieldRegistry` + schemes + route + metric)
 
 **Target repo:** `magiq-media` — `D:\source\github\sprbrk-standard\mgq-magiq-media`
-**Depends on:** MM-022 (WS-28a — versioned embedded resources alias path, shipped as aspnetcore-platform PR #41 `afaabf09`)
+**Depends on:** MM-022 (WS-28a — versioned embedded resources alias path, shipped as mgq-dotnet-platform PR #41 `afaabf09`)
 **Unblocks:** MM-064 WS-29 (`MediaProfileCreated.ProfileOrigin`) + anything downstream that gates on scheme discovery.
 
 Delivers `ICapabilityFieldRegistry` + four embedded classification schemes + `/v1/capability-field-groups/{capability}` route + `Catalog/GovernanceGroupUnresolved` metric. Supersedes the former WS-54a (SDK) + WS-54b (host) split — the registry is Catalog-domain, not SDK, so the whole workstream lives in `magiq-media`.
 
 ## BC-agnostic scope correction (2026-10-13) — merged into one magiq-media plan
 
-The former WS-54a plan was drafted targeting `aspnetcore-platform` SDK. That was wrong: `ICapabilityFieldRegistry` is keyed on `Capability` (nine-value MediaProfile capability enum — `Processing`, `Registration`, `Governance`, `CheckInOut`, `Retention`, `AssetDefinition`, `Review`, `Signing`, `ChangeRequests`) and returns `CapabilityFieldGroup` carrying `IReadOnlyList<FieldDefinition>` where `FieldDefinition` is MediaProfile's own metadata-schema type. `Capability` and `FieldDefinition` are Catalog domain types — the SDK has no concept of them, and shouldn't acquire one. The spec itself says *"The definitions ship with Catalog. Each group is an embedded, versioned resource in the Catalog assembly."* (`mediaprofile.write-model.md` § `security_classification`).
+The former WS-54a plan was drafted targeting `mgq-dotnet-platform` SDK. That was wrong: `ICapabilityFieldRegistry` is keyed on `Capability` (nine-value MediaProfile capability enum — `Processing`, `Registration`, `Governance`, `CheckInOut`, `Retention`, `AssetDefinition`, `Review`, `Signing`, `ChangeRequests`) and returns `CapabilityFieldGroup` carrying `IReadOnlyList<FieldDefinition>` where `FieldDefinition` is MediaProfile's own metadata-schema type. `Capability` and `FieldDefinition` are Catalog domain types — the SDK has no concept of them, and shouldn't acquire one. The spec itself says *"The definitions ship with Catalog. Each group is an embedded, versioned resource in the Catalog assembly."* (`mediaprofile.write-model.md` § `security_classification`).
 
 The reusable BC-agnostic primitive — versioned embedded-resource alias discovery — already shipped in SDK as MM-022 (WS-28a). `ICapabilityFieldRegistry` is Catalog's consumer of that primitive, not an extension of it.
 
 Contrast with MM-024 WS-12a (erasure driver SDK, shipped 2026-10-13): there, SDK genuinely owns a cross-BC primitive (crypto-shred retry mechanism, KMS wrapper, transactional-write hook, scanner-pass base). Here, there is no cross-BC primitive — the registry is one Catalog lookup keyed on one Catalog enum returning one Catalog type.
 
-**Repo flip:** `aspnetcore-platform` → `magiq-media`. **Theme stays:** `spec-divergence/` (not `platform-capabilities/`).
+**Repo flip:** `mgq-dotnet-platform` → `magiq-media`. **Theme stays:** `spec-divergence/` (not `platform-capabilities/`).
 
 ## Session invocation
 
@@ -37,7 +37,7 @@ Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-
 
 > Picking up WS-54 (plan MM-030). Plan at `Z:\claudia\magiq\projects\magiq-media\plans\WS-54-capability-field-groups\WS-54-capability-field-groups-plan.md`.
 >
-> **All code in magiq-media Catalog module.** Nothing in `aspnetcore-platform` (that's MM-022, already shipped — this plan consumes the versioned-resource alias primitive from the SDK).
+> **All code in magiq-media Catalog module.** Nothing in `mgq-dotnet-platform` (that's MM-022, already shipped — this plan consumes the versioned-resource alias primitive from the SDK).
 >
 > Deliver `ICapabilityFieldRegistry.GetCurrent(Capability, ClassificationScheme?)` returning `CapabilityFieldGroup?`. `CapabilityFieldGroup { Capability, Scheme?, DefinitionVersion, Fields[] }`. Four embedded schemes (`au-pspf-2024`, `nz-psr-2024`, `us-cui-32cfr2002`, `dod-manual-5200`) under `src/modules/Catalog/Catalog.WriteModel/Resources/CapabilityFieldGroups/`. `Media:Catalog:ClassificationScheme` tenant setting. `GET /v1/capability-field-groups/{capability}?scheme=` FastEndpoint. `Catalog/GovernanceGroupUnresolved` metric when a route resolves to empty. Startup validation: no duplicate `(capability, scheme, version)`.
 >

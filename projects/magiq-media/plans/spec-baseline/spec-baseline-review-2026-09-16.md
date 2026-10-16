@@ -18,7 +18,7 @@ Consumes [MM-001](../../reviews/spec-baseline/spec-baseline-review-2026-09-16.md
 questions answered. **Documents only:** `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\`
 (`spec\` + `adrs\`), plus the CI guard in phase 0. No application code is written.
 
-**No external dependency. Ten phases, all closed.** `AP-001` was removed from `aspnetcore-platform` on
+**No external dependency. Ten phases, all closed.** `AP-001` was removed from `mgq-dotnet-platform` on
 2026-09-18 — not delivered, removed: that repo has no `reviews/` folder, no idempotency commits since
 2026-09-13, and the packages still resolve at `1.1.3.x`. With the review gone there is no gate to run and
 nothing to repoint `depends-on` at.
@@ -145,7 +145,7 @@ and phase 5 cannot close SB-19 without the infected-originals ADR.**
       design to state**, not as open questions — phase 5 writes them into the spec.
 - [x] **`adrs/idempotency-conformance.md`** — conformance to `draft-ietf-httpapi-idempotency-key-header-07`:
       cached replay, `409` for concurrency only, fingerprint and `422`. ✅ States why replay rejection was
-      insufficient, and records that delivery depends on `aspnetcore-platform`. — **Done.** The SDK
+      insufficient, and records that delivery depends on `mgq-dotnet-platform`. — **Done.** The SDK
       dependency is recorded as **ownership** — the response-storing contract belongs to that repo — rather
       than as build status, which keeps it inside the purity rule while still saying where delivery
       happens. The expiry-floor and operation-scoping constraints are carried as consequences.
@@ -558,7 +558,7 @@ Two changes on 2026-09-18, in this order:
    a debt this plan owed and became the expected steady state. It also removed one of the gate's own two
    exits — "revert phase 5's text to the mechanism the platform provides" is no longer available, because
    that section names this very entry and says not to.
-2. **`AP-001` was removed** from `aspnetcore-platform` — not shipped. No `reviews/` folder, no
+2. **`AP-001` was removed** from `mgq-dotnet-platform` — not shipped. No `reviews/` folder, no
    idempotency commits since 2026-09-13, packages still at `1.1.3.x`. The gate's dependency stopped
    existing without its work being done.
 
@@ -610,8 +610,8 @@ by this entry, and the review is not rewritten to match.
 **2026-09-17 — session picked up MM-003; dependency gate re-run; phase 0 reconciled against the repo.**
 
 *Dependency gate.* `depends-on: [AP-001]` still resolves **unmet** —
-`aspnetcore-platform/reviews/idempotency-conformance/idempotency-conformance-review-2026-09-16.md` reads
-`status: draft`, `outcome: pending`, and `aspnetcore-platform/plans/` is empty. No plan id exists to
+`mgq-dotnet-platform/reviews/idempotency-conformance/idempotency-conformance-review-2026-09-16.md` reads
+`status: draft`, `outcome: pending`, and `mgq-dotnet-platform/plans/` is empty. No plan id exists to
 repoint at, so `depends-on` is unchanged and status stays `active` under the partial-blocking rule.
 
 *Hand-over state was stale.* The execution prompt records phase 0 as "written and awaiting commit". It is
@@ -1355,7 +1355,7 @@ finds twenty times the noise.
 **2026-09-18 — phase 10 lifted out; the plan is documents-complete (Chase).**
 
 *The dependency was removed, not satisfied, and that distinction is the whole entry.* Checked before
-acting rather than taking the marker at face value: `aspnetcore-platform` has **no `reviews/` folder at
+acting rather than taking the marker at face value: `mgq-dotnet-platform` has **no `reviews/` folder at
 all**, no idempotency commits since 2026-09-13, and the `.Abstractions` and plugin packages still resolve
 at `1.1.3.x`. `AP-001` does not exist any more and the middleware still does replay rejection. **A removed
 dependency marker is not delivered work**, and a session that ticked phase 10 on the strength of the

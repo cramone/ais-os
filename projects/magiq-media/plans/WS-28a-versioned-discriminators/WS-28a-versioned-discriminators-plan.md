@@ -3,13 +3,13 @@ id: MM-022
 type: plan
 project: magiq-media
 workstream: WS-28a-versioned-discriminators
-repo: aspnetcore-platform
-tags: [aspnetcore-platform, sdk, event-schema, upcaster, alias]
+repo: mgq-dotnet-platform
+tags: [mgq-dotnet-platform, sdk, event-schema, upcaster, alias]
 consumes: []
 blocked-by-external: []
 status: shipped
 branches: [feature/chase/MM-022-WS-28a-versioned-discriminators]
-pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/41
+pr: https://github.com/sprbrk-standard/mgq-dotnet-platform/pull/41
 merge-sha: afaabf09
 shipped: 2026-10-12
 created: 2026-10-08
@@ -18,7 +18,7 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/event-sc
 
 # WS-28a — Versioned discriminators + `IEventUpcaster<T>` + alias in `IDomainEventRegistry`
 
-**Target repo:** `aspnetcore-platform` — `D:\source\github\magiqsoftware\aspnetcore-platform`
+**Target repo:** `mgq-dotnet-platform` — `D:\source\github\sprbrk-standard\mgq-dotnet-platform`
 **Depends on:** none
 **Unblocks:** MM-030 (WS-54a CapabilityFieldRegistry), MM-041 (WS-28b magiq-media `[DomainEvent]` + upcasters), MM-064 (WS-29), MM-065 (WS-53)
 
@@ -26,13 +26,13 @@ Key driver: `registrationsubmissionrecorded@1` cannot load today — alias mecha
 
 ## Session invocation
 
-Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnetcore-platform`. Paste:
+Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-dotnet-platform`. Paste:
 
 > Picking up WS-28a (plan MM-022). Plan at `Z:\claudia\magiq\projects\magiq-media\plans\WS-28a-versioned-discriminators\WS-28a-versioned-discriminators-plan.md`.
 >
 > Add `Version` + `Aliases` to `[DomainEvent]`. Discriminator format `<type>@<version>`. Introduce `IEventUpcaster<TEventIn, TEventOut>` with chain-of-responsibility. `IDomainEventRegistry.Resolve(discriminator)` tries exact match then aliases. Startup fail-hard on ambiguous alias / duplicate `(type, version)`.
 >
-> PR to `aspnetcore-platform/main`.
+> PR to `mgq-dotnet-platform/main`.
 
 ## Phase 0 — Scope confirmation
 - [ ] Read `docs/spec/shared/event-store-and-messaging.md` § Event schema + aliases
@@ -74,7 +74,7 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 
 ## Phase 7 — Package + ship
 - [ ] Bump `Magiq.Platform.*` version
-- [ ] PR to `aspnetcore-platform/main`
+- [ ] PR to `mgq-dotnet-platform/main`
 
 ## Phase 8 — Close
 - [ ] event-schema/INDEX.md: WS-28 split — `WS-28a shipped`, `WS-28b open`
@@ -88,4 +88,4 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
   - Startup fail-hard: duplicate `(name, version)` across two types; duplicate alias across two canonical types; malformed alias (not parseable as `name@version`); alias colliding with a live canonical discriminator. Diagnostic names both offending types.
   - `IEventUpcaster<TEventIn, TEventOut>` two-generic shape (plan Phase 2) deliberately not added — single-generic `IEventUpcaster<TEvent>` + schema-level `Func<JsonObject, JsonObject>` transforms already cover semantics. Documented in commit + PR body.
   - 6 unit tests cover canonical resolve, alias routing to canonical, ambiguous-alias / collision / malformed-alias startup throws. 92 all-WS regression tests pass.
-- 2026-10-12: PR #41 merged to `aspnetcore-platform/main` as `afaabf09`. event-schema/INDEX.md: WS-28 row split — WS-28a shipped, WS-28b flipped `open` → `ready`; WS-29 dep bumped to WS-28b. INTEGRATION-BACKLOG MM-022 moved to § Shipped; MM-030 (WS-54a) + MM-041 (WS-28b) flipped `new` → `ready` (deps shipped). Readiness summary bumped 59→57 `new`, 8→10 `ready`, 13→14 `shipped`.
+- 2026-10-12: PR #41 merged to `mgq-dotnet-platform/main` as `afaabf09`. event-schema/INDEX.md: WS-28 row split — WS-28a shipped, WS-28b flipped `open` → `ready`; WS-29 dep bumped to WS-28b. INTEGRATION-BACKLOG MM-022 moved to § Shipped; MM-030 (WS-54a) + MM-041 (WS-28b) flipped `new` → `ready` (deps shipped). Readiness summary bumped 59→57 `new`, 8→10 `ready`, 13→14 `shipped`.

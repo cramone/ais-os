@@ -3,13 +3,13 @@ id: MM-020
 type: plan
 project: magiq-media
 workstream: WS-03a-aead-cursor-sealing
-repo: aspnetcore-platform
-tags: [aspnetcore-platform, sdk, security, pagination, aead]
+repo: mgq-dotnet-platform
+tags: [mgq-dotnet-platform, sdk, security, pagination, aead]
 consumes: []
 blocked-by-external: []
 status: shipped
 branches: [feature/chase/MM-020-WS-03a-aead-cursor-sealing]
-pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/39
+pr: https://github.com/sprbrk-standard/mgq-dotnet-platform/pull/39
 merge-sha: e8b0c8bd
 shipped: 2026-10-12
 created: 2026-10-08
@@ -18,7 +18,7 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/security
 
 # WS-03a — AEAD-sealed pagination cursors bound to (tenant, route, params, issue time)
 
-**Target repo:** `aspnetcore-platform` — `D:\source\github\magiqsoftware\aspnetcore-platform`
+**Target repo:** `mgq-dotnet-platform` — `D:\source\github\sprbrk-standard\mgq-dotnet-platform`
 **Depends on:** none
 **Unblocks:** MM-038 (WS-03b — magiq-media QueryApi + OpenSearch wiring); pre-staging-gate security.
 
@@ -26,13 +26,13 @@ Delivers F093. Today pagination returns raw base64url of DynamoDB `LastEvaluated
 
 ## Session invocation
 
-Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnetcore-platform`. Paste:
+Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-dotnet-platform`. Paste:
 
 > Picking up WS-03a (plan MM-020). Plan at `Z:\claudia\magiq\projects\magiq-media\plans\WS-03a-aead-cursor-sealing\WS-03a-aead-cursor-sealing-plan.md`. Gap: `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\dependency-gaps\security\F093-pagination-cursor-sealing.md`.
 >
 > Deliver `IPaginationCursorSealer`: AEAD (AES-256-GCM or ChaCha20-Poly1305). Payload `{ tenantId, routeKey, paramsHash, issuedAt, continuation }`. Associated data: `tenantId || routeKey || paramsHash` (tampering fails unseal). Key provider: KMS/Secrets. Key rotation via `KeyId` in payload. 24h TTL (configurable).
 >
-> Pre-staging security — careful review. PR to `aspnetcore-platform/main`.
+> Pre-staging security — careful review. PR to `mgq-dotnet-platform/main`.
 
 ## Phase 0 — Scope confirmation
 - [ ] Read F093 § Required-shape, § Detection signals, § Security property
@@ -71,7 +71,7 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 
 ## Phase 6 — Package + ship
 - [ ] Bump `Magiq.AspNetCore.*` version
-- [ ] PR to `aspnetcore-platform/main`
+- [ ] PR to `mgq-dotnet-platform/main`
 
 ## Phase 7 — Close
 - [ ] F093: `status: shipped (SDK portion)`
@@ -90,4 +90,4 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
   - **TTL**: default 24h (`PaginationCursorOptions.CursorTtl`); exceeded → `Expired`. Options validate at startup: `CurrentKeyId` set + present in `Keys`, every key is 32 bytes, TTL positive.
   - **Error enum**: `Invalid` and `Expired` returned at runtime. `TenantMismatch`/`RouteMismatch`/`ParamsMismatch` reserved for a future (β) impl where AAD is minimal and plaintext comparisons become distinguishable; the default (α) binds all three in AAD so mismatches collapse to `Invalid`. Documented in enum XML.
   - 16 unit tests: round-trip, three field swaps (tenant/route/params), four tamper positions (version/keyId/nonce/ciphertext), TTL within + past window, key rotation (previous key unseals), key removal after rotation (fails), empty / non-base64url / short-envelope input, nonce freshness per seal. 77 all-WS regression tests pass together.
-- 2026-10-12: PR #39 merged to `aspnetcore-platform/main` as `e8b0c8bd`. F093 → `status: sdk-shipped` with remainder noted (WS-03b magiq-media wiring + cdk-magiq-media infra + host KMS-backed provider swap). security/INDEX.md: WS-03 split — WS-03a shipped row, WS-03b flipped to `ready` under its own row. INTEGRATION-BACKLOG MM-020 moved to § Shipped; MM-038 (WS-03b) flipped `new` → `ready`. Readiness summary bumped 61→60 `new`, 6→7 `ready`, 11→12 `shipped`.
+- 2026-10-12: PR #39 merged to `mgq-dotnet-platform/main` as `e8b0c8bd`. F093 → `status: sdk-shipped` with remainder noted (WS-03b magiq-media wiring + cdk-magiq-media infra + host KMS-backed provider swap). security/INDEX.md: WS-03 split — WS-03a shipped row, WS-03b flipped to `ready` under its own row. INTEGRATION-BACKLOG MM-020 moved to § Shipped; MM-038 (WS-03b) flipped `new` → `ready`. Readiness summary bumped 61→60 `new`, 6→7 `ready`, 11→12 `shipped`.

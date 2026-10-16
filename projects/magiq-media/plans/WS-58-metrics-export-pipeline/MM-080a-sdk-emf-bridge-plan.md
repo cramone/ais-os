@@ -3,13 +3,13 @@ id: MM-080a
 type: plan
 project: magiq-media
 workstream: WS-58a-sdk-emf-bridge
-repo: aspnetcore-platform
-tags: [aspnetcore-platform, sdk, metrics, observability, emf, cloudwatch]
+repo: mgq-dotnet-platform
+tags: [mgq-dotnet-platform, sdk, metrics, observability, emf, cloudwatch]
 consumes: []
 blocked-by-external: []
 status: shipped
 branches: [feature/chase/MM-080a-WS-58a-sdk-emf-bridge]
-pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/45
+pr: https://github.com/sprbrk-standard/mgq-dotnet-platform/pull/45
 merge-sha: 9abdfb04
 shipped: 2026-10-12
 created: 2026-10-12
@@ -20,7 +20,7 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/platform
 
 # WS-58a — SDK EMF bridge
 
-**Target repo:** `aspnetcore-platform`
+**Target repo:** `mgq-dotnet-platform`
 **Depends on:** none (ADR `metrics-export.md` landed 2026-10-12)
 **Unblocks:** MM-023e (outbox instrumentation), MM-047 (projection-lag metric), export of every SDK counter already shipped (MM-013 snapshot fallbacks, MM-014 concurrency retries, MM-019 gap-fill events, MM-023c outbox parked, MM-021 reservation refusals) — all currently measured but unexported
 

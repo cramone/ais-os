@@ -3,13 +3,13 @@ id: MM-021
 type: plan
 project: magiq-media
 workstream: WS-30a-reservation-probe-hook
-repo: aspnetcore-platform
-tags: [aspnetcore-platform, sdk, name-reservation]
+repo: mgq-dotnet-platform
+tags: [mgq-dotnet-platform, sdk, name-reservation]
 consumes: []
 blocked-by-external: []
 status: shipped
 branches: [feature/chase/MM-021-WS-30a-reservation-probe-hook]
-pr: https://github.com/magiqsoftware/aspnetcore-platform/pull/40
+pr: https://github.com/sprbrk-standard/mgq-dotnet-platform/pull/40
 merge-sha: fd8e31c8
 shipped: 2026-10-12
 created: 2026-10-08
@@ -18,7 +18,7 @@ exception: dependency-gap workstream — origin is docs/dependency-gaps/name-res
 
 # WS-30a — SDK hook consulting per-scope `IReservationOwnerProbe`
 
-**Target repo:** `aspnetcore-platform` — `D:\source\github\magiqsoftware\aspnetcore-platform`
+**Target repo:** `mgq-dotnet-platform` — `D:\source\github\sprbrk-standard\mgq-dotnet-platform`
 **Depends on:** none
 **Unblocks:** MM-040 (WS-30b — magiq-media `CatalogReservationProbe` registration)
 
@@ -26,13 +26,13 @@ Today name-reservation refuses any held row; a reservation stuck under its own a
 
 ## Session invocation
 
-Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnetcore-platform`. Paste:
+Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-dotnet-platform`. Paste:
 
 > Picking up WS-30a (plan MM-021). Plan at `Z:\claudia\magiq\projects\magiq-media\plans\WS-30a-reservation-probe-hook\WS-30a-reservation-probe-hook-plan.md`.
 >
 > Define `IReservationOwnerProbe` with `GetOwnerIdAsync(scope, name, ct) → AggregateId?`. Register per `ScopeKey` via `IReservationOwnerProbeRegistry`. On Tier-1 refusal in `ApplyAsync`: consult probe → if returns command's own aggregate id, treat as available; otherwise refuse.
 >
-> PR to `aspnetcore-platform/main`.
+> PR to `mgq-dotnet-platform/main`.
 
 ## Phase 0 — Scope confirmation
 - [ ] Read `docs/spec/shared/consistency-model.md` § Name reservation
@@ -62,7 +62,7 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
 
 ## Phase 5 — Package + ship
 - [ ] Bump `Magiq.Platform.*` version
-- [ ] PR to `aspnetcore-platform/main`
+- [ ] PR to `mgq-dotnet-platform/main`
 
 ## Phase 6 — Close
 - [ ] name-reservation/INDEX.md: WS-30 split — `WS-30a shipped`, `WS-30b open`
@@ -76,4 +76,4 @@ Open a new Claude Code session, `cd` into `D:\source\github\magiqsoftware\aspnet
   - New overload `INameReservationService.GetOwnerIdAsync(ScopeKey, string, CancellationToken)` returns probe's answer directly for handler-side availability checks.
   - `AddReservationProbe<TProbe>(ScopeKey)` on `IUniquenessRegistryBuilder` with helper `ReservationProbeRegistration` record collecting registrations.
   - 9 unit tests: probe-less refuse, matching-owner success, different-owner refuse, null-probe-answer refuse, BulkReserveName matched + mismatched, `GetOwnerIdAsync` overload delegates + null-when-no-probe, no-refusal probe-not-consulted. 90 all-WS regression tests pass.
-- 2026-10-12: PR #40 merged to `aspnetcore-platform/main` as `fd8e31c8`. name-reservation/INDEX.md: WS-30 split — WS-30a shipped row, WS-30b flipped `open` → `ready`. INTEGRATION-BACKLOG MM-021 moved to § Shipped; MM-040 (WS-30b) flipped `new` → `ready`. Readiness summary bumped 60→59 `new`, 7→8 `ready`, 12→13 `shipped`.
+- 2026-10-12: PR #40 merged to `mgq-dotnet-platform/main` as `fd8e31c8`. name-reservation/INDEX.md: WS-30 split — WS-30a shipped row, WS-30b flipped `open` → `ready`. INTEGRATION-BACKLOG MM-021 moved to § Shipped; MM-040 (WS-30b) flipped `new` → `ready`. Readiness summary bumped 60→59 `new`, 7→8 `ready`, 12→13 `shipped`.

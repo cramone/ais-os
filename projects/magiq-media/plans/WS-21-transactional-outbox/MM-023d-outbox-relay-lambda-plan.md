@@ -41,3 +41,4 @@ Phases:
 
 ## Session log
 - 2026-10-12: drafted after MM-023 split.
+- 2026-10-15: shipped on `spec/initial-alignment` branch in `cdk-magiq-media` (pending merge). Two commits: (1) `messaging-outbox` DynamoDB table in `platform-tables.ts` — PK=`OUTBOX`, SK=MessageId, GSI_NextAttempt (PK+NextAttemptAt Number), stream NEW_AND_OLD_IMAGES, PITR, CMK; (2) `OutboxRelay` Lambda (Docker, ECR `outbox-relay-`, 512MB/60s/arm64) + 1-minute EventBridge schedule + 14-day SQS DLQ + `media-outbox-entry-parked` alarm paging `media-alarms-pager`. Picked scheduled scan over DynamoDB Streams for MVP — Streams view enabled on the table for future upgrade. Lambda IAM narrower than other workers (outbox table + SNS publish on both topics + CMK + xray only). Host wrapper (magiq-media repo) must publish ECR image at `outbox-relay-` prefix and wire SDK's `IOutboxMessageProcessor.ProcessAsync()` before deploy succeeds — call out for Phase C.
