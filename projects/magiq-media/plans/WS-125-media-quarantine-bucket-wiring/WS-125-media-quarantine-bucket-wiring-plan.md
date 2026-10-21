@@ -1,0 +1,123 @@
+---
+id: MM-164
+type: plan
+project: magiq-media
+workstream: WS-125-media-quarantine-bucket-wiring
+repo: magiq-media
+tags: [magiq-media, s3, quarantine, processing-worker, infrastructure, cross-cutting, security]
+consumes: []
+blocked-by-external: []
+status: new
+branches: []
+created: 2026-10-19
+depends-on: MM-102, MM-104, MM-105
+breaking-change: Internal
+source: alignment-sweep-2026-10-15 cell Cross-cutting×read-model
+---
+
+# WS-125 — `media-quarantine` S3 bucket wiring + quarantine-move pipeline
+
+**Target repos:** `magiq-media` + `cdk-magiq-media`
+**Spec source:** [`event-store-and-messaging.md § S3 Buckets`](../../../../../../source/github/sprbrk-standard/mgq-magiq-media/docs/spec/shared/event-store-and-messaging.md#s3-buckets) + [`event-store-and-messaging.md § Integration Events`](../../../../../../source/github/sprbrk-standard/mgq-magiq-media/docs/spec/shared/event-store-and-messaging.md#integration-events) (quarantine-move events)
+**Depends on:** MM-102 (quarantine-move integration event types + mappers), MM-104 (Asset read-model `ContainsVirusAwaitingQuarantineIndex` GSI driving retry), MM-105 (Asset write-model events `AssetHolderLegalHoldPlaced`/related quarantine state)
+
+## Problem
+
+Spec [`event-store-and-messaging.md § S3 Buckets`](../../../../../../source/github/sprbrk-standard/mgq-magiq-media/docs/spec/shared/event-store-and-messaging.md#s3-buckets) names three buckets: `media-originals`, `media-renditions`, `media-quarantine` (physical `magiq-media-quarantine-{account}-{region}-an`; key pattern `{tenantId}/{shard}/{assetId}/original.{ext}`; written by Processing Worker on failed scan).
+
+Code today:
+- `S3AssetStorageOptions.OriginalsBucketName` + `RenditionsBucketName` present (defaults `media-originals` / `media-renditions`); **no `QuarantineBucketName`**
+- Zero `quarantine` references across `src/` (case-insensitive) — no handler, no bucket config, no S3 copy logic, no `AssetQuarantineMoveWorker`
+- `media.asset.quarantine-move-retry-requested` + `.quarantine-move-confirmed` integration events absent (land through MM-102)
+- `ContainsVirusAwaitingQuarantineIndex` sparse GSI on `media-assets` (MM-104) drives `MaintenanceScanner` quarantine-retry pass — no handler consumes it
+
+Virus-detected assets never move off `media-originals`; downstream expectation (quarantine-only download via `GET /v1/assets/{assetId}/quarantine/download` from MM-103) can't be met.
+
+## Scope
+
+### `cdk-magiq-media` additions
+
+- `media-quarantine` S3 bucket per environment (`magiq-media-quarantine-{account}-{region}-an`); object-level versioning + server-side encryption + public-access-block all set; lifecycle policy for cold-storage transition after N days (configurable)
+- IAM: Processing Worker + `Api` (quarantine-download pre-sign) + Operator read access; **tenant principals have no direct access**
+- CloudWatch alarm on write failures
+
+### `magiq-media` wiring
+
+1. **`S3AssetStorageOptions.QuarantineBucketName`** property, default `"media-quarantine"`, bound from `Media:AssetManagement:Storage:QuarantineBucketName`
+2. **`AssetQuarantineMoveWorker`** under `src/hosts/ProcessingWorker/` (or new Lambda host) consuming `media.asset.quarantine-move-retry-requested` from `media-processing` SQS; copies `media-originals/{key}` → `media-quarantine/{key}`, verifies destination with `HeadObject`, deletes source object, emits `AssetQuarantineMoveConfirmed` domain event (surfaces as `media.asset.quarantine-move-confirmed` integration event via MM-102 mapper)
+3. **Idempotency** — handler re-execution safe: `HeadObject` on destination before copy returns success + raises `AssetQuarantineMoveAlreadyConfirmed 422` for the error-catalog-named case (`QuarantineMoveAlreadyConfirmed`, in Asset error-codes catalog row — covered via MM-101)
+4. **Pre-signed-URL emission for `GET /quarantine/download`** (MM-103 route) — issues short-lived (default 15 min) pre-signed GET against `media-quarantine`; permission `Asset.ManageQuarantine` + `.All` widening per Asset × middleware (MM-106 scope)
+5. **MaintenanceScanner quarantine-retry pass** — scans `media-assets.ContainsVirusAwaitingQuarantineIndex` (MM-104 GSI), raises `media.asset.quarantine-move-retry-requested` for rows with `InfectionDetectedAt > N minutes ago` + `QuarantineMoveConfirmedAt is null`. Idempotent — handler path above absorbs duplicate retries.
+
+### Flow
+
+```
+AssetInfectionDetected (Asset domain event) → mapper → media.asset.infection-detected (SNS)
+                                                           ↓
+                                            media-processing SQS → AssetValidationWorker
+                                                           ↓
+                                            AssetQuarantineMoveWorker (THIS PLAN)
+                                                           ↓
+                                            copy → verify → delete → AssetQuarantineMoveConfirmed
+                                                           ↓
+                                            media.asset.quarantine-move-confirmed (SNS, no external subscriber)
+```
+
+Retry path:
+
+```
+MaintenanceScanner quarantine-retry pass → scans ContainsVirusAwaitingQuarantineIndex
+                                                     ↓
+                                          media.asset.quarantine-move-retry-requested (SNS)
+                                                     ↓
+                                          media-processing SQS → AssetQuarantineMoveWorker (same handler)
+```
+
+### What this plan does NOT ship
+
+- Quarantine metadata extraction / scanning (DocFinal, Clam) — Virus scan upstream of this plan; failed-scan outcome is the trigger
+- Any Asset aggregate state change — all state lives in MM-105
+- Any new HTTP route — `GET /quarantine/download` is MM-103 scope; this plan backs it with the bucket
+
+## Phase 0 — Scope confirmation
+- [ ] Read `event-store-and-messaging.md § S3 Buckets` + `§ Integration Events` quarantine-move rows end-to-end
+- [ ] Confirm Asset's quarantine state surface — `QuarantineMoveConfirmedAt?` on `Asset.cs` lives in MM-105 scope
+- [ ] Confirm the shared `{tenantId}/{shard}/{assetId}/original.{ext}` key pattern applies verbatim (destination = same key under `media-quarantine`)
+- [ ] Confirm cold-storage transition cadence (default 30 days? per-tenant config?)
+
+## Phase 1 — CDK bucket provision
+- [ ] `media-quarantine` S3 bucket construct in `cdk-magiq-media/lib/stacks/`
+- [ ] Encryption + public-access-block + versioning + lifecycle rules
+- [ ] IAM grants: Processing Worker RW, `Api` presign-read, Operator read; tenant principals none
+- [ ] CloudWatch alarm `media-quarantine-write-failed` paging `media-alarms-pager`
+
+## Phase 2 — Config wiring
+- [ ] `S3AssetStorageOptions.QuarantineBucketName` property + default `"media-quarantine"`
+- [ ] Bind from `Media:AssetManagement:Storage:QuarantineBucketName` across host configs
+- [ ] Validator: non-empty, lowercase, DNS-compliant
+
+## Phase 3 — `AssetQuarantineMoveWorker` handler
+- [ ] Handler class subscribing `media.asset.quarantine-move-retry-requested` from `media-processing` SQS
+- [ ] S3 copy-verify-delete sequence with `HeadObject` idempotency check
+- [ ] `AssetQuarantineMoveConfirmed` domain event emission on success
+- [ ] Error paths: source not found → log + ack (source-already-moved idempotency), destination write failure → DLQ after 3 attempts
+
+## Phase 4 — MaintenanceScanner pass
+- [ ] `MaintenanceScanner.QuarantineRetryPass` scanning `ContainsVirusAwaitingQuarantineIndex` (MM-104)
+- [ ] Raises `media.asset.quarantine-move-retry-requested` for stale rows
+- [ ] CloudWatch metric `QuarantineRetryEvents` + alarm on sustained-high retry rate
+
+## Phase 5 — Integration tests + compliance
+- [ ] End-to-end: infection detected → move → confirmed, verifying `media-originals` object gone + `media-quarantine` object present
+- [ ] Retry idempotency: duplicate retry events don't fail; destination unchanged
+- [ ] Compliance mapping — `docs/compliance/iso-27001-malware.md` + `pspf-malware-containment.md` cite spec anchors
+
+## Breaking change
+
+**Internal.** No HTTP route / integration-event / aggregate state change lands here — those live in MM-102/103/104/105/106. This plan supplies the bucket + handler the earlier plans assume. No breaking-changes.md entry.
+
+## Session log
+
+| Date | Progress |
+|---|---|
+| 2026-10-19 | Drafted from alignment-sweep Cross-cutting × read-model cell |

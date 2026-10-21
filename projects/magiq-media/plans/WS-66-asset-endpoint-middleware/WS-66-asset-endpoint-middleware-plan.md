@@ -5,9 +5,9 @@ project: magiq-media
 workstream: WS-66-asset-endpoint-middleware
 repo: magiq-media
 tags: [magiq-media, http, middleware, authorization, permissions, if-match, precondition, asset]
-consumes: []
+consumes: [MM-100]
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-15
 depends-on: MM-100, MM-101, MM-103, MM-049

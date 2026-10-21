@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, catalog, mediaitem, write-model, commands, domain-events, aggregate, checkout, legal-hold, retention, erasure, dispositions, review]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: '-'
@@ -134,7 +134,7 @@ Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-
 
 ## Phase 0 — Scope confirmation
 
-- [ ] Code audit: 27 of 45 events present
+- [ ] Code audit: 27 of 45 events present. Run under broadened glob — walk `Catalog.Domain/Aggregates/MediaItems/Events/*.cs` **plus** `Catalog.Domain/Aggregates/MediaItems/ValueObjects/*.cs` for aggregate state slots that back the new events (per Arnica fix on narrow-glob code read scope). Narrow `MediaItem*.cs` glob at draft time still matched the Events/ folder correctly for this plan — re-verify in case any new event name doesn't start with `MediaItem`
 - [ ] Confirm extras (`RegistrationRefRemoved`, `SigningSessionUnlinked`) have consumers before retaining; else deprecate
 - [ ] WS-28 upcaster framework shipped (needed for `MediaItemSubmittedForReview` alias)
 
@@ -217,3 +217,4 @@ Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-
 ## Session log
 
 - 2026-10-16: plan drafted (alignment-sweep-2026-10-15 cell MediaItem × write-model; status candidate; largest write-model workstream; may split into sub-PRs during execution)
+- 2026-10-18: re-diffed under Arnica review fixes (findings #2 narrow glob + #8 catalog Phase 1 regression). **Confirmed clean.** All 3 Arnica-surfaced events already covered: `LegalHoldPlaced` + `LegalHoldLifted` in Phase 5, `RegistrationRefAddedWhileArchived` in Phase 8. Rename `MediaItemPublicationRequested` → `MediaItemSubmittedForReview` in Phase 9. 4 EditSession events in Phase 4. 20-missing count unchanged (27 of 45 code events verified; 2 extras + 20 missing + 1 rename). AssetUnassignedFromRole already in code (not in missing list). Phase 0 note added instructing broadened-glob code audit including `Aggregates/MediaItems/ValueObjects/` for state-slot verification.

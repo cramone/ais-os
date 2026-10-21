@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, documentsigning, read-model, dynamodb, projector, envelope-lookup, webhook-dedup, tenant-exception]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: 'DocumentSigningSession × write-model, MM-155'

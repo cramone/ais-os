@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, catalog, mediaitem, http, routes, checkout, legal-hold, retention, erasure, dispositions]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: 'MediaItem × write-model plan'
@@ -136,3 +136,4 @@ Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-
 ## Session log
 
 - 2026-10-16: plan drafted (alignment-sweep-2026-10-15 cell MediaItem × http-routes; status candidate; depends on MediaItem × write-model plan)
+- 2026-10-18: re-diffed under Arnica review fix for finding #2 (narrow code scope). Confirmed scope **unchanged**. Verified under broadened glob: `Catalog.WriteModel.Endpoints/V1/MediaItems/**/*Endpoint.cs` → 21 write endpoints (Approve, Archive, AssignAssetToRole, AssignOrMoveMediaItemFolder, BeginRevision, BulkCreateMediaItems, BulkSetMetadata, CreateMediaItem, CreateMediaItemInFolder, Delete, DiscardRevision, Publish, PurgeMediaItemVersion, Reject, ReplaceAssetInRole, SetMetadataBatch, SetMetadataField, TagMediaItem, UnassignAssetFromRole, UpdateMediaItem, WithdrawMediaItem). `Catalog.ReadModel.Endpoints/V1/MediaItems/**/*Endpoint.cs` → 6 read endpoints (GetMediaItemById, GetMediaItemVersion, ListAllMediaItems, ListMediaItems, ListMediaItemVersions, SearchMediaItems). Totals: 27 code (26 spec-matching + 1 non-spec DELETE), 38 spec, 12 missing. None of the 12 "missing" routes exist under any endpoint folder. Original draft used a wide-enough glob despite CLAUDE.md's `*MediaItemHandler.cs` wording — plan scope correct as drafted. No plan body changes.

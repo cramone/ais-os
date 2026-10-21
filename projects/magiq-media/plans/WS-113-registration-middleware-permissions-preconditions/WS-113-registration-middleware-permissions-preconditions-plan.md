@@ -5,9 +5,9 @@ project: magiq-media
 workstream: WS-113-registration-middleware-permissions-preconditions
 repo: magiq-media
 tags: [magiq-media, registration, middleware, permission, if-match, etag, precondition, resource-predicate, system-actor]
-consumes: []
+consumes: [MM-100]
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: 'MM-100 (SDK errorCode slot), MM-148 (Registration error codes), MM-150 (routes), MM-152 (write-model), MM-049 (VersionMismatch 412)'

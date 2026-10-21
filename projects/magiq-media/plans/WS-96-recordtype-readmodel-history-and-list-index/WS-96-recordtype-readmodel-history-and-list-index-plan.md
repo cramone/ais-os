@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, metadata, recordtype, read-model, history, list-index, gsi, projector]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: 'RecordType × write-model plan (MM-137 history-entry events), MM-135 (GET /history consumer)'

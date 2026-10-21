@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, metadata, retentionschedule, http, routes, lifecycle]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: 'RetentionSchedule × write-model (commands + aggregate), RetentionSchedule × read-model (history/latest readers), MM-139, MM-140'

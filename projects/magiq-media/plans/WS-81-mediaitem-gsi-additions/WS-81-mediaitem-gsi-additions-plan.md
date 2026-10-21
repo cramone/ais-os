@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, catalog, mediaitem, read-model, dynamodb, gsi, checkout-lease, filing-folder]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: '-'

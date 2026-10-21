@@ -5,9 +5,9 @@ project: magiq-media
 workstream: WS-104-retentionschedule-middleware-permissions-preconditions
 repo: magiq-media
 tags: [magiq-media, metadata, retentionschedule, middleware, permission, if-match, etag, precondition, resource-predicate]
-consumes: []
+consumes: [MM-100]
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: 'MM-100 (SDK errorCode slot), MM-139 (RetentionSchedule error codes), MM-141 (routes), MM-143 (write-model), MM-049 (VersionMismatch 412)'

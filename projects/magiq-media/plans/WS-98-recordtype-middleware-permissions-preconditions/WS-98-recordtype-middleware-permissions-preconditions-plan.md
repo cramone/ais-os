@@ -5,9 +5,9 @@ project: magiq-media
 workstream: WS-98-recordtype-middleware-permissions-preconditions
 repo: magiq-media
 tags: [magiq-media, metadata, recordtype, middleware, permission, if-match, etag, precondition, resource-predicate]
-consumes: []
+consumes: [MM-100]
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: 'MM-100 (SDK errorCode slot), MM-133 (RecordType error codes), MM-135 (routes), MM-137 (lifecycle commands), MM-049 (VersionMismatch 412)'

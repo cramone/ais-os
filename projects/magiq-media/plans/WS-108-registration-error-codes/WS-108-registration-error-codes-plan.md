@@ -5,9 +5,9 @@ project: magiq-media
 workstream: WS-108-registration-error-codes
 repo: magiq-media
 tags: [magiq-media, registration, error-codes, problemdetails]
-consumes: []
+consumes: [MM-100]
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: 'MM-100 (SDK errorCode slot), MM-032 (duplicate-id exception)'

@@ -5,9 +5,9 @@ project: magiq-media
 workstream: WS-77-folder-endpoint-middleware
 repo: magiq-media
 tags: [magiq-media, catalog, folder, http, middleware, authorization, permissions, if-match, precondition, etag]
-consumes: []
+consumes: [MM-100]
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: MM-100, MM-113, MM-115, MM-049

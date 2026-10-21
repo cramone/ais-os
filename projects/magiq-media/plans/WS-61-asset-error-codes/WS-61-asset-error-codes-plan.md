@@ -6,8 +6,8 @@ workstream: WS-61-asset-error-codes
 repo: magiq-media
 tags: [magiq-media, asset-management, error-codes, api-wire]
 consumes: [MM-100]
-blocked-by-external: [MM-100]
-status: active
+blocked-by-external: []
+status: new
 branches: []
 created: 2026-10-15
 depends-on: MM-100

@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, metadata, recordtype, http, routes, clone, deprecate, reinstate, supersession, abandon, latest]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: 'RecordType × write-model plan, WS-53'

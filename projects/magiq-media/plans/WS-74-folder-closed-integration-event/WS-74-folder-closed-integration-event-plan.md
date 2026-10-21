@@ -7,21 +7,21 @@ repo: magiq-media
 tags: [magiq-media, catalog, folder, integration-events, retention, cascade-triggers]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-15
-depends-on: '-'
+depends-on: 'MM-116 (Folder × write-model — FolderReopened domain event + aggregate method), WS-27b (media-cascade-triggers subscription)'
 breaking-change: Process wire
 source: alignment-sweep-2026-10-15 cell Folder × integration-events
 ---
 
-# WS-74 — `media.folder.closed` integration event + retention fan-out handler
+# WS-74 — `media.folder.closed` + `media.folder.reopened` integration events + retention fan-out handlers
 
 **Target repo:** `magiq-media`
 
 ## Problem
 
-`docs/spec/shared/event-store-and-messaging.md § Integration Events` names 5 Folder integration types. Code's `FolderDomainEventMapper` publishes 4. Missing: `media.folder.closed`.
+`docs/spec/shared/event-store-and-messaging.md § Integration Events` names 6 Folder integration types. Code's `FolderDomainEventMapper` publishes 4. Missing: `media.folder.closed` + `media.folder.reopened`.
 
 | spec type | status |
 |---|---|
@@ -30,77 +30,96 @@ source: alignment-sweep-2026-10-15 cell Folder × integration-events
 | `media.folder.moved` | published |
 | `media.folder.archived` | published (publication-timing refactor to cascade terminator covered by WS-11) |
 | `media.folder.closed` | **missing** |
+| `media.folder.reopened` | **missing** — surfaced in Arnica review re-diff |
 
-Underlying `FolderClosed` **domain event exists** at `Catalog.Domain/Aggregates/Folders/Events/FolderClosed.cs` — only the integration-event mapper + contract record are missing.
+Underlying `FolderClosed` **domain event exists** at `Catalog.Domain/Aggregates/Folders/Events/FolderClosed.cs` — only the integration-event mapper + contract record are missing. Underlying `FolderReopened` **domain event is also absent** — scoped to MM-116 Folder × write-model (part of its 4-event set). This plan depends on MM-116 for the reopen domain event + aggregate method.
 
-**Companion handler also missing.** Spec names `FolderClosedRetentionFanOutHandler` as the intra-BC consumer: closing a folder retention-pins every MediaItem inside it. The handler reaches magiq-media via `media-cascade-triggers` SQS queue (WS-27b wires filter policy + subscription — ready). The handler logic itself is a magiq-media build (not just subscription wiring).
+**Companion handlers also missing — close + reopen are symmetric but opposite.** Close pins retention; reopen clears it where the pin was anchored on the just-reversed closure. Both reach magiq-media via `media-cascade-triggers` SQS queue (WS-27b wires filter policy + subscription — ready). Both handler bodies are magiq-media builds.
 
-Without the integration event, the entire retention-pin-on-folder-close flow is dark: closing a folder in code today emits a domain event, projects to read models, but no SNS message leaves the module and no retention pin lands on MediaItems inside the folder.
+- `FolderClosedRetentionFanOutHandler`: closing a folder retention-pins every MediaItem inside it (sets `RetentionStartedAt` on `Closure`-pinned items filed in the folder).
+- `FolderReopenedRetentionFanOutHandler`: reversal path — clears `RetentionStartedAt` on `Closure`-pinned items filed in the folder whose `RetentionClosureAt` matches the closure that was just reversed. Carries `FolderId`, `ReversedClosedAt`, `ReopenedAt`.
+
+Without these integration events, retention-pin-on-folder-close + retention-clear-on-folder-reopen flows are dark end-to-end.
 
 ## Scope boundary
 
-This plan covers **both halves** of the gap:
+This plan covers **both halves** of both gaps (close + reopen):
 
-- (A) The publication side — `FolderClosedIntegrationEvent` record + `IDomainEventMapper<FolderClosed>` mapper method.
-- (B) The consumption side — `FolderClosedRetentionFanOutHandler` intra-BC worker that reads the SNS event via `media-cascade-triggers` (per WS-27b) and dispatches retention pins to MediaItems in the folder.
+- (A1) Close publication — `FolderClosedIntegrationEvent` record + `IDomainEventMapper<FolderClosed>` mapper method.
+- (A2) Reopen publication — `FolderReopenedIntegrationEvent` record + `IDomainEventMapper<FolderReopened>` mapper method. Depends on MM-116 for the `FolderReopened` domain event + aggregate method.
+- (B1) Close consumption — `FolderClosedRetentionFanOutHandler` intra-BC worker reads SNS event via `media-cascade-triggers`; retention-pins MediaItems in the folder.
+- (B2) Reopen consumption — `FolderReopenedRetentionFanOutHandler` intra-BC worker reads SNS event via `media-cascade-triggers`; clears `RetentionStartedAt` on `Closure`-pinned items whose `RetentionClosureAt` matches the reversed closure.
 
-(B) is scoped to this plan — not deferred to a write-model cell — because without the handler the integration-event publication is meaningless, and the handler is single-purpose intra-BC fan-out specific to this event type.
+(B1) and (B2) are scoped to this plan — not deferred to a write-model cell — because without the handlers the integration-event publications are meaningless, and both handlers are single-purpose intra-BC fan-out specific to their event types.
 
 ## What the spec requires
 
 - `FolderClosedIntegrationEvent` record under `Catalog.Contracts/Events/Folders/` with `[MessageType("media.folder.closed")]` and payload `{ TenantId, FolderId, CollectionId, ClosedAt, ClosedDate, AggregateVersion }`.
-- `FolderDomainEventMapper` adds `IDomainEventMapper<FolderClosed>` + `Map(FolderClosed e)` method.
-- `FolderClosedRetentionFanOutHandler` subscribes to the event on `media-cascade-triggers` (per WS-27b filter policy on `type == media.folder.closed`), paginates MediaItems in the folder, dispatches retention-pin commands per MediaItem.
-- CDK coordination: `media-cascade-triggers` SQS filter policy on `type` includes `media.folder.closed` (per WS-27b scope — ready).
+- `FolderReopenedIntegrationEvent` record under same folder with `[MessageType("media.folder.reopened")]` and payload `{ TenantId, FolderId, CollectionId, ReversedClosedAt, ReopenedAt, AggregateVersion }`.
+- `FolderDomainEventMapper` adds `IDomainEventMapper<FolderClosed>` + `IDomainEventMapper<FolderReopened>` + corresponding `Map` methods (2 new overloads total, bringing mapper to 6).
+- `FolderClosedRetentionFanOutHandler` subscribes on `media-cascade-triggers` (`type == media.folder.closed`), paginates MediaItems filed in the folder, dispatches retention-pin commands per MediaItem.
+- `FolderReopenedRetentionFanOutHandler` subscribes on `media-cascade-triggers` (`type == media.folder.reopened`), paginates `Closure`-pinned MediaItems filed in the folder, dispatches retention-clear commands where `RetentionClosureAt` matches `ReversedClosedAt`.
+- CDK coordination: `media-cascade-triggers` SQS filter policy on `type` includes both `media.folder.closed` and `media.folder.reopened` (per WS-27b scope — reopen row needs adding).
 
 ## Wire-visibility
 
-Process wire — additive. New type on `media-integration-events`. Existing subscribers' filter policies ignore it unless they declare the row. CDK edits land before magiq-media ships.
+Process wire — additive on the 2 new types. **Not safe without the SNS filter-policy migration** — see `docs/breaking-changes.md § Cross-cutting ordering constraint — SNS filter-policy scope`. Existing attribute-scoped subscriptions drop body-only publications; CDK filter-policy migration must deploy + propagate before host emits.
 
 ## Session invocation
 
 Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-magiq-media`. Paste:
 
-> Picking up WS-74 (plan MM-114). FolderClosed domain event exists; add integration event record + mapper method + retention fan-out handler. Coordinate with cdk-magiq-media for cascade-triggers filter policy addition.
+> Picking up WS-74 (plan MM-114). FolderClosed domain event exists; FolderReopened event depends on MM-116 (Folder × write-model). Add 2 integration-event records + 2 mapper methods + 2 retention fan-out handlers (pin on close, clear on reopen). Coordinate with cdk-magiq-media for cascade-triggers filter policy additions (both types).
 
 ## Phase 0 — Scope confirmation
 
 - [ ] `FolderClosed.cs` domain event exists (sanity)
+- [ ] MM-116 state on `FolderReopened` domain event (block Phase 2 reopen half if not shipped)
 - [ ] `FolderDomainEventMapper` currently has 4 overloads (sanity)
-- [ ] `FolderClosedIntegrationEvent` record absent (sanity)
-- [ ] `FolderClosedRetentionFanOutHandler` absent (sanity)
+- [ ] `FolderClosedIntegrationEvent` + `FolderReopenedIntegrationEvent` records absent (sanity)
+- [ ] `FolderClosedRetentionFanOutHandler` + `FolderReopenedRetentionFanOutHandler` absent (sanity)
 - [ ] WS-27b `media-cascade-triggers` wiring state
 
-## Phase 1 — Integration event record
+## Phase 1 — Integration event records
 
-- [ ] `Catalog.Contracts/Events/Folders/FolderClosedIntegrationEvent.cs`
-- [ ] `[MessageType("media.folder.closed")]` attribute
-- [ ] Payload: `TenantId`, `FolderId`, `CollectionId`, `ClosedAt`, `ClosedDate`, `AggregateVersion`
+- [ ] `Catalog.Contracts/Events/Folders/FolderClosedIntegrationEvent.cs` with `[MessageType("media.folder.closed")]` + payload `TenantId`, `FolderId`, `CollectionId`, `ClosedAt`, `ClosedDate`, `AggregateVersion`
+- [ ] `Catalog.Contracts/Events/Folders/FolderReopenedIntegrationEvent.cs` with `[MessageType("media.folder.reopened")]` + payload `TenantId`, `FolderId`, `CollectionId`, `ReversedClosedAt`, `ReopenedAt`, `AggregateVersion`
 
-## Phase 2 — Mapper method
+## Phase 2 — Mapper methods
 
-- [ ] `FolderDomainEventMapper` implements `IDomainEventMapper<FolderClosed>`
+- [ ] `FolderDomainEventMapper` implements `IDomainEventMapper<FolderClosed>` + `IDomainEventMapper<FolderReopened>`
 - [ ] `Map(FolderClosed e)` yields a `FolderClosedIntegrationEvent`
+- [ ] `Map(FolderReopened e)` yields a `FolderReopenedIntegrationEvent` (depends on MM-116 shipping the domain event first)
 
-## Phase 3 — Retention fan-out handler
+## Phase 3 — Retention fan-out handlers
 
 - [ ] `FolderClosedRetentionFanOutHandler` under `Catalog.WriteModel/IntegrationEvents/Consuming/Handlers/`
-- [ ] `IIntegrationEventHandler<FolderClosedIntegrationEvent>`
-- [ ] Reads tenant from `executionContext.TenantId` (not `e.TenantId`)
-- [ ] Paginates `FolderMediaItemsIndex` for the folder
-- [ ] Dispatches `PinRetentionCommand` (or equivalent spec-named retention-pin command) per MediaItem
-- [ ] Idempotent on duplicate SQS delivery
-- [ ] Honours per-tenant fan-out budget (same cascade-triggers budget shared with Collection fan-out)
+  - [ ] `IIntegrationEventHandler<FolderClosedIntegrationEvent>`
+  - [ ] Reads tenant from `executionContext.TenantId` (not `e.TenantId`)
+  - [ ] Paginates `FolderMediaItemsIndex` for the folder
+  - [ ] Dispatches retention-pin command per MediaItem (sets `RetentionStartedAt` on `Closure`-pinned items)
+  - [ ] Idempotent on duplicate SQS delivery
+  - [ ] Honours per-tenant fan-out budget (shared cascade-triggers budget with Collection)
+- [ ] `FolderReopenedRetentionFanOutHandler` under same folder
+  - [ ] `IIntegrationEventHandler<FolderReopenedIntegrationEvent>`
+  - [ ] Reads tenant from `executionContext.TenantId`
+  - [ ] Paginates `FolderMediaItemsIndex` for the folder
+  - [ ] Dispatches retention-clear command per MediaItem whose `RetentionClosureAt == ReversedClosedAt` (clears `RetentionStartedAt`; leaves pins anchored on a different closure or non-`Closure` basis untouched)
+  - [ ] Idempotent on duplicate SQS delivery
+  - [ ] Honours per-tenant fan-out budget
 
 ## Phase 4 — CDK coordination
 
-- [ ] cdk-magiq-media `media-cascade-triggers` SQS filter policy on `type` includes `media.folder.closed` (WS-27b scope — verify not already shipped)
+- [ ] **Precondition:** every existing subscription on `media-integration-events` migrated to `FilterPolicyScope: MessageBody` (per `docs/breaking-changes.md § Cross-cutting ordering constraint`). This is a cross-cutting prerequisite; deploy must land + propagate before any body-only publication fires
+- [ ] cdk-magiq-media `media-cascade-triggers` SQS filter policy on `type` includes both `media.folder.closed` and `media.folder.reopened` (WS-27b scope — reopen row needs adding)
 
 ## Phase 5 — Tests
 
-- [ ] Unit: `Map(FolderClosed)` yields correct `[MessageType]` + payload
+- [ ] Unit: `Map(FolderClosed)` + `Map(FolderReopened)` yield correct `[MessageType]` + payload
 - [ ] Integration: closing a folder with N MediaItems retention-pins all N
-- [ ] Integration: duplicate SQS delivery idempotent
+- [ ] Integration: reopening a folder clears retention on all N `Closure`-pinned items whose `RetentionClosureAt` matches
+- [ ] Integration: reopen does not touch items pinned on a different closure or non-`Closure` basis (negative test)
+- [ ] Integration: duplicate SQS delivery idempotent for both handlers
 
 ## Phase 6 — Communicate change
 
@@ -120,3 +139,4 @@ Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-
 ## Session log
 
 - 2026-10-15: plan drafted (alignment-sweep-2026-10-15 cell Folder × integration-events; status candidate; FolderClosed domain event already in code — gap is mapper + contract + fan-out handler)
+- 2026-10-18: re-diffed under Arnica review fixes. Added `media.folder.reopened` (2nd missing type; surfaced by catalog Phase 1 regression recorded as finding #8). Scope doubled: 1 → 2 missing types, 1 → 2 integration-event records, 1 → 2 mapper overloads, 1 → 2 retention fan-out handlers (close pins, reopen clears). Depends-on now cites MM-116 (FolderReopened domain event half) + WS-27b (cascade-triggers subscription). CDK Phase 4 gains the SNS filter-policy ordering precondition.

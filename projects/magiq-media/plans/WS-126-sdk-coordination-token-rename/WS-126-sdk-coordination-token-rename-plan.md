@@ -1,0 +1,79 @@
+---
+id: MM-165
+type: plan
+project: magiq-media
+workstream: WS-126-sdk-coordination-token-rename
+repo: mgq-dotnet-platform
+tags: [sdk, mgq-dotnet-platform, messagemetadata, saga, step-functions, naming]
+consumes: []
+blocked-by-external: []
+status: new
+branches: []
+created: 2026-10-19
+depends-on: -
+breaking-change: Internal
+source: alignment-sweep-2026-10-15 cell Cross-cutting×envelope
+---
+
+# WS-126 — SDK: rename `MessageMetadata.TaskToken` → `CoordinationToken`
+
+**Target repo:** `mgq-dotnet-platform`
+**Spec source:** [`event-store-and-messaging.md § Message Envelope — MessageMetadata`](../../../../../../source/github/sprbrk-standard/mgq-magiq-media/docs/spec/shared/event-store-and-messaging.md#message-envelope) + [`saga-patterns.md`](../../../../../../source/github/sprbrk-standard/mgq-magiq-media/docs/spec/shared/saga-patterns.md)
+**Depends on:** none
+
+## Problem
+
+WS-05 shipped `MessageMetadata.TaskToken: string?` on `mgq-dotnet-platform` to carry Step Functions `waitForTaskToken` handles. Spec [`event-store-and-messaging.md § Message Envelope`](../../../../../../source/github/sprbrk-standard/mgq-magiq-media/docs/spec/shared/event-store-and-messaging.md#message-envelope) names the member `CoordinationToken` (string?), with the intent that it is not Step-Functions-specific — it is a generic coordination handle that any waiting coordinator may claim.
+
+`magiq-media/CLAUDE.md § KDPW` uses both names in close proximity: the WS-05 bullet calls it `TaskToken`, the WS-08 bullet calls it `CoordinationToken`. Code uses `TaskToken` (`src/platform/Messaging/Magiq.Platform.Messaging.Abstractions/Metadata/MessageMetadata.cs:76`).
+
+Spec wins per the repo-wide meta-rule (`magiq-media/CLAUDE.md § When the spec and the code disagree, the spec wins`). Rename the SDK member before host-side relay code (WS-08) consumes the current name — zero magiq-media `TaskToken` / `CoordinationToken` call sites exist today (grepped 2026-10-19), so rename cost is confined to the SDK.
+
+## Scope
+
+### Rename
+
+- `MessageMetadata.TaskToken` → `MessageMetadata.CoordinationToken`
+- Any `IMessageMetadataAccessor` extensions / helpers / XML-doc references that name `TaskToken`
+- `MessageMetadataBuilder` fluent methods (`WithTaskToken(…)` → `WithCoordinationToken(…)`)
+- JSON serialiser contract — property name in on-wire envelope changes from `"taskToken"` to `"coordinationToken"`
+
+### What this plan does NOT ship
+
+- No magiq-media changes — zero `TaskToken` / `CoordinationToken` consumers today
+- No `cdk-magiq-media` changes — EventBridge callback rules reference AWS Step Functions native task-token path (`$.TaskToken` input), unchanged
+- No new Step Functions behaviour — the handle still travels through `.waitForTaskToken` the AWS way
+
+### Wire implications
+
+**Narrow.** The property name appears in CloudEvents `metadata` JSON serialised onto SNS. No downstream consumer parses the member today — WS-08 host-side relay lands with the new name. If any out-of-tree consumer parsed `metadata.taskToken` by name, they would need to switch to `metadata.coordinationToken`. Internal to Magiq SDK ⇒ no breaking-changes.md entry.
+
+## Phase 0 — Scope confirmation
+- [ ] Confirm zero magiq-media + `cdk-magiq-media` consumers of either name (grep both repos)
+- [ ] Confirm no external BC subscribes to `media-integration-events` and reads `metadata.taskToken` (BC owners already notified per MM-ops bc-owner-messages.md — add this to the sweep's BC heads-up if any new names surface)
+- [ ] Decide alias strategy: hard rename (preferred — zero live consumers) vs transitional both-names-serialised (unnecessary complexity)
+
+## Phase 1 — SDK rename
+- [ ] `MessageMetadata.cs` — property rename
+- [ ] All `WithTaskToken` / `IMessageMetadataBuilder` fluent methods renamed
+- [ ] All XML-doc property/method references updated
+- [ ] Serialiser contract — `JsonPropertyName("coordinationToken")`
+- [ ] SDK unit tests — assert new serialised shape; delete prior `taskToken` fixtures
+
+## Phase 2 — magiq-media CLAUDE.md § KDPW fold
+- [ ] Normalise both WS-05 + WS-08 bullets to call it `CoordinationToken` once the SDK PR merges
+- [ ] Spec stays unchanged — `CoordinationToken` was always the specified name
+
+## Phase 3 — Release notes
+- [ ] SDK `CHANGELOG.md`: breaking rename (internal only — no downstream caller affected today); release notes cite spec anchor
+- [ ] Semver bump: minor (new member name) with explicit breaking-rename note; defensible as internal because no live consumer
+
+## Breaking change
+
+**Internal.** No wire or API consumer affected today. SDK rename pre-cedes WS-08 host-side relay consumption. No `docs/breaking-changes.md` entry on the magiq-media side.
+
+## Session log
+
+| Date | Progress |
+|---|---|
+| 2026-10-19 | Drafted from alignment-sweep Cross-cutting × envelope cell |

@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, change-requests, write-model, commands, domain-events, aggregate, lifecycle, participants, redact]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: '-'

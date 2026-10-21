@@ -5,9 +5,9 @@ project: magiq-media
 workstream: WS-118-documentsigning-middleware-permissions-hmac-preconditions
 repo: magiq-media
 tags: [magiq-media, documentsigning, middleware, permission, if-match, etag, hmac, webhook, envelope-lookup, resource-predicate]
-consumes: []
+consumes: [MM-100]
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: 'MM-100 (SDK errorCode slot), MM-154 (DocumentSigning error codes), MM-155 (routes), MM-156 (read-model incl. envelope-lookup + webhook-dedup), MM-157 (write-model), MM-049 (VersionMismatch 412)'

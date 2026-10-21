@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, metadata, retentionschedule, read-model, dynamodb, projector, catalog-index]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: 'RetentionSchedule × write-model (domain events), MM-140 (integration events feed Catalog consumer), MM-141 (readers)'

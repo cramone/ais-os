@@ -1,0 +1,136 @@
+---
+id: MM-153
+type: plan
+project: magiq-media
+workstream: WS-113-registration-middleware-permissions-preconditions
+repo: magiq-media
+tags: [magiq-media, registration, middleware, permission, if-match, etag, precondition, resource-predicate, system-actor]
+consumes: [MM-100]
+blocked-by-external: [MM-100]
+status: active
+branches: []
+created: 2026-10-16
+depends-on: 'MM-100 (SDK errorCode slot), MM-148 (Registration error codes), MM-150 (routes), MM-152 (write-model), MM-049 (VersionMismatch 412)'
+breaking-change: API wire
+source: alignment-sweep-2026-10-15 cell Registration × middleware
+---
+
+# WS-113 — Registration middleware: permissions + resource-predicate + If-Match + ETag + System-actor callbacks
+
+**Target repo:** `magiq-media`
+**Depends on:** MM-100, MM-148, MM-150, MM-152, MM-049
+
+## Problem
+
+Spec [`api-conventions.md § Refusal precedence`](../../../../docs/spec/shared/api-conventions.md#refusal-precedence--state-before-the-resource-predicate) + [`api-permissions.md`](../../../../docs/spec/shared/api-permissions.md): every write route checks `IPermissionService.IsGranted(Permission, claims)` at the edge (`403 PermissionDenied`), then the handler checks the resource predicate per each `registration.api.md § Authorization` row (`403 NotResourceOwner`); preconditioned routes refuse `If-Match`-absent as `428 PreconditionRequired` and emit `ETag: W/"<AggregateVersion>"` on 2xx. Adapter callback routes (`/dispatch`, `/receipt`) additionally require `actor.ActorType == "System"` (bound to `RegistrationAdapter` platform-integration role) and refuse `User` with `SystemActorRequired 403` (MM-148).
+
+Registration endpoints:
+
+- Declare no permission.
+- Run no resource match (owner = `OfficerId`; `.All` widens).
+- No `SystemActorRequired` check on dispatch / receipt callbacks.
+- Read no `If-Match`.
+- Emit no `ETag`.
+- `erase-personal-data` named `If-Match` exception per `api-conventions.md`.
+
+## Scope
+
+| Concern | Spec | Code |
+|---|---|---|
+| Permission check at edge | `IPermissionService.IsGranted(Permission, claims)` → `403 PermissionDenied` | not called |
+| Resource-predicate guard | caller == `OfficerId` or `.All` | handler returns `DomainError.InvalidOperation` |
+| `SystemActorRequired` on `/dispatch` + `/receipt` | `actor.ActorType == "System"` else `403 SystemActorRequired` | not enforced |
+| `If-Match` on preconditioned routes | submit, resubmit, cancel, confirm, reject, revoke, dispatch, receipt, correct-reference, request-amendment, approve/reject amendment, attach-documents | not read |
+| `428 PreconditionRequired` when `If-Match` absent | — | — |
+| `412 VersionMismatch` on mismatch (MM-049) | current code answers `409` | — |
+| `ETag: W/"<AggregateVersion>"` on 2xx + conditional-safe `GET` | not emitted | — |
+| `erase-personal-data` `If-Match` exempt | named exception per `api-conventions.md` | — |
+
+## What the spec requires
+
+- Every write endpoint declares `[Permission(RegistrationPermissions.<Verb>)]`.
+- Handler orders refusal: permission → exists (`404`) → state (`409`/`422`) → resource predicate (`403 NotResourceOwner`).
+- `/dispatch` + `/receipt` require System actor: inbound filter refuses `User` with `403 SystemActorRequired` before permission check (platform-integration auth boundary).
+- Preconditioned routes read `If-Match` → compare to `AggregateVersion` → `428` absent, `412` mismatch, `400` malformed. 2xx responses carry `ETag: W/"<version>"`.
+- `erase-personal-data` route is the named `If-Match` exception (irreversible but explicitly exempt).
+
+## Wire-visibility
+
+- Breaking — permission checks + `If-Match` enforcement + 412 flip; dispatch/receipt reject `User` actors; `ETag` added.
+
+## Scope boundary
+
+- Endpoint + handler surface only.
+- `RegistrationPermissions` constants class = this plan's scope.
+- Platform-level `IPermissionService` wiring = MM-100 scope.
+- `VersionMismatch` 409 → 412 flip = MM-049.
+- Idempotency / pagination / ProblemDetails = covered elsewhere.
+- `SystemActorRequired` error code emission = MM-148.
+
+## Session invocation
+
+Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-magiq-media`. Paste:
+
+> Picking up WS-113 (plan MM-153). MM-100/148/150/152/049 must ship first.
+
+## Phase 0 — Scope confirmation
+
+- [ ] MM-100 shipped
+- [ ] MM-148 constants reachable (`SystemActorRequired` + `NotResourceOwner` + `InvalidStatusTransition`)
+- [ ] MM-150 routes shipped (6 new routes incl. dispatch/receipt/erase-personal-data)
+- [ ] MM-152 write-model shipped
+- [ ] MM-049 `VersionMismatch` 412 shipped
+
+## Phase 1 — Permission constants
+
+- [ ] `RegistrationPermissions` constants — one slug per verb per `registration.api.md § Authorization` (`InitiateRegistration`, `AttachRegistrationDocuments`, `SubmitRegistration`, `ResubmitRegistration`, `CancelRegistration`, `RequestAmendment`, `CorrectRegistrationReference`, `EraseRegistrationPersonalData`, `DispatchRegistration`, `RecordRegistrationReceipt`, `ConfirmRegistration`, `RejectRegistration`, `RevokeRegistration`, `ApproveAmendment`, `RejectAmendment`, `ReadRegistration`)
+
+## Phase 2 — Endpoint-side permission wiring
+
+- [ ] Every Registration write endpoint declares `[Permission(RegistrationPermissions.<Verb>)]`
+- [ ] FastEndpoints config calls `IPermissionService.IsGranted` on each inbound request; refuses `403 PermissionDenied`
+
+## Phase 3 — Resource-predicate guard
+
+- [ ] Owner-predicate: caller == `OfficerId` or `.All` widening
+- [ ] Handler returns `403 NotResourceOwner` on predicate failure
+
+## Phase 4 — System-actor callback filter
+
+- [ ] `/dispatch` + `/receipt` endpoints read `actor.ActorType`
+- [ ] `User` → `403 SystemActorRequired` (before permission check)
+- [ ] Platform-integration role `RegistrationAdapter` grants `System` actor type
+
+## Phase 5 — `If-Match` + `ETag`
+
+- [ ] Preconditioned endpoints (submit, resubmit, cancel, confirm, reject, revoke, dispatch, receipt, correct-reference, request-amendment, approve/reject amendment, attach-documents) read `If-Match`; refuse `428`/`412`/`400`
+- [ ] `erase-personal-data` **exempt** — no `If-Match` enforcement
+- [ ] 2xx responses carry `ETag: W/"<AggregateVersion>"`
+- [ ] `GET /registrations/{id}` + list + search responses emit `ETag`
+
+## Phase 6 — Tests
+
+- [ ] Integration per route: permission refusal → `403 PermissionDenied`
+- [ ] Integration per route: `If-Match`-absent on preconditioned → `428`
+- [ ] Integration: `/dispatch` + `/receipt` with `User` actor → `403 SystemActorRequired`
+- [ ] Integration: `erase-personal-data` without `If-Match` → 2xx (exempt)
+- [ ] Integration: `ETag` round-trips conditional reads
+
+## Phase 7 — Communicate change
+
+- [ ] Breaking-changes.md entry — API wire breaking: permission + 428/412 + ETag + System-actor callbacks
+- [ ] Release-notes line
+
+## Phase 8 — Ship
+
+- [ ] PR to `develop`
+
+## Phase 9 — Close
+
+- [ ] CLAUDE.md § KDPW: bullet removed
+- [ ] INTEGRATION-BACKLOG.md: MM-153 → § Shipped
+- [ ] spec-divergence/INDEX.md: WS-113 close row
+
+## Session log
+
+- 2026-10-16: plan drafted (alignment-sweep-2026-10-15 cell Registration × middleware; mirror of MM-106/112/117/123/127/132/138/144 pattern + `SystemActorRequired` adapter-callback filter + `erase-personal-data` If-Match exemption)

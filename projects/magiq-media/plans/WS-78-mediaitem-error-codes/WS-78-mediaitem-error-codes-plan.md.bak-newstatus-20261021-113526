@@ -1,0 +1,131 @@
+---
+id: MM-118
+type: plan
+project: magiq-media
+workstream: WS-78-mediaitem-error-codes
+repo: magiq-media
+tags: [magiq-media, catalog, mediaitem, errors, error-codes, problemdetails, wire-contract]
+consumes: [MM-100]
+blocked-by-external: [MM-100]
+status: active
+branches: []
+created: 2026-10-16
+depends-on: MM-100, MM-032
+breaking-change: API wire
+source: alignment-sweep-2026-10-15 cell MediaItem × error-codes
+---
+
+# WS-78 — MediaItem coded error wiring (45 codes)
+
+**Target repo:** `magiq-media`
+**Depends on:** MM-100 (SDK `errorCode` slot), MM-032 (`AggregateAlreadyExistsException` → `MediaItemIdAlreadyExists`)
+
+## Problem
+
+`docs/spec/shared/error-catalog.md § MediaItem` names 45 codes — the largest aggregate in the catalog. Code emits every MediaItem refusal as `DomainError.InvalidOperation(prose)` with no `errorCode` member on the wire. `MediaItemErrorCodes` constants class is unbuilt.
+
+## Codes (45)
+
+**Identity + state (4):** `MediaItemNotFound` (404), `MediaItemAlreadyExists` (409), `MediaItemIdAlreadyExists` (409), `NotResourceOwner` (403).
+
+**Checkout + edit-session (6):** `MediaItemCheckedOut` (422/403), `MediaItemNotCheckedOut` (422), `CheckoutLeaseExpired` (422), `CheckoutNotLeased` (422), `MediaItemNotCheckoutable` (422), `TooManyCollaborators` (400).
+
+**Lifecycle (6):** `MediaItemAlreadyArchived` (422), `MediaItemArchived` (422), `MediaItemNotArchived` (422), `MediaItemAlreadyDeleted` (422), `MediaItemNotEditable` (422), `MediaItemAssetsNotReleasable` (422).
+
+**Retention + legal hold (8):** `MediaItemUnderLegalHold` (422), `MediaItemRetentionActive` (422), `MediaItemRetainedPermanently` (422), `LegalHoldAlreadyPlaced` (409), `LegalHoldNotFound` (404), `RetentionAlreadyStarted` (422), `MediaItemHasActiveRegistrations` (422), `RetentionScheduleNotPinnable` (422).
+
+**Supersession + finalization (3):** `InvalidSupersession` (422), `MediaItemAlreadySuperseded` (422), `MediaItemAlreadyFinalized` (422).
+
+**External event + disposition review (4):** `ExternalEventNotAdmitted` (422), `ExternalEventAlreadyPinned` (422), `ExternalEventPayloadInvalid` (400), `DispositionReviewNotAdmitted` (422).
+
+**Review (6):** `NotAssignedReviewer` (403), `ReviewerAlreadyDecided` (422), `MinimumReviewersRequired` (422), `ReviewerIsInitiator` (422), `ReviewInProgress` (422), `MissingTextAlternative` (422).
+
+**Change request (3):** `ChangeRequestRequired` (422), `ChangeRequestNotOpen` (422), `ChangeRequestItemMismatch` (422).
+
+**Role + publish (2):** `RoleAssignmentNotFound` (404), `MissingTextAlternative` (already listed).
+
+**Metadata (4):** `MetadataValidationFailed` (422), `MetadataFieldValueTooLarge` (422), `MetadataFieldCountExceeded` (422), `MetadataPayloadTooLarge` (422).
+
+(Spec text may re-use `MediaItemArchived` across Asset + MediaItem contexts — handled per aggregate ownership.)
+
+## Code state today
+
+- `MediaItem.cs` + handlers return `DomainError.InvalidOperation(prose)` / `ResourceNotFound(prose)` across every refusal site. No `errorCode`.
+- Many codes gated on commands/flows that may be partially built:
+  - Retention + legal hold: entity-level state may need snapshot additions.
+  - Supersession + finalization: distinct lifecycle extensions.
+  - External event + disposition review: pin-driven lifecycle.
+- `MediaItemErrorCodes` constants class is unbuilt.
+- `MediaItemIdAlreadyExists` depends on F020 / MM-032.
+- `NotAssignedReviewer` / `ReviewerAlreadyDecided` must be aggregate-invariant refusals (CLAUDE.md § Auth), not handler-side.
+
+## What the spec requires
+
+- `MediaItemErrorCodes` constants class with 45 members.
+- Every `MediaItem.*` method refusal returns `DomainError.<factory>(errorCode: MediaItemErrorCodes.<code>, …)`.
+- Every operation-named handler under `Catalog.WriteModel/Commands/MediaItems/**/*Handler.cs` (28 built handlers: `CreateMediaItem`, `ApproveReview`, `RejectReview`, `AssignAssetToRole`, `UnassignAssetFromRole`, `ReplaceAssetInRole`, `AssignMediaItemToFolder`, `MoveMediaItem`, `ArchiveMediaItem`, `DeleteMediaItem`, `BeginRevision`, `DiscardRevision`, `PublishMediaItem`, `RejectMediaItem`, `WithdrawMediaItem`, `TagMediaItem`, `SetMetadataField`, `SetMetadataBatch`, `BulkSetMetadata`, `BulkCreateMediaItems`, `UpdateMediaItemTitle`, `UpdateMediaItemDescription`, `UpdateConformanceStatus`, `AddRegistrationRef`, `RemoveRegistrationRef`, `LinkSigningSession`, `UnlinkSigningSession`, `PurgeMediaItemVersion`) reports `errorCode` on refusals + aggregate-missing (`MediaItemNotFound`), name-reservation (`MediaItemAlreadyExists`), duplicate-id (`MediaItemIdAlreadyExists` via MM-032), resource-predicate (`NotResourceOwner`). The 28-handler scope was understated at draft time under the narrow `*MediaItemHandler.cs` glob — handlers in operation-named folders don't match that pattern.
+- `MediaItem.ReviewSession` invariants refuse `NotAssignedReviewer` + `ReviewerAlreadyDecided` from the aggregate (not the handler).
+- `MetadataValidationFailed` carries `fieldErrors` extension payload per `error-catalog.md § Extension members`.
+- Bulk envelope `BulkItemError.ErrorCode` lookup from `MediaItemErrorCodes` for batch flows.
+
+## Scope boundary
+
+- **MediaItem only.** Asset, Collection, Folder, MediaProfile each have their own cells + plans.
+- Does not build any missing MediaItem commands/handlers (that is Phase B of MediaItem × write-model). This plan carries constants + wires call sites that exist today. Call sites for codes whose owning commands aren't built yet land as constants only; wiring follows when the commands do.
+
+## Session invocation
+
+Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-magiq-media`. Paste:
+
+> Picking up WS-78 (plan MM-118). MM-100 shipped. Wire 45 MediaItem error codes to aggregate + handlers. Codes gated on partially-built lifecycle flows (retention, supersession, external event, finalization) ship as constants; call sites land with their owning commands.
+
+## Phase 0 — Scope confirmation
+
+- [ ] MM-100 shipped
+- [ ] Grep every `DomainError.InvalidOperation` + `ResourceNotFound` call site under `Catalog.Domain/Aggregates/MediaItems/` + `Catalog.WriteModel/Commands/MediaItems/`
+- [ ] Identify which lifecycle flows (retention, supersession, external event, finalization, legal hold) have commands/handlers built
+
+## Phase 1 — Constants + aggregate
+
+- [ ] `MediaItemErrorCodes.cs` with 45 const strings
+- [ ] Every built refusal site returns `DomainError.<factory>(errorCode: MediaItemErrorCodes.<code>, message)`
+- [ ] `MediaItem.ReviewSession` aggregate-invariant refusals: `NotAssignedReviewer` (403) + `ReviewerAlreadyDecided` (422)
+- [ ] Snapshot test per factory: shape asserts `.ErrorCode` set
+
+## Phase 2 — Handlers (28 operation-named handler sites)
+
+Walk `Catalog.WriteModel/Commands/MediaItems/**/*Handler.cs` — one subfolder per operation. Narrow `*MediaItemHandler.cs` glob misses most; use the broader scope. For each handler:
+
+- [ ] Aggregate-missing → `MediaItemNotFound`
+- [ ] Name-reservation refusal → `MediaItemAlreadyExists`
+- [ ] `AggregateAlreadyExistsException` (MM-032) → `MediaItemIdAlreadyExists`
+- [ ] Resource-predicate guard → `NotResourceOwner`
+- [ ] Bulk envelope `BulkItemError.ErrorCode` uses `MediaItemErrorCodes` constants (bulk sites: `BulkCreateMediaItemsHandler`, `BulkSetMetadataHandler`)
+- [ ] `MetadataValidationFailed` carries `fieldErrors` payload (sites: `SetMetadataFieldHandler`, `SetMetadataBatchHandler`, `BulkSetMetadataHandler`, `CreateMediaItemHandler`)
+
+## Phase 3 — Gated codes
+
+- [ ] Lifecycle codes (retention/legal-hold/supersession/finalization/external-event/disposition-review) wired at command sites that exist
+- [ ] Constants carried for sites whose commands are not yet built; call sites land in future lifecycle work
+
+## Phase 4 — Tests
+
+- [ ] Integration per spec row (built-only): HTTP status + `errorCode` + `type`
+- [ ] Unit per factory: `ErrorCode` set
+- [ ] `fieldErrors` extension on `MetadataValidationFailed`
+
+## Phase 5 — Ship
+
+- [ ] PR to `develop`
+
+## Phase 6 — Close
+
+- [ ] CLAUDE.md § KDPW: MediaItem bullet removed
+- [ ] INTEGRATION-BACKLOG.md: MM-118 → § Shipped
+- [ ] spec-divergence/INDEX.md: WS-78 close row
+- [ ] breaking-changes.md: entry moves on release cut
+
+## Session log
+
+- 2026-10-16: plan drafted (alignment-sweep-2026-10-15 cell MediaItem × error-codes; status candidate; mirrors MM-101/MM-107/MM-113 pattern; largest aggregate at 45 codes)
+- 2026-10-18: re-diffed under Arnica review fix for finding #2 (narrow code scope). Enumerated the 28 operation-named handlers under `Catalog.WriteModel/Commands/MediaItems/**/*Handler.cs` — the draft's `*MediaItemHandler.cs` glob missed most of them (handlers live in operation-named subfolders: `ApproveReview/ApproveReviewHandler.cs`, `AssignAssetToRole/AssignAssetToRoleHandler.cs`, etc.). Error-code count unchanged (45), but Phase 2 handler-uptake footprint is 28 sites, not the ~5 the original glob would have surfaced. Bulk + MetadataValidationFailed sites named explicitly. 45 constants + fieldErrors payload unaffected. Status unchanged (`active`); dependency metadata (MM-100) added by P2 batch frontmatter patch.

@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, catalog, folder, http, routes]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-15
 depends-on: 'Folder × write-model plan (future)'

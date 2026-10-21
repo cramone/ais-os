@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, registration, read-model, gsi, status-ordinal, dynamodb, opensearch]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: 'WS-55 (read-model-metadata seed), Registration × write-model, MM-150'

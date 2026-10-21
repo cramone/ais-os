@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, documentsigning, signingsession, write-model, aggregate, saga, snapshot, hmac]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: 'MM-154, WS-57'

@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, metadata, retentionschedule, integration-events, mapper, sns, catalog-index]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: 'RetentionSchedule × write-model plan (domain events), MM-139 (error codes)'

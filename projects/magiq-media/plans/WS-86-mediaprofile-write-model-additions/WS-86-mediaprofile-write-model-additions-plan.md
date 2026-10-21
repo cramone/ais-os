@@ -7,15 +7,15 @@ repo: magiq-media
 tags: [magiq-media, catalog, mediaprofile, write-model, commands, domain-events, aggregate, draft-rename, change-request-policy, abandon, revision-break]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: '-'
-breaking-change: Internal
+breaking-change: Process wire additive (MediaProfileAbandoned integration event half folded in from MediaProfile × integration-events cell on 2026-10-18 re-diff)
 source: alignment-sweep-2026-10-15 cell MediaProfile × write-model
 ---
 
-# WS-86 — MediaProfile write-model: 4 new events + 3 new commands
+# WS-86 — MediaProfile write-model: 4 new events + 3 new commands + 1 integration-event wire half (abandoned)
 
 **Target repo:** `magiq-media`
 
@@ -40,9 +40,17 @@ Backing commands + aggregate methods (3 — RevisionBreak is emitted during publ
 
 `MediaProfileRevisionBreakDetected` is emitted inside the publish aggregate method when the draft breaks existing items — either as a validation marker refused back to the handler as `RevisionBreaksExistingItems` or as a published-anyway signal when override is specified. Behaviour aligns with spec `mediaprofile.write-model.md § Publish`.
 
-## Classification — internal
+## Classification — mostly internal + 1 wire half (abandoned)
 
-Wire-visible facets captured by MM-125 (routes) + MM-124 (error codes). This plan is the backing write-model.
+Wire-visible facets for 3 of 4 events captured by MM-125 (routes) + MM-124 (error codes); this plan is the backing write-model for those. **One wire half folded in:** `media.profile.abandoned` integration event (contract record + `MediaProfileDomainEventMapper` overload) — surfaced in 2026-10-18 Arnica review re-diff of MediaProfile × integration-events cell (originally marked `clean` because catalog lacked the abandoned row at draft time). Rather than open a separate 1-type integration-events plan, the mapping half rides with its backing domain event here.
+
+Catalog slice for integration-events after Arnica patch:
+
+| spec type | source domain event | status |
+|---|---|---|
+| `media.profile.published` | `MediaProfilePublished` | published |
+| `media.profile.deprecated` | `MediaProfileDeprecated` | published |
+| `media.profile.abandoned` | `MediaProfileAbandoned` | **missing — folded into this plan** |
 
 ## What the spec requires
 
@@ -56,10 +64,12 @@ Wire-visible facets captured by MM-125 (routes) + MM-124 (error codes). This pla
 - `Abandon` refuses on non-draft state; releases name reservation on success
 - `MediaProfileCreated` carries `[DomainEvent(Version = 1)]` (spec says v1 explicitly — WS-28 upcaster covers v1→v2 if needed)
 - `MediaProfilePublished` carries `[DomainEvent(Version = 2)]` (per CLAUDE.md KDPW event-schema list)
+- `MediaProfileAbandonedIntegrationEvent` record under `Catalog.Contracts/Events/MediaProfiles/` with `[MessageType("media.profile.abandoned")]` and payload `{ TenantId, MediaProfileId, AbandonedAt, EventVersion }`
+- `MediaProfileDomainEventMapper` adds `IDomainEventMapper<MediaProfileAbandoned>` + `Map(MediaProfileAbandoned e)` yielding the integration event
 
 ## Scope boundary
 
-- **Aggregate + commands + events only.** HTTP = MM-125. Error codes = MM-124.
+- **Aggregate + commands + events + 1 integration-event wire half (abandoned).** HTTP = MM-125. Error codes = MM-124. Other integration-event types (published, deprecated) are already published; this plan adds the third (abandoned) via mapper overload + contract record.
 - Does not build `MediaProfileSnapshotField` expansion — WS-46 covers.
 - Does not build capability-field-group registry / scheme-selection — WS-54.
 - Platform-origin refusal remains WS-47's responsibility; this plan dispatches to it when state check hits.
@@ -100,6 +110,13 @@ Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-
 - [ ] `AbandonMediaProfileCommand` + handler
 - [ ] Each: guard precedence per `api-conventions.md § Refusal precedence`
 
+## Phase 3b — Abandoned integration event + mapper
+
+- [ ] `MediaProfileAbandonedIntegrationEvent` record under `Catalog.Contracts/Events/MediaProfiles/` with `[MessageType("media.profile.abandoned")]` + payload `{ TenantId, MediaProfileId, AbandonedAt, EventVersion }`
+- [ ] `MediaProfileDomainEventMapper` adds `IDomainEventMapper<MediaProfileAbandoned>` + `Map(MediaProfileAbandoned e)` yielding the integration event
+- [ ] **CDK coordination precondition:** every existing subscription on `media-integration-events` migrated to `FilterPolicyScope: MessageBody` (per `docs/breaking-changes.md § Cross-cutting ordering constraint`). Cross-cutting prerequisite; deploy must land + propagate before any body-only publication fires
+- [ ] cdk-magiq-media filter-policy entry for Catalog subscriber on `media.profile.abandoned` (mediaprofile.write-model.md names Catalog as consumer — cache miss falls through to snapshot + stream load; marks profile abandoned on consumer indexes)
+
 ## Phase 4 — Tests
 
 - [ ] Unit per aggregate method: pre-state + command → expected event(s)
@@ -107,6 +124,8 @@ Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-
 - [ ] Unit: abandon releases name reservation
 - [ ] Integration: rename draft → name-reservation collision refuses `MediaProfileNameConflict 409` (MM-124)
 - [ ] Integration: abandon → draft disappears + name released
+- [ ] Unit: `Map(MediaProfileAbandoned)` yields `MediaProfileAbandonedIntegrationEvent` with `[MessageType("media.profile.abandoned")]` + spec payload
+- [ ] Integration: `AbandonMediaProfileCommand` → `media.profile.abandoned` on `media-integration-events`
 
 ## Phase 5 — Ship
 
@@ -121,3 +140,4 @@ Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-
 ## Session log
 
 - 2026-10-16: plan drafted (alignment-sweep-2026-10-15 cell MediaProfile × write-model; status candidate; mirror of MM-111/MM-116/MM-122 pattern)
+- 2026-10-18: re-diffed under Arnica review fix for finding #8 (catalog Phase 1 regression). Folded in `media.profile.abandoned` integration-event wire half from MediaProfile × integration-events cell (originally marked `clean` because catalog lacked the row at draft time). Scope now carries 1 new integration-event record + 1 new mapper overload + CDK filter-policy entry for Catalog consumer. Classification bumped from `Internal` to `Process wire additive` on `media.profile.abandoned`. 4 write-model events + 3 commands unchanged.

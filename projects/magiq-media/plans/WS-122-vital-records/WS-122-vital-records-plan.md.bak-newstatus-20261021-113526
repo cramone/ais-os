@@ -1,0 +1,109 @@
+---
+id: MM-161
+type: plan
+project: magiq-media
+workstream: WS-122-vital-records
+repo: magiq-media
+tags: [magiq-media, vital-records, cross-cutting, mediaitem-lifecycle, bcdr, replication]
+consumes: []
+blocked-by-external: []
+status: active
+branches: []
+created: 2026-10-18
+depends-on: MM-100, MM-118, MM-122
+breaking-change: API wire
+source: alignment-sweep-2026-10-15 cell Cross-cutting×http-routes
+---
+
+# WS-122 — Vital records designation + inventory + replication
+
+**Target repo:** `magiq-media`
+**Spec source:** [`vital-records.md`](../../../../../../source/github/sprbrk-standard/mgq-magiq-media/docs/spec/shared/vital-records.md)
+**Depends on:** MM-100 (SDK `errorCode` slot), MM-118 (MediaItem error codes constants — adds `VitalRecordProtected`), MM-122 (MediaItem write-model — adds `IsVital` state + 2 events)
+
+## Problem
+
+Spec [`vital-records.md`](../../../../../../source/github/sprbrk-standard/mgq-magiq-media/docs/spec/shared/vital-records.md) requires designation on records essential to a tenant's business continuity, with redundant storage, mandatory off-platform replication, suppressed destruction, priority recovery.
+
+Code today:
+- Zero `IsVital` / `DesignateVital` / `VitalDesignationCleared` / `VitalRecord` references
+- Zero `media-vital-records` projection
+- Zero `GET /v1/vital-records` endpoint
+- Zero `VitalRecordReplicationHandler`
+- Zero `MaintenanceScanner` vital-records-replication pass
+- `VitalRecordProtected 422` error code absent (catalog regression — not in `error-catalog.md § Common / cross-cutting`; add during MM-118 or extend MM-159)
+
+## Scope
+
+### MediaItem lifecycle extension
+
+- `DesignateVital` command (`MediaItem.Manage` permission + `.All` widening)
+- `VitalDesignationCleared` command (`MediaItem.Manage`)
+- 2 new domain events: `MediaItemVitalDesignated`, `MediaItemVitalDesignationCleared`
+- `MediaItem.IsVital` state (bool, default false)
+- `DestroyMediaItem` / `EraseMediaItem` refuses `VitalRecordProtected 422` while `IsVital = true` and under retention clock
+- Legal-hold ⊕ vital-flag: both hold; neither overrides (per spec § Vital-records protection)
+
+### Routes (1)
+
+| Verb | Path | Response |
+|---|---|---|
+| GET | `/v1/vital-records` | `200 OK` · list of vital-record inventory rows (replication status + last-replicated instant) |
+
+### Projection
+
+- `media-vital-records` DynamoDB table (one row per vital record per tenant); PK `TENANT#{TenantId}#VITAL_RECORDS`, SK `{MediaItemId}`
+- Row members: `MediaItemId`, `DesignatedAt`, `LastReplicatedAt?`, `ReplicationStatus` (Pending/Replicated/Failed), `ReplicationDestination`
+- Projector listens for `MediaItemVitalDesignated` + `MediaItemVitalDesignationCleared` + replication events
+
+### Replication
+
+- `VitalRecordReplicationHandler` SQS-triggered on content-change events (`MediaItemPublished`, `AssetProcessingCompleted`, etc.) filtered by `IsVital = true`
+- Writes to tenant's configured vital-records archive destination (S3 bucket in tenant's BCDR region)
+- Failure raises CloudWatch alarm `media-vital-records-replication-failed`
+- `MaintenanceScanner` vital-records-replication pass retries failed replications
+
+### Error code
+
+- `VitalRecordProtected` 422 — refuse `Destroy`/`Erase` on vital record under retention
+- Add to `CrossCuttingErrorCodes` scaffolding (MM-159) OR to `MediaItemErrorCodes` (MM-118); decide at scope-confirm phase
+
+## Phase 0 — Scope confirmation
+- [ ] Read `vital-records.md` end-to-end + `retention-and-disposition.md` interaction
+- [ ] Confirm vital-records archive destination = tenant setting `Tenant:VitalRecords:ArchiveDestination` + `Tenant:VitalRecords:ReplicationSla`
+- [ ] Confirm `VitalRecordProtected` home — CrossCuttingErrorCodes (used by multiple aggregates) vs per-aggregate (MediaItem only today, but Collection/Folder may follow)
+
+## Phase 1 — MediaItem lifecycle extension
+- [ ] 2 domain events + 2 commands + 2 aggregate methods + 2 handlers
+- [ ] `MediaItem.IsVital` state + snapshot bump per WS-57
+- [ ] `Destroy`/`Erase` guard with `VitalRecordProtected` refusal
+
+## Phase 2 — Projection + GSI
+- [ ] `media-vital-records` table (CDK)
+- [ ] `VitalRecordProjector` for `MediaItemVitalDesignated` / `Cleared` / replication events
+- [ ] `IReadModel` schema + `IProjectionIndexSchema<T>`
+
+## Phase 3 — Replication handler + MaintenanceScanner pass
+- [ ] `VitalRecordReplicationHandler` SQS subscription on content-change events
+- [ ] S3 cross-bucket copy to tenant's vital-records archive
+- [ ] `MaintenanceScanner.VitalRecordsReplicationPass` retrying failed rows
+- [ ] CloudWatch alarm `media-vital-records-replication-failed`
+
+## Phase 4 — Read route
+- [ ] `GET /v1/vital-records` endpoint on `QueryApi`
+- [ ] Permission `MediaItem.Read` or `Tenant.BCDR` (clarify in Phase 0)
+- [ ] Response shape per spec § Vital-records inventory
+
+## Phase 5 — Compliance mapping
+- [ ] `docs/compliance/iso-27001.md` + `nist-800-53-cp-7.md` cite spec anchors
+- [ ] `compliance_coverage.py` validates
+
+## Breaking change
+
+**API wire — additive.** New `GET /v1/vital-records` + 2 new MediaItem lifecycle routes (`DesignateVital` / clear). Clients unaffected until opt-in. `VitalRecordProtected 422` adds to refusal catalog on existing destroy/erase routes — narrow breaking (new refusal path on existing routes, only hit by vital records). Breaking-changes.md entry under § Expected — API wire — additive (narrow).
+
+## Session log
+
+| Date | Progress |
+|---|---|
+| 2026-10-18 | Drafted from alignment-sweep Cross-cutting × http-routes cell |

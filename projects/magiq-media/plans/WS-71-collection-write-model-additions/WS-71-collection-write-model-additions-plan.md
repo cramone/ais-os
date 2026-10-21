@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, catalog, collection, write-model, commands, domain-events, aggregate, tags, unarchive, cascade-terminator]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-15
 depends-on: MM-108

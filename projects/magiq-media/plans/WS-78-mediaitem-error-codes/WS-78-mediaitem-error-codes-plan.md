@@ -5,9 +5,9 @@ project: magiq-media
 workstream: WS-78-mediaitem-error-codes
 repo: magiq-media
 tags: [magiq-media, catalog, mediaitem, errors, error-codes, problemdetails, wire-contract]
-consumes: []
+consumes: [MM-100]
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: MM-100, MM-032
@@ -63,7 +63,7 @@ source: alignment-sweep-2026-10-15 cell MediaItem × error-codes
 
 - `MediaItemErrorCodes` constants class with 45 members.
 - Every `MediaItem.*` method refusal returns `DomainError.<factory>(errorCode: MediaItemErrorCodes.<code>, …)`.
-- Every `*MediaItemHandler.cs` reports `errorCode` on refusals + aggregate-missing (`MediaItemNotFound`), name-reservation (`MediaItemAlreadyExists`), duplicate-id (`MediaItemIdAlreadyExists` via MM-032), resource-predicate (`NotResourceOwner`).
+- Every operation-named handler under `Catalog.WriteModel/Commands/MediaItems/**/*Handler.cs` (28 built handlers: `CreateMediaItem`, `ApproveReview`, `RejectReview`, `AssignAssetToRole`, `UnassignAssetFromRole`, `ReplaceAssetInRole`, `AssignMediaItemToFolder`, `MoveMediaItem`, `ArchiveMediaItem`, `DeleteMediaItem`, `BeginRevision`, `DiscardRevision`, `PublishMediaItem`, `RejectMediaItem`, `WithdrawMediaItem`, `TagMediaItem`, `SetMetadataField`, `SetMetadataBatch`, `BulkSetMetadata`, `BulkCreateMediaItems`, `UpdateMediaItemTitle`, `UpdateMediaItemDescription`, `UpdateConformanceStatus`, `AddRegistrationRef`, `RemoveRegistrationRef`, `LinkSigningSession`, `UnlinkSigningSession`, `PurgeMediaItemVersion`) reports `errorCode` on refusals + aggregate-missing (`MediaItemNotFound`), name-reservation (`MediaItemAlreadyExists`), duplicate-id (`MediaItemIdAlreadyExists` via MM-032), resource-predicate (`NotResourceOwner`). The 28-handler scope was understated at draft time under the narrow `*MediaItemHandler.cs` glob — handlers in operation-named folders don't match that pattern.
 - `MediaItem.ReviewSession` invariants refuse `NotAssignedReviewer` + `ReviewerAlreadyDecided` from the aggregate (not the handler).
 - `MetadataValidationFailed` carries `fieldErrors` extension payload per `error-catalog.md § Extension members`.
 - Bulk envelope `BulkItemError.ErrorCode` lookup from `MediaItemErrorCodes` for batch flows.
@@ -92,14 +92,16 @@ Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-
 - [ ] `MediaItem.ReviewSession` aggregate-invariant refusals: `NotAssignedReviewer` (403) + `ReviewerAlreadyDecided` (422)
 - [ ] Snapshot test per factory: shape asserts `.ErrorCode` set
 
-## Phase 2 — Handlers
+## Phase 2 — Handlers (28 operation-named handler sites)
+
+Walk `Catalog.WriteModel/Commands/MediaItems/**/*Handler.cs` — one subfolder per operation. Narrow `*MediaItemHandler.cs` glob misses most; use the broader scope. For each handler:
 
 - [ ] Aggregate-missing → `MediaItemNotFound`
 - [ ] Name-reservation refusal → `MediaItemAlreadyExists`
 - [ ] `AggregateAlreadyExistsException` (MM-032) → `MediaItemIdAlreadyExists`
 - [ ] Resource-predicate guard → `NotResourceOwner`
-- [ ] Bulk envelope `BulkItemError.ErrorCode` uses `MediaItemErrorCodes` constants
-- [ ] `MetadataValidationFailed` carries `fieldErrors` payload
+- [ ] Bulk envelope `BulkItemError.ErrorCode` uses `MediaItemErrorCodes` constants (bulk sites: `BulkCreateMediaItemsHandler`, `BulkSetMetadataHandler`)
+- [ ] `MetadataValidationFailed` carries `fieldErrors` payload (sites: `SetMetadataFieldHandler`, `SetMetadataBatchHandler`, `BulkSetMetadataHandler`, `CreateMediaItemHandler`)
 
 ## Phase 3 — Gated codes
 
@@ -126,3 +128,4 @@ Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-
 ## Session log
 
 - 2026-10-16: plan drafted (alignment-sweep-2026-10-15 cell MediaItem × error-codes; status candidate; mirrors MM-101/MM-107/MM-113 pattern; largest aggregate at 45 codes)
+- 2026-10-18: re-diffed under Arnica review fix for finding #2 (narrow code scope). Enumerated the 28 operation-named handlers under `Catalog.WriteModel/Commands/MediaItems/**/*Handler.cs` — the draft's `*MediaItemHandler.cs` glob missed most of them (handlers live in operation-named subfolders: `ApproveReview/ApproveReviewHandler.cs`, `AssignAssetToRole/AssignAssetToRoleHandler.cs`, etc.). Error-code count unchanged (45), but Phase 2 handler-uptake footprint is 28 sites, not the ~5 the original glob would have surfaced. Bulk + MetadataValidationFailed sites named explicitly. 45 constants + fieldErrors payload unaffected. Status unchanged (`active`); dependency metadata (MM-100) added by P2 batch frontmatter patch.

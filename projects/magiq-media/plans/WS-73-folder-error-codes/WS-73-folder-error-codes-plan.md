@@ -5,9 +5,9 @@ project: magiq-media
 workstream: WS-73-folder-error-codes
 repo: magiq-media
 tags: [magiq-media, catalog, folder, errors, error-codes, problemdetails, wire-contract]
-consumes: []
+consumes: [MM-100]
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-15
 depends-on: MM-100, MM-032

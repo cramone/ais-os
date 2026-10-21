@@ -5,9 +5,9 @@ project: magiq-media
 workstream: WS-87-mediaprofile-endpoint-middleware
 repo: magiq-media
 tags: [magiq-media, catalog, mediaprofile, http, middleware, authorization, permissions, if-match, precondition, etag]
-consumes: []
+consumes: [MM-100]
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: MM-100, MM-124, MM-125, MM-049

@@ -1,0 +1,123 @@
+---
+id: MM-106
+type: plan
+project: magiq-media
+workstream: WS-66-asset-endpoint-middleware
+repo: magiq-media
+tags: [magiq-media, http, middleware, authorization, permissions, if-match, precondition, asset]
+consumes: [MM-100]
+blocked-by-external: [MM-100]
+status: active
+branches: []
+created: 2026-10-15
+depends-on: MM-100, MM-101, MM-103, MM-049
+breaking-change: API wire
+source: alignment-sweep-2026-10-15 cell Asset × middleware
+---
+
+# WS-66 — Asset endpoint middleware adoption: permission check + resource predicate + `If-Match` precondition
+
+**Target repo:** `magiq-media`
+**Depends on:** MM-100 (SDK `errorCode` slot), MM-101 (Asset error-code wiring), MM-103 (missing Asset routes), MM-049 (`VersionMismatch` → 412 + `InvalidIfMatch` 400)
+
+## Problem
+
+Asset's 19 specified HTTP routes (per `docs/spec/contexts/AssetManagement/aggregates/Asset/asset.api.md`) wire none of three required middleware contracts stated in `docs/spec/shared/api-conventions.md` and `docs/spec/shared/api-permissions.md`:
+
+1. **`IPermissionService` per-route permission check.** CLAUDE.md § Auth & multi-tenancy and `api-permissions.md` require every write route to call `IPermissionService.IsGranted(Permission, claims)` against the route's row in `api-permissions.md`. SDK ships `Magiq.Platform.Users.Security.Permissions.IPermissionService` + `Permission` + `IsGranted`. Repo-wide grep returns zero call sites in `src/`; Asset endpoints never check permission. Caller with any valid JWT reaches every write handler.
+
+2. **Resource-predicate guards in command handlers.** `api-conventions.md § Refusal precedence` requires `permission(403) → exists(404) → state(409/422) → resource predicate(403)`. Asset's resource predicate (owner / MediaItem edit-session editor per each route's `asset.api.md` row) is never checked in any `*Handler.cs`. Caller with permission on the operation can act on another tenant's actor's Asset without the resource match.
+
+3. **`If-Match` precondition enforcement on irreversible routes.** `api-conventions.md § Irreversible operations require If-Match` requires `PreconditionRequired 428` when the header is absent on an irreversible route; `InvalidIfMatch 400` when present on an uncovered route; weak-ETag match against the aggregate's current version. Asset's `DeleteAsset`, `ArchiveAsset` and the specified `PostEraseePersonalData` (missing — covered by MM-103) are irreversible and require `If-Match`. Current endpoints do not read the header, do not emit `ETag` on 2xx responses, and do not refuse 428/400. (MM-049/WS-26 covers the 412/400 mapping for failed match / uncovered route; this plan covers the enforcement side — the host-wired middleware that reads the header, consults the aggregate version from the write path and refuses with the right code.)
+
+## Why this is wire-visible
+
+A caller who today succeeds against an Asset write route may, after this change, be refused `403 NotResourceOwner` (unchanged permission grant, resource match fails) or `428 PreconditionRequired` (previously succeeded without `If-Match`). Downstream clients branch on 2xx vs 4xx and will see new 4xx codes they did not before.
+
+## What the spec requires
+
+- Every row in `asset.api.md § Authorization` is enforced per route (edge permission + resource predicate).
+- Every irreversible row carries `If-Match` enforcement; the `ETag: W/"<AggregateVersion>"` response header is emitted on every 2xx that mutates the Asset aggregate.
+- The `erase-personal-data` route is a named exception (`api-conventions.md § Irreversible operations require If-Match`) — it does not require `If-Match`.
+
+## Implementation requirements
+
+### Permission + resource predicate (concerns 1 and 2)
+
+- Each `*Endpoint.cs` under `src/modules/AssetManagement/AssetManagement.WriteModel.Endpoints/V1/` registers its `Permission` on `Configure()` via a FastEndpoints `PreProcessor` (or the SDK's `UsePermission(Permission.AssetArchive)` convention — align with SDK pattern once named).
+- Permission source is `asset.api.md § Authorization` row per route — the shipped MM-103 and WS-61 plans finalise the row list.
+- Each `*Handler.cs` reads the resource predicate's inputs from the loaded aggregate state (owner, MediaItem edit-session editor) and refuses with `NotResourceOwner 403` + `errorCode: NotResourceOwner`.
+- Guard order per `api-conventions.md § Refusal precedence`: `permission` (endpoint, before dispatch) → `exists` (handler, 404) → `state` (handler, 409/422) → `resource predicate` (handler, 403). Do not reorder to hide existence; the disclosure is accepted by the spec.
+
+### `If-Match` precondition (concern 3)
+
+- Endpoints on irreversible routes declare `RequireIfMatch` (via SDK attribute or `Configure()` call — align with SDK name).
+- Middleware refuses missing header with `PreconditionRequired 428` + `errorCode: PreconditionRequired`.
+- Middleware refuses present-but-not-supported header with `InvalidIfMatch 400` (covered by WS-26, re-used).
+- Weak-ETag match: `W/"<AggregateVersion>"` from the loaded aggregate; failed match → `412 VersionMismatch` (WS-26).
+- Response path: handler emits `ETag: W/"<newVersion>"` on 2xx (via SDK response filter — pending; if SDK has no slot, write a small Asset-local filter until the SDK ships one, and remove it when it does).
+- `erase-personal-data` route: no `If-Match` required (spec-named exception).
+
+## Scope boundary
+
+- **Asset only.** Other aggregates' middleware cells will raise parallel plans. SDK pieces (IPermissionService exists; `UsePermission` fluent API, response-side ETag filter and `RequireIfMatch` middleware may or may not be shipped) are not this plan's remit. If any SDK piece is missing, raise a dependency-gap note; do not build the piece inside Asset.
+- 19 specified routes; today 13 are wired. The 6 missing (MM-103) adopt middleware on landing; the 13 existing adopt in this plan's PR.
+
+## Session invocation
+
+Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-magiq-media`. Paste:
+
+> Picking up WS-66 (plan MM-106). All deps shipped (MM-100, MM-101, MM-103, MM-049). Adopt three middleware concerns on Asset: permission check per route, resource-predicate guards in handlers, `If-Match` enforcement on irreversible routes. Breaking change — coordinate with magiq-media-ui.
+
+## Phase 0 — Scope confirmation
+
+- [ ] Confirm MM-100, MM-101, MM-103, MM-049 shipped (or user policy gate lifted)
+- [ ] Enumerate SDK primitives available (`IPermissionService.IsGranted`, `Permission.*`, `UsePermission(Permission)` or equivalent, `RequireIfMatch` middleware, response-side `ETag` filter). Each missing primitive: raise `dependency-gaps/platform-capabilities/` note before resuming
+- [ ] Enumerate Asset's 19 spec routes vs 13 wired routes; confirm MM-103 adoption state
+
+## Phase 1 — Permission check on endpoints
+
+- [ ] Add `UsePermission(Permission.AssetXxx)` (or SDK equivalent) to each Asset `*Endpoint.cs` `Configure()`
+- [ ] `Permission` constants emitted from Asset-local permission registry or SDK — align with how other modules register theirs when the first module adopts
+- [ ] Unit per route: unauthenticated → 401; authenticated without permission → 403 `PermissionDenied` + `errorCode: PermissionDenied`
+
+## Phase 2 — Resource-predicate guards in handlers
+
+- [ ] Each Asset `*Handler.cs` reads loaded aggregate's owner / MediaItem edit-session editor state
+- [ ] Guard precedence enforced (permission → exists → state → resource predicate); test each precedence step with a per-handler scenario
+- [ ] Fail with `NotResourceOwner 403` + `errorCode: NotResourceOwner`
+- [ ] Widen with `*.All` permission where the row allows
+
+## Phase 3 — `If-Match` enforcement on irreversible routes
+
+- [ ] Mark `DeleteAsset`, `ArchiveAsset` (and the spec-named rest of the irreversible set per `asset.api.md`) as `RequireIfMatch`
+- [ ] `erase-personal-data` route — explicitly skip (spec-named exception)
+- [ ] Response path: emit `ETag: W/"<AggregateVersion>"` on each 2xx mutating response
+- [ ] Unit per irreversible route: missing header → 428 `PreconditionRequired`; stale header → 412 `VersionMismatch` (WS-26); matching header → request proceeds
+
+## Phase 4 — Communicate change
+
+- [ ] Breaking-changes.md entry (added at Phase 3 of this sweep; link PR)
+- [ ] Release-notes line per concern
+- [ ] Coordinate with magiq-media-ui on new 4xx codes
+
+## Phase 5 — Tests
+
+- [ ] Integration: full guard precedence per Asset route
+- [ ] Integration: `ETag` round-trip (read → write with `If-Match` → updated `ETag`)
+- [ ] Integration: `*.All` role widens the resource predicate
+
+## Phase 6 — Ship
+
+- [ ] PR to `develop`
+
+## Phase 7 — Close
+
+- [ ] CLAUDE.md § KDPW: new bullet removed; MM-106 noted as shipped
+- [ ] INTEGRATION-BACKLOG.md: WS-66 → § Shipped
+- [ ] spec-divergence/INDEX.md: close row
+- [ ] breaking-changes.md: entry moves from `## Unreleased` to a release section on cut
+
+## Session log
+
+- 2026-10-15: plan drafted (alignment-sweep-2026-10-15 cell Asset × middleware; status candidate pending user triage)

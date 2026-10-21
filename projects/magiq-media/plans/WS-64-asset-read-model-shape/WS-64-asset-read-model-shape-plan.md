@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, asset-management, read-model, stored-shape, projections]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-15
 depends-on: MM-068

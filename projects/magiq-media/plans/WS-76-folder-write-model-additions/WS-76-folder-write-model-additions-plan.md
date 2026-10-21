@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, catalog, folder, write-model, commands, domain-events, aggregate, originator, reopen, unarchive, retention-fanout]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: '-'

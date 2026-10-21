@@ -1,0 +1,109 @@
+---
+id: MM-159
+type: plan
+project: magiq-media
+workstream: WS-119-cross-cutting-error-codes
+repo: magiq-media
+tags: [magiq-media, error-codes, cross-cutting, bulk-envelope, classification, dsr, constants]
+consumes: []
+blocked-by-external: []
+status: active
+branches: []
+created: 2026-10-18
+depends-on: MM-100
+breaking-change: Internal
+source: alignment-sweep-2026-10-15 cell Cross-cutting×error-codes
+---
+
+# WS-119 — Cross-cutting error-code constants + bulk-handler uptake
+
+**Target repo:** `magiq-media`
+**Depends on:** MM-100 (SDK `errorCode` on `DomainError` + `ProblemDetails` emission)
+
+Mirror of per-aggregate error-code plans (MM-101 Asset, MM-107 Collection, MM-113 Folder, MM-118 MediaItem, MM-124 MediaProfile, MM-128 ChangeRequest, MM-133 RecordType, MM-139 RetentionSchedule, MM-145 ProcessingJob, MM-148 Registration, MM-154 DocumentSigning). This one ships three constants classes covering the catalog's **non-aggregate-owned** error codes.
+
+## Problem
+
+Spec [`error-catalog.md`](../../../../../../source/github/sprbrk-standard/mgq-magiq-media/docs/spec/shared/error-catalog.md) lists 29 cross-cutting rows:
+
+- **Common / cross-cutting (20):** `Unauthorized`, `Forbidden`, `NotFound`, `ConcurrencyConflict`, `VersionMismatch`, `InvalidIfMatch`, `PreconditionRequired`, `InvalidStatusTransition`, `InvalidOperation`, `NotResourceOwner`, `SystemActorRequired`, `ValidationFailed`, `SearchTermRequired`, `InvalidPageToken`, `IdempotencyKeyRequired`, `IdempotentRequestInProgress`, `IdempotencyKeyReused`, `ExternalServiceUnavailable`, `RateLimitExceeded`, `ErasureRefusedUnderLegalHold`, `QuotaExceeded`
+- **Batch-envelope per-item (5 Catalog-labelled, module scope):** `AutoSuffixExhausted`, `NameReservationFailed`, `DuplicateName` / `DuplicateTitle`, `PersistenceFailed`, `ConcurrencyConflict`
+- **Classification (1):** `InsufficientClearance` 403
+- **Privacy — DSR (3):** `SubjectIdentifierNotKnown` 404, `DsrScopeOutsideTenant` 403, `DsrAllTargetsOnLegalHold` 422
+
+Code today:
+- Bulk handlers emit error strings as **magic literals** — e.g. `BulkCreateCollectionsHandler.cs:80` writes `"AutoSuffixExhausted"` directly into `BulkItemError`; `BulkCreateFoldersHandler.cs:191`, `BulkCreateFoldersByPathHandler.cs`, `BulkCreateMediaItemsHandler.cs:159` same pattern. Zero typed constants class.
+- Classification + DSR constants have **no call sites** yet — clearance filter middleware and `DataSubjectRequest` aggregate are both unbuilt. Constants ship now; call sites land with the owning infrastructure (RateLimit middleware, Clearance filter middleware, DSR aggregate build — flagged as sibling gaps for later Cross-cutting cells).
+
+Clients branch on `errorCode` string. Loose string literals in `BulkItemError` risk typos (e.g. `"AutoSuffixExausted"`), ad-hoc divergence across handlers, impossible refactor-rename.
+
+## Scope
+
+### Add
+
+1. **`src/shared/Media.Shared.Infrastructure/ErrorCodes/CrossCuttingErrorCodes.cs`** — static class holding 24 constants matching catalog's § Common / cross-cutting + § Classification + § Privacy — DSR rows (20 common + 1 classification + 3 DSR = 24). Codes already emitted by MM-100 SDK slot keep that path (SDK ships ambient `DomainError.ErrorCode`); this file names the strings for magiq-media call sites that already pass literal codes.
+2. **`src/shared/Media.Shared.Infrastructure/ErrorCodes/BulkEnvelopeErrorCodes.cs`** — static class holding 4 constants (`AutoSuffixExhausted`, `NameReservationFailed`, `DuplicateName`, `DuplicateTitle`, `PersistenceFailed`; `ConcurrencyConflict` already in `CrossCuttingErrorCodes`). Catalog's § Batch operations row-set.
+3. **Handler uptake — replace magic strings in bulk handlers** at the 7 known sites: `BulkCreateCollectionsHandler.cs:80,123`, `BulkCreateFoldersHandler.cs:120,191`, `BulkCreateFoldersByPathHandler.cs:282`, `CreateFolderHandler.cs:48` (`ExternalServiceUnavailable` → `CrossCuttingErrorCodes.ExternalServiceUnavailable`), `BulkCreateMediaItemsHandler.cs:159`. One search pass + replace per handler.
+4. **Classification + DSR + RateLimit constants** present but **no call sites** (middleware + aggregate yet to ship — see § Dependencies). Constants file is forward-compatible scaffolding, parallel to MM-139 RetentionSchedule pattern (constants ship, handler uptake with aggregate build).
+
+### Keep untouched
+
+- SDK `DomainError.ErrorCode` wire path — MM-100's job.
+- Per-aggregate error-code constants classes (`AssetErrorCodes`, `CollectionErrorCodes`, …) — their own plans.
+- Existing `ExternalServiceUnavailable(...)` factory calls — only the string literal gets de-magicked.
+
+## Dependencies — flagged sibling gaps
+
+Three cross-cutting rows surface wire-emission infrastructure that **this cell cannot draft**. Downstream cells carry the plans:
+
+| Code | Status | Target cell |
+|---|---|---|
+| `RateLimitExceeded` 429 | middleware wholly unwired (zero `RateLimit`/`TokenBucket`/`throttl` hits in `src/`) | Cross-cutting × middleware |
+| `InsufficientClearance` 403 | clearance-filter middleware wholly unwired (zero `ClassificationScheme`/`clearance` hits in `src/`); depends on MM-030/WS-54 scheme setting | Cross-cutting × middleware |
+| `SubjectIdentifierNotKnown` / `DsrScopeOutsideTenant` / `DsrAllTargetsOnLegalHold` | `DataSubjectRequest` aggregate wholly unbuilt (zero `DataSubjectRequest`/`/dsr/` hits in `src/`); 5 routes + aggregate + status endpoints absent | Cross-cutting × write-model + Cross-cutting × http-routes |
+
+Constants ship in this plan; call sites land with those sibling plans.
+
+## Phase 0 — Scope confirmation
+- [ ] Confirm `src/shared/Media.Shared.Infrastructure/ErrorCodes/` is the right home — follow pattern of per-aggregate `*ErrorCodes.cs` under each module
+- [ ] Confirm catalog's row count (29 after excluding `FolderWriteInProgress` which belongs to Folder cell)
+- [ ] Confirm MM-100 has shipped before merging — otherwise constants are typed but wire-emission still absent (branch wait)
+
+## Phase 1 — Constants classes
+- [ ] Write `CrossCuttingErrorCodes.cs` (24 constants, XML-doc each with spec `error-catalog.md` row + HTTP status)
+- [ ] Write `BulkEnvelopeErrorCodes.cs` (4 constants, XML-doc each)
+- [ ] Unit test — reflection check that every public const string matches `[A-Z][A-Za-z0-9]+` (prevents accidental lowercase or kebab-case drift)
+- [ ] Unit test — assert every catalog cross-cutting + batch row has a corresponding constant (hand-maintained list in test; fails on catalog growth without constant)
+
+## Phase 2 — Bulk-handler uptake
+- [ ] `BulkCreateCollectionsHandler.cs:80` — `"AutoSuffixExhausted"` → `BulkEnvelopeErrorCodes.AutoSuffixExhausted`
+- [ ] `BulkCreateCollectionsHandler.cs:123` — `"NameReservationFailed"` → `BulkEnvelopeErrorCodes.NameReservationFailed`
+- [ ] `BulkCreateFoldersHandler.cs:120` — `ExternalServiceUnavailable(...)` string arg path audit — likely message, not errorCode; verify emits `CrossCuttingErrorCodes.ExternalServiceUnavailable`
+- [ ] `BulkCreateFoldersHandler.cs:191` — `"AutoSuffixExhausted"` → constant
+- [ ] `BulkCreateFoldersByPathHandler.cs:282` — same ExternalServiceUnavailable audit
+- [ ] `CreateFolderHandler.cs:48` — same audit
+- [ ] `BulkCreateMediaItemsHandler.cs:159` — `"AutoSuffixExhausted"` → constant
+- [ ] Grep repo for any other `"AutoSuffixExhausted"`, `"NameReservationFailed"`, `"DuplicateName"`, `"DuplicateTitle"`, `"PersistenceFailed"` string literals; replace
+
+## Phase 3 — docs_guard + CLAUDE.md KDPW fold
+- [ ] `python .github/scripts/docs_guard.py` passes
+- [ ] CLAUDE.md § KDPW cross-cutting bullet documents remaining wire-emission gaps (RateLimit, Clearance, DSR) with sibling plan ids once drafted
+- [ ] This plan folds the "7 bulk handler magic-string sites" sub-point when it ships
+
+## Acceptance
+
+- `CrossCuttingErrorCodes.*` constant used by every bulk-item error site in Catalog's bulk handlers
+- Reflection test passes
+- Zero magic-string `"AutoSuffixExhausted"` / `"NameReservationFailed"` / `"DuplicateName"` / `"DuplicateTitle"` / `"PersistenceFailed"` occurrences in `src/`
+- `MM-100` wire path emits `errorCode` using these constants (verified by one integration test posting a bulk request with a duplicate id, asserting response's `failed[0].errorCode == "AutoSuffixExhausted"`)
+- Classification + DSR + RateLimit constants exist in files, no call sites required this plan
+
+## Breaking change
+
+**Internal.** No wire shape change — MM-100 ships the `errorCode` member; this plan only names the strings call sites already pass. No breaking-changes.md entry.
+
+## Session log
+
+| Date | Progress |
+|---|---|
+| 2026-10-18 | Drafted from alignment-sweep Cross-cutting × error-codes cell |

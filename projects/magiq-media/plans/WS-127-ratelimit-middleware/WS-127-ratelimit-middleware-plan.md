@@ -1,0 +1,95 @@
+---
+id: MM-166
+type: plan
+project: magiq-media
+workstream: WS-127-ratelimit-middleware
+repo: mgq-dotnet-platform
+tags: [sdk, mgq-dotnet-platform, ratelimit, middleware, http, 429, cross-cutting]
+consumes: []
+blocked-by-external: []
+status: new
+branches: []
+created: 2026-10-19
+depends-on: MM-100, MM-159
+breaking-change: API wire
+source: alignment-sweep-2026-10-15 cell Cross-cutting×middleware
+---
+
+# WS-127 — Rate-limit middleware + `RateLimitExceeded 429` emission
+
+**Target repos:** `mgq-dotnet-platform` (SDK primitive) + `magiq-media` (host wiring + per-route policy)
+**Spec source:** [`error-catalog.md § Common / cross-cutting`](../../../../../../source/github/sprbrk-standard/mgq-magiq-media/docs/spec/shared/error-catalog.md) · [`operations.md § Rate Limiting`](../../../../../../source/github/sprbrk-standard/mgq-magiq-media/docs/spec/shared/operations.md#rate-limiting) · [`api-conventions.md § Idempotency`](../../../../../../source/github/sprbrk-standard/mgq-magiq-media/docs/spec/shared/api-conventions.md) (names `429 RateLimitExceeded`)
+**Depends on:** MM-100 (SDK `errorCode` slot — 429 ProblemDetails emission), MM-159 (`CrossCuttingErrorCodes.RateLimitExceeded` constant)
+
+## Problem
+
+Spec names `RateLimitExceeded 429` in the common error catalog and sketches tenant-level rate ceilings in `operations.md § Rate Limiting` (e.g. 20 uploads/s per tenant, 100 assets per bulk-initiate). Code today has zero rate-limit infrastructure (grep `RateLimit`/`RateLimiter`/`Throttl` across `src/` + `mgq-dotnet-platform/src/platform/` returns nothing). Tenants exceeding the sketched ceilings today face no 429; downstream (DynamoDB/S3) absorbs or refuses, surfacing as `ExternalServiceUnavailable 503` instead.
+
+## Scope
+
+### SDK primitive (`mgq-dotnet-platform`)
+
+- `MagiqRateLimiterOptions` — per-policy TokenBucketOptions (window, limit, burst, queue depth)
+- `AddMagiqRateLimiter(this IServiceCollection, Action<...>)` registration
+- Partition key resolver — default `TenantId`; per-route override (e.g. upload routes partition by `TenantId + ActorId`)
+- `[MagiqRateLimit("policy-name")]` route attribute binding FastEndpoints endpoint to a named policy
+- Refusal shape: `429 ProblemDetails` with `errorCode: "RateLimitExceeded"` + `Retry-After` header + extension `remaining`/`limit`/`resetAt`
+- OpenTelemetry metric `magiq.ratelimit.rejections` dimensioned by `tenant.id`/`policy`
+
+### magiq-media host wiring
+
+- `Program.cs` on `Api` + `QueryApi` registers `AddMagiqRateLimiter`
+- Per-tenant policies named after spec's `operations.md` sketch:
+  - `upload-initiate` — 20 req/s per tenant (sliding window), burst 40
+  - `bulk-initiate` — 10 req/s per tenant, burst 20
+  - `search` — 50 req/s per tenant, burst 100
+  - `default` — 100 req/s per tenant catch-all
+- Per-endpoint `[MagiqRateLimit("upload-initiate")]` on `POST /v1/assets/uploads` + `POST /v1/assets/multipart-uploads` + `POST /v1/assets/uploads/bulk` + `POST /v1/assets/uploads/bulk-confirm`
+- Default policy on remaining write endpoints
+
+### Operator surfaces
+
+- CloudWatch alarm per policy on sustained-high rejection rate paging `media-alarms-pager`
+- Dashboard row on `media-projection-lag` or new `media-rate-limits` dashboard
+
+### What this plan does NOT ship
+
+- Per-tenant tier-based ceiling customisation (deferred — all tenants currently share the policy)
+- `429 ProblemDetails` body `errorCode` wiring (lives in MM-100 SDK slot)
+- Hardening around distributed rate-limit state (TokenBucket is in-process per Lambda invocation; cross-Lambda coordination deferred to post-launch metrics review)
+
+## Phase 0 — Scope confirmation
+- [ ] Read `operations.md § Rate Limiting` + `api-conventions.md § Idempotency` end-to-end
+- [ ] Confirm `Retry-After` header mandatory per spec
+- [ ] Confirm partition key resolver takes `IExecutionContext.TenantId` + optional `Actor.Id` override
+
+## Phase 1 — SDK primitive
+- [ ] `MagiqRateLimiterOptions` + `TokenBucketOptions` + `[MagiqRateLimit]` attribute
+- [ ] `AddMagiqRateLimiter` DI registration
+- [ ] Partition key resolver + custom override
+- [ ] 429 ProblemDetails emission using MM-100's errorCode slot + `Retry-After` header
+- [ ] Metric `magiq.ratelimit.rejections` via `IMeterFactory`
+
+## Phase 2 — magiq-media host wiring
+- [ ] `Program.cs` registrations on `Api` + `QueryApi`
+- [ ] Named policies per `operations.md` sketch
+- [ ] Per-endpoint attribute on upload-initiate + bulk-initiate + search + default routes
+
+## Phase 3 — CDK alarms + dashboard
+- [ ] CloudWatch alarms per policy
+- [ ] Dashboard rows
+
+## Phase 4 — Integration tests
+- [ ] Verify 429 with Retry-After under sustained traffic
+- [ ] Verify body shape per RFC 9457 + `errorCode: "RateLimitExceeded"`
+- [ ] Verify metric emission
+
+## Breaking change
+
+**API wire — additive.** New 429 refusal path on upload-initiate + bulk-initiate + search + default write routes; existing clients unaffected until they exceed ceilings. Narrow — only materialises for tenants over sketched traffic. Breaking-changes.md entry under § Expected — API wire — additive (narrow). Clients should implement `Retry-After` respect.
+
+## Session log
+
+| Date | Progress |
+|---|---|
+| 2026-10-19 | Drafted from alignment-sweep Cross-cutting × middleware cell |

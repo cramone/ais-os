@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, metadata, recordtype, integration-events, version-deprecated, reinstated, supersession]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: 'RecordType × write-model plan'

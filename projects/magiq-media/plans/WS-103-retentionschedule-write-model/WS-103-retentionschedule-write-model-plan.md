@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, metadata, retentionschedule, write-model, aggregate, domain-events, commands, snapshot]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: 'MM-139 (error codes constants), WS-57 (snapshot revision)'

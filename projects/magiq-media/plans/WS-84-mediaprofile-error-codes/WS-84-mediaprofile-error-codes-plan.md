@@ -5,9 +5,9 @@ project: magiq-media
 workstream: WS-84-mediaprofile-error-codes
 repo: magiq-media
 tags: [magiq-media, catalog, mediaprofile, errors, error-codes, problemdetails, wire-contract]
-consumes: []
+consumes: [MM-100]
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: MM-100, MM-032, WS-47

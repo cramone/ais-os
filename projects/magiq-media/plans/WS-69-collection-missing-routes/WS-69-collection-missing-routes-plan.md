@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, catalog, collection, http, routes, async-operations, 202, long-running]
 consumes: []
 blocked-by-external: [MM-031]
-status: active
+status: new
 branches: []
 created: 2026-10-15
 depends-on: MM-031, MM-108

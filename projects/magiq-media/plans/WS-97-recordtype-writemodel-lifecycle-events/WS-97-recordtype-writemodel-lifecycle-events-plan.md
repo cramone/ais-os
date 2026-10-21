@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, metadata, recordtype, write-model, clone, deprecate, reinstate, supersession, abandon, snapshot]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: 'MM-133 (error codes constants), WS-53 (capabilities removal), WS-57 (snapshot revision)'

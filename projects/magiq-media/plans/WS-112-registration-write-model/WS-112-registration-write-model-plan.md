@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, registration, write-model, dispatched, receipt, revoked, overdue, personal-data-erased, snapshot]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: 'MM-148, WS-57, WS-28'

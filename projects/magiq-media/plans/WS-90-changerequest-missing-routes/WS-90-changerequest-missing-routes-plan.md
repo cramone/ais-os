@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, change-requests, http, routes, lifecycle, participants, redact]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: 'ChangeRequest × write-model plan'

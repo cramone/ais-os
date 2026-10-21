@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, documentsigning, signingsession, http, routes, webhook, hmac, reconcile]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-16
 depends-on: 'DocumentSigningSession × write-model, DocumentSigningSession × read-model, MM-154'

@@ -1,0 +1,125 @@
+---
+id: MM-107
+type: plan
+project: magiq-media
+workstream: WS-67-collection-error-codes
+repo: magiq-media
+tags: [magiq-media, catalog, collection, errors, error-codes, problemdetails, wire-contract]
+consumes: [MM-100]
+blocked-by-external: [MM-100]
+status: active
+branches: []
+created: 2026-10-15
+depends-on: MM-100
+breaking-change: API wire
+source: alignment-sweep-2026-10-15 cell Collection × error-codes
+---
+
+# WS-67 — Collection coded error wiring
+
+**Target repo:** `magiq-media`
+**Depends on:** MM-100 (SDK `errorCode` slot on `DomainError` + `ProblemDetails` emission)
+
+## Problem
+
+`docs/spec/shared/error-catalog.md § Collection` names 10 Collection error codes. Code emits every refusal as `DomainError.InvalidOperation(prose)` or `ResourceNotFound(prose)` with no `errorCode` member on the wire. Clients cannot branch on `body.errorCode` for any Collection refusal today.
+
+The 10 codes:
+
+| errorCode | HTTP | Condition |
+|---|---|---|
+| `CollectionNotFound` | 404 | Absent / wrong tenant |
+| `CollectionAlreadyExists` | 409 | Name taken in tenant |
+| `CollectionIdAlreadyExists` | 409 | Duplicate caller-supplied id |
+| `CollectionAlreadyArchived` | 422 | Archive on archived |
+| `CollectionArchived` | 422 | Any mutation on archived collection |
+| `CollectionCascadeInProgress` | 409 | Archive/unarchive cascade running |
+| `CascadeRunNotCurrent` | 409 | Cascade `CascadeRunId` ≠ current |
+| `CascadeReportNotFound` | 422 | Un-archive with no persisted report |
+| `CollectionNotArchived` | 422 | Un-archive node step on non-archived |
+| `UnarchiveNameConflict` | 409 | Name live-taken since archive released it |
+
+## Code state today
+
+- `ArchiveCollectionHandler` returns `ResourceNotFound("Collection not found.")` and `collection.Archive()` returns `DomainError.InvalidOperation("Collection is already archived.")` — no code.
+- `Collection.Rename` refuses rename on archived with `"Collection is already archived."` — maps to `CollectionArchived`.
+- `CreateCollectionHandler` has no duplicate-id refusal — `CollectionIdAlreadyExists` depends on F020 (`AggregateAlreadyExistsException`, MM-032 / WS-13b).
+- Collection name uniqueness: handler uses `INameReservationService.ApplyAsync` with scope `ScopeKeys.Collection`; refusal shape today is `DomainError.InvalidOperation` with reservation prose, not `CollectionAlreadyExists`.
+- `CompleteCollectionArchive`, `UnarchiveCollection`, cascade-run commands do not exist in code (part of MM-031 Step-Functions saga pivot for `magiq-media-collection-archive-cascade`). Five codes (`CollectionCascadeInProgress`, `CascadeRunNotCurrent`, `CascadeReportNotFound`, `CollectionNotArchived`, `UnarchiveNameConflict`) can only be emitted once those commands land.
+
+## What the spec requires
+
+- A `CollectionErrorCodes` constants class carrying all 10 codes.
+- Every Collection aggregate refusal returns `DomainError.<Factory>(ErrorCode = CollectionErrorCodes.<Code>, …)` (SDK slot per MM-100).
+- Every `ProblemDetails` for a Collection refusal carries `errorCode` + spec `type: https://errors.magiqmedia.com/domain/<kebab>`.
+- HTTP status matches the catalog row for each code.
+
+## Implementation requirements
+
+### Phase A — codes wired to existing commands (independent)
+
+- Add `src/modules/Catalog/Catalog.Domain/Aggregates/Collections/CollectionErrorCodes.cs` with 10 `const string` members.
+- `Collection.Archive` refusal → `CollectionAlreadyArchived`.
+- `Collection.Rename`, `UpdateDescription`, `SetVisibility`, `ApplyTags`, `SetDefaultMediaProfile` refusal on archived → `CollectionArchived`.
+- `ArchiveCollectionHandler`, `RenameCollectionCommandHandler`, `UpdateCollectionDescriptionHandler`, `SetCollectionVisibilityHandler`, `TagCollectionHandler`, `SetDefaultMediaProfileHandler`, `CreateCollectionCommandHandler`, `BulkCreateCollectionsHandler`: aggregate-missing → `CollectionNotFound`.
+- `CreateCollectionCommandHandler` + `BulkCreateCollectionsHandler`: name reservation refusal → `CollectionAlreadyExists`.
+- `CreateCollectionCommandHandler` + `BulkCreateCollectionsHandler`: duplicate caller-supplied id (via `AggregateAlreadyExistsException` once MM-032 ships) → `CollectionIdAlreadyExists`.
+
+### Phase B — codes gated by cascade/unarchive commands (coordinate with MM-031)
+
+- `CompleteCollectionArchive` handler + `UnarchiveCollection` handler + cascade step-handlers emit:
+  - `CollectionCascadeInProgress` — concurrent run on same collection.
+  - `CascadeRunNotCurrent` — cascade step's `CascadeRunId` ≠ current.
+  - `CascadeReportNotFound` — un-archive requested with no persisted report.
+  - `CollectionNotArchived` — un-archive node step on non-archived.
+  - `UnarchiveNameConflict` — name live-taken while archived.
+- These are not drafted in this plan's body — they land with the cascade/unarchive command plans. This plan carries only the `CollectionErrorCodes` constant for each; code sites raise them when the owning commands land.
+
+## Wire-visibility
+
+Every Collection refusal response changes shape per MM-100 — `errorCode` at root, `type` on `errors.magiqmedia.com`, HTTP status unchanged. Clients branch on `errorCode` from the day MM-107 ships; prose `title`/`detail` remain informational.
+
+## Session invocation
+
+Open a new Claude Code session, `cd` into `D:\source\github\sprbrk-standard\mgq-magiq-media`. Paste:
+
+> Picking up WS-67 (plan MM-107). MM-100 shipped (SDK ErrorCode slot). Wire 10 Collection error codes to aggregate + handlers. Phase B codes gated on cascade/unarchive command plans (MM-031 era) — this PR adds the constants but leaves five sites unused until those plans ship.
+
+## Phase 0 — Scope confirmation
+
+- [ ] MM-100 shipped
+- [ ] Grep every `DomainError.InvalidOperation` + `ResourceNotFound` call site in `Catalog.Domain/Aggregates/Collections/` and `Catalog.WriteModel/Commands/Collections/`
+- [ ] Confirm cascade/unarchive commands absent (sanity check)
+
+## Phase 1 — Constants + aggregate
+
+- [ ] `CollectionErrorCodes.cs` with 10 const strings
+- [ ] Every `Collection.*` method refusal returns `DomainError.<factory>(errorCode: CollectionErrorCodes.<code>, message)`
+- [ ] Snapshot test on each: shape asserts `.ErrorCode` set
+
+## Phase 2 — Handlers
+
+- [ ] Aggregate-missing → `CollectionNotFound`
+- [ ] Name-reservation refusal → `CollectionAlreadyExists`
+- [ ] `AggregateAlreadyExistsException` → `CollectionIdAlreadyExists` (coordinate with MM-032 / WS-13b)
+- [ ] `BulkCreateCollectionsHandler`: `BulkItemError.ErrorCode` lookup from `CollectionErrorCodes`
+
+## Phase 3 — Tests
+
+- [ ] Integration per spec row: HTTP response has correct status + `errorCode` + `type`
+- [ ] Unit per factory: `ErrorCode` set
+
+## Phase 4 — Ship
+
+- [ ] PR to `develop`
+
+## Phase 5 — Close
+
+- [ ] CLAUDE.md § KDPW: Collection line in error-code bullet removed
+- [ ] INTEGRATION-BACKLOG.md: MM-107 → § Shipped
+- [ ] spec-divergence/INDEX.md: WS-67 close row
+- [ ] breaking-changes.md: entry moves on release cut
+
+## Session log
+
+- 2026-10-15: plan drafted (alignment-sweep-2026-10-15 cell Collection × error-codes; status candidate pending user triage; five Phase-B codes gated on cascade/unarchive command plans)

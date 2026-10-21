@@ -7,7 +7,7 @@ repo: magiq-media
 tags: [magiq-media, asset-management, write-model, event-schema, enum-ordinals]
 consumes: []
 blocked-by-external: []
-status: active
+status: new
 branches: []
 created: 2026-10-15
 depends-on: -
