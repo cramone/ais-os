@@ -433,3 +433,17 @@ unnecessary complexity for Q2.
 **Consequence worth noting:** ADO tools now load in every cwd, so the tailnet dependency is felt everywhere — off-tailnet or in WSL (no MagicDNS in `resolv.conf`) the server fails to connect at session start rather than being silently absent. `~/.claude.json` backed up to `.claude.json.bak-20261016-211120` before the change.
 
 **Full detail:** `mcp/azure-devops/README.md` (new — deploy path, sync flow, client wiring, troubleshooting, rollback). ADR 0001 amendment, `connections.md` row 5.
+
+## 2026-10-26 — Briefs live in the repo; Control Tower projects them read-only
+
+**Project:** magiq-media (pattern for every repo onboarded to ado-flow)
+
+**Decision:** magiq-media's plans are ado-flow briefs in `Sprbrk-Standard/mgq-magiq-media` → `docs/briefs/`, and that is the source of truth. The Control Tower shows them through a read-only briefs reader: brief state from the repo's `origin/<base>` (bare partial clone in `tower/data/repos/`, refreshed on a TTL), board state from ADO `plan-id:` / `brief-rev:` / `xreq-wait:` tags, open brief PRs from `gh`. Status is derived on read and never stored or written back. The 115 migrated plans and the 2 imported reviews (MM-202, MM-203) moved to `projects/magiq-media/_migrated/` (outside the review-cycle scan) and their 118 cards to `tower/data/todos-migrated/magiq-media.json`, so nothing shows twice.
+
+**Why:** Same rule as `cycle.py` — one writer, one reader, no sync state — with the documents now versioned next to the code they plan. Tower runs on Cortex and can't see local clones, so it reads the remote.
+
+**Alternatives considered:** Keep plans in AIS-OS and mirror (rejected — two sources of truth). A `Brief source` skip switch in reconcile (rejected in favour of a move — the tower never sees the documents, and rollback is a move back). Re-implement ado-flow's request and staleness logic in Tower (rejected — Tower shows cheap facets and links to `/ado-flow:brief status` / `deps`).
+
+**Owner:** Chase Ramone
+
+**Rollback:** `projects/magiq-media/_migrated/README.md` § Rollback. The 7 cdk-magiq-media plans and WS-02a (magiq-auth) stay live in `plans/`.
