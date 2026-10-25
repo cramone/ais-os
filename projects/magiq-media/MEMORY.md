@@ -5,6 +5,9 @@ _Last updated: 2026-09-16_
 <!-- Persistent — only remove or change if Chase asks. -->
 
 - **Description**: Document management API — tenants, auth, user security, signing.
+- **Repo**: Sprbrk-Standard/mgq-magiq-media
+- **Repo base**: develop
+- **Brief source**: repo — plans are ado-flow briefs in the repo's `docs/briefs/` (Tower Briefs tab, read-only; decision 2026-10-26). Migrated tower copies: `_migrated/`.
 - **Q2 priorities**: Complete API, tenant management + auth, user security + policies
 - **"The spec"** refers to `D:\source\github\sprbrk-standard\mgq-magiq-media\docs\spec\` (ADRs: `docs\adrs\`) — moved there
   from this docs project on 2026-07-07; that repo is the only source of truth. The old

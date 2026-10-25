@@ -39,6 +39,7 @@ from tower.readers.github import read_github_prs, read_github_review_requested
 from tower.readers.decisions import add_decision, delete_decision, read_decisions, rename_decision
 from tower.readers.claudia import send_to_claudia
 from tower.readers.projects import read_projects
+from tower.readers.briefs import read_brief_file, read_project_briefs
 from tower.standup import generate_standup
 
 
@@ -459,6 +460,25 @@ def project_reviews_file(slug: str, path: str) -> dict:
 @app.put("/api/projects/{slug}/reviews/file")
 def write_reviews_file(slug: str, path: str, body: FileWriteRequest) -> dict:
     return _doc_write(slug, "reviews", path, body.content)
+
+
+# --- Briefs (ado-flow, read-only from the repo) ---
+# readers/briefs.py: brief files from the repo's origin/<base>, board facets from ADO,
+# open brief PRs from gh. Derived on read; nothing is written back.
+
+@app.get("/api/projects/{slug}/briefs")
+def project_briefs(slug: str, refresh: bool = False) -> dict[str, Any]:
+    return read_project_briefs(slug, force=refresh)
+
+
+@app.get("/api/projects/{slug}/briefs/{brief_id}/file")
+def project_brief_file(slug: str, brief_id: str, name: str) -> dict[str, Any]:
+    if "/" in name or "\\" in name or not name.endswith(".md"):
+        raise HTTPException(400, "Invalid file name")
+    try:
+        return read_brief_file(slug, brief_id, name)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
 
 
 # --- Todos ---

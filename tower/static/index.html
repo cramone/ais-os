@@ -1271,6 +1271,7 @@
           <div class="project-tabs">
             <button class="project-tab active" data-ptab="todos" onclick="setProjectTab('todos')">✅ Todos</button>
             <button class="project-tab" data-ptab="plans" onclick="setProjectTab('plans')">📋 Plans</button>
+            <button class="project-tab" data-ptab="briefs" id="briefs-tab-btn" style="display:none" onclick="setProjectTab('briefs')">🧾 Briefs</button>
             <button class="project-tab" data-ptab="reviews" onclick="setProjectTab('reviews')">🔎 Reviews</button>
             <button class="project-tab" data-ptab="spec" onclick="setProjectTab('spec')">📁 Spec Files</button>
             <button class="project-tab" data-ptab="notes" onclick="setProjectTab('notes')">📝 Notes</button>
@@ -1385,6 +1386,30 @@
                 </div>
                 <div class="panel-body expandable-body" id="plans-file-content">
                   <div style="padding:20px;font-size:12px;color:var(--muted)">Click a plan in the tree to view its content.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Briefs (ado-flow, read-only from the repo) -->
+          <div id="project-briefs-section" data-ptab-panel="briefs" style="margin-bottom:16px;display:none">
+            <div class="filepage-grid">
+              <div class="panel">
+                <div class="panel-header">
+                  <div class="panel-title">🧾 Briefs <span style="font-size:10px;font-weight:400;color:var(--muted)" id="briefs-count"></span></div>
+                  <button class="action-btn" title="Fetch the repo, the board and brief PRs now" onclick="loadBriefs(_currentProjectSlug, true)">↻</button>
+                </div>
+                <div style="padding:6px 8px;display:flex;gap:6px;flex-wrap:wrap" id="briefs-filters"></div>
+                <div style="padding:0 8px 4px"><input id="briefs-search" placeholder="Filter by id or title" oninput="renderBriefList()" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:12px"></div>
+                <div class="panel-body expandable-body" id="briefs-list" style="padding:4px 8px"></div>
+                <div style="padding:6px 10px;font-size:10px;color:var(--muted)" id="briefs-source"></div>
+              </div>
+              <div class="panel">
+                <div class="panel-header">
+                  <div class="panel-title" id="brief-detail-title">Select a brief</div>
+                </div>
+                <div class="panel-body expandable-body" id="brief-detail">
+                  <div style="padding:20px;font-size:12px;color:var(--muted)">Status is derived from the repo and the board on every refresh; nothing here is editable. Run the suggested command to move a brief on.</div>
                 </div>
               </div>
             </div>
@@ -2832,6 +2857,9 @@
       loadDocTree(slug, type);
     });
 
+    // Briefs tab (shown only when the project reads briefs from a repo)
+    loadBriefs(slug);
+
     // Auto-load todos
     loadTodos(slug);
 
@@ -2840,6 +2868,121 @@
 
     // Reset to first tab
     setProjectTab('todos');
+  }
+
+  // ── Briefs (ado-flow) ───────────────────────────────────────────────────────
+  // Read-only projection: tower/readers/briefs.py derives every status on read.
+  let _briefs = { slug: null, data: null, filter: 'active', selected: null };
+  const _BRIEF_FILTERS = [
+    ['active', 'Active', b => !['done','withdrawn'].includes(b.status) && !b.chip.startsWith('superseded')],
+    ['action', 'Needs action', b => /^(needs answers|imported|not pushed|behind|ready to close|moved out|no plan)/.test(b.chip)],
+    ['progress', 'On board', b => /^(on board|in progress|waiting)/.test(b.chip)],
+    ['waiting', 'Waiting', b => b.chip.startsWith('waiting')],
+    ['all', 'All', b => true],
+  ];
+  const _bEsc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function _briefChipColor(chip) {
+    if (/^(needs answers|moved out|behind)/.test(chip)) return 'var(--warn, #e0a030)';
+    if (/^(imported|not pushed|no plan|brief PR)/.test(chip)) return 'var(--accent)';
+    if (/^(ready to close|in progress|on board)/.test(chip)) return 'var(--green, #3fb950)';
+    if (chip.startsWith('waiting')) return 'var(--danger, #f85149)';
+    return 'var(--muted)';
+  }
+
+  async function loadBriefs(slug, force = false) {
+    const btn = document.getElementById('briefs-tab-btn');
+    const list = document.getElementById('briefs-list');
+    if (_briefs.slug !== slug) _briefs = { slug, data: null, filter: 'active', selected: null };
+    if (list && force) list.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--muted)">Refreshing from the repo and the board…</div>';
+    let data;
+    try {
+      const r = await fetch(`/api/projects/${slug}/briefs${force ? '?refresh=true' : ''}`);
+      data = await r.json();
+    } catch (e) { data = { enabled: false, briefs: [] }; }
+    if (slug !== _currentProjectSlug) return;
+    if (btn) btn.style.display = data.enabled ? '' : 'none';
+    if (!data.enabled) { if (_projectTab === 'briefs') setProjectTab('todos'); return; }
+    _briefs.data = data;
+    renderBriefFilters(); renderBriefList();
+    if (_briefs.selected) selectBrief(_briefs.selected);
+  }
+
+  function renderBriefFilters() {
+    const el = document.getElementById('briefs-filters');
+    const rows = (_briefs.data && _briefs.data.briefs) || [];
+    if (!el) return;
+    el.innerHTML = _BRIEF_FILTERS.map(([key, label, fn]) =>
+      `<button class="meta-chip${_briefs.filter === key ? ' accent' : ''}" style="cursor:pointer;border:none" onclick="_briefs.filter='${key}';renderBriefFilters();renderBriefList()">${label} ${rows.filter(fn).length}</button>`).join('');
+  }
+
+  function renderBriefList() {
+    const el = document.getElementById('briefs-list');
+    const d = _briefs.data;
+    if (!el || !d) return;
+    const q = (document.getElementById('briefs-search')?.value || '').toLowerCase();
+    const fn = (_BRIEF_FILTERS.find(f => f[0] === _briefs.filter) || _BRIEF_FILTERS[0])[2];
+    const rows = d.briefs.filter(fn).filter(b => !q || b.id.toLowerCase().includes(q) || b.title.toLowerCase().includes(q));
+    document.getElementById('briefs-count').textContent = `${rows.length}/${d.briefs.length}`;
+    const errs = Object.entries(d.errors || {}).map(([k, v]) => `<div style="color:var(--danger,#f85149);font-size:11px;padding:4px 0">${_bEsc(k)}: ${_bEsc(v)}</div>`).join('');
+    el.innerHTML = errs + (rows.length ? rows.map(b => `
+      <div onclick="selectBrief('${b.id}')" style="cursor:pointer;padding:6px 6px;border-radius:6px;margin-bottom:2px;${_briefs.selected === b.id ? 'background:var(--surface2);' : ''}">
+        <div style="display:flex;justify-content:space-between;gap:6px;align-items:baseline">
+          <span style="font-size:12px;font-weight:600">${_bEsc(b.id)}</span>
+          <span style="font-size:10px;color:${_briefChipColor(b.chip)};white-space:nowrap">${_bEsc(b.chip)}</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_bEsc(b.title)}</div>
+      </div>`).join('') : '<div style="padding:8px;font-size:11px;color:var(--muted)">No briefs match.</div>');
+    const age = d.fetchedAt ? Math.round((Date.now() / 1000 - d.fetchedAt) / 60) : null;
+    document.getElementById('briefs-source').textContent =
+      d.repo ? `${d.repo} · ${d.base}@${(d.sha || '').slice(0, 8)} · schemaVersion ${d.schemaVersion ?? '?'}${age !== null ? ` · ${age} min ago` : ''}` : '';
+  }
+
+  function selectBrief(id) {
+    _briefs.selected = id;
+    renderBriefList();
+    const b = _briefs.data.briefs.find(x => x.id === id);
+    const el = document.getElementById('brief-detail');
+    if (!b || !el) return;
+    document.getElementById('brief-detail-title').textContent = `${b.id} — ${b.title}`;
+    const board = b.board || {}, phases = board.phases || {};
+    const phaseRows = b.phases.map(p => {
+      const f = phases[String(p.n)];
+      const st = !f ? (p.blocked.length && !p.blocked.every(x => /^X\d+$/i.test(x)) ? 'deferred' : 'not on board')
+        : f.excluded ? 'excluded' : f.done ? 'done' : f.inReview ? 'in review' : f.blocked ? 'blocked' : f.state;
+      const waits = f && f.waits.length ? ` · waits on ${f.waits.map(k => _bEsc(k.split('/').pop())).join(', ')}` : '';
+      const marks = [p.satisfies ? 'satisfies' : '', ...p.blocked.map(x => 'blocked: ' + x)].filter(Boolean).map(_bEsc).join(', ');
+      return `<tr><td>${p.n}</td><td>${_bEsc(p.name)}${marks ? ` <span style="color:var(--muted)">(${marks})</span>` : ''}</td><td>${p.items.length}</td><td>${f ? `#${f.id} ` : ''}${_bEsc(st)}${waits}</td></tr>`;
+    }).join('');
+    const facts = [
+      ['Status', b.chip], ['Kind', b.kind], ['Revision', b.revision ? `r${b.revision}${b.imported ? ' (imported)' : ''}` : '—'],
+      ['On board', board.epic ? `Epic #${board.epic.id} · ${board.epic.state} · pushed r${board.pushedRev ?? '?'}` : 'not pushed'],
+      ['Depends on', b.depends_on.join(', ') || '—'], ['Requests', b.external_requests.join(', ') || '—'],
+      ['Brief PRs', b.prs.map(p => `<a href="${_bEsc(p.url)}" target="_blank">#${p.number}</a>`).join(', ') || '—'],
+    ];
+    el.innerHTML = `
+      <div style="padding:12px">
+        ${b.next ? `<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+          <code style="flex:1;background:var(--surface2);padding:6px 8px;border-radius:6px;font-size:12px">${_bEsc(b.next)}</code>
+          <button class="action-btn" onclick="navigator.clipboard.writeText(${_bEsc(JSON.stringify(b.next))})">Copy</button></div>` : ''}
+        <table style="font-size:12px;border-collapse:collapse;margin-bottom:10px">${facts.map(([k, v]) =>
+          `<tr><td style="color:var(--muted);padding:2px 12px 2px 0">${k}</td><td>${k === 'Brief PRs' ? v : _bEsc(v)}</td></tr>`).join('')}</table>
+        ${b.phases.length ? `<table style="font-size:12px;border-collapse:collapse;width:100%;margin-bottom:10px">
+          <tr style="color:var(--muted);text-align:left"><th>#</th><th>Phase</th><th>Items</th><th>Board</th></tr>${phaseRows}</table>` : ''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${b.files.map(f =>
+          `<button class="meta-chip" style="cursor:pointer;border:none" onclick="showBriefFile('${b.id}','${_bEsc(f)}')">${_bEsc(f)}</button>`).join('')}</div>
+        <div id="brief-file-body"></div>
+      </div>`;
+  }
+
+  async function showBriefFile(id, name) {
+    const body = document.getElementById('brief-file-body');
+    if (!body) return;
+    body.innerHTML = '<div style="font-size:11px;color:var(--muted)">Loading…</div>';
+    const r = await fetch(`/api/projects/${_currentProjectSlug}/briefs/${id}/file?name=${encodeURIComponent(name)}`);
+    if (!r.ok) { body.textContent = `Couldn't load ${name} (${r.status})`; return; }
+    const d = await r.json();
+    const text = d.content.replace(/^---\n[\s\S]*?\n---\n/, '');
+    body.innerHTML = `<div class="md-body" style="padding:0">${typeof marked !== 'undefined' ? marked.parse(text) : '<pre>' + _bEsc(text) + '</pre>'}</div>`;
   }
 
   // Project detail tab switching
