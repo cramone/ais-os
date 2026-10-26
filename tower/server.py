@@ -35,7 +35,6 @@ from tower.readers.ado import (
     read_ado_cross_project,
 )
 from tower.readers.ado_update import update_work_item_state
-from tower.readers.github import read_github_prs, read_github_review_requested
 from tower.readers.decisions import add_decision, delete_decision, read_decisions, rename_decision
 from tower.readers.claudia import send_to_claudia
 from tower.readers.projects import read_projects
@@ -110,7 +109,6 @@ def health() -> dict[str, Any]:
         "decisions": config.DECISIONS_LOG.exists(),
         "interrupts": config.INTERRUPTS_FILE.exists(),
         "ado": config.ADO_SCRIPT.exists() and bool(os.getenv("AZURE_DEVOPS_PAT")),
-        "github": shutil.which("gh") is not None,
         "claudia": _hermes_container_up(),
     }
     core_ok = all((sources["projects"], sources["decisions"], sources["interrupts"]))
@@ -192,18 +190,6 @@ def ado_update_state(item_id: int, body: AdoStateUpdate) -> dict[str, Any]:
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-# --- GitHub ---
-
-@app.get("/api/github/prs")
-def github_prs() -> list[dict[str, Any]]:
-    return read_github_prs()
-
-
-@app.get("/api/github/review-requested")
-def github_review_requested() -> list[dict[str, Any]]:
-    return read_github_review_requested()
 
 
 # --- Claudia ---

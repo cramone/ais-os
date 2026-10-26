@@ -139,3 +139,16 @@ def test_archived_documents_delete_the_same_way(project):
 
     assert not archived.exists()
     assert "MM-050" not in cycle.index_documents("magiq-media")
+
+
+def test_reconcile_does_not_tag_workstream_and_strips_old_ones(tmp_path, monkeypatch):
+    from tower import cycle
+    doc = {"type": "plan", "status": "open", "rel": "plans/ws-x/p.md", "path": tmp_path / "p.md",
+           "fields": {"id": "MM-900", "workstream": "ws-x"}}
+    monkeypatch.setattr(cycle, "index_documents", lambda slug: {"MM-900": doc})
+    monkeypatch.setattr(cycle, "to_todo", lambda t, s: ("new", None))
+    items, _ = cycle.reconcile("p", [])
+    assert "ws-x" not in items[0]["tags"] and "MM-900" in items[0]["tags"]
+    items[0]["tags"].append("ws-x")           # an older run left it behind
+    items, changed = cycle.reconcile("p", items)
+    assert changed and "ws-x" not in items[0]["tags"]

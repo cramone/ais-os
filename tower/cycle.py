@@ -83,7 +83,7 @@ ORIGIN_TYPES = ("review", "feature-request")
 DOC_SUFFIXES = (".md", ".html")
 
 # Front-matter status -> (todo status, required state tag). The tag is additive;
-# every cycle todo also carries its document id, type and workstream.
+# every cycle todo also carries its document id and type (not its workstream).
 # Source: review-cycle SKILL.md § Status vocabularies.
 _TO_TODO: dict[tuple[str, str], tuple[str, str | None]] = {
     ("review", "draft"):           ("new",         None),
@@ -555,10 +555,10 @@ def reconcile(
         except CycleViolation:
             continue  # malformed front-matter: check() reports it, don't guess
 
+        # The workstream is deliberately NOT a tag: it multiplies tags without helping a
+        # board filter. It is still stripped from cards below if an older run added it.
         wanted_tags = [doc_id, doc["type"] or "document"]
         workstream = doc["fields"].get("workstream")
-        if workstream:
-            wanted_tags.append(workstream)
         if state_tag:
             wanted_tags.append(state_tag)
 

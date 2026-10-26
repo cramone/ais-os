@@ -4,7 +4,8 @@ These plans and reviews moved to `Sprbrk-Standard/mgq-magiq-media` → `docs/bri
 
 - `manifest.json` — every move (`from` → `to`) and the brief id each document became.
 - Their todo cards moved with them: `tower/data/todos-migrated/magiq-media.json` (the live store was backed up first as `tower/data/todos/magiq-media.json.bak-migrated-<timestamp>`).
-- Still live in `plans/`: the 7 cdk-magiq-media plans and WS-02a (MM-025, magiq-auth), plus finished plans and reference docs.
+- Still live in `plans/`: WS-02a (MM-025, magiq-auth), plus finished plans and reference docs.
+- 2026-10-26: the 7 cdk-magiq-media plans moved too — they are now briefs MMI-001..007 in `Sprbrk-Standard/mgq-magiq-media-infra` (PR #107). Same rollback applies (their moves are in `manifest.json`); old→new ids are under `infra` there.
 
 ## Rollback
 

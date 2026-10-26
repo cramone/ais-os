@@ -1,0 +1,13 @@
+# Repo owner -> SSH identity (GIT_CONFIG_GLOBAL). Any clone of these owners, by https or
+# git@github.com, goes out with that account's key. Owners not listed are not rewritten.
+[url "git@github-springbrook:Sprbrk-Standard/"]
+    insteadOf = https://github.com/Sprbrk-Standard/
+    insteadOf = git@github.com:Sprbrk-Standard/
+
+[url "git@github-cramone:magiqsoftware/"]
+    insteadOf = https://github.com/magiqsoftware/
+    insteadOf = git@github.com:magiqsoftware/
+
+[url "git@github-cramone:cramone/"]
+    insteadOf = https://github.com/cramone/
+    insteadOf = git@github.com:cramone/

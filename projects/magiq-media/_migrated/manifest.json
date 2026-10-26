@@ -1,710 +1,757 @@
 {
- "date": "2026-10-26",
- "reason": "briefs migrated to Sprbrk-Standard/mgq-magiq-media docs/briefs (PR #200, MM-202, MM-203); kept here for rollback",
- "moves": [
-  {
-   "from": "projects/magiq-media/plans/WS-01-remove-xtenant-resolver",
-   "to": "projects/magiq-media/_migrated/plans/WS-01-remove-xtenant-resolver",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-02b-system-actor-defence-in-depth",
-   "to": "projects/magiq-media/_migrated/plans/WS-02b-system-actor-defence-in-depth",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-03b-sealed-cursors-query",
-   "to": "projects/magiq-media/_migrated/plans/WS-03b-sealed-cursors-query",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-06-maintenancescanner-rename",
-   "to": "projects/magiq-media/_migrated/plans/WS-06-maintenancescanner-rename",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-07-documentsigning-activity-lambdas",
-   "to": "projects/magiq-media/_migrated/plans/WS-07-documentsigning-activity-lambdas",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-08-asset-ingestion-infection",
-   "to": "projects/magiq-media/_migrated/plans/WS-08-asset-ingestion-infection",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-09-signingsession-projector-removal",
-   "to": "projects/magiq-media/_migrated/plans/WS-09-signingsession-projector-removal",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-10-folder-locks-fencing",
-   "to": "projects/magiq-media/_migrated/plans/WS-10-folder-locks-fencing",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-100-retentionschedule-integration-events",
-   "to": "projects/magiq-media/_migrated/plans/WS-100-retentionschedule-integration-events",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-101-retentionschedule-http-routes",
-   "to": "projects/magiq-media/_migrated/plans/WS-101-retentionschedule-http-routes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-102-retentionschedule-read-model",
-   "to": "projects/magiq-media/_migrated/plans/WS-102-retentionschedule-read-model",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-103-retentionschedule-write-model",
-   "to": "projects/magiq-media/_migrated/plans/WS-103-retentionschedule-write-model",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-104-retentionschedule-middleware-permissions-preconditions",
-   "to": "projects/magiq-media/_migrated/plans/WS-104-retentionschedule-middleware-permissions-preconditions",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-105-processingjob-error-codes",
-   "to": "projects/magiq-media/_migrated/plans/WS-105-processingjob-error-codes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-106-processingjob-integration-events",
-   "to": "projects/magiq-media/_migrated/plans/WS-106-processingjob-integration-events",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-107-processingjob-write-model",
-   "to": "projects/magiq-media/_migrated/plans/WS-107-processingjob-write-model",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-108-registration-error-codes",
-   "to": "projects/magiq-media/_migrated/plans/WS-108-registration-error-codes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-109-registration-integration-events",
-   "to": "projects/magiq-media/_migrated/plans/WS-109-registration-integration-events",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-11-folder-archive-long-running",
-   "to": "projects/magiq-media/_migrated/plans/WS-11-folder-archive-long-running",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-110-registration-http-routes",
-   "to": "projects/magiq-media/_migrated/plans/WS-110-registration-http-routes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-111-registration-read-model",
-   "to": "projects/magiq-media/_migrated/plans/WS-111-registration-read-model",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-112-registration-write-model",
-   "to": "projects/magiq-media/_migrated/plans/WS-112-registration-write-model",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-113-registration-middleware-permissions-preconditions",
-   "to": "projects/magiq-media/_migrated/plans/WS-113-registration-middleware-permissions-preconditions",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-114-documentsigning-error-codes",
-   "to": "projects/magiq-media/_migrated/plans/WS-114-documentsigning-error-codes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-115-documentsigning-http-routes",
-   "to": "projects/magiq-media/_migrated/plans/WS-115-documentsigning-http-routes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-116-documentsigning-read-model",
-   "to": "projects/magiq-media/_migrated/plans/WS-116-documentsigning-read-model",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-117-documentsigning-write-model",
-   "to": "projects/magiq-media/_migrated/plans/WS-117-documentsigning-write-model",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-118-documentsigning-middleware-permissions-hmac-preconditions",
-   "to": "projects/magiq-media/_migrated/plans/WS-118-documentsigning-middleware-permissions-hmac-preconditions",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-119-cross-cutting-error-codes",
-   "to": "projects/magiq-media/_migrated/plans/WS-119-cross-cutting-error-codes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-121-dsr-aggregate-and-routes",
-   "to": "projects/magiq-media/_migrated/plans/WS-121-dsr-aggregate-and-routes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-122-vital-records",
-   "to": "projects/magiq-media/_migrated/plans/WS-122-vital-records",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-123-sip-dip-exports",
-   "to": "projects/magiq-media/_migrated/plans/WS-123-sip-dip-exports",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-124-audit-trail-export",
-   "to": "projects/magiq-media/_migrated/plans/WS-124-audit-trail-export",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-125-media-quarantine-bucket-wiring",
-   "to": "projects/magiq-media/_migrated/plans/WS-125-media-quarantine-bucket-wiring",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-126-sdk-coordination-token-rename",
-   "to": "projects/magiq-media/_migrated/plans/WS-126-sdk-coordination-token-rename",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-127-ratelimit-middleware",
-   "to": "projects/magiq-media/_migrated/plans/WS-127-ratelimit-middleware",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-128-clearance-filter-middleware",
-   "to": "projects/magiq-media/_migrated/plans/WS-128-clearance-filter-middleware",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-129-deprecation-sunset-headers",
-   "to": "projects/magiq-media/_migrated/plans/WS-129-deprecation-sunset-headers",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-12b-erasure-maintenance-pass",
-   "to": "projects/magiq-media/_migrated/plans/WS-12b-erasure-maintenance-pass",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-13b-aggregate-exists-handlers",
-   "to": "projects/magiq-media/_migrated/plans/WS-13b-aggregate-exists-handlers",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-14b-tenant-state-host-wiring",
-   "to": "projects/magiq-media/_migrated/plans/WS-14b-tenant-state-host-wiring",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-15b-originating-actor-populate",
-   "to": "projects/magiq-media/_migrated/plans/WS-15b-originating-actor-populate",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-16b-authority-populate",
-   "to": "projects/magiq-media/_migrated/plans/WS-16b-authority-populate",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-17b-projector-gap-fill-regression",
-   "to": "projects/magiq-media/_migrated/plans/WS-17b-projector-gap-fill-regression",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-25b-reservation-promote-pipeline",
-   "to": "projects/magiq-media/_migrated/plans/WS-25b-reservation-promote-pipeline",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-26-version-mismatch-412",
-   "to": "projects/magiq-media/_migrated/plans/WS-26-version-mismatch-412",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-27b-cascade-triggers-wiring",
-   "to": "projects/magiq-media/_migrated/plans/WS-27b-cascade-triggers-wiring",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-28b-domain-event-versions",
-   "to": "projects/magiq-media/_migrated/plans/WS-28b-domain-event-versions",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-29-mediaprofile-origin-member",
-   "to": "projects/magiq-media/_migrated/plans/WS-29-mediaprofile-origin-member",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-30b-catalog-reservation-probe",
-   "to": "projects/magiq-media/_migrated/plans/WS-30b-catalog-reservation-probe",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-31-name-release-after-save",
-   "to": "projects/magiq-media/_migrated/plans/WS-31-name-release-after-save",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-32b-tier-1-refusal-handlers",
-   "to": "projects/magiq-media/_migrated/plans/WS-32b-tier-1-refusal-handlers",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-33-replay-cli-aggregates",
-   "to": "projects/magiq-media/_migrated/plans/WS-33-replay-cli-aggregates",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-34-rebuild-index-cli",
-   "to": "projects/magiq-media/_migrated/plans/WS-34-rebuild-index-cli",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-35-membership-indexes-one-row",
-   "to": "projects/magiq-media/_migrated/plans/WS-35-membership-indexes-one-row",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-36b-projection-lag-metric",
-   "to": "projects/magiq-media/_migrated/plans/WS-36b-projection-lag-metric",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-37-opensearch-external-versioning",
-   "to": "projects/magiq-media/_migrated/plans/WS-37-opensearch-external-versioning",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-38b-collection-gsi3-write",
-   "to": "projects/magiq-media/_migrated/plans/WS-38b-collection-gsi3-write",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-39-recordtype-list-index",
-   "to": "projects/magiq-media/_migrated/plans/WS-39-recordtype-list-index",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-40-createdby-not-ownerid",
-   "to": "projects/magiq-media/_migrated/plans/WS-40-createdby-not-ownerid",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-41-processingjob-ordinals",
-   "to": "projects/magiq-media/_migrated/plans/WS-41-processingjob-ordinals",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-42-intra-bc-handlers",
-   "to": "projects/magiq-media/_migrated/plans/WS-42-intra-bc-handlers",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-43-document-signing-read-model-keys",
-   "to": "projects/magiq-media/_migrated/plans/WS-43-document-signing-read-model-keys",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-44-bulk-ops-max-assets",
-   "to": "projects/magiq-media/_migrated/plans/WS-44-bulk-ops-max-assets",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-45-processingjob-uuid-v5",
-   "to": "projects/magiq-media/_migrated/plans/WS-45-processingjob-uuid-v5",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-46-mediaprofile-snapshot-fields",
-   "to": "projects/magiq-media/_migrated/plans/WS-46-mediaprofile-snapshot-fields",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-47-platform-profile-immutable",
-   "to": "projects/magiq-media/_migrated/plans/WS-47-platform-profile-immutable",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-48-registration-id-caller-supplied",
-   "to": "projects/magiq-media/_migrated/plans/WS-48-registration-id-caller-supplied",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-49-http-actor-cleanup",
-   "to": "projects/magiq-media/_migrated/plans/WS-49-http-actor-cleanup",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-50-registration-ref-handlers-fail",
-   "to": "projects/magiq-media/_migrated/plans/WS-50-registration-ref-handlers-fail",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-51-recordtype-conflict-id",
-   "to": "projects/magiq-media/_migrated/plans/WS-51-recordtype-conflict-id",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-52-searchable-metadata-fields",
-   "to": "projects/magiq-media/_migrated/plans/WS-52-searchable-metadata-fields",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-53-recordtype-capabilities-removal",
-   "to": "projects/magiq-media/_migrated/plans/WS-53-recordtype-capabilities-removal",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-54-capability-field-groups",
-   "to": "projects/magiq-media/_migrated/plans/WS-54-capability-field-groups",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-57b-snapshot-revision-declare",
-   "to": "projects/magiq-media/_migrated/plans/WS-57b-snapshot-revision-declare",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-58-metrics-export-pipeline/MM-080c-host-registration-plan.md",
-   "to": "projects/magiq-media/_migrated/plans/WS-58-metrics-export-pipeline/MM-080c-host-registration-plan.md",
-   "kind": "file"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-61-asset-error-codes",
-   "to": "projects/magiq-media/_migrated/plans/WS-61-asset-error-codes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-62-asset-missing-integration-events",
-   "to": "projects/magiq-media/_migrated/plans/WS-62-asset-missing-integration-events",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-63-asset-missing-routes",
-   "to": "projects/magiq-media/_migrated/plans/WS-63-asset-missing-routes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-64-asset-read-model-shape",
-   "to": "projects/magiq-media/_migrated/plans/WS-64-asset-read-model-shape",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-65-asset-write-model-residuals",
-   "to": "projects/magiq-media/_migrated/plans/WS-65-asset-write-model-residuals",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-66-asset-endpoint-middleware",
-   "to": "projects/magiq-media/_migrated/plans/WS-66-asset-endpoint-middleware",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-67-collection-error-codes",
-   "to": "projects/magiq-media/_migrated/plans/WS-67-collection-error-codes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-68-collection-archive-cascade-events",
-   "to": "projects/magiq-media/_migrated/plans/WS-68-collection-archive-cascade-events",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-69-collection-missing-routes",
-   "to": "projects/magiq-media/_migrated/plans/WS-69-collection-missing-routes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-70-archive-cascades-table",
-   "to": "projects/magiq-media/_migrated/plans/WS-70-archive-cascades-table",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-71-collection-write-model-additions",
-   "to": "projects/magiq-media/_migrated/plans/WS-71-collection-write-model-additions",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-72-collection-endpoint-middleware",
-   "to": "projects/magiq-media/_migrated/plans/WS-72-collection-endpoint-middleware",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-73-folder-error-codes",
-   "to": "projects/magiq-media/_migrated/plans/WS-73-folder-error-codes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-74-folder-closed-integration-event",
-   "to": "projects/magiq-media/_migrated/plans/WS-74-folder-closed-integration-event",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-75-folder-missing-routes",
-   "to": "projects/magiq-media/_migrated/plans/WS-75-folder-missing-routes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-76-folder-write-model-additions",
-   "to": "projects/magiq-media/_migrated/plans/WS-76-folder-write-model-additions",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-77-folder-endpoint-middleware",
-   "to": "projects/magiq-media/_migrated/plans/WS-77-folder-endpoint-middleware",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-78-mediaitem-error-codes",
-   "to": "projects/magiq-media/_migrated/plans/WS-78-mediaitem-error-codes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-79-mediaitem-missing-integration-events",
-   "to": "projects/magiq-media/_migrated/plans/WS-79-mediaitem-missing-integration-events",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-80-mediaitem-missing-routes",
-   "to": "projects/magiq-media/_migrated/plans/WS-80-mediaitem-missing-routes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-81-mediaitem-gsi-additions",
-   "to": "projects/magiq-media/_migrated/plans/WS-81-mediaitem-gsi-additions",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-82-mediaitem-write-model-additions",
-   "to": "projects/magiq-media/_migrated/plans/WS-82-mediaitem-write-model-additions",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-83-mediaitem-endpoint-middleware",
-   "to": "projects/magiq-media/_migrated/plans/WS-83-mediaitem-endpoint-middleware",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-84-mediaprofile-error-codes",
-   "to": "projects/magiq-media/_migrated/plans/WS-84-mediaprofile-error-codes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-85-mediaprofile-missing-routes",
-   "to": "projects/magiq-media/_migrated/plans/WS-85-mediaprofile-missing-routes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-86-mediaprofile-write-model-additions",
-   "to": "projects/magiq-media/_migrated/plans/WS-86-mediaprofile-write-model-additions",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-87-mediaprofile-endpoint-middleware",
-   "to": "projects/magiq-media/_migrated/plans/WS-87-mediaprofile-endpoint-middleware",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-88-changerequest-error-codes",
-   "to": "projects/magiq-media/_migrated/plans/WS-88-changerequest-error-codes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-89-changerequest-lifecycle-events",
-   "to": "projects/magiq-media/_migrated/plans/WS-89-changerequest-lifecycle-events",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-90-changerequest-missing-routes",
-   "to": "projects/magiq-media/_migrated/plans/WS-90-changerequest-missing-routes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-91-changerequest-write-model-additions",
-   "to": "projects/magiq-media/_migrated/plans/WS-91-changerequest-write-model-additions",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-92-changerequest-endpoint-middleware",
-   "to": "projects/magiq-media/_migrated/plans/WS-92-changerequest-endpoint-middleware",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-93-recordtype-error-codes",
-   "to": "projects/magiq-media/_migrated/plans/WS-93-recordtype-error-codes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-94-recordtype-lifecycle-events",
-   "to": "projects/magiq-media/_migrated/plans/WS-94-recordtype-lifecycle-events",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-95-recordtype-missing-routes",
-   "to": "projects/magiq-media/_migrated/plans/WS-95-recordtype-missing-routes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-96-recordtype-readmodel-history-and-list-index",
-   "to": "projects/magiq-media/_migrated/plans/WS-96-recordtype-readmodel-history-and-list-index",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-97-recordtype-writemodel-lifecycle-events",
-   "to": "projects/magiq-media/_migrated/plans/WS-97-recordtype-writemodel-lifecycle-events",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-98-recordtype-middleware-permissions-preconditions",
-   "to": "projects/magiq-media/_migrated/plans/WS-98-recordtype-middleware-permissions-preconditions",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/plans/WS-99-retentionschedule-error-codes",
-   "to": "projects/magiq-media/_migrated/plans/WS-99-retentionschedule-error-codes",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/reviews/code-defects",
-   "to": "projects/magiq-media/_migrated/reviews/code-defects",
-   "kind": "folder"
-  },
-  {
-   "from": "projects/magiq-media/reviews/storage-keys",
-   "to": "projects/magiq-media/_migrated/reviews/storage-keys",
-   "kind": "folder"
+  "date": "2026-10-26",
+  "reason": "briefs migrated to Sprbrk-Standard/mgq-magiq-media docs/briefs (PR #200, MM-202, MM-203); kept here for rollback",
+  "moves": [
+    {
+      "from": "projects/magiq-media/plans/WS-01-remove-xtenant-resolver",
+      "to": "projects/magiq-media/_migrated/plans/WS-01-remove-xtenant-resolver",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-02b-system-actor-defence-in-depth",
+      "to": "projects/magiq-media/_migrated/plans/WS-02b-system-actor-defence-in-depth",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-03b-sealed-cursors-query",
+      "to": "projects/magiq-media/_migrated/plans/WS-03b-sealed-cursors-query",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-06-maintenancescanner-rename",
+      "to": "projects/magiq-media/_migrated/plans/WS-06-maintenancescanner-rename",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-07-documentsigning-activity-lambdas",
+      "to": "projects/magiq-media/_migrated/plans/WS-07-documentsigning-activity-lambdas",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-08-asset-ingestion-infection",
+      "to": "projects/magiq-media/_migrated/plans/WS-08-asset-ingestion-infection",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-09-signingsession-projector-removal",
+      "to": "projects/magiq-media/_migrated/plans/WS-09-signingsession-projector-removal",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-10-folder-locks-fencing",
+      "to": "projects/magiq-media/_migrated/plans/WS-10-folder-locks-fencing",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-100-retentionschedule-integration-events",
+      "to": "projects/magiq-media/_migrated/plans/WS-100-retentionschedule-integration-events",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-101-retentionschedule-http-routes",
+      "to": "projects/magiq-media/_migrated/plans/WS-101-retentionschedule-http-routes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-102-retentionschedule-read-model",
+      "to": "projects/magiq-media/_migrated/plans/WS-102-retentionschedule-read-model",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-103-retentionschedule-write-model",
+      "to": "projects/magiq-media/_migrated/plans/WS-103-retentionschedule-write-model",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-104-retentionschedule-middleware-permissions-preconditions",
+      "to": "projects/magiq-media/_migrated/plans/WS-104-retentionschedule-middleware-permissions-preconditions",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-105-processingjob-error-codes",
+      "to": "projects/magiq-media/_migrated/plans/WS-105-processingjob-error-codes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-106-processingjob-integration-events",
+      "to": "projects/magiq-media/_migrated/plans/WS-106-processingjob-integration-events",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-107-processingjob-write-model",
+      "to": "projects/magiq-media/_migrated/plans/WS-107-processingjob-write-model",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-108-registration-error-codes",
+      "to": "projects/magiq-media/_migrated/plans/WS-108-registration-error-codes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-109-registration-integration-events",
+      "to": "projects/magiq-media/_migrated/plans/WS-109-registration-integration-events",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-11-folder-archive-long-running",
+      "to": "projects/magiq-media/_migrated/plans/WS-11-folder-archive-long-running",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-110-registration-http-routes",
+      "to": "projects/magiq-media/_migrated/plans/WS-110-registration-http-routes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-111-registration-read-model",
+      "to": "projects/magiq-media/_migrated/plans/WS-111-registration-read-model",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-112-registration-write-model",
+      "to": "projects/magiq-media/_migrated/plans/WS-112-registration-write-model",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-113-registration-middleware-permissions-preconditions",
+      "to": "projects/magiq-media/_migrated/plans/WS-113-registration-middleware-permissions-preconditions",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-114-documentsigning-error-codes",
+      "to": "projects/magiq-media/_migrated/plans/WS-114-documentsigning-error-codes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-115-documentsigning-http-routes",
+      "to": "projects/magiq-media/_migrated/plans/WS-115-documentsigning-http-routes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-116-documentsigning-read-model",
+      "to": "projects/magiq-media/_migrated/plans/WS-116-documentsigning-read-model",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-117-documentsigning-write-model",
+      "to": "projects/magiq-media/_migrated/plans/WS-117-documentsigning-write-model",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-118-documentsigning-middleware-permissions-hmac-preconditions",
+      "to": "projects/magiq-media/_migrated/plans/WS-118-documentsigning-middleware-permissions-hmac-preconditions",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-119-cross-cutting-error-codes",
+      "to": "projects/magiq-media/_migrated/plans/WS-119-cross-cutting-error-codes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-121-dsr-aggregate-and-routes",
+      "to": "projects/magiq-media/_migrated/plans/WS-121-dsr-aggregate-and-routes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-122-vital-records",
+      "to": "projects/magiq-media/_migrated/plans/WS-122-vital-records",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-123-sip-dip-exports",
+      "to": "projects/magiq-media/_migrated/plans/WS-123-sip-dip-exports",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-124-audit-trail-export",
+      "to": "projects/magiq-media/_migrated/plans/WS-124-audit-trail-export",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-125-media-quarantine-bucket-wiring",
+      "to": "projects/magiq-media/_migrated/plans/WS-125-media-quarantine-bucket-wiring",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-126-sdk-coordination-token-rename",
+      "to": "projects/magiq-media/_migrated/plans/WS-126-sdk-coordination-token-rename",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-127-ratelimit-middleware",
+      "to": "projects/magiq-media/_migrated/plans/WS-127-ratelimit-middleware",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-128-clearance-filter-middleware",
+      "to": "projects/magiq-media/_migrated/plans/WS-128-clearance-filter-middleware",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-129-deprecation-sunset-headers",
+      "to": "projects/magiq-media/_migrated/plans/WS-129-deprecation-sunset-headers",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-12b-erasure-maintenance-pass",
+      "to": "projects/magiq-media/_migrated/plans/WS-12b-erasure-maintenance-pass",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-13b-aggregate-exists-handlers",
+      "to": "projects/magiq-media/_migrated/plans/WS-13b-aggregate-exists-handlers",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-14b-tenant-state-host-wiring",
+      "to": "projects/magiq-media/_migrated/plans/WS-14b-tenant-state-host-wiring",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-15b-originating-actor-populate",
+      "to": "projects/magiq-media/_migrated/plans/WS-15b-originating-actor-populate",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-16b-authority-populate",
+      "to": "projects/magiq-media/_migrated/plans/WS-16b-authority-populate",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-17b-projector-gap-fill-regression",
+      "to": "projects/magiq-media/_migrated/plans/WS-17b-projector-gap-fill-regression",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-25b-reservation-promote-pipeline",
+      "to": "projects/magiq-media/_migrated/plans/WS-25b-reservation-promote-pipeline",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-26-version-mismatch-412",
+      "to": "projects/magiq-media/_migrated/plans/WS-26-version-mismatch-412",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-27b-cascade-triggers-wiring",
+      "to": "projects/magiq-media/_migrated/plans/WS-27b-cascade-triggers-wiring",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-28b-domain-event-versions",
+      "to": "projects/magiq-media/_migrated/plans/WS-28b-domain-event-versions",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-29-mediaprofile-origin-member",
+      "to": "projects/magiq-media/_migrated/plans/WS-29-mediaprofile-origin-member",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-30b-catalog-reservation-probe",
+      "to": "projects/magiq-media/_migrated/plans/WS-30b-catalog-reservation-probe",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-31-name-release-after-save",
+      "to": "projects/magiq-media/_migrated/plans/WS-31-name-release-after-save",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-32b-tier-1-refusal-handlers",
+      "to": "projects/magiq-media/_migrated/plans/WS-32b-tier-1-refusal-handlers",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-33-replay-cli-aggregates",
+      "to": "projects/magiq-media/_migrated/plans/WS-33-replay-cli-aggregates",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-34-rebuild-index-cli",
+      "to": "projects/magiq-media/_migrated/plans/WS-34-rebuild-index-cli",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-35-membership-indexes-one-row",
+      "to": "projects/magiq-media/_migrated/plans/WS-35-membership-indexes-one-row",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-36b-projection-lag-metric",
+      "to": "projects/magiq-media/_migrated/plans/WS-36b-projection-lag-metric",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-37-opensearch-external-versioning",
+      "to": "projects/magiq-media/_migrated/plans/WS-37-opensearch-external-versioning",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-38b-collection-gsi3-write",
+      "to": "projects/magiq-media/_migrated/plans/WS-38b-collection-gsi3-write",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-39-recordtype-list-index",
+      "to": "projects/magiq-media/_migrated/plans/WS-39-recordtype-list-index",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-40-createdby-not-ownerid",
+      "to": "projects/magiq-media/_migrated/plans/WS-40-createdby-not-ownerid",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-41-processingjob-ordinals",
+      "to": "projects/magiq-media/_migrated/plans/WS-41-processingjob-ordinals",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-42-intra-bc-handlers",
+      "to": "projects/magiq-media/_migrated/plans/WS-42-intra-bc-handlers",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-43-document-signing-read-model-keys",
+      "to": "projects/magiq-media/_migrated/plans/WS-43-document-signing-read-model-keys",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-44-bulk-ops-max-assets",
+      "to": "projects/magiq-media/_migrated/plans/WS-44-bulk-ops-max-assets",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-45-processingjob-uuid-v5",
+      "to": "projects/magiq-media/_migrated/plans/WS-45-processingjob-uuid-v5",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-46-mediaprofile-snapshot-fields",
+      "to": "projects/magiq-media/_migrated/plans/WS-46-mediaprofile-snapshot-fields",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-47-platform-profile-immutable",
+      "to": "projects/magiq-media/_migrated/plans/WS-47-platform-profile-immutable",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-48-registration-id-caller-supplied",
+      "to": "projects/magiq-media/_migrated/plans/WS-48-registration-id-caller-supplied",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-49-http-actor-cleanup",
+      "to": "projects/magiq-media/_migrated/plans/WS-49-http-actor-cleanup",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-50-registration-ref-handlers-fail",
+      "to": "projects/magiq-media/_migrated/plans/WS-50-registration-ref-handlers-fail",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-51-recordtype-conflict-id",
+      "to": "projects/magiq-media/_migrated/plans/WS-51-recordtype-conflict-id",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-52-searchable-metadata-fields",
+      "to": "projects/magiq-media/_migrated/plans/WS-52-searchable-metadata-fields",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-53-recordtype-capabilities-removal",
+      "to": "projects/magiq-media/_migrated/plans/WS-53-recordtype-capabilities-removal",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-54-capability-field-groups",
+      "to": "projects/magiq-media/_migrated/plans/WS-54-capability-field-groups",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-57b-snapshot-revision-declare",
+      "to": "projects/magiq-media/_migrated/plans/WS-57b-snapshot-revision-declare",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-58-metrics-export-pipeline/MM-080c-host-registration-plan.md",
+      "to": "projects/magiq-media/_migrated/plans/WS-58-metrics-export-pipeline/MM-080c-host-registration-plan.md",
+      "kind": "file"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-61-asset-error-codes",
+      "to": "projects/magiq-media/_migrated/plans/WS-61-asset-error-codes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-62-asset-missing-integration-events",
+      "to": "projects/magiq-media/_migrated/plans/WS-62-asset-missing-integration-events",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-63-asset-missing-routes",
+      "to": "projects/magiq-media/_migrated/plans/WS-63-asset-missing-routes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-64-asset-read-model-shape",
+      "to": "projects/magiq-media/_migrated/plans/WS-64-asset-read-model-shape",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-65-asset-write-model-residuals",
+      "to": "projects/magiq-media/_migrated/plans/WS-65-asset-write-model-residuals",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-66-asset-endpoint-middleware",
+      "to": "projects/magiq-media/_migrated/plans/WS-66-asset-endpoint-middleware",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-67-collection-error-codes",
+      "to": "projects/magiq-media/_migrated/plans/WS-67-collection-error-codes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-68-collection-archive-cascade-events",
+      "to": "projects/magiq-media/_migrated/plans/WS-68-collection-archive-cascade-events",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-69-collection-missing-routes",
+      "to": "projects/magiq-media/_migrated/plans/WS-69-collection-missing-routes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-70-archive-cascades-table",
+      "to": "projects/magiq-media/_migrated/plans/WS-70-archive-cascades-table",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-71-collection-write-model-additions",
+      "to": "projects/magiq-media/_migrated/plans/WS-71-collection-write-model-additions",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-72-collection-endpoint-middleware",
+      "to": "projects/magiq-media/_migrated/plans/WS-72-collection-endpoint-middleware",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-73-folder-error-codes",
+      "to": "projects/magiq-media/_migrated/plans/WS-73-folder-error-codes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-74-folder-closed-integration-event",
+      "to": "projects/magiq-media/_migrated/plans/WS-74-folder-closed-integration-event",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-75-folder-missing-routes",
+      "to": "projects/magiq-media/_migrated/plans/WS-75-folder-missing-routes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-76-folder-write-model-additions",
+      "to": "projects/magiq-media/_migrated/plans/WS-76-folder-write-model-additions",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-77-folder-endpoint-middleware",
+      "to": "projects/magiq-media/_migrated/plans/WS-77-folder-endpoint-middleware",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-78-mediaitem-error-codes",
+      "to": "projects/magiq-media/_migrated/plans/WS-78-mediaitem-error-codes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-79-mediaitem-missing-integration-events",
+      "to": "projects/magiq-media/_migrated/plans/WS-79-mediaitem-missing-integration-events",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-80-mediaitem-missing-routes",
+      "to": "projects/magiq-media/_migrated/plans/WS-80-mediaitem-missing-routes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-81-mediaitem-gsi-additions",
+      "to": "projects/magiq-media/_migrated/plans/WS-81-mediaitem-gsi-additions",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-82-mediaitem-write-model-additions",
+      "to": "projects/magiq-media/_migrated/plans/WS-82-mediaitem-write-model-additions",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-83-mediaitem-endpoint-middleware",
+      "to": "projects/magiq-media/_migrated/plans/WS-83-mediaitem-endpoint-middleware",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-84-mediaprofile-error-codes",
+      "to": "projects/magiq-media/_migrated/plans/WS-84-mediaprofile-error-codes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-85-mediaprofile-missing-routes",
+      "to": "projects/magiq-media/_migrated/plans/WS-85-mediaprofile-missing-routes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-86-mediaprofile-write-model-additions",
+      "to": "projects/magiq-media/_migrated/plans/WS-86-mediaprofile-write-model-additions",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-87-mediaprofile-endpoint-middleware",
+      "to": "projects/magiq-media/_migrated/plans/WS-87-mediaprofile-endpoint-middleware",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-88-changerequest-error-codes",
+      "to": "projects/magiq-media/_migrated/plans/WS-88-changerequest-error-codes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-89-changerequest-lifecycle-events",
+      "to": "projects/magiq-media/_migrated/plans/WS-89-changerequest-lifecycle-events",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-90-changerequest-missing-routes",
+      "to": "projects/magiq-media/_migrated/plans/WS-90-changerequest-missing-routes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-91-changerequest-write-model-additions",
+      "to": "projects/magiq-media/_migrated/plans/WS-91-changerequest-write-model-additions",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-92-changerequest-endpoint-middleware",
+      "to": "projects/magiq-media/_migrated/plans/WS-92-changerequest-endpoint-middleware",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-93-recordtype-error-codes",
+      "to": "projects/magiq-media/_migrated/plans/WS-93-recordtype-error-codes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-94-recordtype-lifecycle-events",
+      "to": "projects/magiq-media/_migrated/plans/WS-94-recordtype-lifecycle-events",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-95-recordtype-missing-routes",
+      "to": "projects/magiq-media/_migrated/plans/WS-95-recordtype-missing-routes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-96-recordtype-readmodel-history-and-list-index",
+      "to": "projects/magiq-media/_migrated/plans/WS-96-recordtype-readmodel-history-and-list-index",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-97-recordtype-writemodel-lifecycle-events",
+      "to": "projects/magiq-media/_migrated/plans/WS-97-recordtype-writemodel-lifecycle-events",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-98-recordtype-middleware-permissions-preconditions",
+      "to": "projects/magiq-media/_migrated/plans/WS-98-recordtype-middleware-permissions-preconditions",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-99-retentionschedule-error-codes",
+      "to": "projects/magiq-media/_migrated/plans/WS-99-retentionschedule-error-codes",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/reviews/code-defects",
+      "to": "projects/magiq-media/_migrated/reviews/code-defects",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/reviews/storage-keys",
+      "to": "projects/magiq-media/_migrated/reviews/storage-keys",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-38a-collection-gsi3",
+      "to": "projects/magiq-media/_migrated/plans/WS-38a-collection-gsi3",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-27a-concurrency-fairness-cdk",
+      "to": "projects/magiq-media/_migrated/plans/WS-27a-concurrency-fairness-cdk",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-36a-projection-lag-dashboard",
+      "to": "projects/magiq-media/_migrated/plans/WS-36a-projection-lag-dashboard",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-04-cdk-state-machines",
+      "to": "projects/magiq-media/_migrated/plans/WS-04-cdk-state-machines",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-55-read-model-metadata-cdk-seed",
+      "to": "projects/magiq-media/_migrated/plans/WS-55-read-model-metadata-cdk-seed",
+      "kind": "folder"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-21-transactional-outbox/MM-023d-outbox-relay-lambda-plan.md",
+      "to": "projects/magiq-media/_migrated/plans/WS-21-transactional-outbox/MM-023d-outbox-relay-lambda-plan.md",
+      "kind": "file"
+    },
+    {
+      "from": "projects/magiq-media/plans/WS-58-metrics-export-pipeline/MM-080b-cdk-dashboards-alarms-plan.md",
+      "to": "projects/magiq-media/_migrated/plans/WS-58-metrics-export-pipeline/MM-080b-cdk-dashboards-alarms-plan.md",
+      "kind": "file"
+    }
+  ],
+  "briefs": {
+    "projects/magiq-media/plans/WS-01-remove-xtenant-resolver/WS-01-remove-xtenant-resolver-plan.md": "MM-048",
+    "projects/magiq-media/plans/WS-02b-system-actor-defence-in-depth/WS-02b-system-actor-defence-in-depth-plan.md": "MM-033",
+    "projects/magiq-media/plans/WS-03b-sealed-cursors-query/WS-03b-sealed-cursors-query-plan.md": "MM-038",
+    "projects/magiq-media/plans/WS-06-maintenancescanner-rename/WS-06-maintenancescanner-rename-plan.md": "MM-072",
+    "projects/magiq-media/plans/WS-07-documentsigning-activity-lambdas/WS-07-documentsigning-activity-lambdas-plan.md": "MM-076",
+    "projects/magiq-media/plans/WS-08-asset-ingestion-infection/WS-08-asset-ingestion-infection-plan.md": "MM-075",
+    "projects/magiq-media/plans/WS-09-signingsession-projector-removal/WS-09-signingsession-projector-removal-plan.md": "MM-074",
+    "projects/magiq-media/plans/WS-10-folder-locks-fencing/WS-10-folder-locks-fencing-plan.md": "MM-066",
+    "projects/magiq-media/plans/WS-100-retentionschedule-integration-events/WS-100-retentionschedule-integration-events-plan.md": "MM-140",
+    "projects/magiq-media/plans/WS-101-retentionschedule-http-routes/WS-101-retentionschedule-http-routes-plan.md": "MM-141",
+    "projects/magiq-media/plans/WS-102-retentionschedule-read-model/WS-102-retentionschedule-read-model-plan.md": "MM-142",
+    "projects/magiq-media/plans/WS-103-retentionschedule-write-model/WS-103-retentionschedule-write-model-plan.md": "MM-143",
+    "projects/magiq-media/plans/WS-104-retentionschedule-middleware-permissions-preconditions/WS-104-retentionschedule-middleware-permissions-preconditions-plan.md": "MM-144",
+    "projects/magiq-media/plans/WS-105-processingjob-error-codes/WS-105-processingjob-error-codes-plan.md": "MM-145",
+    "projects/magiq-media/plans/WS-106-processingjob-integration-events/WS-106-processingjob-integration-events-plan.md": "MM-146",
+    "projects/magiq-media/plans/WS-107-processingjob-write-model/WS-107-processingjob-write-model-plan.md": "MM-147",
+    "projects/magiq-media/plans/WS-108-registration-error-codes/WS-108-registration-error-codes-plan.md": "MM-148",
+    "projects/magiq-media/plans/WS-109-registration-integration-events/WS-109-registration-integration-events-plan.md": "MM-149",
+    "projects/magiq-media/plans/WS-11-folder-archive-long-running/WS-11-folder-archive-long-running-plan.md": "MM-073",
+    "projects/magiq-media/plans/WS-110-registration-http-routes/WS-110-registration-http-routes-plan.md": "MM-150",
+    "projects/magiq-media/plans/WS-111-registration-read-model/WS-111-registration-read-model-plan.md": "MM-151",
+    "projects/magiq-media/plans/WS-112-registration-write-model/WS-112-registration-write-model-plan.md": "MM-152",
+    "projects/magiq-media/plans/WS-113-registration-middleware-permissions-preconditions/WS-113-registration-middleware-permissions-preconditions-plan.md": "MM-153",
+    "projects/magiq-media/plans/WS-114-documentsigning-error-codes/WS-114-documentsigning-error-codes-plan.md": "MM-154",
+    "projects/magiq-media/plans/WS-115-documentsigning-http-routes/WS-115-documentsigning-http-routes-plan.md": "MM-155",
+    "projects/magiq-media/plans/WS-116-documentsigning-read-model/WS-116-documentsigning-read-model-plan.md": "MM-156",
+    "projects/magiq-media/plans/WS-117-documentsigning-write-model/WS-117-documentsigning-write-model-plan.md": "MM-157",
+    "projects/magiq-media/plans/WS-118-documentsigning-middleware-permissions-hmac-preconditions/WS-118-documentsigning-middleware-permissions-hmac-preconditions-plan.md": "MM-158",
+    "projects/magiq-media/plans/WS-119-cross-cutting-error-codes/WS-119-cross-cutting-error-codes-plan.md": "MM-159",
+    "projects/magiq-media/plans/WS-121-dsr-aggregate-and-routes/WS-121-dsr-aggregate-and-routes-plan.md": "MM-160",
+    "projects/magiq-media/plans/WS-122-vital-records/WS-122-vital-records-plan.md": "MM-161",
+    "projects/magiq-media/plans/WS-123-sip-dip-exports/WS-123-sip-dip-exports-plan.md": "MM-162",
+    "projects/magiq-media/plans/WS-124-audit-trail-export/WS-124-audit-trail-export-plan.md": "MM-163",
+    "projects/magiq-media/plans/WS-125-media-quarantine-bucket-wiring/WS-125-media-quarantine-bucket-wiring-plan.md": "MM-164",
+    "projects/magiq-media/plans/WS-126-sdk-coordination-token-rename/WS-126-sdk-coordination-token-rename-plan.md": "MM-165",
+    "projects/magiq-media/plans/WS-127-ratelimit-middleware/WS-127-ratelimit-middleware-plan.md": "MM-166",
+    "projects/magiq-media/plans/WS-128-clearance-filter-middleware/WS-128-clearance-filter-middleware-plan.md": "MM-167",
+    "projects/magiq-media/plans/WS-129-deprecation-sunset-headers/WS-129-deprecation-sunset-headers-plan.md": "MM-168",
+    "projects/magiq-media/plans/WS-12b-erasure-maintenance-pass/WS-12b-erasure-maintenance-pass-plan.md": "MM-043",
+    "projects/magiq-media/plans/WS-13b-aggregate-exists-handlers/WS-13b-aggregate-exists-handlers-plan.md": "MM-032",
+    "projects/magiq-media/plans/WS-14b-tenant-state-host-wiring/WS-14b-tenant-state-host-wiring-plan.md": "MM-034",
+    "projects/magiq-media/plans/WS-15b-originating-actor-populate/WS-15b-originating-actor-populate-plan.md": "MM-035",
+    "projects/magiq-media/plans/WS-16b-authority-populate/WS-16b-authority-populate-plan.md": "MM-036",
+    "projects/magiq-media/plans/WS-17b-projector-gap-fill-regression/WS-17b-projector-gap-fill-regression-plan.md": "MM-037",
+    "projects/magiq-media/plans/WS-25b-reservation-promote-pipeline/WS-25b-reservation-promote-pipeline-plan.md": "MM-042",
+    "projects/magiq-media/plans/WS-26-version-mismatch-412/WS-26-version-mismatch-412-plan.md": "MM-049",
+    "projects/magiq-media/plans/WS-27b-cascade-triggers-wiring/WS-27b-cascade-triggers-wiring-plan.md": "MM-046",
+    "projects/magiq-media/plans/WS-28b-domain-event-versions/WS-28b-domain-event-versions-plan.md": "MM-041",
+    "projects/magiq-media/plans/WS-29-mediaprofile-origin-member/WS-29-mediaprofile-origin-member-plan.md": "MM-064",
+    "projects/magiq-media/plans/WS-30b-catalog-reservation-probe/WS-30b-catalog-reservation-probe-plan.md": "MM-040",
+    "projects/magiq-media/plans/WS-31-name-release-after-save/WS-31-name-release-after-save-plan.md": "MM-063",
+    "projects/magiq-media/plans/WS-32b-tier-1-refusal-handlers/WS-32b-tier-1-refusal-handlers-plan.md": "MM-039",
+    "projects/magiq-media/plans/WS-33-replay-cli-aggregates/WS-33-replay-cli-aggregates-plan.md": "MM-067",
+    "projects/magiq-media/plans/WS-34-rebuild-index-cli/WS-34-rebuild-index-cli-plan.md": "MM-068",
+    "projects/magiq-media/plans/WS-35-membership-indexes-one-row/WS-35-membership-indexes-one-row-plan.md": "MM-069",
+    "projects/magiq-media/plans/WS-36b-projection-lag-metric/WS-36b-projection-lag-metric-plan.md": "MM-047",
+    "projects/magiq-media/plans/WS-37-opensearch-external-versioning/WS-37-opensearch-external-versioning-plan.md": "MM-070",
+    "projects/magiq-media/plans/WS-38b-collection-gsi3-write/WS-38b-collection-gsi3-write-plan.md": "MM-045",
+    "projects/magiq-media/plans/WS-39-recordtype-list-index/WS-39-recordtype-list-index-plan.md": "MM-051",
+    "projects/magiq-media/plans/WS-40-createdby-not-ownerid/WS-40-createdby-not-ownerid-plan.md": "MM-050",
+    "projects/magiq-media/plans/WS-41-processingjob-ordinals/WS-41-processingjob-ordinals-plan.md": "MM-052",
+    "projects/magiq-media/plans/WS-42-intra-bc-handlers/WS-42-intra-bc-handlers-plan.md": "MM-062",
+    "projects/magiq-media/plans/WS-43-document-signing-read-model-keys/WS-43-document-signing-read-model-keys-plan.md": "MM-061",
+    "projects/magiq-media/plans/WS-44-bulk-ops-max-assets/WS-44-bulk-ops-max-assets-plan.md": "MM-054",
+    "projects/magiq-media/plans/WS-45-processingjob-uuid-v5/WS-45-processingjob-uuid-v5-plan.md": "MM-053",
+    "projects/magiq-media/plans/WS-46-mediaprofile-snapshot-fields/WS-46-mediaprofile-snapshot-fields-plan.md": "MM-060",
+    "projects/magiq-media/plans/WS-47-platform-profile-immutable/WS-47-platform-profile-immutable-plan.md": "MM-055",
+    "projects/magiq-media/plans/WS-48-registration-id-caller-supplied/WS-48-registration-id-caller-supplied-plan.md": "MM-058",
+    "projects/magiq-media/plans/WS-49-http-actor-cleanup/WS-49-http-actor-cleanup-plan.md": "MM-059",
+    "projects/magiq-media/plans/WS-50-registration-ref-handlers-fail/WS-50-registration-ref-handlers-fail-plan.md": "MM-056",
+    "projects/magiq-media/plans/WS-51-recordtype-conflict-id/WS-51-recordtype-conflict-id-plan.md": "MM-057",
+    "projects/magiq-media/plans/WS-52-searchable-metadata-fields/WS-52-searchable-metadata-fields-plan.md": "MM-071",
+    "projects/magiq-media/plans/WS-53-recordtype-capabilities-removal/WS-53-recordtype-capabilities-removal-plan.md": "MM-065",
+    "projects/magiq-media/plans/WS-54-capability-field-groups/WS-54-capability-field-groups-plan.md": "MM-030",
+    "projects/magiq-media/plans/WS-57b-snapshot-revision-declare/WS-57b-snapshot-revision-declare-plan.md": "MM-081",
+    "projects/magiq-media/plans/WS-58-metrics-export-pipeline/MM-080c-host-registration-plan.md": "MM-201",
+    "projects/magiq-media/plans/WS-61-asset-error-codes/WS-61-asset-error-codes-plan.md": "MM-101",
+    "projects/magiq-media/plans/WS-62-asset-missing-integration-events/WS-62-asset-missing-integration-events-plan.md": "MM-102",
+    "projects/magiq-media/plans/WS-63-asset-missing-routes/WS-63-asset-missing-routes-plan.md": "MM-103",
+    "projects/magiq-media/plans/WS-64-asset-read-model-shape/WS-64-asset-read-model-shape-plan.md": "MM-104",
+    "projects/magiq-media/plans/WS-65-asset-write-model-residuals/WS-65-asset-write-model-residuals-plan.md": "MM-105",
+    "projects/magiq-media/plans/WS-66-asset-endpoint-middleware/WS-66-asset-endpoint-middleware-plan.md": "MM-106",
+    "projects/magiq-media/plans/WS-67-collection-error-codes/WS-67-collection-error-codes-plan.md": "MM-107",
+    "projects/magiq-media/plans/WS-68-collection-archive-cascade-events/WS-68-collection-archive-cascade-events-plan.md": "MM-108",
+    "projects/magiq-media/plans/WS-69-collection-missing-routes/WS-69-collection-missing-routes-plan.md": "MM-109",
+    "projects/magiq-media/plans/WS-70-archive-cascades-table/WS-70-archive-cascades-table-plan.md": "MM-110",
+    "projects/magiq-media/plans/WS-71-collection-write-model-additions/WS-71-collection-write-model-additions-plan.md": "MM-111",
+    "projects/magiq-media/plans/WS-72-collection-endpoint-middleware/WS-72-collection-endpoint-middleware-plan.md": "MM-112",
+    "projects/magiq-media/plans/WS-73-folder-error-codes/WS-73-folder-error-codes-plan.md": "MM-113",
+    "projects/magiq-media/plans/WS-74-folder-closed-integration-event/WS-74-folder-closed-integration-event-plan.md": "MM-114",
+    "projects/magiq-media/plans/WS-75-folder-missing-routes/WS-75-folder-missing-routes-plan.md": "MM-115",
+    "projects/magiq-media/plans/WS-76-folder-write-model-additions/WS-76-folder-write-model-additions-plan.md": "MM-116",
+    "projects/magiq-media/plans/WS-77-folder-endpoint-middleware/WS-77-folder-endpoint-middleware-plan.md": "MM-117",
+    "projects/magiq-media/plans/WS-78-mediaitem-error-codes/WS-78-mediaitem-error-codes-plan.md": "MM-118",
+    "projects/magiq-media/plans/WS-79-mediaitem-missing-integration-events/WS-79-mediaitem-missing-integration-events-plan.md": "MM-119",
+    "projects/magiq-media/plans/WS-80-mediaitem-missing-routes/WS-80-mediaitem-missing-routes-plan.md": "MM-120",
+    "projects/magiq-media/plans/WS-81-mediaitem-gsi-additions/WS-81-mediaitem-gsi-additions-plan.md": "MM-121",
+    "projects/magiq-media/plans/WS-82-mediaitem-write-model-additions/WS-82-mediaitem-write-model-additions-plan.md": "MM-122",
+    "projects/magiq-media/plans/WS-83-mediaitem-endpoint-middleware/WS-83-mediaitem-endpoint-middleware-plan.md": "MM-123",
+    "projects/magiq-media/plans/WS-84-mediaprofile-error-codes/WS-84-mediaprofile-error-codes-plan.md": "MM-124",
+    "projects/magiq-media/plans/WS-85-mediaprofile-missing-routes/WS-85-mediaprofile-missing-routes-plan.md": "MM-125",
+    "projects/magiq-media/plans/WS-86-mediaprofile-write-model-additions/WS-86-mediaprofile-write-model-additions-plan.md": "MM-126",
+    "projects/magiq-media/plans/WS-87-mediaprofile-endpoint-middleware/WS-87-mediaprofile-endpoint-middleware-plan.md": "MM-127",
+    "projects/magiq-media/plans/WS-88-changerequest-error-codes/WS-88-changerequest-error-codes-plan.md": "MM-128",
+    "projects/magiq-media/plans/WS-89-changerequest-lifecycle-events/WS-89-changerequest-lifecycle-events-plan.md": "MM-129",
+    "projects/magiq-media/plans/WS-90-changerequest-missing-routes/WS-90-changerequest-missing-routes-plan.md": "MM-130",
+    "projects/magiq-media/plans/WS-91-changerequest-write-model-additions/WS-91-changerequest-write-model-additions-plan.md": "MM-131",
+    "projects/magiq-media/plans/WS-92-changerequest-endpoint-middleware/WS-92-changerequest-endpoint-middleware-plan.md": "MM-132",
+    "projects/magiq-media/plans/WS-93-recordtype-error-codes/WS-93-recordtype-error-codes-plan.md": "MM-133",
+    "projects/magiq-media/plans/WS-94-recordtype-lifecycle-events/WS-94-recordtype-lifecycle-events-plan.md": "MM-134",
+    "projects/magiq-media/plans/WS-95-recordtype-missing-routes/WS-95-recordtype-missing-routes-plan.md": "MM-135",
+    "projects/magiq-media/plans/WS-96-recordtype-readmodel-history-and-list-index/WS-96-recordtype-readmodel-history-and-list-index-plan.md": "MM-136",
+    "projects/magiq-media/plans/WS-97-recordtype-writemodel-lifecycle-events/WS-97-recordtype-writemodel-lifecycle-events-plan.md": "MM-137",
+    "projects/magiq-media/plans/WS-98-recordtype-middleware-permissions-preconditions/WS-98-recordtype-middleware-permissions-preconditions-plan.md": "MM-138",
+    "projects/magiq-media/plans/WS-99-retentionschedule-error-codes/WS-99-retentionschedule-error-codes-plan.md": "MM-139",
+    "projects/magiq-media/reviews/code-defects/code-defects-review-2026-09-16.md": "MM-202",
+    "projects/magiq-media/reviews/storage-keys/storage-keys-review-2026-09-17.md": "MM-203",
+    "projects/magiq-media/plans/WS-38a-collection-gsi3/WS-38a-collection-gsi3-plan.md": "MMI-001",
+    "projects/magiq-media/plans/WS-27a-concurrency-fairness-cdk/WS-27a-concurrency-fairness-cdk-plan.md": "MMI-003",
+    "projects/magiq-media/plans/WS-36a-projection-lag-dashboard/WS-36a-projection-lag-dashboard-plan.md": "MMI-004",
+    "projects/magiq-media/plans/WS-04-cdk-state-machines/WS-04-cdk-state-machines-plan.md": "MMI-005",
+    "projects/magiq-media/plans/WS-55-read-model-metadata-cdk-seed/WS-55-read-model-metadata-cdk-seed-plan.md": "MMI-006",
+    "projects/magiq-media/plans/WS-21-transactional-outbox/MM-023d-outbox-relay-lambda-plan.md": "MMI-002",
+    "projects/magiq-media/plans/WS-58-metrics-export-pipeline/MM-080b-cdk-dashboards-alarms-plan.md": "MMI-007"
+  },
+  "infra": {
+    "date": "2026-10-26",
+    "repo": "Sprbrk-Standard/mgq-magiq-media-infra",
+    "reason": "7 cdk-magiq-media plans onboarded as MMI-001..007 (infra PR #107); old id -> new id: MM-009=MMI-001, MM-023d=MMI-002, MM-026=MMI-003, MM-027=MMI-004, MM-031=MMI-005, MM-077=MMI-006, MM-080b=MMI-007"
   }
- ],
- "briefs": {
-  "projects/magiq-media/plans/WS-01-remove-xtenant-resolver/WS-01-remove-xtenant-resolver-plan.md": "MM-048",
-  "projects/magiq-media/plans/WS-02b-system-actor-defence-in-depth/WS-02b-system-actor-defence-in-depth-plan.md": "MM-033",
-  "projects/magiq-media/plans/WS-03b-sealed-cursors-query/WS-03b-sealed-cursors-query-plan.md": "MM-038",
-  "projects/magiq-media/plans/WS-06-maintenancescanner-rename/WS-06-maintenancescanner-rename-plan.md": "MM-072",
-  "projects/magiq-media/plans/WS-07-documentsigning-activity-lambdas/WS-07-documentsigning-activity-lambdas-plan.md": "MM-076",
-  "projects/magiq-media/plans/WS-08-asset-ingestion-infection/WS-08-asset-ingestion-infection-plan.md": "MM-075",
-  "projects/magiq-media/plans/WS-09-signingsession-projector-removal/WS-09-signingsession-projector-removal-plan.md": "MM-074",
-  "projects/magiq-media/plans/WS-10-folder-locks-fencing/WS-10-folder-locks-fencing-plan.md": "MM-066",
-  "projects/magiq-media/plans/WS-100-retentionschedule-integration-events/WS-100-retentionschedule-integration-events-plan.md": "MM-140",
-  "projects/magiq-media/plans/WS-101-retentionschedule-http-routes/WS-101-retentionschedule-http-routes-plan.md": "MM-141",
-  "projects/magiq-media/plans/WS-102-retentionschedule-read-model/WS-102-retentionschedule-read-model-plan.md": "MM-142",
-  "projects/magiq-media/plans/WS-103-retentionschedule-write-model/WS-103-retentionschedule-write-model-plan.md": "MM-143",
-  "projects/magiq-media/plans/WS-104-retentionschedule-middleware-permissions-preconditions/WS-104-retentionschedule-middleware-permissions-preconditions-plan.md": "MM-144",
-  "projects/magiq-media/plans/WS-105-processingjob-error-codes/WS-105-processingjob-error-codes-plan.md": "MM-145",
-  "projects/magiq-media/plans/WS-106-processingjob-integration-events/WS-106-processingjob-integration-events-plan.md": "MM-146",
-  "projects/magiq-media/plans/WS-107-processingjob-write-model/WS-107-processingjob-write-model-plan.md": "MM-147",
-  "projects/magiq-media/plans/WS-108-registration-error-codes/WS-108-registration-error-codes-plan.md": "MM-148",
-  "projects/magiq-media/plans/WS-109-registration-integration-events/WS-109-registration-integration-events-plan.md": "MM-149",
-  "projects/magiq-media/plans/WS-11-folder-archive-long-running/WS-11-folder-archive-long-running-plan.md": "MM-073",
-  "projects/magiq-media/plans/WS-110-registration-http-routes/WS-110-registration-http-routes-plan.md": "MM-150",
-  "projects/magiq-media/plans/WS-111-registration-read-model/WS-111-registration-read-model-plan.md": "MM-151",
-  "projects/magiq-media/plans/WS-112-registration-write-model/WS-112-registration-write-model-plan.md": "MM-152",
-  "projects/magiq-media/plans/WS-113-registration-middleware-permissions-preconditions/WS-113-registration-middleware-permissions-preconditions-plan.md": "MM-153",
-  "projects/magiq-media/plans/WS-114-documentsigning-error-codes/WS-114-documentsigning-error-codes-plan.md": "MM-154",
-  "projects/magiq-media/plans/WS-115-documentsigning-http-routes/WS-115-documentsigning-http-routes-plan.md": "MM-155",
-  "projects/magiq-media/plans/WS-116-documentsigning-read-model/WS-116-documentsigning-read-model-plan.md": "MM-156",
-  "projects/magiq-media/plans/WS-117-documentsigning-write-model/WS-117-documentsigning-write-model-plan.md": "MM-157",
-  "projects/magiq-media/plans/WS-118-documentsigning-middleware-permissions-hmac-preconditions/WS-118-documentsigning-middleware-permissions-hmac-preconditions-plan.md": "MM-158",
-  "projects/magiq-media/plans/WS-119-cross-cutting-error-codes/WS-119-cross-cutting-error-codes-plan.md": "MM-159",
-  "projects/magiq-media/plans/WS-121-dsr-aggregate-and-routes/WS-121-dsr-aggregate-and-routes-plan.md": "MM-160",
-  "projects/magiq-media/plans/WS-122-vital-records/WS-122-vital-records-plan.md": "MM-161",
-  "projects/magiq-media/plans/WS-123-sip-dip-exports/WS-123-sip-dip-exports-plan.md": "MM-162",
-  "projects/magiq-media/plans/WS-124-audit-trail-export/WS-124-audit-trail-export-plan.md": "MM-163",
-  "projects/magiq-media/plans/WS-125-media-quarantine-bucket-wiring/WS-125-media-quarantine-bucket-wiring-plan.md": "MM-164",
-  "projects/magiq-media/plans/WS-126-sdk-coordination-token-rename/WS-126-sdk-coordination-token-rename-plan.md": "MM-165",
-  "projects/magiq-media/plans/WS-127-ratelimit-middleware/WS-127-ratelimit-middleware-plan.md": "MM-166",
-  "projects/magiq-media/plans/WS-128-clearance-filter-middleware/WS-128-clearance-filter-middleware-plan.md": "MM-167",
-  "projects/magiq-media/plans/WS-129-deprecation-sunset-headers/WS-129-deprecation-sunset-headers-plan.md": "MM-168",
-  "projects/magiq-media/plans/WS-12b-erasure-maintenance-pass/WS-12b-erasure-maintenance-pass-plan.md": "MM-043",
-  "projects/magiq-media/plans/WS-13b-aggregate-exists-handlers/WS-13b-aggregate-exists-handlers-plan.md": "MM-032",
-  "projects/magiq-media/plans/WS-14b-tenant-state-host-wiring/WS-14b-tenant-state-host-wiring-plan.md": "MM-034",
-  "projects/magiq-media/plans/WS-15b-originating-actor-populate/WS-15b-originating-actor-populate-plan.md": "MM-035",
-  "projects/magiq-media/plans/WS-16b-authority-populate/WS-16b-authority-populate-plan.md": "MM-036",
-  "projects/magiq-media/plans/WS-17b-projector-gap-fill-regression/WS-17b-projector-gap-fill-regression-plan.md": "MM-037",
-  "projects/magiq-media/plans/WS-25b-reservation-promote-pipeline/WS-25b-reservation-promote-pipeline-plan.md": "MM-042",
-  "projects/magiq-media/plans/WS-26-version-mismatch-412/WS-26-version-mismatch-412-plan.md": "MM-049",
-  "projects/magiq-media/plans/WS-27b-cascade-triggers-wiring/WS-27b-cascade-triggers-wiring-plan.md": "MM-046",
-  "projects/magiq-media/plans/WS-28b-domain-event-versions/WS-28b-domain-event-versions-plan.md": "MM-041",
-  "projects/magiq-media/plans/WS-29-mediaprofile-origin-member/WS-29-mediaprofile-origin-member-plan.md": "MM-064",
-  "projects/magiq-media/plans/WS-30b-catalog-reservation-probe/WS-30b-catalog-reservation-probe-plan.md": "MM-040",
-  "projects/magiq-media/plans/WS-31-name-release-after-save/WS-31-name-release-after-save-plan.md": "MM-063",
-  "projects/magiq-media/plans/WS-32b-tier-1-refusal-handlers/WS-32b-tier-1-refusal-handlers-plan.md": "MM-039",
-  "projects/magiq-media/plans/WS-33-replay-cli-aggregates/WS-33-replay-cli-aggregates-plan.md": "MM-067",
-  "projects/magiq-media/plans/WS-34-rebuild-index-cli/WS-34-rebuild-index-cli-plan.md": "MM-068",
-  "projects/magiq-media/plans/WS-35-membership-indexes-one-row/WS-35-membership-indexes-one-row-plan.md": "MM-069",
-  "projects/magiq-media/plans/WS-36b-projection-lag-metric/WS-36b-projection-lag-metric-plan.md": "MM-047",
-  "projects/magiq-media/plans/WS-37-opensearch-external-versioning/WS-37-opensearch-external-versioning-plan.md": "MM-070",
-  "projects/magiq-media/plans/WS-38b-collection-gsi3-write/WS-38b-collection-gsi3-write-plan.md": "MM-045",
-  "projects/magiq-media/plans/WS-39-recordtype-list-index/WS-39-recordtype-list-index-plan.md": "MM-051",
-  "projects/magiq-media/plans/WS-40-createdby-not-ownerid/WS-40-createdby-not-ownerid-plan.md": "MM-050",
-  "projects/magiq-media/plans/WS-41-processingjob-ordinals/WS-41-processingjob-ordinals-plan.md": "MM-052",
-  "projects/magiq-media/plans/WS-42-intra-bc-handlers/WS-42-intra-bc-handlers-plan.md": "MM-062",
-  "projects/magiq-media/plans/WS-43-document-signing-read-model-keys/WS-43-document-signing-read-model-keys-plan.md": "MM-061",
-  "projects/magiq-media/plans/WS-44-bulk-ops-max-assets/WS-44-bulk-ops-max-assets-plan.md": "MM-054",
-  "projects/magiq-media/plans/WS-45-processingjob-uuid-v5/WS-45-processingjob-uuid-v5-plan.md": "MM-053",
-  "projects/magiq-media/plans/WS-46-mediaprofile-snapshot-fields/WS-46-mediaprofile-snapshot-fields-plan.md": "MM-060",
-  "projects/magiq-media/plans/WS-47-platform-profile-immutable/WS-47-platform-profile-immutable-plan.md": "MM-055",
-  "projects/magiq-media/plans/WS-48-registration-id-caller-supplied/WS-48-registration-id-caller-supplied-plan.md": "MM-058",
-  "projects/magiq-media/plans/WS-49-http-actor-cleanup/WS-49-http-actor-cleanup-plan.md": "MM-059",
-  "projects/magiq-media/plans/WS-50-registration-ref-handlers-fail/WS-50-registration-ref-handlers-fail-plan.md": "MM-056",
-  "projects/magiq-media/plans/WS-51-recordtype-conflict-id/WS-51-recordtype-conflict-id-plan.md": "MM-057",
-  "projects/magiq-media/plans/WS-52-searchable-metadata-fields/WS-52-searchable-metadata-fields-plan.md": "MM-071",
-  "projects/magiq-media/plans/WS-53-recordtype-capabilities-removal/WS-53-recordtype-capabilities-removal-plan.md": "MM-065",
-  "projects/magiq-media/plans/WS-54-capability-field-groups/WS-54-capability-field-groups-plan.md": "MM-030",
-  "projects/magiq-media/plans/WS-57b-snapshot-revision-declare/WS-57b-snapshot-revision-declare-plan.md": "MM-081",
-  "projects/magiq-media/plans/WS-58-metrics-export-pipeline/MM-080c-host-registration-plan.md": "MM-201",
-  "projects/magiq-media/plans/WS-61-asset-error-codes/WS-61-asset-error-codes-plan.md": "MM-101",
-  "projects/magiq-media/plans/WS-62-asset-missing-integration-events/WS-62-asset-missing-integration-events-plan.md": "MM-102",
-  "projects/magiq-media/plans/WS-63-asset-missing-routes/WS-63-asset-missing-routes-plan.md": "MM-103",
-  "projects/magiq-media/plans/WS-64-asset-read-model-shape/WS-64-asset-read-model-shape-plan.md": "MM-104",
-  "projects/magiq-media/plans/WS-65-asset-write-model-residuals/WS-65-asset-write-model-residuals-plan.md": "MM-105",
-  "projects/magiq-media/plans/WS-66-asset-endpoint-middleware/WS-66-asset-endpoint-middleware-plan.md": "MM-106",
-  "projects/magiq-media/plans/WS-67-collection-error-codes/WS-67-collection-error-codes-plan.md": "MM-107",
-  "projects/magiq-media/plans/WS-68-collection-archive-cascade-events/WS-68-collection-archive-cascade-events-plan.md": "MM-108",
-  "projects/magiq-media/plans/WS-69-collection-missing-routes/WS-69-collection-missing-routes-plan.md": "MM-109",
-  "projects/magiq-media/plans/WS-70-archive-cascades-table/WS-70-archive-cascades-table-plan.md": "MM-110",
-  "projects/magiq-media/plans/WS-71-collection-write-model-additions/WS-71-collection-write-model-additions-plan.md": "MM-111",
-  "projects/magiq-media/plans/WS-72-collection-endpoint-middleware/WS-72-collection-endpoint-middleware-plan.md": "MM-112",
-  "projects/magiq-media/plans/WS-73-folder-error-codes/WS-73-folder-error-codes-plan.md": "MM-113",
-  "projects/magiq-media/plans/WS-74-folder-closed-integration-event/WS-74-folder-closed-integration-event-plan.md": "MM-114",
-  "projects/magiq-media/plans/WS-75-folder-missing-routes/WS-75-folder-missing-routes-plan.md": "MM-115",
-  "projects/magiq-media/plans/WS-76-folder-write-model-additions/WS-76-folder-write-model-additions-plan.md": "MM-116",
-  "projects/magiq-media/plans/WS-77-folder-endpoint-middleware/WS-77-folder-endpoint-middleware-plan.md": "MM-117",
-  "projects/magiq-media/plans/WS-78-mediaitem-error-codes/WS-78-mediaitem-error-codes-plan.md": "MM-118",
-  "projects/magiq-media/plans/WS-79-mediaitem-missing-integration-events/WS-79-mediaitem-missing-integration-events-plan.md": "MM-119",
-  "projects/magiq-media/plans/WS-80-mediaitem-missing-routes/WS-80-mediaitem-missing-routes-plan.md": "MM-120",
-  "projects/magiq-media/plans/WS-81-mediaitem-gsi-additions/WS-81-mediaitem-gsi-additions-plan.md": "MM-121",
-  "projects/magiq-media/plans/WS-82-mediaitem-write-model-additions/WS-82-mediaitem-write-model-additions-plan.md": "MM-122",
-  "projects/magiq-media/plans/WS-83-mediaitem-endpoint-middleware/WS-83-mediaitem-endpoint-middleware-plan.md": "MM-123",
-  "projects/magiq-media/plans/WS-84-mediaprofile-error-codes/WS-84-mediaprofile-error-codes-plan.md": "MM-124",
-  "projects/magiq-media/plans/WS-85-mediaprofile-missing-routes/WS-85-mediaprofile-missing-routes-plan.md": "MM-125",
-  "projects/magiq-media/plans/WS-86-mediaprofile-write-model-additions/WS-86-mediaprofile-write-model-additions-plan.md": "MM-126",
-  "projects/magiq-media/plans/WS-87-mediaprofile-endpoint-middleware/WS-87-mediaprofile-endpoint-middleware-plan.md": "MM-127",
-  "projects/magiq-media/plans/WS-88-changerequest-error-codes/WS-88-changerequest-error-codes-plan.md": "MM-128",
-  "projects/magiq-media/plans/WS-89-changerequest-lifecycle-events/WS-89-changerequest-lifecycle-events-plan.md": "MM-129",
-  "projects/magiq-media/plans/WS-90-changerequest-missing-routes/WS-90-changerequest-missing-routes-plan.md": "MM-130",
-  "projects/magiq-media/plans/WS-91-changerequest-write-model-additions/WS-91-changerequest-write-model-additions-plan.md": "MM-131",
-  "projects/magiq-media/plans/WS-92-changerequest-endpoint-middleware/WS-92-changerequest-endpoint-middleware-plan.md": "MM-132",
-  "projects/magiq-media/plans/WS-93-recordtype-error-codes/WS-93-recordtype-error-codes-plan.md": "MM-133",
-  "projects/magiq-media/plans/WS-94-recordtype-lifecycle-events/WS-94-recordtype-lifecycle-events-plan.md": "MM-134",
-  "projects/magiq-media/plans/WS-95-recordtype-missing-routes/WS-95-recordtype-missing-routes-plan.md": "MM-135",
-  "projects/magiq-media/plans/WS-96-recordtype-readmodel-history-and-list-index/WS-96-recordtype-readmodel-history-and-list-index-plan.md": "MM-136",
-  "projects/magiq-media/plans/WS-97-recordtype-writemodel-lifecycle-events/WS-97-recordtype-writemodel-lifecycle-events-plan.md": "MM-137",
-  "projects/magiq-media/plans/WS-98-recordtype-middleware-permissions-preconditions/WS-98-recordtype-middleware-permissions-preconditions-plan.md": "MM-138",
-  "projects/magiq-media/plans/WS-99-retentionschedule-error-codes/WS-99-retentionschedule-error-codes-plan.md": "MM-139",
-  "projects/magiq-media/reviews/code-defects/code-defects-review-2026-09-16.md": "MM-202",
-  "projects/magiq-media/reviews/storage-keys/storage-keys-review-2026-09-17.md": "MM-203"
- }
 }

@@ -1,0 +1,20 @@
+# Per-account SSH identities for git inside the tower container (GIT_SSH_COMMAND -F).
+# One alias per GitHub account; tower/ssh/gitconfig maps repo owner -> alias.
+# Keys are mounted read-only from the host in docker-compose.yml, one per account the
+# container is meant to reach — do not mount a key tower has no use for.
+Host github-springbrook
+    HostName github.com
+    User git
+    IdentityFile /run/ssh/id_ed25519_springbrook
+    IdentitiesOnly yes
+    StrictHostKeyChecking accept-new
+    UserKnownHostsFile /tmp/known_hosts
+
+# cramone (personal + magiqsoftware org)
+Host github-cramone
+    HostName github.com
+    User git
+    IdentityFile /run/ssh/id_ed25519_cramone
+    IdentitiesOnly yes
+    StrictHostKeyChecking accept-new
+    UserKnownHostsFile /tmp/known_hosts

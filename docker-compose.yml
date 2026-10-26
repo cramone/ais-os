@@ -34,8 +34,15 @@ services:
     user: "1000:1000"
     env_file:
       - ./.env
+    environment:
+      # Git identity is chosen per repo owner: tower/ssh/gitconfig maps owner -> ssh alias,
+      # tower/ssh/ssh_config maps alias -> key. Tower holds no GitHub API token.
+      GIT_CONFIG_GLOBAL: "/app/tower/ssh/gitconfig"
+      GIT_SSH_COMMAND: "ssh -F /app/tower/ssh/ssh_config -o BatchMode=yes"
     volumes:
       - ".:/app"
+      - "/home/chase/.ssh/id_ed25519_springbrook:/run/ssh/id_ed25519_springbrook:ro"
+      - "/home/chase/.ssh/id_ed25519_cramone:/run/ssh/id_ed25519_cramone:ro"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

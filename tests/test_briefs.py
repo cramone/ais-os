@@ -143,15 +143,12 @@ def test_derive_order():
     assert b.chip == "moved out of area" and "#77" in b.next
 
 
-def test_derive_terminal_and_prs_win():
+def test_derive_terminal_wins():
     b = _brief(); b.status = "superseded"; b.superseded_by = "WG-200"; derive(b)
     assert b.chip == "superseded → WG-200" and b.next == ""
 
-    b = _brief(); b.prs = [{"number": 5, "needsAnswers": True}]; derive(b)
+    b = _brief(); b.open_questions = 2; derive(b)
     assert b.chip == "needs answers"
-
-    b = _brief(); b.prs = [{"number": 5, "needsAnswers": False}]; derive(b)
-    assert b.chip == "brief PR open" and b.next == "merge PR #5"
 
 
 def test_imported_unpushed_brief_asks_for_refresh():

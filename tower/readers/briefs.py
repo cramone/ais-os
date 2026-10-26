@@ -14,7 +14,6 @@ Where the state comes from
                 clones, so it reads the remote. Delete the folder and it is rebuilt.
   board         ADO REST (`AZURE_DEVOPS_PAT` from `.env`): the repo's Epics and Features,
                 matched by `plan-id:` tags (ado-flow conventions § 1, § 6).
-  brief PRs     `gh pr list`, heads `brief/<user>/<ID>-…` (conventions § 12).
 
 The repo's own committed `.claude/ado.json` supplies project, area, prefix, base and
 briefs path, so a project opts in with two lines in its `MEMORY.md`:
@@ -22,8 +21,8 @@ briefs path, so a project opts in with two lines in its `MEMORY.md`:
     **Repo**: Sprbrk-Standard/mgq-magiq-media
     **Brief source**: repo
 
-The mirror fetches over HTTPS with `gh` as git's credential helper — the same login the
-PR reader uses — because the Cortex image has git and gh but no SSH client. Optional:
+The mirror fetches with whatever `**Repo remote**` says; Sprbrk-Standard repos use SSH
+(key set via GIT_SSH_COMMAND). Brief PRs are not read — use the GitHub dashboard. Optional:
 `**Repo remote**: <url>` to fetch from elsewhere (an SSH URL needs `openssh-client` in
 the image), and
 `**Repo base**: develop` when the default branch carries no `.claude/ado.json`.
@@ -178,7 +177,6 @@ class Brief:
     external_requests: list[str]
     files: list[str]
     board: dict[str, Any] = field(default_factory=dict)
-    prs: list[dict[str, Any]] = field(default_factory=list)
     chip: str = ""
     next: str = ""
 
@@ -371,37 +369,13 @@ def read_board(cfg: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return out
 
 
-# --- brief PRs ----------------------------------------------------------------------
-
-
-def read_brief_prs(repo: str) -> dict[str, list[dict[str, Any]]]:
-    r = subprocess.run(["gh", "pr", "list", "--repo", repo, "--state", "open", "--limit", "200",
-                        "--json", "number,title,url,headRefName,author"],
-                       capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
-    if r.returncode != 0:
-        raise RuntimeError(r.stderr.strip() or "gh pr list failed")
-    out: dict[str, list[dict[str, Any]]] = {}
-    for pr in json.loads(r.stdout or "[]"):
-        head = pr.get("headRefName", "")
-        if not head.startswith("brief/"):
-            continue
-        m = re.match(r"([A-Za-z]{2,5}-\d+)-", head.rsplit("/", 1)[-1])
-        if m:
-            out.setdefault(m.group(1).upper(), []).append({
-                "number": pr["number"], "title": pr["title"], "url": pr["url"],
-                "needsAnswers": pr["title"].startswith("[needs-answers]"),
-                "author": (pr.get("author") or {}).get("login"),
-            })
-    return out
-
-
 # --- derivation (pure; unit-tested) ------------------------------------------------------
 
 
 def derive(b: Brief) -> None:
     """Set the status chip and the next command. First match wins; mirrors what
     `/ado-flow:brief status` shows for the same facets."""
-    board, prs = b.board, b.prs
+    board = b.board
     phases = board.get("phases", {}) if board else {}
     live = [p for p in phases.values() if not p["excluded"]]
     done = sum(1 for p in live if p["done"])
@@ -415,10 +389,8 @@ def derive(b: Brief) -> None:
     elif board and board.get("outOfArea"):
         b.chip = "moved out of area"
         b.next = "move #" + ", #".join(str(x["id"]) for x in board["outOfArea"]) + " back"
-    elif any(pr["needsAnswers"] for pr in prs) or b.open_questions:
+    elif b.open_questions:
         b.chip, b.next = "needs answers", f"/ado-flow:brief review {b.id}"
-    elif prs:
-        b.chip, b.next = "brief PR open", "merge PR #" + ", #".join(str(pr["number"]) for pr in prs)
     elif b.revision == 0:
         b.chip, b.next = "no plan yet", f"/ado-flow:brief plan {b.id}"
     elif pushed is None and b.imported:
@@ -441,7 +413,7 @@ def derive(b: Brief) -> None:
 
 
 def read_project_briefs(slug: str, force: bool = False) -> dict[str, Any]:
-    """All briefs of a project with board and PR facets.
+    """All briefs of a project with board facets.
 
     Stale-while-revalidate: within TTL_SECONDS the cached result is returned; past it,
     the stale result is returned at once and a background refresh is started, so a page
@@ -484,13 +456,8 @@ def _build(p: BriefProject) -> dict[str, Any]:
         board = read_board(cfg)
     except Exception as e:
         board, errors["board"] = {}, str(e)
-    try:
-        prs = read_brief_prs(p.repo)
-    except Exception as e:
-        prs, errors["prs"] = {}, str(e)
     for b in briefs:
         b.board = board.get(b.id, {})
-        b.prs = prs.get(b.id, [])
         derive(b)
     rows = [asdict(b) for b in briefs]
     for r in rows:   # JSON keys must be strings

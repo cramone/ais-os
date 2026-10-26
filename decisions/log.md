@@ -447,3 +447,23 @@ unnecessary complexity for Q2.
 **Owner:** Chase Ramone
 
 **Rollback:** `projects/magiq-media/_migrated/README.md` § Rollback. The 7 cdk-magiq-media plans and WS-02a (magiq-auth) stay live in `plans/`.
+
+## 2026-10-26 — Tower: SSH per repo owner, no GitHub API token, PR views dropped, WS tags dropped, infra plans onboarded as MMI briefs
+
+**Project:** magiq-media, mgq-magiq-media-infra (cross-cutting for Tower's GitHub access)
+
+**Decision:**
+- **Git identity is chosen by repo owner, over SSH.** `tower/ssh/gitconfig` maps owner to an ssh alias (`Sprbrk-Standard/` → `github-springbrook`, `magiqsoftware/` and `cramone/` → `github-cramone`); `tower/ssh/ssh_config` maps alias to a key mounted read-only from the host (`docker-compose.yml`). Owners not listed get no key. The host's remotes (this repo, cortex, magiq-auth-serverless) use the same aliases.
+- **Tower holds no GitHub API token.** The global `GH_TOKEN` (the `cramone` PAT) could not see `Sprbrk-Standard`, which is why the briefs mirror failed with "Repository not found". SSH cannot list PRs, so the GitHub PR panel, the Review Queue view, the `/api/github/*` routes and the brief-PR facet (and the "brief PR open" chip) were removed; PR status is read in the GitHub dashboard. This supersedes the 2026-10-26 entry above where it says open brief PRs come from `gh`.
+- **The workstream is no longer a card tag.** `reconcile()` stops adding it and strips it from cards that carry it; `WS-<n>` tags were removed from the magiq-media and magiq-auth-serverless card stores. The workstream folder and front-matter remain (review/plan pairing, archiving).
+- **The 7 cdk-magiq-media plans are briefs in `Sprbrk-Standard/mgq-magiq-media-infra`** (infra PR #107), prefix `MMI`: MM-009=MMI-001, MM-023d=MMI-002, MM-026=MMI-003, MM-027=MMI-004, MM-031=MMI-005, MM-077=MMI-006, MM-080b=MMI-007. References in the magiq-media briefs were rewritten (magiq-media PR #207). Old plans and cards moved to `projects/magiq-media/_migrated/`; Tower reads the infra repo as project `mgq-magiq-media-infra`. This supersedes the earlier "7 cdk-magiq-media plans stay live" note. WS-02a (magiq-auth, MM-025) stays live.
+
+**Why:** A personal token cannot be scoped per org; a key per account can, and git is the only thing Tower needs from GitHub. Tokens were the part that failed, and PR views were the only consumer. Infra plans belong next to the code they plan, like the rest.
+
+**Alternatives considered:** A read-only fine-grained PAT for PR data (rejected — the GitHub dashboard covers it). SSH-only PR inference from `refs/pull/*` (rejected — no title, no open/closed state, loses `[needs-answers]`). Keeping the `MM-` ids for infra briefs (rejected — one shared sequence across two repos).
+
+**Owner:** Chase Ramone
+
+**Rollback:** `git revert` the commit for the code; `projects/magiq-media/_migrated/README.md` § Rollback for the plan moves (their moves are in `manifest.json`, old→new ids under `infra`). Card-store backups sit next to the stores as `*.bak-wstags-*` and `*.bak-infra-*`.
+
+**Open:** the seven MMI briefs are imported as `active` but their logs say the work shipped on 2026-10-15; ADO area path for the infra repo is copied from magiq-media; `plan-id:MM-…` ADO tags for those plans need re-tagging.
